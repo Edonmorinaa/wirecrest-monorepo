@@ -1,0 +1,18 @@
+{
+  "name": "twitter-automation-system",
+  "version": "1.0.0",
+  "description": "Twitter automation system for main-app integration",
+  "type": "module",
+  "main": "automation-flow.js",
+  "scripts": {
+    "start": "node automation-flow.js",
+    "telegram": "node telegram-bot-enhanced.js",
+    "dev": "nodemon automation-flow.js"
+  },
+  "dependencies": {
+    "cron": "^2.4.0",
+    "node-telegram-bot-api": "^0.64.0",
+    "nodemailer": "^6.9.0",
+    "puppeteer-core": "^21.0.0"
+  }
+}

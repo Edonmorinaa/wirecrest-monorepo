@@ -1,0 +1,9 @@
+export { BookingWidgetSummary } from './booking-widget-summary';
+export { BookingAvailable } from './booking-available';
+export { BookingBooked } from './booking-booked';
+export { BookingCheckInWidgets } from './booking-check-in-widgets';
+export { BookingCustomerReviews } from './booking-customer-reviews';
+export { BookingDetails } from './booking-details';
+export { BookingNewest } from './booking-newest';
+export { BookingStatistics } from './booking-statistics';
+export { BookingTotalIncomes } from './booking-total-incomes';

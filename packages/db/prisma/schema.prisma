@@ -1,0 +1,2929 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id                     String               @id @default(uuid())
+  name                   String
+  email                  String               @unique
+  emailVerified          DateTime?
+  password               String?
+  image                  String?
+  superRole              SuperRole            @default(TENANT)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @default(now())
+  invalid_login_attempts Int                  @default(0)
+  lockedAt               DateTime?
+  accounts               Account[]
+  invitations            Invitation[]
+  sessions               Session[]
+  superAdminDashboard    SuperAdminDashboard?
+  teamMembers            TeamMember[]
+}
+
+model Team {
+  id                         String                      @id @default(uuid())
+  name                       String
+  slug                       String                      @unique
+  domain                     String?                     @unique
+  defaultRole                Role                        @default(MEMBER)
+  billingId                  String?
+  billingProvider            String?
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @default(now())
+  apiKeys                    ApiKey[]
+  bookingBusinessProfile     BookingBusinessProfile?
+  businessCreationTasks      BusinessCreationTask[]
+  marketIdentifiers          BusinessMarketIdentifier[]
+  facebookBusinessProfiles   FacebookBusinessProfile?
+  businessProfile            GoogleBusinessProfile?
+  instagramBusinessProfile   InstagramBusinessProfile?
+  invitations                Invitation[]
+  members                    TeamMember[]
+  tiktokBusinessProfile      TikTokBusinessProfile?
+  tripAdvisorBusinessProfile TripAdvisorBusinessProfile?
+  twitterProfiles            TwitterProfile[]
+  twitterProfileConfig       TwitterProfileConfig?
+  twitterAlertKeywords       TwitterAlertKeyword[]
+  twitterAlerts              TwitterAlert[]
+  twitterAlertConfig         TwitterAlertConfig?
+  twitterAlertEngagements    TwitterAlertEngagement[]
+
+  @@index([billingId])
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id             String   @id @default(uuid())
+  teamId         String
+  email          String?
+  role           Role     @default(MEMBER)
+  token          String   @unique
+  expires        DateTime
+  invitedBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  sentViaEmail   Boolean  @default(true)
+  allowedDomains String[] @default([])
+  user           User     @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+  team           Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, email])
+  @@index([email])
+}
+
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  email     String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+}
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  name       String
+  teamId     String
+  hashedKey  String    @unique
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now())
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+}
+
+model Subscription {
+  id         String    @id
+  customerId String
+  priceId    String
+  active     Boolean   @default(false)
+  startDate  DateTime
+  endDate    DateTime
+  cancelAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now())
+
+  @@index([customerId])
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  description String
+  features    String[]
+  image       String
+  name        String
+  created     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  Price       Price[]
+}
+
+model Price {
+  id            String   @id @default(uuid())
+  billingScheme String
+  currency      String
+  serviceId     String
+  amount        Int?
+  metadata      Json
+  type          String
+  created       DateTime
+  service       Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
+
+model GoogleBusinessProfile {
+  id                                 String                  @id @default(uuid())
+  teamId                             String                  @unique
+  placeId                            String?                 @unique
+  displayName                        String?
+  displayNameLanguageCode            String?
+  formattedAddress                   String?
+  shortFormattedAddress              String?
+  plusCode                           Json?
+  businessStatus                     BusinessStatus?
+  types                              String[]                @default([])
+  primaryType                        String?
+  primaryTypeDisplayName             String?
+  primaryTypeDisplayNameLanguageCode String?
+  addressDescriptor                  Json?
+  allowsDogs                         Boolean?                @default(false)
+  nationalPhoneNumber                String?
+  internationalPhoneNumber           String?
+  websiteUri                         String?
+  rating                             Float?
+  userRatingCount                    Int?
+  accessibilityOptions               Json?
+  curbsidePickup                     CurbsidePickup?
+  delivery                           Delivery?
+  dineIn                             DineIn?
+  priceLevel                         PriceLevel?
+  reservable                         Reservable?
+  servesBeer                         ServesBeer?
+  servesBreakfast                    ServesBreakfast?
+  servesBrunch                       ServesBrunch?
+  servesDinner                       ServesDinner?
+  servesLunch                        ServesLunch?
+  servesVegetarianFood               ServesVegetarianFood?
+  servesWine                         ServesWine?
+  takeout                            Takeout?
+  goodForChildren                    Boolean?                @default(false)
+  goodForGroups                      Boolean?                @default(false)
+  goodForWatchingSports              Boolean?                @default(false)
+  liveMusic                          Boolean?                @default(false)
+  menuUri                            String?
+  parkingOptions                     Json?
+  paymentOptions                     Json?
+  restroomType                       String?
+  subDestinations                    String[]                @default([])
+  utcOffsetMinutes                   Int?
+  adrFormatAddress                   String?
+  additionalInfo                     AdditionalInfo?
+  addressComponents                  AddressComponent[]
+  categories                         Category[]
+  metadata                           GoogleBusinessMetadata?
+  team                               Team                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  overview                           GoogleOverview?
+  reviews                            GoogleReview[]          @relation("GoogleBusinessReviews")
+  imageCategories                    ImageCategory[]
+  location                           Location?
+  currentOpeningHours                OpeningHours?           @relation("GoogleProfileCurrentOpeningHours")
+  openingHours                       OpeningHours?           @relation("GoogleProfileOpeningHours")
+  regularOpeningHours                OpeningHours?           @relation("GoogleProfileRegularOpeningHours")
+  photos                             Photo[]
+  popularTimesHistogram              PopularTimesHistogram?
+  questionsAndAnswers                QuestionsAndAnswers?
+  reviewsDistribution                ReviewsDistribution?
+  reviewsTags                        ReviewsTag[]
+
+  @@unique([teamId, placeId], name: "teamId_placeId")
+  @@index([teamId])
+}
+
+model AddressComponent {
+  id                String                @id @default(uuid())
+  businessProfileId String
+  longText          String?
+  shortText         String?
+  types             String[]              @default([])
+  languageCode      String?
+  businessProfile   GoogleBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model Photo {
+  id                 String                @id @default(uuid())
+  businessProfileId  String
+  name               String?
+  widthPx            Int?
+  heightPx           Int?
+  authorAttributions Json?
+  businessProfile    GoogleBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model OpeningHours {
+  id                               String                 @id @default(uuid())
+  profileOpeningHoursId            String?                @unique
+  profileCurrentOpeningHoursId     String?                @unique
+  profileRegularOpeningHoursId     String?                @unique
+  openNow                          Boolean?
+  secondaryHoursType               String?
+  weekdayDescriptions              String[]               @default([])
+  googleProfileCurrentOpeningHours GoogleBusinessProfile? @relation("GoogleProfileCurrentOpeningHours", fields: [profileCurrentOpeningHoursId], references: [id], onDelete: Cascade)
+  googleProfileOpeningHours        GoogleBusinessProfile? @relation("GoogleProfileOpeningHours", fields: [profileOpeningHoursId], references: [id], onDelete: Cascade)
+  googleProfileRegularOpeningHours GoogleBusinessProfile? @relation("GoogleProfileRegularOpeningHours", fields: [profileRegularOpeningHoursId], references: [id], onDelete: Cascade)
+  periods                          Period[]
+  specialHours                     SpecialHour[]
+
+  @@index([profileOpeningHoursId])
+  @@index([profileCurrentOpeningHoursId])
+  @@index([profileRegularOpeningHoursId])
+}
+
+model Period {
+  id             String       @id @default(uuid())
+  openingHoursId String
+  openDay        Int?
+  openHour       Int?
+  openMinute     Int?
+  openDate       DateTime?
+  openTruncated  Boolean?     @default(false)
+  closeDay       Int?
+  closeHour      Int?
+  closeMinute    Int?
+  closeDate      DateTime?
+  closeTruncated Boolean?     @default(false)
+  openingHours   OpeningHours @relation(fields: [openingHoursId], references: [id], onDelete: Cascade)
+
+  @@index([openingHoursId])
+}
+
+model SpecialHour {
+  id             String       @id @default(uuid())
+  openingHoursId String
+  startDate      DateTime?
+  endDate        DateTime?
+  openTime       String?
+  closeTime      String?
+  closed         Boolean?     @default(false)
+  openingHours   OpeningHours @relation(fields: [openingHoursId], references: [id], onDelete: Cascade)
+
+  @@index([openingHoursId])
+}
+
+model Location {
+  id         String                 @id @default(uuid())
+  lat        Float
+  lng        Float
+  businessId String?                @unique
+  business   GoogleBusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model ReviewsDistribution {
+  id         String                 @id @default(uuid())
+  oneStar    Int
+  twoStar    Int
+  threeStar  Int
+  fourStar   Int
+  fiveStar   Int
+  businessId String?                @unique
+  business   GoogleBusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id         String                 @id @default(uuid())
+  name       String
+  businessId String?
+  business   GoogleBusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model ImageCategory {
+  id         String                 @id @default(uuid())
+  name       String
+  businessId String?
+  business   GoogleBusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model PopularTimesHistogram {
+  id         String                 @id @default(uuid())
+  businessId String?                @unique
+  days       Day[]
+  business   GoogleBusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Day {
+  id          String                 @id @default(uuid())
+  name        String
+  histogramId String?
+  histogram   PopularTimesHistogram? @relation(fields: [histogramId], references: [id], onDelete: Cascade)
+  hours       Hour[]
+}
+
+model Hour {
+  id               String  @id @default(uuid())
+  hour             Int
+  occupancyPercent Int
+  dayId            String?
+  day              Day?    @relation(fields: [dayId], references: [id], onDelete: Cascade)
+}
+
+model ReviewsTag {
+  id         String                 @id @default(uuid())
+  title      String
+  count      Int
+  businessId String?
+  business   GoogleBusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model AdditionalInfo {
+  id         String                 @id @default(uuid())
+  businessId String?                @unique
+  business   GoogleBusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  items      AdditionalInfoItem[]
+}
+
+model AdditionalInfoItem {
+  id               String                 @id @default(uuid())
+  name             String
+  value            Boolean
+  category         AdditionalInfoCategory
+  additionalInfoId String?
+  additionalInfo   AdditionalInfo?        @relation(fields: [additionalInfoId], references: [id], onDelete: Cascade)
+}
+
+model QuestionsAndAnswers {
+  id         String                 @id @default(uuid())
+  question   String
+  askDate    String
+  businessId String?                @unique
+  answers    Answer[]
+  business   GoogleBusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Answer {
+  id     String               @id @default(uuid())
+  answer String
+  qaId   String?
+  qa     QuestionsAndAnswers? @relation(fields: [qaId], references: [id], onDelete: Cascade)
+}
+
+model BusinessMarketIdentifier {
+  id         String         @id @default(uuid())
+  teamId     String
+  platform   MarketPlatform
+  identifier String
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @default(now())
+  team       Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, platform], name: "teamId_platform")
+  @@index([teamId])
+  @@index([platform, identifier])
+}
+
+model ReviewMetadata {
+  id                  String             @id @default(uuid())
+  externalId          String
+  source              MarketPlatform
+  author              String
+  authorImage         String?
+  rating              Float
+  text                String?
+  date                DateTime
+  photoCount          Int                @default(0)
+  photoUrls           String[]
+  reply               String?
+  replyDate           DateTime?
+  hasReply            Boolean            @default(false)
+  sentiment           Float?
+  keywords            String[]
+  topics              String[]
+  emotional           String?
+  actionable          Boolean            @default(false)
+  responseUrgency     Int?
+  competitorMentions  String[]
+  comparativePositive Boolean?
+  isRead              Boolean            @default(false)
+  isImportant         Boolean            @default(false)
+  labels              String[]
+  language            String?
+  scrapedAt           DateTime
+  sourceUrl           String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  bookingReview       BookingReview?
+  facebookReview      FacebookReview?
+  googleReview        GoogleReview?
+  tripAdvisorReview   TripAdvisorReview?
+  yelpReview          YelpReview?
+
+  @@unique([externalId, source])
+  @@index([source])
+  @@index([date])
+  @@index([rating])
+  @@index([isRead])
+  @@index([isImportant])
+  @@index([hasReply])
+  @@index([sentiment])
+  @@index([actionable])
+}
+
+model GoogleReview {
+  id                      String                @id @default(uuid())
+  businessProfileId       String
+  reviewMetadataId        String                @unique
+  reviewerId              String
+  reviewerUrl             String
+  name                    String
+  reviewerNumberOfReviews Int
+  isLocalGuide            Boolean
+  reviewerPhotoUrl        String
+  text                    String?
+  textTranslated          String?
+  publishAt               String
+  publishedAtDate         DateTime
+  likesCount              Int
+  reviewUrl               String
+  reviewOrigin            String
+  stars                   Int
+  rating                  Float?
+  responseFromOwnerDate   DateTime?
+  responseFromOwnerText   String?
+  reviewImageUrls         String[]
+  reviewContext           Json?
+  reviewDetailedRating    Json?
+  visitedIn               String?
+  originalLanguage        String?
+  translatedLanguage      String?
+  isAdvertisement         Boolean
+  placeId                 String
+  location                Json
+  address                 String
+  neighborhood            String?
+  street                  String?
+  city                    String?
+  postalCode              String?
+  state                   String?
+  countryCode             String?
+  categoryName            String?
+  categories              String[]
+  title                   String
+  totalScore              Float?
+  permanentlyClosed       Boolean?
+  temporarilyClosed       Boolean?
+  reviewsCount            Int?
+  url                     String?
+  price                   String?
+  cid                     String?
+  fid                     String?
+  imageUrl                String?
+  scrapedAt               DateTime
+  language                String
+  businessProfile         GoogleBusinessProfile @relation("GoogleBusinessReviews", fields: [businessProfileId], references: [id], onDelete: Cascade)
+  reviewMetadata          ReviewMetadata        @relation(fields: [reviewMetadataId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([placeId])
+  @@index([scrapedAt])
+}
+
+model YelpReview {
+  id               String         @id @default(uuid())
+  reviewMetadataId String         @unique
+  reviewMetadata   ReviewMetadata @relation(fields: [reviewMetadataId], references: [id])
+}
+
+model GoogleOverview {
+  id                      String                @id @default(uuid())
+  businessProfileId       String                @unique
+  teamId                  String
+  lastRefreshedAt         DateTime              @updatedAt
+  profileDisplayName      String?
+  profileFormattedAddress String?
+  profileWebsiteUri       String?
+  profileBusinessStatus   String?
+  currentOverallRating    Float?
+  currentTotalReviews     Int?
+  isOpenNow               Boolean?
+  googleBusinessProfile   GoogleBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  periodicalMetrics       PeriodicalMetric[]
+
+  @@index([teamId])
+  @@index([businessProfileId, lastRefreshedAt])
+}
+
+model PeriodicalMetric {
+  id                   String         @id @default(uuid())
+  googleOverviewId     String
+  periodKey            Int
+  periodLabel          String
+  avgRating            Float?
+  reviewCount          Int
+  ratingDistribution   Json?
+  sentimentPositive    Int?
+  sentimentNeutral     Int?
+  sentimentNegative    Int?
+  sentimentTotal       Int?
+  topKeywords          Json?
+  responseRatePercent  Float?
+  avgResponseTimeHours Float?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  overview             GoogleOverview @relation(fields: [googleOverviewId], references: [id], onDelete: Cascade)
+
+  @@unique([googleOverviewId, periodKey])
+  @@index([googleOverviewId])
+}
+
+model GoogleBusinessMetadata {
+  id                     String                @id @default(uuid())
+  businessProfileId      String                @unique
+  updateFrequencyMinutes Int
+  nextUpdateAt           DateTime
+  lastUpdateAt           DateTime
+  isActive               Boolean               @default(true)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  businessProfile        GoogleBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+}
+
+model FacebookBusinessProfile {
+  id                         String                              @id @default(uuid())
+  teamId                     String                              @unique
+  facebookUrl                String
+  pageId                     String                              @unique
+  facebookId                 String                              @unique
+  categories                 String[]                            @default([])
+  info                       String[]                            @default([])
+  likes                      Int                                 @default(0)
+  title                      String
+  pageName                   String
+  pageUrl                    String
+  followers                  Int                                 @default(0)
+  messenger                  String?
+  priceRange                 String?
+  intro                      String?
+  websites                   String[]                            @default([])
+  phone                      String?
+  email                      String?
+  profilePictureUrl          String?
+  coverPhotoUrl              String?
+  profilePhoto               String?
+  creationDate               String?
+  adStatus                   String?
+  aboutMe                    Json?
+  pageAdLibrary              Json?
+  scrapedAt                  DateTime                            @default(now())
+  createdAt                  DateTime                            @default(now())
+  updatedAt                  DateTime                            @updatedAt
+  metadata                   Json?
+  businessMetadata           FacebookBusinessMetadata?
+  team                       Team                                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  overview                   FacebookOverview?
+  recommendationDistribution FacebookRecommendationDistribution?
+  reviews                    FacebookReview[]
+
+  @@unique([facebookUrl, pageId])
+  @@index([teamId, facebookUrl])
+  @@index([pageId])
+  @@index([facebookId])
+}
+
+model FacebookReview {
+  id                String                  @id @default(uuid())
+  businessProfileId String
+  reviewMetadataId  String                  @unique
+  facebookReviewId  String
+  legacyId          String
+  date              DateTime
+  url               String
+  text              String?
+  isRecommended     Boolean
+  userId            String
+  userName          String
+  userProfileUrl    String?
+  userProfilePic    String?
+  likesCount        Int                     @default(0)
+  commentsCount     Int                     @default(0)
+  tags              String[]                @default([])
+  facebookPageId    String
+  pageName          String
+  inputUrl          String
+  pageAdLibrary     Json?
+  scrapedAt         DateTime                @default(now())
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  businessProfile   FacebookBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  reviewMetadata    ReviewMetadata          @relation(fields: [reviewMetadataId], references: [id], onDelete: Cascade)
+  comments          FacebookReviewComment[]
+  photos            FacebookReviewPhoto[]
+
+  @@index([businessProfileId])
+  @@index([businessProfileId, date])
+  @@index([isRecommended])
+  @@index([facebookReviewId])
+}
+
+model FacebookReviewPhoto {
+  id                   String         @id @default(uuid())
+  facebookReviewId     String
+  url                  String
+  imageUri             String
+  height               Int?
+  width                Int?
+  viewerImageUri       String?
+  viewerHeight         Int?
+  viewerWidth          Int?
+  photoId              String
+  accessibilityCaption String?
+  isPlayable           Boolean        @default(false)
+  ownerUserId          String?
+  facebookReview       FacebookReview @relation(fields: [facebookReviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookReviewId])
+}
+
+model FacebookReviewComment {
+  id                  String         @id @default(uuid())
+  facebookReviewId    String
+  commentId           String
+  date                DateTime
+  text                String
+  likesCount          Int            @default(0)
+  commenterName       String?
+  commenterProfileUrl String?
+  commenterProfilePic String?
+  facebookReview      FacebookReview @relation(fields: [facebookReviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookReviewId])
+}
+
+model FacebookOverview {
+  id                         String                              @id @default(uuid())
+  businessProfileId          String                              @unique
+  totalReviews               Int                                 @default(0)
+  recommendedCount           Int                                 @default(0)
+  notRecommendedCount        Int                                 @default(0)
+  recommendationRate         Float                               @default(0)
+  totalLikes                 Int                                 @default(0)
+  totalComments              Int                                 @default(0)
+  totalPhotos                Int                                 @default(0)
+  averageLikesPerReview      Float                               @default(0)
+  averageCommentsPerReview   Float                               @default(0)
+  responseRate               Float?
+  averageResponseTime        Float?
+  engagementScore            Float?
+  viralityScore              Float?
+  lastUpdated                DateTime                            @default(now()) @updatedAt
+  competitorMentions         FacebookCompetitorMention[]
+  contentLength              FacebookContentLength?
+  emotionalAnalysis          FacebookEmotionalAnalysis?
+  keywords                   FacebookKeyword[]
+  businessProfile            FacebookBusinessProfile             @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  facebookPeriodicalMetric   FacebookPeriodicalMetric[]
+  recentReviews              FacebookRecentReview[]
+  recommendationDistribution FacebookRecommendationDistribution?
+  reviewQuality              FacebookReviewQuality?
+  reviewsTrends              FacebookReviewTrend[]
+  seasonalPatterns           FacebookSeasonalPattern[]
+  sentimentAnalysis          FacebookSentimentAnalysis?
+  tags                       FacebookTag[]
+  topics                     FacebookTopic[]
+
+  @@index([businessProfileId])
+}
+
+model FacebookSentimentAnalysis {
+  id                 String           @id @default(uuid())
+  facebookOverviewId String           @unique
+  positive           Int              @default(0)
+  negative           Int              @default(0)
+  neutral            Int              @default(0)
+  overall            Float            @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  facebookOverview   FacebookOverview @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([overall])
+}
+
+model FacebookEmotionalAnalysis {
+  id                 String           @id @default(uuid())
+  facebookOverviewId String           @unique
+  joy                Float            @default(0)
+  anger              Float            @default(0)
+  sadness            Float            @default(0)
+  fear               Float            @default(0)
+  surprise           Float            @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  facebookOverview   FacebookOverview @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([joy])
+  @@index([anger])
+}
+
+model FacebookReviewQuality {
+  id                 String           @id @default(uuid())
+  facebookOverviewId String           @unique
+  detailed           Int              @default(0)
+  brief              Int              @default(0)
+  spam               Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  facebookOverview   FacebookOverview @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([detailed])
+  @@index([spam])
+}
+
+model FacebookContentLength {
+  id                 String           @id @default(uuid())
+  facebookOverviewId String           @unique
+  avgLength          Float            @default(0)
+  shortReviews       Int              @default(0)
+  longReviews        Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  facebookOverview   FacebookOverview @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([avgLength])
+}
+
+model FacebookKeyword {
+  id                         String                    @id @default(uuid())
+  facebookOverviewId         String?
+  facebookPeriodicalMetricId String?
+  keyword                    String
+  count                      Int                       @default(0)
+  sentiment                  Float                     @default(0)
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  facebookOverview           FacebookOverview?         @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+  facebookPeriodicalMetric   FacebookPeriodicalMetric? @relation(fields: [facebookPeriodicalMetricId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([facebookPeriodicalMetricId])
+  @@index([keyword])
+  @@index([count])
+  @@index([sentiment])
+}
+
+model FacebookTag {
+  id                         String                    @id @default(uuid())
+  facebookOverviewId         String?
+  facebookPeriodicalMetricId String?
+  tag                        String
+  count                      Int                       @default(0)
+  sentiment                  Float                     @default(0)
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  facebookOverview           FacebookOverview?         @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+  facebookPeriodicalMetric   FacebookPeriodicalMetric? @relation(fields: [facebookPeriodicalMetricId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([facebookPeriodicalMetricId])
+  @@index([tag])
+  @@index([count])
+  @@index([sentiment])
+}
+
+model FacebookTopic {
+  id                         String                    @id @default(uuid())
+  facebookOverviewId         String?
+  facebookPeriodicalMetricId String?
+  topic                      String
+  count                      Int                       @default(0)
+  keywords                   String[]                  @default([])
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  facebookOverview           FacebookOverview?         @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+  facebookPeriodicalMetric   FacebookPeriodicalMetric? @relation(fields: [facebookPeriodicalMetricId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([facebookPeriodicalMetricId])
+  @@index([topic])
+  @@index([count])
+}
+
+model FacebookCompetitorMention {
+  id                 String           @id @default(uuid())
+  facebookOverviewId String
+  competitor         String
+  count              Int              @default(0)
+  context            String[]         @default([])
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  facebookOverview   FacebookOverview @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([competitor])
+  @@index([count])
+}
+
+model FacebookRecentReview {
+  id                 String           @id @default(uuid())
+  facebookOverviewId String
+  reviewId           String
+  reviewDate         DateTime
+  isRecommended      Boolean
+  sentiment          Float?
+  engagementLevel    String?
+  trendDirection     String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  facebookOverview   FacebookOverview @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([reviewDate])
+  @@index([isRecommended])
+  @@index([sentiment])
+}
+
+model FacebookReviewTrend {
+  id                 String           @id @default(uuid())
+  facebookOverviewId String
+  period             String
+  periodStart        DateTime
+  periodEnd          DateTime
+  reviewCount        Int              @default(0)
+  recommendationRate Float            @default(0)
+  averageEngagement  Float            @default(0)
+  trendDirection     String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  facebookOverview   FacebookOverview @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([periodStart])
+  @@index([periodEnd])
+  @@index([reviewCount])
+}
+
+model FacebookSeasonalPattern {
+  id                    String           @id @default(uuid())
+  facebookOverviewId    String
+  season                String
+  monthNumber           Int?
+  averageReviews        Float            @default(0)
+  averageRecommendation Float            @default(0)
+  averageEngagement     Float            @default(0)
+  pattern               String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  facebookOverview      FacebookOverview @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([facebookOverviewId])
+  @@index([season])
+  @@index([monthNumber])
+  @@index([averageReviews])
+}
+
+model FacebookPeriodicalEmotionalBreakdown {
+  id                         String                   @id @default(uuid())
+  facebookPeriodicalMetricId String                   @unique
+  joy                        Float                    @default(0)
+  anger                      Float                    @default(0)
+  sadness                    Float                    @default(0)
+  fear                       Float                    @default(0)
+  surprise                   Float                    @default(0)
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  facebookPeriodicalMetric   FacebookPeriodicalMetric @relation(fields: [facebookPeriodicalMetricId], references: [id], onDelete: Cascade)
+
+  @@index([facebookPeriodicalMetricId])
+  @@index([joy])
+  @@index([anger])
+}
+
+model FacebookRecommendationDistribution {
+  id                 String                  @id @default(uuid())
+  businessProfileId  String                  @unique
+  facebookOverviewId String                  @unique
+  recommended        Int                     @default(0)
+  notRecommended     Int                     @default(0)
+  highEngagement     Int                     @default(0)
+  mediumEngagement   Int                     @default(0)
+  lowEngagement      Int                     @default(0)
+  withPhotos         Int                     @default(0)
+  withoutPhotos      Int                     @default(0)
+  withTags           Int                     @default(0)
+  withoutTags        Int                     @default(0)
+  lastWeek           Int                     @default(0)
+  lastMonth          Int                     @default(0)
+  lastSixMonths      Int                     @default(0)
+  olderThanSixMonths Int                     @default(0)
+  lastUpdated        DateTime                @default(now()) @updatedAt
+  businessProfile    FacebookBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  facebookOverview   FacebookOverview        @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([facebookOverviewId])
+}
+
+model FacebookBusinessMetadata {
+  id                     String                  @id @default(uuid())
+  businessProfileId      String                  @unique
+  updateFrequencyMinutes Int
+  nextUpdateAt           DateTime
+  lastUpdateAt           DateTime
+  isActive               Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  businessProfile        FacebookBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([nextUpdateAt])
+  @@index([isActive])
+}
+
+model FacebookPeriodicalMetric {
+  id                   String                                @id @default(uuid())
+  facebookOverviewId   String
+  periodKey            Int
+  periodLabel          String
+  recommendedCount     Int                                   @default(0)
+  notRecommendedCount  Int                                   @default(0)
+  recommendationRate   Float                                 @default(0)
+  totalLikes           Int                                   @default(0)
+  totalComments        Int                                   @default(0)
+  totalPhotos          Int                                   @default(0)
+  averageEngagement    Float                                 @default(0)
+  reviewCount          Int                                   @default(0)
+  sentimentPositive    Int?
+  sentimentNeutral     Int?
+  sentimentNegative    Int?
+  sentimentTotal       Int?
+  sentimentScore       Float?
+  responseRatePercent  Float?
+  avgResponseTimeHours Float?
+  engagementRate       Float?
+  viralityIndex        Float?
+  reviewQualityScore   Float?
+  trendDirection       String?
+  growthRate           Float?
+  competitorMentions   Int?
+  createdAt            DateTime                              @default(now())
+  updatedAt            DateTime                              @updatedAt
+  keywords             FacebookKeyword[]
+  emotionalBreakdown   FacebookPeriodicalEmotionalBreakdown?
+  overview             FacebookOverview                      @relation(fields: [facebookOverviewId], references: [id], onDelete: Cascade)
+  tags                 FacebookTag[]
+  topics               FacebookTopic[]
+
+  @@unique([facebookOverviewId, periodKey])
+  @@index([facebookOverviewId])
+  @@index([periodKey])
+  @@index([sentimentScore])
+}
+
+model TripAdvisorBusinessProfile {
+  id                    String                           @id @default(uuid())
+  teamId                String                           @unique
+  tripAdvisorUrl        String                           @unique
+  locationId            String                           @unique
+  name                  String
+  type                  TripAdvisorBusinessType
+  category              String
+  phone                 String?
+  email                 String?
+  website               String?
+  locationString        String?
+  address               String?
+  latitude              Float?
+  longitude             Float?
+  description           String?
+  image                 String?
+  photoCount            Int?
+  rating                Float?
+  rawRanking            Int?
+  rankingPosition       Int?
+  rankingString         String?
+  rankingDenominator    String?
+  numberOfReviews       Int?
+  hotelClass            String?
+  hotelClassAttribution String?
+  priceLevel            String?
+  priceRange            String?
+  checkInDate           String?
+  checkOutDate          String?
+  numberOfRooms         Int?
+  whatsAppRedirectUrl   String?
+  scrapedAt             DateTime
+  createdAt             DateTime                         @default(now())
+  updatedAt             DateTime                         @updatedAt
+  addressObj            TripAdvisorAddress?
+  ancestorLocations     TripAdvisorAncestorLocation[]
+  amenities             TripAdvisorBusinessAmenity[]
+  businessMetadata      TripAdvisorBusinessMetadata?
+  photos                TripAdvisorBusinessPhoto[]
+  team                  Team                             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  reviewTags            TripAdvisorBusinessReviewTag[]
+  roomTips              TripAdvisorBusinessRoomTip[]
+  subcategories         TripAdvisorBusinessSubcategory[]
+  overview              TripAdvisorOverview?
+  ratingDistribution    TripAdvisorRatingDistribution?
+  ratingHistogram       TripAdvisorRatingHistogram?
+  reviews               TripAdvisorReview[]
+
+  @@index([teamId])
+  @@index([locationId])
+  @@index([type])
+  @@index([rating])
+  @@index([numberOfReviews])
+}
+
+model TripAdvisorBusinessSubcategory {
+  id                String                     @id @default(uuid())
+  businessProfileId String
+  subcategory       String
+  businessProfile   TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorBusinessAmenity {
+  id                String                     @id @default(uuid())
+  businessProfileId String
+  amenity           String
+  businessProfile   TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorBusinessReviewTag {
+  id                String                     @id @default(uuid())
+  businessProfileId String
+  text              String
+  reviews           Int                        @default(0)
+  businessProfile   TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorBusinessRoomTip {
+  id                String                     @id @default(uuid())
+  businessProfileId String
+  type              String
+  text              String
+  rating            String
+  reviewId          String
+  tipId             String
+  createdTime       String
+  businessProfile   TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorBusinessPhoto {
+  id                String                     @id @default(uuid())
+  businessProfileId String
+  url               String
+  businessProfile   TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorAncestorLocation {
+  id                String                     @id @default(uuid())
+  businessProfileId String
+  locationId        String
+  name              String
+  abbreviation      String?
+  subcategory       String
+  businessProfile   TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorRatingHistogram {
+  id                String                     @id @default(uuid())
+  businessProfileId String                     @unique
+  count1            Int                        @default(0)
+  count2            Int                        @default(0)
+  count3            Int                        @default(0)
+  count4            Int                        @default(0)
+  count5            Int                        @default(0)
+  businessProfile   TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorAddress {
+  id                String                     @id @default(uuid())
+  businessProfileId String                     @unique
+  street1           String?
+  street2           String?
+  city              String?
+  state             String?
+  country           String?
+  postalcode        String?
+  businessProfile   TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorReview {
+  id                    String                      @id @default(uuid())
+  businessProfileId     String
+  reviewMetadataId      String                      @unique
+  tripAdvisorReviewId   String                      @unique
+  reviewUrl             String?
+  title                 String?
+  text                  String?
+  rating                Int
+  publishedDate         DateTime
+  visitDate             DateTime?
+  reviewerId            String
+  reviewerName          String
+  reviewerLocation      String?
+  reviewerLevel         String?
+  reviewerPhotoUrl      String?
+  helpfulVotes          Int                         @default(0)
+  tripType              TripAdvisorTripType?
+  roomTip               String?
+  responseFromOwnerText String?
+  responseFromOwnerDate DateTime?
+  hasOwnerResponse      Boolean                     @default(false)
+  locationId            String
+  businessName          String?
+  businessType          String?
+  scrapedAt             DateTime
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  businessProfile       TripAdvisorBusinessProfile  @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  reviewMetadata        ReviewMetadata              @relation(fields: [reviewMetadataId], references: [id], onDelete: Cascade)
+  photos                TripAdvisorReviewPhoto[]
+  subRatings            TripAdvisorReviewSubRating?
+  reviewerBadges        TripAdvisorReviewerBadge[]
+
+  @@index([businessProfileId])
+  @@index([tripAdvisorReviewId])
+  @@index([rating])
+  @@index([publishedDate])
+  @@index([tripType])
+  @@index([helpfulVotes])
+}
+
+model TripAdvisorReviewPhoto {
+  id                  String            @id @default(uuid())
+  tripAdvisorReviewId String
+  url                 String
+  caption             String?
+  photoId             String?
+  width               Int?
+  height              Int?
+  photographerId      String?
+  tripAdvisorReview   TripAdvisorReview @relation(fields: [tripAdvisorReviewId], references: [id], onDelete: Cascade)
+
+  @@index([tripAdvisorReviewId])
+}
+
+model TripAdvisorReviewSubRating {
+  id                  String            @id @default(uuid())
+  tripAdvisorReviewId String            @unique
+  service             Int?
+  food                Int?
+  value               Int?
+  atmosphere          Int?
+  cleanliness         Int?
+  location            Int?
+  rooms               Int?
+  sleepQuality        Int?
+  tripAdvisorReview   TripAdvisorReview @relation(fields: [tripAdvisorReviewId], references: [id], onDelete: Cascade)
+
+  @@index([tripAdvisorReviewId])
+}
+
+model TripAdvisorReviewerBadge {
+  id                  String            @id @default(uuid())
+  tripAdvisorReviewId String
+  badge               String
+  tripAdvisorReview   TripAdvisorReview @relation(fields: [tripAdvisorReviewId], references: [id], onDelete: Cascade)
+
+  @@index([tripAdvisorReviewId])
+}
+
+model TripAdvisorOverview {
+  id                          String                         @id @default(uuid())
+  businessProfileId           String                         @unique
+  averageRating               Float?
+  totalReviews                Int                            @default(0)
+  oneStarCount                Int                            @default(0)
+  twoStarCount                Int                            @default(0)
+  threeStarCount              Int                            @default(0)
+  fourStarCount               Int                            @default(0)
+  fiveStarCount               Int                            @default(0)
+  averageServiceRating        Float?
+  averageFoodRating           Float?
+  averageValueRating          Float?
+  averageAtmosphereRating     Float?
+  averageCleanlinessRating    Float?
+  averageLocationRating       Float?
+  averageRoomsRating          Float?
+  averageSleepQualityRating   Float?
+  familyReviews               Int                            @default(0)
+  couplesReviews              Int                            @default(0)
+  soloReviews                 Int                            @default(0)
+  businessReviews             Int                            @default(0)
+  friendsReviews              Int                            @default(0)
+  responseRate                Float?
+  averageResponseTime         Float?
+  currentRanking              Int?
+  rankingDenominator          Int?
+  rankingTrend                TripAdvisorRankingTrend?
+  helpfulVotesTotal           Int                            @default(0)
+  averageHelpfulVotes         Float                          @default(0)
+  lastUpdated                 DateTime                       @default(now()) @updatedAt
+  businessProfile             TripAdvisorBusinessProfile     @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  tripAdvisorPeriodicalMetric TripAdvisorPeriodicalMetric[]
+  ratingDistribution          TripAdvisorRatingDistribution?
+  recentReviews               TripAdvisorRecentReview[]
+  sentimentAnalysis           TripAdvisorSentimentAnalysis?
+  topKeywords                 TripAdvisorTopKeyword[]
+  topTags                     TripAdvisorTopTag[]
+
+  @@index([businessProfileId])
+}
+
+model TripAdvisorSentimentAnalysis {
+  id                    String              @id @default(uuid())
+  tripAdvisorOverviewId String              @unique
+  positiveCount         Int                 @default(0)
+  neutralCount          Int                 @default(0)
+  negativeCount         Int                 @default(0)
+  totalAnalyzed         Int                 @default(0)
+  averageSentiment      Float               @default(0)
+  tripAdvisorOverview   TripAdvisorOverview @relation(fields: [tripAdvisorOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([tripAdvisorOverviewId])
+}
+
+model TripAdvisorTopKeyword {
+  id                    String              @id @default(uuid())
+  tripAdvisorOverviewId String
+  keyword               String
+  count                 Int                 @default(0)
+  tripAdvisorOverview   TripAdvisorOverview @relation(fields: [tripAdvisorOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([tripAdvisorOverviewId])
+}
+
+model TripAdvisorTopTag {
+  id                    String              @id @default(uuid())
+  tripAdvisorOverviewId String
+  tag                   String
+  count                 Int                 @default(0)
+  tripAdvisorOverview   TripAdvisorOverview @relation(fields: [tripAdvisorOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([tripAdvisorOverviewId])
+}
+
+model TripAdvisorRecentReview {
+  id                    String              @id @default(uuid())
+  tripAdvisorOverviewId String
+  reviewId              String
+  rating                Int
+  publishedDate         DateTime
+  text                  String?
+  reviewerName          String
+  tripAdvisorOverview   TripAdvisorOverview @relation(fields: [tripAdvisorOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([tripAdvisorOverviewId])
+}
+
+model TripAdvisorRatingDistribution {
+  id                    String                                     @id @default(uuid())
+  businessProfileId     String                                     @unique
+  tripAdvisorOverviewId String                                     @unique
+  oneStar               Int                                        @default(0)
+  twoStar               Int                                        @default(0)
+  threeStar             Int                                        @default(0)
+  fourStar              Int                                        @default(0)
+  fiveStar              Int                                        @default(0)
+  familyTrips           Int                                        @default(0)
+  couplesTrips          Int                                        @default(0)
+  soloTrips             Int                                        @default(0)
+  businessTrips         Int                                        @default(0)
+  friendsTrips          Int                                        @default(0)
+  lastWeek              Int                                        @default(0)
+  lastMonth             Int                                        @default(0)
+  lastSixMonths         Int                                        @default(0)
+  olderThanSixMonths    Int                                        @default(0)
+  withPhotos            Int                                        @default(0)
+  withoutPhotos         Int                                        @default(0)
+  withRoomTips          Int                                        @default(0)
+  withSubRatings        Int                                        @default(0)
+  lastUpdated           DateTime                                   @default(now()) @updatedAt
+  atmosphereRatings     TripAdvisorAtmosphereRatingDistribution?
+  cleanlinessRatings    TripAdvisorCleanlinessRatingDistribution?
+  foodRatings           TripAdvisorFoodRatingDistribution?
+  locationRatings       TripAdvisorLocationRatingDistribution?
+  businessProfile       TripAdvisorBusinessProfile                 @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  tripAdvisorOverview   TripAdvisorOverview                        @relation(fields: [tripAdvisorOverviewId], references: [id], onDelete: Cascade)
+  roomsRatings          TripAdvisorRoomsRatingDistribution?
+  serviceRatings        TripAdvisorServiceRatingDistribution?
+  sleepQualityRatings   TripAdvisorSleepQualityRatingDistribution?
+  valueRatings          TripAdvisorValueRatingDistribution?
+
+  @@index([businessProfileId])
+  @@index([tripAdvisorOverviewId])
+}
+
+model TripAdvisorServiceRatingDistribution {
+  id                   String                        @id @default(uuid())
+  ratingDistributionId String                        @unique
+  one                  Int                           @default(0)
+  two                  Int                           @default(0)
+  three                Int                           @default(0)
+  four                 Int                           @default(0)
+  five                 Int                           @default(0)
+  ratingDistribution   TripAdvisorRatingDistribution @relation(fields: [ratingDistributionId], references: [id], onDelete: Cascade)
+}
+
+model TripAdvisorFoodRatingDistribution {
+  id                   String                        @id @default(uuid())
+  ratingDistributionId String                        @unique
+  one                  Int                           @default(0)
+  two                  Int                           @default(0)
+  three                Int                           @default(0)
+  four                 Int                           @default(0)
+  five                 Int                           @default(0)
+  ratingDistribution   TripAdvisorRatingDistribution @relation(fields: [ratingDistributionId], references: [id], onDelete: Cascade)
+}
+
+model TripAdvisorValueRatingDistribution {
+  id                   String                        @id @default(uuid())
+  ratingDistributionId String                        @unique
+  one                  Int                           @default(0)
+  two                  Int                           @default(0)
+  three                Int                           @default(0)
+  four                 Int                           @default(0)
+  five                 Int                           @default(0)
+  ratingDistribution   TripAdvisorRatingDistribution @relation(fields: [ratingDistributionId], references: [id], onDelete: Cascade)
+}
+
+model TripAdvisorAtmosphereRatingDistribution {
+  id                   String                        @id @default(uuid())
+  ratingDistributionId String                        @unique
+  one                  Int                           @default(0)
+  two                  Int                           @default(0)
+  three                Int                           @default(0)
+  four                 Int                           @default(0)
+  five                 Int                           @default(0)
+  ratingDistribution   TripAdvisorRatingDistribution @relation(fields: [ratingDistributionId], references: [id], onDelete: Cascade)
+}
+
+model TripAdvisorCleanlinessRatingDistribution {
+  id                   String                        @id @default(uuid())
+  ratingDistributionId String                        @unique
+  one                  Int                           @default(0)
+  two                  Int                           @default(0)
+  three                Int                           @default(0)
+  four                 Int                           @default(0)
+  five                 Int                           @default(0)
+  ratingDistribution   TripAdvisorRatingDistribution @relation(fields: [ratingDistributionId], references: [id], onDelete: Cascade)
+}
+
+model TripAdvisorLocationRatingDistribution {
+  id                   String                        @id @default(uuid())
+  ratingDistributionId String                        @unique
+  one                  Int                           @default(0)
+  two                  Int                           @default(0)
+  three                Int                           @default(0)
+  four                 Int                           @default(0)
+  five                 Int                           @default(0)
+  ratingDistribution   TripAdvisorRatingDistribution @relation(fields: [ratingDistributionId], references: [id], onDelete: Cascade)
+}
+
+model TripAdvisorRoomsRatingDistribution {
+  id                   String                        @id @default(uuid())
+  ratingDistributionId String                        @unique
+  one                  Int                           @default(0)
+  two                  Int                           @default(0)
+  three                Int                           @default(0)
+  four                 Int                           @default(0)
+  five                 Int                           @default(0)
+  ratingDistribution   TripAdvisorRatingDistribution @relation(fields: [ratingDistributionId], references: [id], onDelete: Cascade)
+}
+
+model TripAdvisorSleepQualityRatingDistribution {
+  id                   String                        @id @default(uuid())
+  ratingDistributionId String                        @unique
+  one                  Int                           @default(0)
+  two                  Int                           @default(0)
+  three                Int                           @default(0)
+  four                 Int                           @default(0)
+  five                 Int                           @default(0)
+  ratingDistribution   TripAdvisorRatingDistribution @relation(fields: [ratingDistributionId], references: [id], onDelete: Cascade)
+}
+
+model TripAdvisorBusinessMetadata {
+  id                     String                     @id @default(uuid())
+  businessProfileId      String                     @unique
+  updateFrequencyMinutes Int
+  nextUpdateAt           DateTime
+  lastUpdateAt           DateTime
+  isActive               Boolean                    @default(true)
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  businessProfile        TripAdvisorBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([nextUpdateAt])
+  @@index([isActive])
+}
+
+model TripAdvisorPeriodicalMetric {
+  id                        String                         @id @default(uuid())
+  tripAdvisorOverviewId     String
+  periodKey                 Int
+  periodLabel               String
+  averageRating             Float                          @default(0)
+  oneStarCount              Int                            @default(0)
+  twoStarCount              Int                            @default(0)
+  threeStarCount            Int                            @default(0)
+  fourStarCount             Int                            @default(0)
+  fiveStarCount             Int                            @default(0)
+  reviewCount               Int                            @default(0)
+  averageServiceRating      Float?
+  averageFoodRating         Float?
+  averageValueRating        Float?
+  averageAtmosphereRating   Float?
+  averageCleanlinessRating  Float?
+  averageLocationRating     Float?
+  averageRoomsRating        Float?
+  averageSleepQualityRating Float?
+  familyReviews             Int                            @default(0)
+  couplesReviews            Int                            @default(0)
+  soloReviews               Int                            @default(0)
+  businessReviews           Int                            @default(0)
+  friendsReviews            Int                            @default(0)
+  totalHelpfulVotes         Int                            @default(0)
+  averageHelpfulVotes       Float                          @default(0)
+  reviewsWithPhotos         Int                            @default(0)
+  responseRatePercent       Float?
+  avgResponseTimeHours      Float?
+  sentimentPositive         Int?
+  sentimentNeutral          Int?
+  sentimentNegative         Int?
+  sentimentTotal            Int?
+  sentimentScore            Float?
+  rankingPosition           Int?
+  rankingTrend              TripAdvisorRankingTrend?
+  competitorMentions        Int?
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
+  topKeywords               TripAdvisorPeriodicalKeyword[]
+  overview                  TripAdvisorOverview            @relation(fields: [tripAdvisorOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([tripAdvisorOverviewId])
+  @@index([periodKey])
+  @@index([createdAt])
+}
+
+model TripAdvisorPeriodicalKeyword {
+  id                 String                      @id @default(uuid())
+  periodicalMetricId String
+  keyword            String
+  count              Int                         @default(0)
+  periodicalMetric   TripAdvisorPeriodicalMetric @relation(fields: [periodicalMetricId], references: [id], onDelete: Cascade)
+
+  @@index([periodicalMetricId])
+}
+
+model jackson_store {
+  key           String          @id(map: "_jackson_store_key") @db.VarChar(1500)
+  value         String
+  iv            String?         @db.VarChar(64)
+  tag           String?         @db.VarChar(64)
+  createdAt     DateTime        @default(now()) @db.Timestamp(6)
+  modifiedAt    DateTime?       @db.Timestamp(6)
+  namespace     String?         @db.VarChar(256)
+  jackson_index jackson_index[]
+
+  @@index([namespace], map: "_jackson_store_namespace")
+  @@ignore
+}
+
+model jackson_index {
+  id       Int           @id(map: "_jackson_index_id") @default(autoincrement())
+  key      String        @db.VarChar(1500)
+  storeKey String        @db.VarChar(1500)
+  store    jackson_store @relation(fields: [storeKey], references: [key], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([key], map: "_jackson_index_key")
+  @@index([key, storeKey], map: "_jackson_index_key_store")
+  @@ignore
+}
+
+model jackson_ttl {
+  key       String @id(map: "jackson_ttl_key") @db.VarChar(1500)
+  expiresAt BigInt
+
+  @@index([expiresAt], map: "_jackson_ttl_expires_at")
+  @@ignore
+}
+
+model BusinessCreationTask {
+  id                String                    @id @default(uuid())
+  teamId            String
+  platform          PlatformType
+  status            BusinessCreationStatus    @default(PENDING)
+  currentStep       BusinessCreationStep?
+  googlePlaceId     String?
+  facebookUrl       String?
+  tripAdvisorUrl    String?
+  totalSteps        Int                       @default(5)
+  completedSteps    Int                       @default(0)
+  progressPercent   Float                     @default(0)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  lastActivityAt    DateTime                  @default(now())
+  errorCount        Int                       @default(0)
+  lastError         String?
+  maxRetries        Int                       @default(3)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  createdBy         String?
+  bookingUrl        String?
+  instagramUsername String?
+  tiktokUsername    String?
+  stepLogs          BusinessCreationStepLog[]
+  team              Team                      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  statusMessages    BusinessStatusMessage[]
+
+  @@unique([teamId, platform])
+  @@index([status])
+  @@index([platform])
+  @@index([createdAt])
+}
+
+model BusinessStatusMessage {
+  id                 String                 @id @default(uuid())
+  businessCreationId String
+  step               BusinessCreationStep
+  status             BusinessCreationStatus
+  message            String
+  messageType        String                 @default("info")
+  progressPercent    Float?
+  itemsProcessed     Int?
+  totalItems         Int?
+  metadata           Json?
+  timestamp          DateTime               @default(now())
+  channelId          String?
+  isRead             Boolean                @default(false)
+  businessCreation   BusinessCreationTask   @relation(fields: [businessCreationId], references: [id], onDelete: Cascade)
+
+  @@index([businessCreationId])
+  @@index([timestamp])
+  @@index([channelId])
+}
+
+model BusinessCreationStepLog {
+  id                 String                 @id @default(uuid())
+  businessCreationId String
+  step               BusinessCreationStep
+  status             BusinessCreationStatus
+  startedAt          DateTime               @default(now())
+  completedAt        DateTime?
+  duration           Int?
+  success            Boolean                @default(false)
+  errorMessage       String?
+  result             Json?
+  retryAttempt       Int                    @default(0)
+  businessCreation   BusinessCreationTask   @relation(fields: [businessCreationId], references: [id], onDelete: Cascade)
+
+  @@index([businessCreationId])
+  @@index([step])
+  @@index([startedAt])
+}
+
+model SuperAdminDashboard {
+  id                 String        @id @default(uuid())
+  userId             String        @unique
+  autoRefresh        Boolean       @default(true)
+  refreshInterval    Int           @default(30)
+  showCompletedTasks Boolean       @default(false)
+  defaultPlatform    PlatformType?
+  emailNotifications Boolean       @default(true)
+  slackNotifications Boolean       @default(false)
+  slackWebhookUrl    String?
+  tasksPerPage       Int           @default(25)
+  sortBy             String        @default("lastActivityAt")
+  sortOrder          String        @default("desc")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BookingBusinessProfile {
+  id                     String                     @id @default(uuid())
+  teamId                 String                     @unique
+  bookingUrl             String
+  hotelId                String?
+  name                   String
+  propertyType           BookingPropertyType
+  phone                  String?
+  email                  String?
+  website                String?
+  address                String?
+  city                   String?
+  country                String?
+  district               String?
+  latitude               Float?
+  longitude              Float?
+  description            String?
+  mainImage              String?
+  photoCount             Int                        @default(0)
+  rating                 Float?
+  numberOfReviews        Int                        @default(0)
+  stars                  Int?
+  checkInTime            String?
+  checkOutTime           String?
+  minAge                 Int?
+  maxOccupancy           Int?
+  currency               String?
+  priceFrom              Float?
+  facilitiesList         String[]
+  popularFacilities      String[]
+  languagesSpoken        String[]
+  accessibilityFeatures  String[]
+  sustainabilityPrograms String[]
+  scrapedAt              DateTime
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  businessMetadata       BookingBusinessMetadata?
+  photos                 BookingBusinessPhoto[]
+  team                   Team                       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  facilities             BookingFacility[]
+  overview               BookingOverview?
+  ratingDistribution     BookingRatingDistribution?
+  reviews                BookingReview[]
+  rooms                  BookingRoom[]
+
+  @@index([teamId])
+  @@index([bookingUrl])
+  @@index([propertyType])
+  @@index([rating])
+  @@index([numberOfReviews])
+  @@index([bookingUrl], map: "idx_booking_business_profile_booking_url")
+  @@index([teamId], map: "idx_booking_business_profile_team_id")
+}
+
+model BookingRoom {
+  id                String                 @id @default(uuid())
+  businessProfileId String
+  roomType          String
+  roomName          String?
+  maxOccupancy      Int?
+  roomSize          Float?
+  bedType           String?
+  numberOfBeds      Int?
+  amenities         String[]
+  pricePerNight     Float?
+  currency          String?
+  isAvailable       Boolean?
+  photos            String[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  businessProfile   BookingBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([roomType])
+}
+
+model BookingFacility {
+  id                String                 @id @default(uuid())
+  businessProfileId String
+  category          String
+  name              String
+  description       String?
+  isPopular         Boolean                @default(false)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  businessProfile   BookingBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([category])
+  @@index([isPopular])
+}
+
+model BookingBusinessPhoto {
+  id                String                 @id @default(uuid())
+  businessProfileId String
+  url               String
+  caption           String?
+  category          String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  businessProfile   BookingBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([category])
+}
+
+model BookingReview {
+  id                    String                 @id @default(uuid())
+  businessProfileId     String
+  reviewMetadataId      String                 @unique
+  bookingReviewId       String?
+  title                 String?
+  text                  String?
+  rating                Float
+  publishedDate         DateTime
+  stayDate              DateTime?
+  reviewerId            String?
+  reviewerName          String
+  reviewerNationality   String?
+  lengthOfStay          Int?
+  roomType              String?
+  guestType             BookingGuestType
+  likedMost             String?
+  dislikedMost          String?
+  cleanlinessRating     Float?
+  comfortRating         Float?
+  locationRating        Float?
+  facilitiesRating      Float?
+  staffRating           Float?
+  valueForMoneyRating   Float?
+  wifiRating            Float?
+  responseFromOwnerText String?
+  responseFromOwnerDate DateTime?
+  hasOwnerResponse      Boolean                @default(false)
+  isVerifiedStay        Boolean                @default(false)
+  scrapedAt             DateTime
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  businessProfile       BookingBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  reviewMetadata        ReviewMetadata         @relation(fields: [reviewMetadataId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([rating])
+  @@index([publishedDate])
+  @@index([guestType])
+  @@index([lengthOfStay])
+  @@index([isVerifiedStay])
+  @@index([hasOwnerResponse])
+  @@index([businessProfileId], map: "idx_booking_review_business_profile_id")
+  @@index([publishedDate], map: "idx_booking_review_published_date")
+  @@index([rating], map: "idx_booking_review_rating")
+}
+
+model BookingOverview {
+  id                         String                     @id @default(uuid())
+  businessProfileId          String                     @unique
+  averageRating              Float?
+  totalReviews               Int                        @default(0)
+  oneStarCount               Int                        @default(0)
+  twoStarCount               Int                        @default(0)
+  threeStarCount             Int                        @default(0)
+  fourStarCount              Int                        @default(0)
+  fiveStarCount              Int                        @default(0)
+  averageCleanlinessRating   Float?
+  averageComfortRating       Float?
+  averageLocationRating      Float?
+  averageFacilitiesRating    Float?
+  averageStaffRating         Float?
+  averageValueForMoneyRating Float?
+  averageWifiRating          Float?
+  soloTravelers              Int                        @default(0)
+  couples                    Int                        @default(0)
+  familiesWithYoungChildren  Int                        @default(0)
+  familiesWithOlderChildren  Int                        @default(0)
+  groupsOfFriends            Int                        @default(0)
+  businessTravelers          Int                        @default(0)
+  averageLengthOfStay        Float?
+  shortStays                 Int                        @default(0)
+  mediumStays                Int                        @default(0)
+  longStays                  Int                        @default(0)
+  topNationalities           String[]
+  responseRate               Float?
+  averageResponseTime        Float?
+  mostPopularRoomTypes       String[]
+  peakSeason                 String?
+  offPeakSeason              String?
+  lastUpdated                DateTime                   @default(now())
+  businessProfile            BookingBusinessProfile     @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  bookingPeriodicalMetric    BookingPeriodicalMetric[]
+  ratingDistribution         BookingRatingDistribution?
+  recentReviews              BookingRecentReview[]
+  sentimentAnalysis          BookingSentimentAnalysis?
+  topKeywords                BookingTopKeyword[]
+
+  @@index([businessProfileId])
+  @@index([averageRating])
+  @@index([totalReviews])
+  @@index([lastUpdated])
+}
+
+model BookingRatingDistribution {
+  id                 String                 @id @default(uuid())
+  businessProfileId  String                 @unique
+  bookingOverviewId  String                 @unique
+  oneStar            Int                    @default(0)
+  twoStar            Int                    @default(0)
+  threeStar          Int                    @default(0)
+  fourStar           Int                    @default(0)
+  fiveStar           Int                    @default(0)
+  soloTravelers      Int                    @default(0)
+  couples            Int                    @default(0)
+  families           Int                    @default(0)
+  groups             Int                    @default(0)
+  businessTravelers  Int                    @default(0)
+  shortStays         Int                    @default(0)
+  mediumStays        Int                    @default(0)
+  longStays          Int                    @default(0)
+  lastWeek           Int                    @default(0)
+  lastMonth          Int                    @default(0)
+  lastSixMonths      Int                    @default(0)
+  olderThanSixMonths Int                    @default(0)
+  verifiedStays      Int                    @default(0)
+  unverifiedStays    Int                    @default(0)
+  lastUpdated        DateTime               @default(now())
+  bookingOverview    BookingOverview        @relation(fields: [bookingOverviewId], references: [id], onDelete: Cascade)
+  businessProfile    BookingBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([bookingOverviewId])
+}
+
+model BookingBusinessMetadata {
+  id                     String                 @id @default(uuid())
+  businessProfileId      String                 @unique
+  updateFrequencyMinutes Int                    @default(60)
+  nextUpdateAt           DateTime
+  lastUpdateAt           DateTime
+  isActive               Boolean                @default(true)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  businessProfile        BookingBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([nextUpdateAt])
+  @@index([isActive])
+}
+
+model BookingPeriodicalMetric {
+  id                         String                     @id @default(uuid())
+  bookingOverviewId          String
+  periodKey                  Int
+  periodLabel                String
+  averageRating              Float                      @default(0)
+  oneStarCount               Int                        @default(0)
+  twoStarCount               Int                        @default(0)
+  threeStarCount             Int                        @default(0)
+  fourStarCount              Int                        @default(0)
+  fiveStarCount              Int                        @default(0)
+  reviewCount                Int                        @default(0)
+  averageCleanlinessRating   Float?
+  averageComfortRating       Float?
+  averageLocationRating      Float?
+  averageFacilitiesRating    Float?
+  averageStaffRating         Float?
+  averageValueForMoneyRating Float?
+  averageWifiRating          Float?
+  soloTravelers              Int                        @default(0)
+  couples                    Int                        @default(0)
+  families                   Int                        @default(0)
+  groups                     Int                        @default(0)
+  businessTravelers          Int                        @default(0)
+  averageLengthOfStay        Float?
+  totalNights                Int                        @default(0)
+  responseRatePercent        Float?
+  avgResponseTimeHours       Float?
+  sentimentPositive          Int?
+  sentimentNeutral           Int?
+  sentimentNegative          Int?
+  sentimentTotal             Int?
+  sentimentScore             Float?
+  occupancyRate              Float?
+  competitorMentions         Int?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  topKeywords                BookingPeriodicalKeyword[]
+  overview                   BookingOverview            @relation(fields: [bookingOverviewId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingOverviewId, periodKey])
+  @@index([bookingOverviewId])
+  @@index([periodKey])
+  @@index([createdAt])
+}
+
+model BookingSentimentAnalysis {
+  id                String          @id @default(uuid())
+  bookingOverviewId String          @unique
+  positiveCount     Int             @default(0)
+  neutralCount      Int             @default(0)
+  negativeCount     Int             @default(0)
+  totalAnalyzed     Int             @default(0)
+  averageSentiment  Float           @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  bookingOverview   BookingOverview @relation(fields: [bookingOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([bookingOverviewId])
+}
+
+model BookingTopKeyword {
+  id                String          @id @default(uuid())
+  bookingOverviewId String
+  keyword           String
+  count             Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  bookingOverview   BookingOverview @relation(fields: [bookingOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([bookingOverviewId])
+  @@index([count])
+}
+
+model BookingRecentReview {
+  id                String           @id @default(uuid())
+  bookingOverviewId String
+  reviewId          String
+  rating            Float
+  publishedDate     DateTime
+  text              String?
+  reviewerName      String
+  guestType         BookingGuestType
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  bookingOverview   BookingOverview  @relation(fields: [bookingOverviewId], references: [id], onDelete: Cascade)
+
+  @@index([bookingOverviewId])
+  @@index([publishedDate])
+  @@index([rating])
+}
+
+model BookingPeriodicalKeyword {
+  id                 String                  @id @default(uuid())
+  periodicalMetricId String
+  keyword            String
+  count              Int                     @default(0)
+  periodicalMetric   BookingPeriodicalMetric @relation(fields: [periodicalMetricId], references: [id], onDelete: Cascade)
+
+  @@index([periodicalMetricId])
+}
+
+model InstagramBusinessProfile {
+  id                    String                        @id @default(uuid())
+  teamId                String                        @unique
+  username              String                        @unique
+  userId                String                        @unique
+  profileUrl            String
+  fullName              String?
+  biography             String?
+  website               String?
+  isVerified            Boolean                       @default(false)
+  isBusinessAccount     Boolean                       @default(false)
+  category              String?
+  currentFollowersCount Int?
+  currentFollowingCount Int?
+  currentMediaCount     Int?
+  firstSnapshotAt       DateTime?
+  lastSnapshotAt        DateTime?
+  totalSnapshots        Int                           @default(0)
+  isActive              Boolean                       @default(true)
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
+  contactAddress        String?
+  contactEmail          String?
+  contactPhone          String?
+  team                  Team                          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  analytics             InstagramAnalytics[]
+  commentSnapshots      InstagramCommentSnapshot[]
+  dailySnapshots        InstagramDailySnapshot[]
+  mediaSnapshots        InstagramMediaSnapshot[]
+  monthlyAggregations   InstagramMonthlyAggregation[]
+  snapshotSchedule      InstagramSnapshotSchedule?
+  weeklyAggregations    InstagramWeeklyAggregation[]
+
+  @@index([teamId])
+  @@index([username])
+  @@index([isActive])
+}
+
+model InstagramDailySnapshot {
+  id                String                     @id @default(uuid())
+  businessProfileId String
+  snapshotDate      DateTime
+  snapshotTime      DateTime
+  
+  // Core metrics
+  followersCount    Int
+  followingCount    Int
+  mediaCount        Int
+  
+  // Engagement metrics
+  totalLikes        Int                        @default(0)
+  totalComments     Int                        @default(0)
+  totalViews        Int                        @default(0)
+  totalSaves        Int                        @default(0)
+  totalShares       Int                        @default(0)
+  
+  // Content metrics
+  newPosts          Int                        @default(0)
+  newStories        Int                        @default(0)
+  newReels          Int                        @default(0)
+  storyViews        Int                        @default(0)
+  storyReplies      Int                        @default(0)
+  
+  // Calculated metrics for analytics
+  engagementRate    Float                      @default(0) // (likes + comments + saves + shares) / followers * 100
+  avgLikesPerPost   Float                      @default(0)
+  avgCommentsPerPost Float                     @default(0)
+  commentsRatio     Float                      @default(0) // comments per 100 likes
+  followersRatio    Float                      @default(0) // followers / following
+  
+  // Growth metrics (calculated from previous snapshots)
+  followersGrowth   Int                        @default(0) // delta from previous day
+  followingGrowth   Int                        @default(0) // delta from previous day
+  mediaGrowth       Int                        @default(0) // delta from previous day
+  
+  // Weekly/Monthly context for calculations
+  weeklyFollowersGrowth Int                   @default(0) // delta from 7 days ago
+  monthlyFollowersGrowth Int                  @default(0) // delta from 30 days ago
+  
+  // Additional data
+  topHashtags       Json?
+  hasErrors         Boolean                    @default(false)
+  errorMessage      String?
+  createdAt         DateTime                   @default(now())
+  snapshotType      InstagramSnapshotType
+  commentSnapshots  InstagramCommentSnapshot[]
+  businessProfile   InstagramBusinessProfile   @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  mediaSnapshots    InstagramMediaSnapshot[]
+
+  @@index([businessProfileId])
+  @@index([snapshotDate])
+  @@index([businessProfileId, snapshotDate])
+  @@index([engagementRate])
+  @@index([followersGrowth])
+}
+
+model InstagramMediaSnapshot {
+  id                String                     @id @default(uuid())
+  businessProfileId String
+  dailySnapshotId   String
+  mediaId           String
+  mediaCode         String?
+  caption           String?
+  hashtags          String[]                   @default([])
+  mentions          String[]                   @default([])
+  location          Json?
+  likesCount        Int                        @default(0)
+  commentsCount     Int                        @default(0)
+  viewsCount        Int                        @default(0)
+  savesCount        Int                        @default(0)
+  sharesCount       Int                        @default(0)
+  engagementRate    Float                      @default(0)
+  reachEstimate     Int                        @default(0)
+  publishedAt       DateTime?
+  snapshotAt        DateTime
+  mediaType         InstagramMediaType
+  commentSnapshots  InstagramCommentSnapshot[]
+  businessProfile   InstagramBusinessProfile   @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  dailySnapshot     InstagramDailySnapshot     @relation(fields: [dailySnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([dailySnapshotId])
+  @@index([mediaId])
+}
+
+model InstagramCommentSnapshot {
+  id                String                   @id @default(uuid())
+  businessProfileId String
+  dailySnapshotId   String
+  mediaSnapshotId   String?
+  commentId         String
+  mediaId           String
+  text              String
+  authorUsername    String
+  authorUserId      String
+  likesCount        Int                      @default(0)
+  hasReplies        Boolean                  @default(false)
+  sentiment         Float?
+  keywords          String[]                 @default([])
+  isBusinessReply   Boolean                  @default(false)
+  publishedAt       DateTime?
+  snapshotAt        DateTime
+  businessProfile   InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  dailySnapshot     InstagramDailySnapshot   @relation(fields: [dailySnapshotId], references: [id], onDelete: Cascade)
+  mediaSnapshot     InstagramMediaSnapshot?  @relation(fields: [mediaSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([dailySnapshotId])
+  @@index([sentiment])
+}
+
+model InstagramWeeklyAggregation {
+  id                     String                   @id @default(uuid())
+  businessProfileId      String
+  weekStartDate          DateTime
+  weekEndDate            DateTime
+  year                   Int
+  weekNumber             Int
+  followersGrowth        Int                      @default(0)
+  followersGrowthPercent Float                    @default(0)
+  followingGrowth        Int                      @default(0)
+  followingGrowthPercent Float                    @default(0)
+  mediaGrowth            Int                      @default(0)
+  totalLikes             Int                      @default(0)
+  totalComments          Int                      @default(0)
+  totalViews             Int                      @default(0)
+  totalSaves             Int                      @default(0)
+  totalShares            Int                      @default(0)
+  avgDailyLikes          Float                    @default(0)
+  avgDailyComments       Float                    @default(0)
+  avgDailyViews          Float                    @default(0)
+  bestPerformingPost     Json?
+  topHashtags            Json?
+  sentimentBreakdown     Json?
+  topKeywords            Json?
+  responseRate           Float                    @default(0)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  businessProfile        InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([weekStartDate])
+}
+
+model InstagramMonthlyAggregation {
+  id                     String                   @id @default(uuid())
+  businessProfileId      String
+  monthStartDate         DateTime
+  monthEndDate           DateTime
+  year                   Int
+  month                  Int
+  followersGrowth        Int                      @default(0)
+  followersGrowthPercent Float                    @default(0)
+  followingGrowth        Int                      @default(0)
+  followingGrowthPercent Float                    @default(0)
+  mediaGrowth            Int                      @default(0)
+  totalLikes             Int                      @default(0)
+  totalComments          Int                      @default(0)
+  totalViews             Int                      @default(0)
+  totalSaves             Int                      @default(0)
+  totalShares            Int                      @default(0)
+  avgDailyLikes          Float                    @default(0)
+  avgDailyComments       Float                    @default(0)
+  avgDailyViews          Float                    @default(0)
+  avgEngagementRate      Float                    @default(0)
+  totalPosts             Int                      @default(0)
+  totalStories           Int                      @default(0)
+  totalReels             Int                      @default(0)
+  bestPerformingContent  Json?
+  sentimentBreakdown     Json?
+  topKeywords            Json?
+  responseRate           Float                    @default(0)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  growthTrend            InstagramTrendDirection  @default(STABLE)
+  engagementTrend        InstagramTrendDirection  @default(STABLE)
+  businessProfile        InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([monthStartDate])
+}
+
+model InstagramSnapshotSchedule {
+  id                  String                   @id @default(uuid())
+  businessProfileId   String                   @unique
+  snapshotTime        String                   @default("09:00:00")
+  timezone            String                   @default("UTC")
+  maxRetries          Int                      @default(3)
+  retryDelayMinutes   Int                      @default(5)
+  lastSuccessAt       DateTime?
+  consecutiveFailures Int                      @default(0)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @default(now())
+  isEnabled           Boolean                  @default(false)
+  businessProfile     InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+// Analytics and calculated metrics for frontend consumption
+model InstagramAnalytics {
+  id                String                   @id @default(uuid())
+  businessProfileId String
+  date              DateTime                 @db.Date
+  period            InstagramAnalyticsPeriod @default(DAILY)
+  
+  // Growth metrics
+  followersGrowthRate90d Float               @default(0) // 90-day growth rate percentage
+  steadyGrowthRate      Float               @default(0) // Growth consistency (0-100%)
+  dailyFollowersGrowth   Int                @default(0)
+  weeklyFollowersGrowth  Int                @default(0)
+  monthlyFollowersGrowth Int                @default(0)
+  
+  // Engagement metrics
+  engagementRate         Float              @default(0)
+  weeklyEngagementRate   Float              @default(0) // Cumulative for last 7 days
+  avgLikes               Float              @default(0)
+  avgComments            Float              @default(0)
+  commentsRatio          Float              @default(0) // Comments per 100 likes
+  weeklyPosts            Int                @default(0)
+  
+  // Ratios and relationships
+  followersRatio         Float              @default(0) // Followers / Following
+  
+  // Predictions (for growth charts)
+  predictedFollowers     Int?
+  growthTrend           InstagramTrendDirection @default(STABLE)
+  
+  // Calculated at
+  calculatedAt          DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  
+  businessProfile       InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([businessProfileId, date, period])
+  @@index([businessProfileId])
+  @@index([date])
+  @@index([period])
+  @@index([followersGrowthRate90d])
+  @@index([engagementRate])
+}
+
+model TikTokBusinessProfile {
+  id                String                  @id @default(uuid())
+  teamId            String                  @unique
+  username          String                  @unique
+  nickname          String?
+  avatarUrl         String?
+  signature         String?
+  followerCount     Int                     @default(0)
+  followingCount    Int                     @default(0)
+  heartCount        Int                     @default(0)
+  videoCount        Int                     @default(0)
+  diggCount         Int                     @default(0)
+  verified          Boolean                 @default(false)
+  privateAccount    Boolean                 @default(false)
+  isBusinessAccount Boolean                 @default(false)
+  category          String?
+  contactEmail      String?
+  contactPhone      String?
+  website           String?
+  location          String?
+  isActive          Boolean                 @default(true)
+  lastSnapshotAt    DateTime?
+  totalSnapshots    Int                     @default(0)
+  firstSnapshotAt   DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @default(now()) @updatedAt
+  team              Team                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  commentSnapshots  TikTokCommentSnapshot[]
+  dailySnapshots    TikTokDailySnapshot[]
+  snapshotSchedule  TikTokSnapshotSchedule?
+  videoSnapshots    TikTokVideoSnapshot[]
+
+  @@index([teamId])
+  @@index([username])
+}
+
+model TwitterProfile {
+  id                    String   @id @default(uuid())
+  teamId                String
+  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  username              String
+  displayName           String
+  bio                   String?
+  profileUrl            String
+  verified              Boolean  @default(false)
+  followersCount        Int      @default(0)
+  followingCount        Int      @default(0)
+  tweetsCount           Int      @default(0)
+  profileImageUrl       String?
+  customBio             String?
+  isActive              Boolean  @default(true)
+  lastSyncAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  tweets                TwitterTweet[]
+
+  @@unique([teamId, username])
+  @@index([teamId])
+  @@index([username])
+}
+
+model TwitterProfileConfig {
+  id                    String   @id @default(uuid())
+  teamId                String   @unique
+  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Profile Management Settings
+  maxProfiles           Int      @default(5)
+  allowProfileCreation  Boolean  @default(true)
+  allowProfileDeletion  Boolean  @default(true)
+  allowProfileRefresh   Boolean  @default(true)
+  
+  // Sync Settings
+  autoSyncEnabled       Boolean  @default(false)
+  syncIntervalHours     Int      @default(24)
+  lastAutoSync          DateTime?
+  
+  // Tweet Settings
+  maxTweetsPerProfile   Int      @default(10)
+  includeReplies        Boolean  @default(false)
+  includeRetweets       Boolean  @default(false)
+  includeMediaOnly      Boolean  @default(false)
+  
+  // Notification Settings
+  notifyOnNewTweets     Boolean  @default(false)
+  notifyOnProfileUpdate Boolean  @default(false)
+  notificationChannels  String[] @default([]) // ['email', 'slack', 'webhook']
+  
+  // Custom Bio Settings
+  allowCustomBios       Boolean  @default(true)
+  requireApproval       Boolean  @default(false)
+  
+  // Advanced Settings
+  customApifyConfig     Json?    // Team-specific Apify configuration
+  rateLimitPerHour      Int      @default(100)
+  rateLimitPerDay       Int      @default(1000)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([teamId])
+}
+
+model TwitterTweet {
+  id                    String   @id @default(uuid())
+  profileId             String
+  profile               TwitterProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tweetId               String
+  text                  String
+  url                   String
+  likes                 Int      @default(0)
+  retweets              Int      @default(0)
+  replies               Int      @default(0)
+  hasMedia              Boolean  @default(false)
+  mediaUrls             String[] @default([])
+  tweetCreatedAt        DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([tweetCreatedAt])
+}
+
+// Twitter Alerts System Models
+model TwitterAlertKeyword {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  keyword     String
+  enabled     Boolean  @default(true)
+  priority    String   @default("medium") // 'high', 'medium', 'low'
+  maxTweets   Int      @default(5)
+  totalFound  Int      @default(0)
+  lastFound   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  alerts      TwitterAlert[]
+
+  @@unique([teamId, keyword])
+  @@index([teamId])
+  @@index([keyword])
+}
+
+model TwitterAlert {
+  id              String   @id @default(uuid())
+  teamId          String
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  keywordId       String
+  keyword         TwitterAlertKeyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  
+  // Tweet Information
+  tweetId         String
+  tweetText       String
+  author          String
+  authorHandle    String
+  authorVerified  Boolean  @default(false)
+  tweetUrl        String
+  imageCount      Int      @default(0)
+  hasCard         Boolean  @default(false)
+  
+  // Engagement Data
+  likes           Int      @default(0)
+  retweets        Int      @default(0)
+  replies         Int      @default(0)
+  
+  // Timestamps
+  tweetTimestamp  DateTime
+  scrapedAt       DateTime @default(now())
+  
+  // Status
+  status          String   @default("new") // 'new', 'processed', 'ignored'
+  alertSent       Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  actions         TwitterAlertAction[]
+
+  @@index([teamId])
+  @@index([keywordId])
+  @@index([status])
+  @@index([tweetTimestamp])
+}
+
+model TwitterAlertAction {
+  id              String   @id @default(uuid())
+  alertId         String
+  alert           TwitterAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  
+  // Action Details
+  actionType      String   // 'like', 'retweet', 'comment', 'ai_comment'
+  completed       Boolean  @default(false)
+  profileId       String?  // Twitter profile that performed the action
+  profileName     String?
+  commentText     String?  // For comment actions
+  commentUrl      String?  // URL to the posted comment
+  
+  // Engagement Tracking
+  engagementBefore Json?   // { likes: number, retweets: number, replies: number }
+  engagementAfter  Json?   // { likes: number, retweets: number, replies: number }
+  
+  // Error Handling
+  errorMessage    String?
+  retryCount      Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([alertId])
+  @@index([actionType])
+  @@index([completed])
+  @@index([createdAt])
+}
+
+model TwitterAlertConfig {
+  id                    String   @id @default(uuid())
+  teamId                String   @unique
+  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Apify Configuration
+  apifyApiToken         String?
+  apifyBaseUrl          String   @default("https://api.apify.com/v2")
+  apifyActorId          String   @default("jupri~twitter-scraper")
+  twitterAuthToken      String?
+  
+  // Scraper Settings
+  searchMode            String   @default("live") // 'live', 'recent', 'top'
+  maxTweets             Int      @default(5)
+  maxRequestRetries     Int      @default(3)
+  addUserInfo           Boolean  @default(true)
+  maxConcurrency        Int      @default(1)
+  
+  // Monitoring Settings
+  autoScanEnabled       Boolean  @default(false)
+  scanIntervalMinutes   Int      @default(30)
+  lastScan              DateTime?
+  nextScan              DateTime?
+  
+  // Status
+  apifyStatus           String   @default("disconnected") // 'connected', 'disconnected', 'error'
+  scanStatus            String   @default("stopped") // 'running', 'stopped', 'error'
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([teamId])
+}
+
+model TwitterAlertEngagement {
+  id              String   @id @default(uuid())
+  teamId          String
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Action Details
+  actionType      String   // 'like', 'retweet', 'comment'
+  profileId       String
+  profileName     String?
+  alertId         String?  // Reference to the original alert
+  keyword         String?  // Keyword that triggered the alert
+  
+  // Tweet Information
+  tweetText       String?
+  tweetUrl        String?
+  
+  // Engagement Data
+  success         Boolean  @default(false)
+  errorMessage    String?
+  
+  // Custom Comment (for comment actions)
+  customComment   String?
+  isAI            Boolean  @default(false)
+  commentUrl      String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([teamId])
+  @@index([actionType])
+  @@index([profileId])
+  @@index([createdAt])
+}
+
+model TikTokDailySnapshot {
+  id                String                  @id @default(uuid())
+  businessProfileId String
+  snapshotDate      DateTime                @db.Date
+  snapshotTime      DateTime
+  snapshotType      TikTokSnapshotType
+  followerCount     Int                     @default(0)
+  followingCount    Int                     @default(0)
+  heartCount        Int                     @default(0)
+  videoCount        Int                     @default(0)
+  diggCount         Int                     @default(0)
+  totalLikes        Int                     @default(0)
+  totalComments     Int                     @default(0)
+  totalShares       Int                     @default(0)
+  totalViews        Int                     @default(0)
+  totalDownloads    Int                     @default(0)
+  newVideos         Int                     @default(0)
+  newComments       Int                     @default(0)
+  hasErrors         Boolean                 @default(false)
+  errorMessage      String?
+  createdAt         DateTime                @default(now())
+  commentSnapshots  TikTokCommentSnapshot[]
+  businessProfile   TikTokBusinessProfile   @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  videoSnapshots    TikTokVideoSnapshot[]
+
+  @@index([businessProfileId])
+  @@index([snapshotDate])
+  @@index([snapshotType])
+}
+
+model TikTokSnapshotSchedule {
+  id                String                @id @default(uuid())
+  businessProfileId String                @unique
+  isEnabled         Boolean               @default(false)
+  snapshotTime      String                @default("09:00:00")
+  timezone          String                @default("UTC")
+  maxRetries        Int                   @default(3)
+  retryDelayMinutes Int                   @default(5)
+  lastSnapshotAt    DateTime?
+  nextSnapshotAt    DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @default(now()) @updatedAt
+  businessProfile   TikTokBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+  @@index([isEnabled])
+}
+
+model TikTokVideoSnapshot {
+  id                String                @id @default(uuid())
+  dailySnapshotId   String
+  businessProfileId String
+  videoId           String
+  description       String?
+  createTime        DateTime?
+  videoUrl          String?
+  coverUrl          String?
+  duration          Int?
+  width             Int?
+  height            Int?
+  playCount         Int                   @default(0)
+  diggCount         Int                   @default(0)
+  commentCount      Int                   @default(0)
+  shareCount        Int                   @default(0)
+  downloadCount     Int                   @default(0)
+  hashtags          String[]
+  mentions          String[]
+  isAd              Boolean               @default(false)
+  isPrivate         Boolean               @default(false)
+  isDownloadable    Boolean               @default(true)
+  createdAt         DateTime              @default(now())
+  businessProfile   TikTokBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  dailySnapshot     TikTokDailySnapshot   @relation(fields: [dailySnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([dailySnapshotId])
+  @@index([videoId])
+}
+
+model TikTokCommentSnapshot {
+  id                String                @id @default(uuid())
+  dailySnapshotId   String
+  businessProfileId String
+  videoId           String
+  commentId         String
+  text              String?
+  authorUserId      String?
+  authorUsername    String?
+  authorNickname    String?
+  authorAvatarUrl   String?
+  authorVerified    Boolean               @default(false)
+  createTime        DateTime?
+  likeCount         Int                   @default(0)
+  replyCount        Int                   @default(0)
+  isReply           Boolean               @default(false)
+  parentCommentId   String?
+  sentiment         Float?
+  keywords          String[]
+  createdAt         DateTime              @default(now())
+  businessProfile   TikTokBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  dailySnapshot     TikTokDailySnapshot   @relation(fields: [dailySnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([dailySnapshotId])
+  @@index([videoId])
+  @@index([commentId])
+}
+
+enum Role {
+  ADMIN
+  OWNER
+  MEMBER
+}
+
+enum SuperRole {
+  ADMIN
+  SUPPORT
+  TENANT
+}
+
+enum AccessibilityOptionsWheelchairAccessibleEntrance {
+  WHEELCHAIR_ACCESSIBLE
+  NOT_WHEELCHAIR_ACCESSIBLE
+}
+
+enum BusinessStatus {
+  OPERATIONAL
+  CLOSED_TEMPORARILY
+  CLOSED_PERMANENTLY
+}
+
+enum CurbsidePickup {
+  CURBSIDE_PICKUP_AVAILABLE
+  NO_CURBSIDE_PICKUP
+}
+
+enum Delivery {
+  DELIVERY_AVAILABLE
+  NO_DELIVERY
+}
+
+enum DineIn {
+  DINE_IN_AVAILABLE
+  NO_DINE_IN
+}
+
+enum PriceLevel {
+  FREE
+  INEXPENSIVE
+  MODERATE
+  EXPENSIVE
+  VERY_EXPENSIVE
+}
+
+enum Reservable {
+  RESERVABLE
+  NOT_RESERVABLE
+}
+
+enum ServesBeer {
+  SERVES_BEER
+  NO_BEER
+}
+
+enum ServesBreakfast {
+  SERVES_BREAKFAST
+  NO_BREAKFAST
+}
+
+enum ServesBrunch {
+  SERVES_BRUNCH
+  NO_BRUNCH
+}
+
+enum ServesDinner {
+  SERVES_DINNER
+  NO_DINNER
+}
+
+enum ServesLunch {
+  SERVES_LUNCH
+  NO_LUNCH
+}
+
+enum ServesVegetarianFood {
+  SERVES_VEGETARIAN_FOOD
+  NO_VEGETARIAN_FOOD
+}
+
+enum ServesWine {
+  SERVES_WINE
+  NO_WINE
+}
+
+enum Takeout {
+  TAKEOUT_AVAILABLE
+  NO_TAKEOUT
+}
+
+enum AdditionalInfoCategory {
+  SERVICE_OPTIONS
+  HIGHLIGHTS
+  POPULAR_FOR
+  ACCESSIBILITY
+  OFFERINGS
+  DINING_OPTIONS
+  ATMOSPHERE
+  CROWD
+  PLANNING
+  PAYMENTS
+  CHILDREN
+  PARKING
+}
+
+enum MarketPlatform {
+  GOOGLE_MAPS
+  FACEBOOK
+  YELP
+  TRIPADVISOR
+  INSTAGRAM
+  BOOKING
+  TIKTOK
+}
+
+enum InstagramMediaType {
+  PHOTO
+  VIDEO
+  CAROUSEL
+  REEL
+}
+
+enum InstagramSnapshotType {
+  DAILY
+  MANUAL
+  INITIAL
+}
+
+enum InstagramTrendDirection {
+  INCREASING
+  DECREASING
+  STABLE
+}
+
+enum TripAdvisorBusinessType {
+  HOTEL
+  RESTAURANT
+  ATTRACTION
+  OTHER
+}
+
+enum TripAdvisorRankingTrend {
+  IMPROVING
+  DECLINING
+  STABLE
+}
+
+enum TripAdvisorTripType {
+  FAMILY
+  COUPLES
+  SOLO
+  BUSINESS
+  FRIENDS
+  NONE
+}
+
+enum BusinessCreationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum BusinessCreationStep {
+  CREATING_IDENTIFIER
+  CREATING_PROFILE
+  FETCHING_REVIEWS
+  CREATING_OVERVIEW
+  CREATING_METADATA
+  FETCHING_SNAPSHOTS
+}
+
+enum PlatformType {
+  GOOGLE
+  FACEBOOK
+  TRIPADVISOR
+  BOOKING
+  INSTAGRAM
+  TIKTOK
+}
+
+enum BookingPropertyType {
+  HOTEL
+  APARTMENT
+  HOSTEL
+  GUEST_HOUSE
+  HOMESTAY
+  BED_AND_BREAKFAST
+  HOLIDAY_HOME
+  BOAT
+  VILLA
+  MOTEL
+  RESORT
+  HOLIDAY_PARK
+  CAMPSITE
+  LUXURY_TENT
+  OTHER
+}
+
+enum BookingGuestType {
+  SOLO
+  COUPLE
+  FAMILY_WITH_YOUNG_CHILDREN
+  FAMILY_WITH_OLDER_CHILDREN
+  GROUP_OF_FRIENDS
+  BUSINESS
+  OTHER
+}
+
+enum TikTokSnapshotType {
+  DAILY
+  MANUAL
+  INITIAL
+}
+
+enum InstagramAnalyticsPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}

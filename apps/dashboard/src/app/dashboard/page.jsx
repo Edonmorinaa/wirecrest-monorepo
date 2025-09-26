@@ -1,0 +1,34 @@
+import { redirect } from 'next/navigation';
+import { getTeamsList } from 'src/actions/teams';
+import { TeamDashboardView } from 'src/sections/team/view/team-dashboard-view';
+import { getSession } from '@wirecrest/auth/server';
+import { getSubdomainUrl } from 'src/lib/subdomain-config';
+
+// ----------------------------------------------------------------------
+
+export const metadata = { title: `Dashboard` };
+
+export default async function DashboardPage() {
+  // Check authentication on server side
+  const session = await getSession();
+  if (!session?.user?.id) {
+    redirect(getSubdomainUrl('auth', '/sign-in'));
+  }
+
+  let teams = [];
+  
+  try {
+    teams = await getTeamsList();
+  } catch (error) {
+    console.error('Failed to fetch teams:', error);
+    teams = [];
+  }
+
+  // If user has teams, redirect to the first one
+  if (teams.length > 0) {
+    redirect(`/dashboard/teams/${teams[0].slug}`);
+  }
+
+  // If no teams, show the dashboard view which will show create team option
+  return <TeamDashboardView teams={teams} />;
+}

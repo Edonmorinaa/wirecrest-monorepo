@@ -1,0 +1,53 @@
+{
+  "name": "@wirecrest/auth",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./client": {
+      "types": "./src/client.ts",
+      "default": "./src/client.ts"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "default": "./src/server.ts"
+    },
+    "./route": {
+      "types": "./src/route.ts",
+      "default": "./src/route.ts"
+    }
+  },
+  "packageManager": "yarn@4.0.2",
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "@wirecrest/db": "workspace:^",
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "crypto": "^1.0.1",
+    "minimal-shared": "^1.0.0",
+    "next-auth": "^5.0.0-beta.25",
+    "zod": "^3.22.0"
+  },
+  "peerDependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "typescript": "^5.2.0"
+  },
+  "scripts": {
+    "build": "echo 'No build step required for auth package'",
+    "dev": "echo 'No dev step required for auth package'",
+    "lint": "echo 'No lint step required for auth package'",
+    "clean": "echo 'No clean step required for auth package'",
+    "type-check": "echo 'No type-check step required for auth package'"
+  }
+}
