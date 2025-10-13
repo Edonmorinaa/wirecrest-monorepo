@@ -1,21 +1,20 @@
+import app from '@/lib/app';
 import React, { ReactNode } from 'react';
 import {
-  Body,
-  Container,
   Hr,
   Img,
+  Body,
+  Text,
   Section,
   Tailwind,
-  Text,
+  Container,
 } from '@react-email/components';
-import app from '@/lib/app';
 
 interface EmailLayoutProps {
   children: ReactNode;
 }
 
-const EmailLayout = ({ children }: EmailLayoutProps) => {
-  return (
+const EmailLayout = ({ children }: EmailLayoutProps) => (
     <Tailwind
       config={{
         theme: {
@@ -47,6 +46,5 @@ const EmailLayout = ({ children }: EmailLayoutProps) => {
       </Body>
     </Tailwind>
   );
-};
 
 export default EmailLayout;

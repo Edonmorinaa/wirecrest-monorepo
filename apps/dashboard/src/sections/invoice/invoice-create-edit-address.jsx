@@ -3,17 +3,14 @@ import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
-import { _addressBooks } from 'src/_mock';
-
 import { Iconify } from 'src/components/iconify';
 
-import { AddressListDialog } from '../address';
+import { TeamsAddressListDialog } from './address/teams-address-list-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -29,7 +26,6 @@ export function InvoiceCreateEditAddress() {
   const values = watch();
 
   const addressTo = useBoolean();
-  const addressForm = useBoolean();
 
   const { invoiceFrom, invoiceTo } = values;
 
@@ -50,16 +46,14 @@ export function InvoiceCreateEditAddress() {
             <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
               From:
             </Typography>
-
-            <IconButton onClick={addressForm.onTrue}>
-              <Iconify icon="solar:pen-bold" />
-            </IconButton>
           </Box>
 
           <Stack spacing={1}>
-            <Typography variant="subtitle2">{invoiceFrom?.name}</Typography>
-            <Typography variant="body2">{invoiceFrom?.fullAddress}</Typography>
-            <Typography variant="body2"> {invoiceFrom?.phoneNumber}</Typography>
+            <Typography variant="subtitle2">Wirecrest Inc.</Typography>
+            <Typography variant="body2">123 Business Ave, Suite 100</Typography>
+            <Typography variant="body2">San Francisco, CA 12345, USA</Typography>
+            <Typography variant="body2">+1-555-0123</Typography>
+            <Typography variant="body2">billing@wirecrest.com</Typography>
           </Stack>
         </Stack>
 
@@ -77,8 +71,14 @@ export function InvoiceCreateEditAddress() {
           {invoiceTo ? (
             <Stack spacing={1}>
               <Typography variant="subtitle2">{invoiceTo?.name}</Typography>
-              <Typography variant="body2">{invoiceTo?.fullAddress}</Typography>
-              <Typography variant="body2"> {invoiceTo?.phoneNumber}</Typography>
+              <Typography variant="body2" sx={{ color: 'primary.main' }}>
+                @{invoiceTo?.slug}
+              </Typography>
+              <Typography variant="body2">
+                {invoiceTo?.address}, {invoiceTo?.city}, {invoiceTo?.state} {invoiceTo?.zipCode}
+              </Typography>
+              <Typography variant="body2">{invoiceTo?.phoneNumber}</Typography>
+              <Typography variant="body2">{invoiceTo?.email}</Typography>
             </Stack>
           ) : (
             <Typography typography="caption" sx={{ color: 'error.main' }}>
@@ -88,40 +88,12 @@ export function InvoiceCreateEditAddress() {
         </Stack>
       </Stack>
 
-      <AddressListDialog
-        title="Customers"
-        open={addressForm.value}
-        onClose={addressForm.onFalse}
-        selected={(selectedId) => invoiceFrom?.id === selectedId}
-        onSelect={(address) => setValue('invoiceFrom', address)}
-        list={_addressBooks}
-        action={
-          <Button
-            size="small"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            sx={{ alignSelf: 'flex-end' }}
-          >
-            Add
-          </Button>
-        }
-      />
-
-      <AddressListDialog
-        title="Customers"
+      <TeamsAddressListDialog
+        title="Select Customer (Team)"
         open={addressTo.value}
         onClose={addressTo.onFalse}
         selected={(selectedId) => invoiceTo?.id === selectedId}
-        onSelect={(address) => setValue('invoiceTo', address)}
-        list={_addressBooks}
-        action={
-          <Button
-            size="small"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            sx={{ alignSelf: 'flex-end' }}
-          >
-            Add
-          </Button>
-        }
+        onSelect={(team) => setValue('invoiceTo', team)}
       />
     </>
   );

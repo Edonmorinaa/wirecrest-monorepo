@@ -1,4 +1,5 @@
 import { getApiKeyById } from '@/models/apiKey';
+
 import { ApiError } from '../errors';
 
 export const throwIfNoAccessToApiKey = async (apiKeyId: string, teamId: string) => {

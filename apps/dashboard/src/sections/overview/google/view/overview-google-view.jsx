@@ -1,47 +1,42 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
-
+import useTeam from '@/hooks/useTeam';
 import { useParams } from 'next/navigation';
+import { useTeamSlug } from '@/hooks/use-subdomain';
+import { useRef, useMemo, useState, useEffect } from 'react';
+import useGoogleBusinessProfile from '@/hooks/useGoogleBusinessProfile';
 
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
-import Grid from '@mui/material/Grid';
-import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
+import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
+import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
 import { useTheme } from '@mui/material/styles';
+import AlertTitle from '@mui/material/AlertTitle';
+import CardHeader from '@mui/material/CardHeader';
+import Typography from '@mui/material/Typography';
+import CardContent from '@mui/material/CardContent';
 
 import { paths } from 'src/routes/paths';
 
-
-import { Iconify } from 'src/components/iconify';
-
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import useGoogleBusinessProfile from '@/hooks/useGoogleBusinessProfile';
-import useTeam from '@/hooks/useTeam';
-import { useTeamSlug } from '@/hooks/use-subdomain';
+import { Iconify } from 'src/components/iconify';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { GoogleMap } from '../google-map';
+import { GoogleTopKeywords } from '../google-top-keywords';
+import { GoogleBusinessInfo } from '../google-business-info';
+import { GoogleRecentReviews } from '../google-recent-reviews';
 import { GoogleOverviewWelcome } from '../google-overview-welcome';
 import { GoogleMetricsOverview } from '../google-metrics-overview';
-import { GoogleRatingDistribution } from '../google-rating-distribution';
 import { GoogleSentimentAnalysis } from '../google-sentiment-analysis';
-import { GoogleBusinessInfo } from '../google-business-info';
-import { GoogleMap } from '../google-map';
-import { GoogleOpeningHours } from '../google-opening-hours';
-import { GoogleRecentReviews } from '../google-recent-reviews';
-import { GoogleTopKeywords } from '../google-top-keywords';
+import { GoogleRatingDistribution } from '../google-rating-distribution';
 
 // Time period options for metrics
 const TIME_PERIODS = [

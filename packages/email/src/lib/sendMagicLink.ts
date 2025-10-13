@@ -1,12 +1,12 @@
 import { render } from '@react-email/render';
-import { sendEmail, SMTPClient, getAppConfig } from '@/core';
-import MagicLink from '@/templates/MagicLink';
+import { sendEmail, getAppConfig } from '../core';
+import MagicLink from '../templates/MagicLink';
 
 /**
  * Send magic link email for authentication
  */
 export const sendMagicLink = async (
-  smtpClient: SMTPClient,
+
   email: string,
   url: string
 ): Promise<void> => {
@@ -15,7 +15,7 @@ export const sendMagicLink = async (
 
   const html = await render(MagicLink({ url, subject }));
 
-  await sendEmail(smtpClient, {
+  await sendEmail({
     to: email,
     subject,
     html,

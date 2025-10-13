@@ -1,5 +1,5 @@
 import { prisma } from '@wirecrest/db';
-import { BusinessMarketIdentifier, MarketPlatform } from '@prisma/client';
+import { MarketPlatform, BusinessMarketIdentifier } from '@prisma/client';
 
 // Helper function to delete Google Business Profile when identifier changes
 const deleteAssociatedGoogleProfile = async (teamId: string, oldIdentifier?: string) => {
@@ -87,8 +87,7 @@ export const createBusinessMarketIdentifier = async (
   });
 };
 
-export const getBusinessMarketIdentifier = async (teamId: string, platform: MarketPlatform) => {
-  return await prisma.businessMarketIdentifier.findUnique({
+export const getBusinessMarketIdentifier = async (teamId: string, platform: MarketPlatform) => await prisma.businessMarketIdentifier.findUnique({
     where: {
       teamId_platform: {
         teamId,
@@ -96,12 +95,9 @@ export const getBusinessMarketIdentifier = async (teamId: string, platform: Mark
       },
     },
   });
-};
 
-export const getAllBusinessMarketIdentifiers = async (teamId: string) => {
-  return await prisma.businessMarketIdentifier.findMany({
+export const getAllBusinessMarketIdentifiers = async (teamId: string) => await prisma.businessMarketIdentifier.findMany({
     where: {
       teamId,
     },
   });
-};

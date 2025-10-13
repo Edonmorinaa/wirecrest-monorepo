@@ -1,5 +1,7 @@
-import useSWR, { mutate } from 'swr';
 import type { ApiResponse, TeamWithMemberCount } from 'src/types';
+
+import useSWR, { mutate } from 'swr';
+
 import fetcher from 'src/lib/fetcher';
 
 const useTeams = () => {

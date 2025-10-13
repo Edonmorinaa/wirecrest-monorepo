@@ -1,28 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Play, Pause, Settings, Bot, MessageSquare, Calendar, Users, Heart, Repeat, X, User, Bell } from 'lucide-react';
+import { Bot, Play, User, Bell, Pause, Users, Heart, Repeat, Settings, Calendar, MessageSquare } from 'lucide-react';
 
 import {
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Chip,
-  Tabs,
   Tab,
   Box,
+  Card,
+  Chip,
+  Tabs,
   Alert,
+  Stack,
+  Button,
   Dialog,
+  TextField,
+  Typography,
+  CardContent,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  CircularProgress,
-  Grid,
-  Stack
+  CircularProgress
 } from '@mui/material';
 
 interface AutomationTask {

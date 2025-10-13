@@ -5,16 +5,14 @@ import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Rating from '@mui/material/Rating';
+import Avatar from '@mui/material/Avatar';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
-import Avatar from '@mui/material/Avatar';
 import LinearProgress from '@mui/material/LinearProgress';
-import Divider from '@mui/material/Divider';
 
 import { Iconify } from 'src/components/iconify';
 import { Chart, useChart } from 'src/components/chart';

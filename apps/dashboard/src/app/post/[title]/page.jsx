@@ -1,7 +1,5 @@
-import { kebabCase } from 'es-toolkit';
 
 import { CONFIG } from 'src/global-config';
-import axios, { endpoints } from 'src/lib/axios';
 import { getPost, getLatestPosts } from 'src/actions/blog-ssr';
 
 import { PostDetailsHomeView } from 'src/sections/blog/view';

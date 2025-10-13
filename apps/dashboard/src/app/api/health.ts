@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '@wirecrest/db';
+import { NextResponse } from 'next/server';
 
 // import packageInfo from '../../package.json';
 

@@ -1,5 +1,6 @@
 import { GoogleReview, ReviewMetadata, GoogleBusinessProfile } from '@prisma/client';
 import { prisma } from '@wirecrest/db';
+import { sendNotification } from '../utils/notificationHelper';
 import { randomUUID } from 'crypto';
 
 // Define specific types for reviews with metadata for clarity in functions
@@ -134,6 +135,12 @@ export class GoogleReviewAnalyticsService {
             console.log(`    Keywords: ${review.reviewMetadata.keywords?.length || 0}`);
           }
         });
+
+      // Fetch existing overview to compare for rating changes
+      const existingOverview = await prisma.googleOverview.findUnique({
+        where: { businessProfileId },
+        select: { averageRating: true, totalReviews: true }
+      });
         
         // Show oldest and newest review dates
         const reviewDates = allReviews.map(r => new Date(r.publishedAtDate)).sort((a, b) => a.getTime() - b.getTime());
@@ -287,6 +294,47 @@ export class GoogleReviewAnalyticsService {
         }
       } else {
         console.warn(`[Analytics] No periodical metrics to upsert - this shouldn't happen unless there are no reviews`);
+      }
+
+      // Check for rating changes and send notifications
+      if (existingOverview) {
+        const currentRating = allTimeMetricsForSnapshot.avgRating || 0;
+        const previousRating = existingOverview.averageRating || 0;
+        const ratingDrop = previousRating - currentRating;
+        
+        if (ratingDrop >= 0.5) {
+          await sendNotification({
+            type: 'project',
+            scope: 'team',
+            teamId: businessProfile.teamId,
+            title: `<p>Rating dropped by <strong>${ratingDrop.toFixed(1)}</strong> stars</p>`,
+            category: 'Analytics',
+            metadata: {
+              businessProfileId,
+              oldRating: previousRating,
+              newRating: currentRating,
+              platform: 'GOOGLE_MAPS'
+            },
+            expiresInDays: 14
+          });
+        }
+        
+        // Review milestone notifications
+        const milestones = [50, 100, 250, 500, 1000];
+        const currentTotal = allTimeMetricsForSnapshot.reviewCount;
+        const previousTotal = existingOverview.totalReviews || 0;
+        
+        if (milestones.includes(currentTotal) && currentTotal !== previousTotal) {
+          await sendNotification({
+            type: 'tags',
+            scope: 'team',
+            teamId: businessProfile.teamId,
+            title: `<p>🎉 Milestone reached: <strong>${currentTotal}</strong> reviews!</p>`,
+            category: 'Milestone',
+            metadata: { businessProfileId, milestone: currentTotal },
+            expiresInDays: 30
+          });
+        }
       }
 
       console.log(`[Analytics] Successfully processed reviews and updated (normalized) PERIODICAL dashboard for ${businessProfileId}`);

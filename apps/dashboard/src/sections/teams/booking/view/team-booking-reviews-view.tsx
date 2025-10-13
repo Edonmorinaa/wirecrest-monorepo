@@ -1,8 +1,8 @@
 'use client';
 
+import { useTeamSlug } from '@/hooks/use-subdomain';
 import { lazy, useMemo, Suspense, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useTeamSlug } from '@/hooks/use-subdomain';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -14,8 +14,8 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import useTeam from 'src/hooks/useTeam';
-import { useTeamBookingData } from 'src/hooks/use-team-booking-data';
 import { useBookingReviews } from 'src/hooks/use-booking-reviews';
+import { useTeamBookingData } from 'src/hooks/use-team-booking-data';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 

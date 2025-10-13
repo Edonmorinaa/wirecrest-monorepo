@@ -1,13 +1,13 @@
 import { render } from '@react-email/render';
-import { sendEmail, SMTPClient, getAppConfig } from '@/core';
-import ResetPasswordEmail from '@/templates/ResetPassword';
-import { User } from '@/types/email';
+import { sendEmail, getAppConfig } from '../core';
+import ResetPasswordEmail from '../templates/ResetPassword';
+import { User } from '../types/email';
 
 /**
  * Send password reset email
  */
 export const sendPasswordResetEmail = async (
-  smtpClient: SMTPClient,
+
   user: User,
   token: string
 ): Promise<void> => {
@@ -19,9 +19,9 @@ export const sendPasswordResetEmail = async (
     ResetPasswordEmail({ url, subject, email: user.email })
   );
 
-  await sendEmail(smtpClient, {
+  await sendEmail({
     to: user.email,
     subject,
     html,
-  });
+  }); 
 };

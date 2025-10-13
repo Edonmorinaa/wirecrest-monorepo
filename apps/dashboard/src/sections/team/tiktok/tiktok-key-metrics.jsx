@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
+
 import Grid from '@mui/material/Grid';
 
-import { AnalyticsWidgetSummary } from 'src/sections/overview/analytics/analytics-widget-summary';
-import { Iconify } from 'src/components/iconify';
 import useTikTokBusinessProfile from 'src/hooks/useTikTokBusinessProfile';
+
+import { Iconify } from 'src/components/iconify';
+
+import { AnalyticsWidgetSummary } from 'src/sections/overview/analytics/analytics-widget-summary';
 
 // ----------------------------------------------------------------------
 

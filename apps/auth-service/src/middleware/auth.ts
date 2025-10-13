@@ -36,6 +36,9 @@ export async function validateSession(
     if (!token?.user || !(token.user as { id?: string }).id) {
       throw new ApiError(401, 'Unauthorized - Invalid or expired session');
     }
+
+    console.log("REQ", req)
+    console.log("RES", res)
     
     // Attach user information to request object
     req.user = {

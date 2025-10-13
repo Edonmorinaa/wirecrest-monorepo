@@ -1,9 +1,12 @@
-import fetcher from 'src/lib/fetcher';
-import { Team, BusinessMarketIdentifier } from '@prisma/client';
-import { useParams } from 'next/navigation';
-import useSWR from 'swr';
 import type { ApiResponse } from 'src/types';
+
+import useSWR from 'swr';
 import { useAuth } from '@wirecrest/auth';
+import { useParams } from 'next/navigation';
+import { Team, BusinessMarketIdentifier } from '@prisma/client';
+
+import fetcher from 'src/lib/fetcher';
+
 import { useTeamSlug } from './use-subdomain';
 
 export type TeamWithMarketIdentifiers = Team & {

@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation';
-import { getTeamsList } from 'src/actions/teams';
-import { TeamDashboardView } from 'src/sections/team/view/team-dashboard-view';
 import { getSession } from '@wirecrest/auth/server';
+
+import { getTeamsList } from 'src/actions/teams';
 import { getSubdomainUrl } from 'src/lib/subdomain-config';
+
+import { TeamDashboardView } from 'src/sections/team/view/team-dashboard-view';
 
 // ----------------------------------------------------------------------
 

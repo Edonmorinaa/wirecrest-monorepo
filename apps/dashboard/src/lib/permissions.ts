@@ -1,11 +1,12 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from '@wirecrest/auth/server';
 import { prisma } from '@wirecrest/db';
+import { getSession } from '@wirecrest/auth/server';
+import { NextApiRequest, NextApiResponse } from 'next';
+
 import { ApiError } from 'src/lib/errors';
 
+export { permissions, availableRoles } from './permissions-client';
 // Re-export client-safe types and constants
 export type { Action, Resource, Permission } from './permissions-client';
-export { availableRoles, permissions } from './permissions-client';
 
 /**
  * Helper function to check if user is a superrole admin (API route version)

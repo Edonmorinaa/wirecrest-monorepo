@@ -1,32 +1,30 @@
 import { z } from 'zod';
+
 import { slugify } from '../server-common';
 import {
+  slug,
+  role,
+  name,
+  email,
+  token,
+  image,
+  domain,
+  teamId,
+  domains,
+  priceId,
   teamName,
   apiKeyId,
-  slug,
-  domain,
-  email,
   password,
-  token,
-  role,
-  sentViaEmail,
-  domains,
-  expiredToken,
-  sessionId,
-  recaptchaToken,
-  priceId,
   quantity,
   memberId,
+  sessionId,
   inviteToken,
-  url,
-  endpointId,
-  sentViaEmailString,
+  sentViaEmail,
+  expiredToken,
   invitationId,
-  name,
-  image,
-  eventTypes,
+  recaptchaToken,
   marketPlatform,
-  teamId
+  sentViaEmailString
 } from './primitives';
 
 export const createApiKeySchema = z.object({
@@ -180,7 +178,7 @@ export const deleteMemberSchema = z.object({
 //   });
 
 export const createBusinessMarketIndetifiersSchema = z.object({
-  teamId: teamId,
+  teamId,
   platform: marketPlatform,
   identifier: z.string().min(1)
 });

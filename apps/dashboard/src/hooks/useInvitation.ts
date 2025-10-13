@@ -1,8 +1,10 @@
-import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
-import { useRouter } from 'next/router';
 import type { ApiResponse } from 'src/types';
-import { Invitation, Team } from '@prisma/client';
+
+import useSWR from 'swr';
+import { useRouter } from 'next/router';
+import { Team, Invitation } from '@prisma/client';
+
+import fetcher from 'src/lib/fetcher';
 
 type Response = ApiResponse<Invitation & { team: Team }>;
 

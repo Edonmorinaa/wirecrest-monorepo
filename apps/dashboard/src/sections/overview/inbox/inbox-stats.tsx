@@ -1,5 +1,6 @@
-import { Box, Card, CardContent, Grid, Typography, SxProps, Theme } from '@mui/material';
-import { MessageSquare, Mail, Star, Reply, TrendingUp, BarChart3 } from 'lucide-react';
+import { Mail, Star, Reply, BarChart3, TrendingUp, MessageSquare } from 'lucide-react';
+
+import { Box, Card, Grid, Theme, SxProps, Typography, CardContent } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

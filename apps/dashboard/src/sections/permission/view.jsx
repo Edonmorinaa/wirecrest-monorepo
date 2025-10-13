@@ -13,9 +13,8 @@ import { paths } from 'src/routes/paths';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-
 import { RoleGuard } from 'src/components/guards';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 // ----------------------------------------------------------------------
 

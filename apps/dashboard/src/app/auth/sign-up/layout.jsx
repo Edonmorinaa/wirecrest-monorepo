@@ -1,4 +1,5 @@
 import { AuthSplitLayout } from 'src/layouts/auth-split';
+
 import { AuthGuard } from 'src/components/guards';
 
 // ----------------------------------------------------------------------

@@ -1,6 +1,5 @@
 // import { useEffect } from 'react';
 import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
 // import { supabase, REALTIME_CHANNELS, REALTIME_EVENTS } from 'src/lib/supabase';
 import { getTenants } from '@/actions/tenants';
 

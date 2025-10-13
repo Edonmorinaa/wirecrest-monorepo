@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { 
-  generateBookingResponse,
-  generateFacebookResponse, 
+  type ReviewData,
   generateGoogleResponse, 
-  generateTripAdvisorResponse, 
-  type ReviewData 
+  generateBookingResponse, 
+  generateFacebookResponse, 
+  generateTripAdvisorResponse 
 } from 'src/lib/openai';
 
 export async function POST(request: NextRequest) {

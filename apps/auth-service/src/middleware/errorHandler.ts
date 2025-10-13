@@ -28,6 +28,13 @@ export function errorHandler(
   next: NextFunction
 ): void {
   console.error('Error in auth-service:', err);
+  console.error('Error stack:', err.stack);
+  console.error('Request details:', {
+    method: req.method,
+    url: req.url,
+    body: req.body,
+    headers: req.headers
+  });
 
   if (err instanceof ApiError) {
     res.status(err.statusCode).json({
@@ -43,7 +50,8 @@ export function errorHandler(
       success: false,
       error: {
         message: 'Internal server error',
-        statusCode: 500
+        statusCode: 500,
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
       }
     });
   }

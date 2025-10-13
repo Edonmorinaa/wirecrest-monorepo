@@ -1,7 +1,7 @@
 import { 
   ChartDataPoint,
-  InstagramDailySnapshot, 
-  CalculationResult 
+  CalculationResult, 
+  InstagramDailySnapshot 
 } from '@/types/instagram-analytics';
 
 /**

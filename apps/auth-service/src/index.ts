@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -20,7 +21,9 @@ app.use(cors({
     'https://*.wirecrest.com',
     'https://www.wirecrest.com',
     'http://localhost:3000',
-    'http://localhost:3001'
+    'http://localhost:3001',
+    'http://localhost:3032',
+    'http://auth.wirecrest.local:3032'
   ],
   credentials: true
 }));
@@ -37,6 +40,7 @@ app.use(express.json());
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  console.log('Health check endpoint hit');
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),

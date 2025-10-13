@@ -1,0 +1,402 @@
+{
+  "description": "Stripe Products Configuration for Wirecrest Billing System",
+  "instructions": "Create these products and prices manually in your Stripe Dashboard",
+  "products": [
+    {
+      "tier": "FREE",
+      "name": "Free Plan",
+      "description": "Perfect for getting started with basic review management",
+      "type": "service",
+      "active": true,
+      "metadata": {
+        "tier": "FREE",
+        "sortOrder": "1",
+        "highlighted": "false",
+        "popular": "false"
+      },
+      "prices": [
+        {
+          "type": "recurring",
+          "unit_amount": 0,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Free Plan - Monthly",
+          "metadata": {
+            "priceType": "base",
+            "billingInterval": "month"
+          }
+        }
+      ],
+      "features": [
+        "google_reviews",
+        "facebook_reviews",
+        "basic_analytics",
+        "email_notifications"
+      ],
+      "limits": {
+        "includedSeats": 1,
+        "includedLocations": 1,
+        "includedRefreshes": 10,
+        "maxApiCalls": 1000
+      }
+    },
+    {
+      "tier": "STARTER",
+      "name": "Starter Plan",
+      "description": "Ideal for small businesses looking to grow their online presence",
+      "type": "service",
+      "active": true,
+      "metadata": {
+        "tier": "STARTER",
+        "sortOrder": "2",
+        "highlighted": "false",
+        "popular": "true"
+      },
+      "prices": [
+        {
+          "type": "recurring",
+          "unit_amount": 2900,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Starter Plan - Monthly",
+          "metadata": {
+            "priceType": "base",
+            "billingInterval": "month"
+          }
+        },
+        {
+          "type": "recurring",
+          "unit_amount": 29000,
+          "currency": "usd",
+          "recurring": {
+            "interval": "year"
+          },
+          "nickname": "Starter Plan - Yearly",
+          "metadata": {
+            "priceType": "base",
+            "billingInterval": "year"
+          }
+        }
+      ],
+      "features": [
+        "google_reviews",
+        "facebook_reviews",
+        "tripadvisor_reviews",
+        "basic_analytics",
+        "advanced_analytics",
+        "automation",
+        "real_time_alerts",
+        "email_notifications",
+        "api_access",
+        "multi_location"
+      ],
+      "limits": {
+        "includedSeats": 3,
+        "includedLocations": 3,
+        "includedRefreshes": 50,
+        "maxApiCalls": 10000
+      },
+      "additionalPrices": [
+        {
+          "type": "recurring",
+          "unit_amount": 1000,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Additional Seat - Monthly",
+          "metadata": {
+            "priceType": "additional_seat",
+            "billingInterval": "month"
+          }
+        },
+        {
+          "type": "recurring",
+          "unit_amount": 500,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Additional Location - Monthly",
+          "metadata": {
+            "priceType": "additional_location",
+            "billingInterval": "month"
+          }
+        }
+      ]
+    },
+    {
+      "tier": "PROFESSIONAL",
+      "name": "Professional Plan",
+      "description": "Advanced features for growing businesses and agencies",
+      "type": "service",
+      "active": true,
+      "metadata": {
+        "tier": "PROFESSIONAL",
+        "sortOrder": "3",
+        "highlighted": "false",
+        "popular": "false"
+      },
+      "prices": [
+        {
+          "type": "recurring",
+          "unit_amount": 7900,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Professional Plan - Monthly",
+          "metadata": {
+            "priceType": "base",
+            "billingInterval": "month"
+          }
+        },
+        {
+          "type": "recurring",
+          "unit_amount": 79000,
+          "currency": "usd",
+          "recurring": {
+            "interval": "year"
+          },
+          "nickname": "Professional Plan - Yearly",
+          "metadata": {
+            "priceType": "base",
+            "billingInterval": "year"
+          }
+        }
+      ],
+      "features": [
+        "google_reviews",
+        "facebook_reviews",
+        "tripadvisor_reviews",
+        "booking_reviews",
+        "yelp_reviews",
+        "basic_analytics",
+        "advanced_analytics",
+        "instagram_analytics",
+        "tiktok_analytics",
+        "automation",
+        "real_time_alerts",
+        "twitter_automation",
+        "email_notifications",
+        "api_access",
+        "custom_integrations",
+        "webhook_support",
+        "bulk_operations",
+        "multi_location",
+        "priority_support",
+        "ai_sentiment_analysis",
+        "advanced_filtering",
+        "export_data",
+        "scheduled_reports"
+      ],
+      "limits": {
+        "includedSeats": 10,
+        "includedLocations": 10,
+        "includedRefreshes": 200,
+        "maxApiCalls": 50000
+      },
+      "additionalPrices": [
+        {
+          "type": "recurring",
+          "unit_amount": 800,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Additional Seat - Monthly",
+          "metadata": {
+            "priceType": "additional_seat",
+            "billingInterval": "month"
+          }
+        },
+        {
+          "type": "recurring",
+          "unit_amount": 400,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Additional Location - Monthly",
+          "metadata": {
+            "priceType": "additional_location",
+            "billingInterval": "month"
+          }
+        }
+      ]
+    },
+    {
+      "tier": "ENTERPRISE",
+      "name": "Enterprise Plan",
+      "description": "Complete solution for large organizations with custom needs",
+      "type": "service",
+      "active": true,
+      "metadata": {
+        "tier": "ENTERPRISE",
+        "sortOrder": "4",
+        "highlighted": "true",
+        "popular": "false"
+      },
+      "prices": [
+        {
+          "type": "recurring",
+          "unit_amount": 19900,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Enterprise Plan - Monthly",
+          "metadata": {
+            "priceType": "base",
+            "billingInterval": "month"
+          }
+        },
+        {
+          "type": "recurring",
+          "unit_amount": 199000,
+          "currency": "usd",
+          "recurring": {
+            "interval": "year"
+          },
+          "nickname": "Enterprise Plan - Yearly",
+          "metadata": {
+            "priceType": "base",
+            "billingInterval": "year"
+          }
+        }
+      ],
+      "features": [
+        "google_reviews",
+        "facebook_reviews",
+        "tripadvisor_reviews",
+        "booking_reviews",
+        "yelp_reviews",
+        "basic_analytics",
+        "advanced_analytics",
+        "instagram_analytics",
+        "tiktok_analytics",
+        "custom_reporting",
+        "automation",
+        "real_time_alerts",
+        "twitter_automation",
+        "email_notifications",
+        "api_access",
+        "custom_integrations",
+        "webhook_support",
+        "bulk_operations",
+        "multi_location",
+        "white_label",
+        "priority_support",
+        "dedicated_support",
+        "ai_sentiment_analysis",
+        "advanced_filtering",
+        "export_data",
+        "scheduled_reports",
+        "team_management",
+        "billing_management",
+        "user_roles",
+        "audit_logs"
+      ],
+      "limits": {
+        "includedSeats": 50,
+        "includedLocations": 50,
+        "includedRefreshes": 1000,
+        "maxApiCalls": 200000
+      },
+      "additionalPrices": [
+        {
+          "type": "recurring",
+          "unit_amount": 600,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Additional Seat - Monthly",
+          "metadata": {
+            "priceType": "additional_seat",
+            "billingInterval": "month"
+          }
+        },
+        {
+          "type": "recurring",
+          "unit_amount": 300,
+          "currency": "usd",
+          "recurring": {
+            "interval": "month"
+          },
+          "nickname": "Additional Location - Monthly",
+          "metadata": {
+            "priceType": "additional_location",
+            "billingInterval": "month"
+          }
+        }
+      ]
+    }
+  ],
+  "setupInstructions": {
+    "step1": "Create Products in Stripe Dashboard",
+    "step2": "For each product, set the metadata as specified in the 'metadata' field",
+    "step3": "Create the base prices for each product",
+    "step4": "Create additional prices for seats and locations if applicable",
+    "step5": "Update your database with the Stripe product and price IDs",
+    "step6": "Configure webhooks to handle subscription events"
+  },
+  "webhookEvents": [
+    "customer.subscription.created",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+    "invoice.payment_succeeded",
+    "invoice.payment_failed",
+    "customer.subscription.trial_will_end"
+  ],
+  "featureMapping": {
+    "platform": {
+      "google_reviews": "Google Reviews Management",
+      "facebook_reviews": "Facebook Reviews Management", 
+      "tripadvisor_reviews": "TripAdvisor Reviews Management",
+      "booking_reviews": "Booking.com Reviews Management",
+      "yelp_reviews": "Yelp Reviews Management"
+    },
+    "analytics": {
+      "basic_analytics": "Basic Analytics Dashboard",
+      "advanced_analytics": "Advanced Analytics & Insights",
+      "instagram_analytics": "Instagram Analytics",
+      "tiktok_analytics": "TikTok Analytics",
+      "custom_reporting": "Custom Reports & Exports"
+    },
+    "automation": {
+      "automation": "Review Response Automation",
+      "real_time_alerts": "Real-time Review Alerts",
+      "twitter_automation": "Twitter Automation",
+      "email_notifications": "Email Notifications"
+    },
+    "integration": {
+      "api_access": "API Access",
+      "custom_integrations": "Custom Integrations",
+      "webhook_support": "Webhook Support",
+      "bulk_operations": "Bulk Operations"
+    },
+    "business": {
+      "multi_location": "Multi-Location Management",
+      "white_label": "White Label Solution",
+      "priority_support": "Priority Support",
+      "dedicated_support": "Dedicated Support"
+    },
+    "advanced": {
+      "ai_sentiment_analysis": "AI Sentiment Analysis",
+      "advanced_filtering": "Advanced Filtering",
+      "export_data": "Data Export",
+      "scheduled_reports": "Scheduled Reports"
+    },
+    "admin": {
+      "team_management": "Team Management",
+      "billing_management": "Billing Management",
+      "user_roles": "User Roles & Permissions",
+      "audit_logs": "Audit Logs"
+    }
+  }
+}

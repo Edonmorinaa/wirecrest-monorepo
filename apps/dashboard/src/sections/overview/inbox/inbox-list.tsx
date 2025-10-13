@@ -1,26 +1,26 @@
 import { format } from 'date-fns';
-import { Star, MessageSquare, Mail, Camera, Reply, StarIcon } from 'lucide-react';
+import { Star, Mail, Reply, Camera, StarIcon, MessageSquare } from 'lucide-react';
 
 import {
   Box,
   Card,
-  CardContent,
-  Typography,
   List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
   Chip,
-  Skeleton,
   Alert,
-  Button,
   Stack,
-  Pagination,
+  Theme,
+  Avatar,
+  Button,
   Divider,
   SxProps,
-  Theme,
+  ListItem,
+  Skeleton,
+  Typography,
+  Pagination,
+  CardContent,
+  ListItemText,
+  ListItemButton,
+  ListItemAvatar,
 } from '@mui/material';
 
 import { UnifiedReview } from 'src/hooks/use-inbox-reviews';

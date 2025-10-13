@@ -1,5 +1,4 @@
 import { CONFIG } from 'src/global-config';
-import axios, { endpoints } from 'src/lib/axios';
 import { getProduct } from 'src/actions/product-ssr';
 
 import { ProductShopDetailsView } from 'src/sections/product/view';

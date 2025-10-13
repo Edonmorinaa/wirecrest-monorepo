@@ -1,14 +1,14 @@
 import {
-  Button,
-  Container,
   Head,
-  Heading,
   Html,
-  Preview,
   Text,
+  Button,
+  Heading,
+  Preview,
+  Container,
 } from '@react-email/components';
 
-import app from '@/lib/app';
+import app from '../lib/app';
 import EmailLayout from './EmailLayout';
 
 interface AccountLockedProps {
@@ -16,8 +16,7 @@ interface AccountLockedProps {
   url: string;
 }
 
-const AccountLocked = ({ subject, url }: AccountLockedProps) => {
-  return (
+const AccountLocked = ({ subject, url }: AccountLockedProps) => (
     <Html>
       <Head />
       <Preview>{subject}</Preview>
@@ -43,6 +42,5 @@ const AccountLocked = ({ subject, url }: AccountLockedProps) => {
       </EmailLayout>
     </Html>
   );
-};
 
 export default AccountLocked;

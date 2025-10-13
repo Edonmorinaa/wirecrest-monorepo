@@ -1,10 +1,11 @@
-import { InstagramAnalyticsServiceV2 } from '../instagram-analytics-service-v2';
-import { InstagramCalculationUtils } from '../calculations/instagram-calculation-utils';
 import { 
-  InstagramDailySnapshot, 
   InstagramAnalytics, 
+  InstagramDailySnapshot, 
   InstagramBusinessProfile 
 } from '@/types/instagram-analytics';
+
+import { InstagramAnalyticsServiceV2 } from '../instagram-analytics-service-v2';
+import { InstagramCalculationUtils } from '../calculations/instagram-calculation-utils';
 
 // Mock data for testing
 const mockSnapshots: InstagramDailySnapshot[] = [

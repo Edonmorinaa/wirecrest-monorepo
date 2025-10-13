@@ -1,8 +1,8 @@
 import { 
-  InstagramDailySnapshot, 
+  CalculationResult, 
   InstagramAnalytics, 
-  InstagramBusinessProfile,
-  CalculationResult 
+  InstagramDailySnapshot,
+  InstagramBusinessProfile 
 } from '@/types/instagram-analytics';
 
 /**

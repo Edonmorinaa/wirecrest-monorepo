@@ -1,32 +1,28 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-
 import { useParams } from 'next/navigation';
+import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import Container from '@mui/material/Container';
-import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Container from '@mui/material/Container';
 import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { useTripAdvisorOverview } from '../hooks/use-tripadvisor-overview';
-import { TripAdvisorBusinessInfo } from '../tripadvisor-business-info';
-import { TripAdvisorBusinessProfile } from '../tripadvisor-business-profile';
-import { TripAdvisorMetricsCards } from '../tripadvisor-metrics-cards';
-import { TripAdvisorRatingDistribution } from '../tripadvisor-rating-distribution';
-import { TripAdvisorRecentReviews } from '../tripadvisor-recent-reviews';
-import { TripAdvisorSentimentAnalysis } from '../tripadvisor-sentiment-analysis';
-import { TripAdvisorSubRatings } from '../tripadvisor-sub-ratings';
-import { TripAdvisorTimePeriodTabs } from '../tripadvisor-time-period-tabs';
-import { TripAdvisorTopKeywords } from '../tripadvisor-top-keywords';
 import { TripAdvisorTripTypes } from '../tripadvisor-trip-types';
+import { TripAdvisorSubRatings } from '../tripadvisor-sub-ratings';
+import { TripAdvisorTopKeywords } from '../tripadvisor-top-keywords';
+import { TripAdvisorBusinessInfo } from '../tripadvisor-business-info';
+import { TripAdvisorMetricsCards } from '../tripadvisor-metrics-cards';
+import { TripAdvisorRecentReviews } from '../tripadvisor-recent-reviews';
+import { useTripAdvisorOverview } from '../hooks/use-tripadvisor-overview';
+import { TripAdvisorTimePeriodTabs } from '../tripadvisor-time-period-tabs';
+import { TripAdvisorBusinessProfile } from '../tripadvisor-business-profile';
+import { TripAdvisorSentimentAnalysis } from '../tripadvisor-sentiment-analysis';
+import { TripAdvisorRatingDistribution } from '../tripadvisor-rating-distribution';
 
 // ----------------------------------------------------------------------
 

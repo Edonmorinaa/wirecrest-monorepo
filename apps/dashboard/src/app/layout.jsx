@@ -1,5 +1,7 @@
 import 'src/global.css';
 
+import { AuthWrapper } from '@wirecrest/auth';
+
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 
@@ -7,19 +9,20 @@ import { CONFIG } from 'src/global-config';
 import { LocalizationProvider } from 'src/locales';
 import { detectLanguage } from 'src/locales/server';
 import { I18nProvider } from 'src/locales/i18n-provider';
+import { TeamProvider } from 'src/contexts/tenant-context';
+import { StripeDataProvider } from 'src/contexts/StripeDataContext';
 import { themeConfig, ThemeProvider, primary as primaryColor } from 'src/theme';
 
 import { Snackbar } from 'src/components/snackbar';
 import { ProgressBar } from 'src/components/progress-bar';
 import { MotionLazy } from 'src/components/animate/motion-lazy';
 import { detectSettings } from 'src/components/settings/server';
+import { SubdomainRedirect } from 'src/components/subdomain-redirect';
+import { PushNotificationPrompt } from 'src/components/push-notification-prompt';
+import { GlobalNotificationListener } from 'src/components/global-notification-listener';
 import { SettingsDrawer, defaultSettings, SettingsProvider } from 'src/components/settings';
 
 import { CheckoutProvider } from 'src/sections/checkout/context';
-
-import { AuthWrapper } from '@wirecrest/auth';
-import { TeamProvider } from 'src/contexts/tenant-context';
-import { SubdomainRedirect } from 'src/components/subdomain-redirect';
 
 // ----------------------------------------------------------------------
 
@@ -91,10 +94,14 @@ export default async function RootLayout({ children }) {
                       >
                         <MotionLazy>
                           <CheckoutProvider>
-                            <Snackbar />
-                            <ProgressBar />
-                            <SettingsDrawer defaultSettings={defaultSettings} />
-                            {children}
+                            <StripeDataProvider>
+                              <GlobalNotificationListener />
+                              <Snackbar />
+                              <ProgressBar />
+                              <PushNotificationPrompt />
+                              <SettingsDrawer defaultSettings={defaultSettings} />
+                              {children}
+                            </StripeDataProvider>
                           </CheckoutProvider>
                         </MotionLazy>
                       </ThemeProvider>

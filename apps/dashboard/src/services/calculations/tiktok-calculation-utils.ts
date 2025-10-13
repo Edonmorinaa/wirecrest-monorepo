@@ -1,7 +1,7 @@
 import { 
   ChartDataPoint,
-  TikTokDailySnapshot, 
-  CalculationResult 
+  CalculationResult, 
+  TikTokDailySnapshot 
 } from '@/types/tiktok-analytics';
 
 /**

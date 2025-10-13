@@ -24,15 +24,15 @@ import { _account } from '../nav-config-account';
 import { Searchbar } from '../components/searchbar';
 import { _workspaces } from '../nav-config-workspace';
 import { MenuButton } from '../components/menu-button';
+import { getSuperAdminNavData } from '../nav-config-admin';
 import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
 import { LanguagePopover } from '../components/language-popover';
 import { ContactsPopover } from '../components/contacts-popover';
 import { WorkspacesPopover } from '../components/workspaces-popover';
-import { getNavData as getDashboardNavData } from '../nav-config-dashboard';
-import { getSuperAdminNavData } from '../nav-config-admin';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NotificationsDrawer } from '../components/notifications-drawer';
+import { getNavData as getDashboardNavData } from '../nav-config-dashboard';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
 
 // ----------------------------------------------------------------------

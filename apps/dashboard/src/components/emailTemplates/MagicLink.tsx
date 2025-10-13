@@ -1,22 +1,22 @@
-import {
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Text,
-} from '@react-email/components';
-import EmailLayout from './EmailLayout';
 import app from '@/lib/app';
+import {
+  Head,
+  Html,
+  Text,
+  Button,
+  Heading,
+  Preview,
+  Container,
+} from '@react-email/components';
+
+import EmailLayout from './EmailLayout';
 
 interface MagicLinkProps {
   subject: string;
   url: string;
 }
 
-const MagicLink = ({ subject, url }: MagicLinkProps) => {
-  return (
+const MagicLink = ({ subject, url }: MagicLinkProps) => (
     <Html>
       <Head />
       <Preview>{subject}</Preview>
@@ -40,6 +40,5 @@ const MagicLink = ({ subject, url }: MagicLinkProps) => {
       </EmailLayout>
     </Html>
   );
-};
 
 export default MagicLink;

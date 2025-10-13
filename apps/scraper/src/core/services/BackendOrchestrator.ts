@@ -7,6 +7,8 @@ import { IAnalyticsService } from '../interfaces/IAnalyticsService';
 import { ITaskTracker, TaskStep, TaskStatus } from '../interfaces/ITaskTracker';
 import { SERVICE_TOKENS } from '../interfaces/IDependencyContainer';
 import { logger } from '../../utils/logger';
+import { FeatureFlagService } from '../../services/FeatureFlagService';
+import { Feature } from '@wirecrest/feature-flags';
 
 /**
  * Backend Orchestrator
@@ -18,10 +20,12 @@ export class BackendOrchestrator {
   private container: IDependencyContainer;
   private apifyService: IApifyService;
   private taskTracker: ITaskTracker;
+  private featureFlagService: FeatureFlagService;
 
-  constructor(container: IDependencyContainer, apifyService: IApifyService) {
+  constructor(container: IDependencyContainer, apifyService: IApifyService, featureFlagService: FeatureFlagService) {
     this.container = container;
     this.apifyService = apifyService;
+    this.featureFlagService = featureFlagService;
     this.taskTracker = container.getService<ITaskTracker>(SERVICE_TOKENS.TASK_TRACKER_SERVICE);
   }
 
@@ -49,6 +53,20 @@ export class BackendOrchestrator {
     
     try {
       logger.info(`[BackendOrchestrator] Starting complete data flow for team ${teamId}, platform ${platform}, identifier ${identifier}`);
+
+      // Check feature flags before processing
+      const platformEnabled = await this.featureFlagService.isPlatformEnabled(teamId, platform.toLowerCase());
+      if (!platformEnabled) {
+        logger.warn(`[BackendOrchestrator] Platform ${platform} is not enabled for team ${teamId}`);
+        return {
+          success: false,
+          error: `Platform ${platform} is not enabled for this team`
+        };
+      }
+
+      // Get scrape interval from feature flags
+      const scrapeInterval = await this.featureFlagService.getScrapeInterval(teamId);
+      logger.info(`[BackendOrchestrator] Scrape interval for team ${teamId}: ${scrapeInterval} hours`);
 
       // Step 1: Create or get business profile
       const businessResult = await this.createOrGetBusinessProfile(teamId, platform, identifier);

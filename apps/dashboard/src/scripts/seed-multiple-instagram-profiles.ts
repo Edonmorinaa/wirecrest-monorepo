@@ -5,9 +5,9 @@
  * Run with: npx tsx src/scripts/seed-multiple-instagram-profiles.ts
  */
 
-// Load environment variables from .env files
-import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
+// Load environment variables from .env files
+import { existsSync, readFileSync } from 'fs';
 
 // Simple .env file loader
 function loadEnvFile(filePath: string) {

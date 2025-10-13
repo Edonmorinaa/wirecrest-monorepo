@@ -22,7 +22,7 @@
     "composite": true,
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["./*"]
+      "../*": ["./*"]
     }
   },
   "include": ["src/**/*"],

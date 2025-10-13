@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
-import { useParams } from 'next/navigation';
-import { useTeamSlug } from './use-subdomain';
-import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
 import type { ApiResponse } from 'src/types';
 import type { TripAdvisorReviewWithMetadata } from 'src/app/api/teams/[slug]/tripadvisor/reviews';
+
+import useSWR from 'swr';
+import { useMemo } from 'react';
+import { useParams } from 'next/navigation';
+
+import fetcher from 'src/lib/fetcher';
+
+import { useTeamSlug } from './use-subdomain';
 
 interface TripAdvisorReviewsResponse {
   reviews: TripAdvisorReviewWithMetadata[];

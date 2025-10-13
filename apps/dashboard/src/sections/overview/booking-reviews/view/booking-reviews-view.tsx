@@ -1,8 +1,8 @@
 'use client';
 
+import { useTeamSlug } from '@/hooks/use-subdomain';
 import { lazy, useMemo, Suspense, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useTeamSlug } from '@/hooks/use-subdomain';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -26,7 +26,6 @@ import { BookingReviewsStats } from '../booking-reviews-stats';
 import { BookingReviewsFilters } from '../booking-reviews-filters';
 import { BookingReviewsWelcome } from '../booking-reviews-welcome';
 import { BookingReviewsLoadingSkeleton } from '../booking-reviews-loading-skeleton';
-import { useTeamSlug } from '@/hooks/use-subdomain';
 
 // Lazy load the heavy analytics component
 const BookingReviewsAnalytics = lazy(() =>

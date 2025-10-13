@@ -5,8 +5,9 @@
  * Run with: npx tsx src/scripts/process-instagram-data.ts
  */
 
-import { InstagramDataProcessor } from '../services/processors/instagram-data-processor';
 import { prisma } from '@wirecrest/db';
+
+import { InstagramDataProcessor } from '../services/processors/instagram-data-processor';
 
 async function main() {
   console.log('🚀 Starting Instagram data processing...');

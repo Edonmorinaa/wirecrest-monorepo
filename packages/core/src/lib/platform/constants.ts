@@ -112,6 +112,26 @@ export const PLATFORM_DISPLAY_CONFIGS: Record<PlatformType, PlatformDisplayConfi
   },
 };
 
+// Extended platform display configurations for social media platforms
+export const SOCIAL_PLATFORM_DISPLAY_CONFIGS: Record<string, PlatformDisplayConfig> = {
+  INSTAGRAM: {
+    name: 'Instagram Business',
+    icon: 'logos:instagram',
+    color: '#E4405F',
+    identifierLabel: 'Instagram Username',
+    identifierPlaceholder: '@username',
+    identifierPrefix: '@',
+  },
+  TIKTOK: {
+    name: 'TikTok Business',
+    icon: 'logos:tiktok',
+    color: '#000000',
+    identifierLabel: 'TikTok Username',
+    identifierPlaceholder: '@username',
+    identifierPrefix: '@',
+  },
+};
+
 // Platform mapping for frontend to backend
 export const PLATFORM_MAPPING: Record<PlatformType, string> = {
   GOOGLE: 'google',

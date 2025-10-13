@@ -1,13 +1,13 @@
 'use client';
 
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
+import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
+import CardContent from '@mui/material/CardContent';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';

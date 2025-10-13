@@ -4,6 +4,7 @@ import useTeam from '@/hooks/useTeam';
 import { useParams } from 'next/navigation';
 import { useTeamSlug } from '@/hooks/use-subdomain';
 import { useRef, useMemo, useState, useEffect } from 'react';
+import { PlatformFeatureGate } from '@/components/feature-gates/PlatformFeatureGate';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -58,6 +59,7 @@ export function InstagramOverviewView() {
   const theme = useTheme();
   const subdomainTeamSlug = useTeamSlug();
   const slug = subdomainTeamSlug || params.slug;
+  const tenantId = slug;
 
   const { team, isLoading: teamLoading, error: teamError } = useTeam(slug);
   const {
@@ -183,8 +185,14 @@ export function InstagramOverviewView() {
   }
 
   return (
-    <DashboardContent maxWidth="xl">
-      <Grid container spacing={3}>
+    <PlatformFeatureGate 
+      platform="instagram" 
+      tenantId={tenantId}
+      showUpgradePrompt
+      upgradeMessage="Instagram features are not available on your current plan. Please upgrade to access Instagram analytics and management."
+    >
+      <DashboardContent maxWidth="xl">
+        <Grid container spacing={3}>
         <Grid size={{ xs: 12 }}>
           <CustomBreadcrumbs
             heading="Instagram Overview"
@@ -320,5 +328,6 @@ export function InstagramOverviewView() {
         </Grid>
       </Grid>
     </DashboardContent>
+    </PlatformFeatureGate>
   );
 }

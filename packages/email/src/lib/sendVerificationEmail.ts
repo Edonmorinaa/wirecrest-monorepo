@@ -1,13 +1,13 @@
 import { render } from '@react-email/render';
-import { sendEmail, SMTPClient, getAppConfig } from '@/core';
-import VerificationEmail from '@/templates/VerificationEmail';
-import { User, VerificationToken } from '@/types/email';
+import { sendEmail, getAppConfig } from '../core';
+import VerificationEmail from '../templates/VerificationEmail';
+import { User, VerificationToken } from '../types/email';
 
 /**
  * Send email verification email
  */
 export const sendVerificationEmail = async (
-  smtpClient: SMTPClient,
+
   user: User,
   verificationToken: VerificationToken
 ): Promise<void> => {
@@ -19,7 +19,7 @@ export const sendVerificationEmail = async (
 
   const html = await render(VerificationEmail({ subject, verificationLink }));
 
-  await sendEmail(smtpClient, {
+  await sendEmail({
     to: user.email,
     subject,
     html,

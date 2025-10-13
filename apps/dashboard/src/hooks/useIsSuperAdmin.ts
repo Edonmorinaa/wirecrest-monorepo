@@ -1,7 +1,9 @@
-import { useAuth } from '@wirecrest/auth';
-import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
 import type { ApiResponse } from 'src/types';
+
+import useSWR from 'swr';
+import { useAuth } from '@wirecrest/auth';
+
+import fetcher from 'src/lib/fetcher';
 
 interface SuperAdminCheckResponse {
   isSuperAdmin: boolean;

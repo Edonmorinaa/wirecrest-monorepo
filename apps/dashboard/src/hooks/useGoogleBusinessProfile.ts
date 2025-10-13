@@ -1,33 +1,35 @@
-import useSWR, { mutate } from 'swr';
-import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useTeamSlug } from './use-subdomain';
-
-import fetcher from 'src/lib/fetcher';
 import type { ApiResponse } from 'src/types';
+
+import useSWR, { mutate } from 'swr';
+import { useSearchParams } from 'next/navigation';
+import { useRef, useState, useEffect } from 'react';
 import {
-  GoogleBusinessProfile,
-  GoogleOverview,
-  PeriodicalMetric,
-  GoogleReview,
-  Location,
-  ReviewsDistribution,
-  Category,
-  ImageCategory,
-  PopularTimesHistogram,
   Day,
   Hour,
-  ReviewsTag,
-  AdditionalInfo,
-  AdditionalInfoItem,
-  QuestionsAndAnswers,
   Answer,
-  GoogleBusinessMetadata,
-  ReviewMetadata,
-  OpeningHours,
   Period,
+  Location,
+  Category,
+  ReviewsTag,
   SpecialHour,
+  GoogleReview,
+  OpeningHours,
+  ImageCategory,
+  GoogleOverview,
+  AdditionalInfo,
+  ReviewMetadata,
+  PeriodicalMetric,
+  AdditionalInfoItem,
+  ReviewsDistribution,
+  QuestionsAndAnswers,
+  GoogleBusinessProfile,
+  PopularTimesHistogram,
+  GoogleBusinessMetadata,
 } from '@prisma/client';
+
+import fetcher from 'src/lib/fetcher';
+
+import { useTeamSlug } from './use-subdomain';
 
 // Opening Hours with relations interface
 export interface OpeningHoursWithRelations extends OpeningHours {

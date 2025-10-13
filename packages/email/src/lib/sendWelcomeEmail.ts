@@ -1,12 +1,12 @@
 import { render } from '@react-email/render';
-import { sendEmail, SMTPClient } from '@/core';
-import WelcomeEmail from '@/templates/WelcomeEmail';
+import { sendEmail } from '../core';
+import WelcomeEmail from '../templates/WelcomeEmail';
 
 /**
  * Send welcome email to new users
  */
 export const sendWelcomeEmail = async (
-  smtpClient: SMTPClient,
+
   name: string,
   email: string,
   team: string
@@ -14,7 +14,7 @@ export const sendWelcomeEmail = async (
   const subject = 'Welcome to Wirecrest';
   const html = await render(WelcomeEmail({ name, team, subject }));
 
-  await sendEmail(smtpClient, {
+  await sendEmail({
     to: email,
     subject,
     html,

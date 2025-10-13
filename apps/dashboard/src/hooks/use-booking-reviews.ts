@@ -1,6 +1,7 @@
 import { useParams } from 'next/navigation';
-import { useTeamSlug } from './use-subdomain';
 import { useMemo, useState, useEffect, useCallback } from 'react';
+
+import { useTeamSlug } from './use-subdomain';
 
 interface UseBookingReviewsFilters {
   page?: number;

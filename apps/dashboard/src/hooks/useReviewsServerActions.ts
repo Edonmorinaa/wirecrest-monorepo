@@ -1,13 +1,14 @@
+import { toast } from 'sonner';
 import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+
 import {
   getGoogleReviews,
   getFacebookReviews,
+  updateReviewStatus,
   getTripAdvisorReviews,
   updateGoogleReviewMetadata,
-  updateReviewStatus,
 } from 'src/actions/reviews';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 
 interface ReviewFilters {
   page?: number;
@@ -29,8 +30,7 @@ export function useReviewsServerActions(teamSlug: string) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const fetchGoogleReviews = (filters: ReviewFilters = {}) => {
-    return new Promise((resolve, reject) => {
+  const fetchGoogleReviews = (filters: ReviewFilters = {}) => new Promise((resolve, reject) => {
       startTransition(async () => {
         try {
           const result = await getGoogleReviews(teamSlug, filters);
@@ -41,10 +41,8 @@ export function useReviewsServerActions(teamSlug: string) {
         }
       });
     });
-  };
 
-  const fetchFacebookReviews = (filters: ReviewFilters = {}) => {
-    return new Promise((resolve, reject) => {
+  const fetchFacebookReviews = (filters: ReviewFilters = {}) => new Promise((resolve, reject) => {
       startTransition(async () => {
         try {
           const result = await getFacebookReviews(teamSlug, filters);
@@ -55,10 +53,8 @@ export function useReviewsServerActions(teamSlug: string) {
         }
       });
     });
-  };
 
-  const fetchTripAdvisorReviews = (filters: ReviewFilters = {}) => {
-    return new Promise((resolve, reject) => {
+  const fetchTripAdvisorReviews = (filters: ReviewFilters = {}) => new Promise((resolve, reject) => {
       startTransition(async () => {
         try {
           const result = await getTripAdvisorReviews(teamSlug, filters);
@@ -71,7 +67,6 @@ export function useReviewsServerActions(teamSlug: string) {
         }
       });
     });
-  };
 
   const updateGoogleReview = (
     reviewId: string,

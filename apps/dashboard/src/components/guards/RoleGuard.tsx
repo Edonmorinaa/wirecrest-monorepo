@@ -1,11 +1,10 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { ReactNode } from 'react';
-
-import { useSuperRole } from '@wirecrest/auth';
 import { SuperRole } from '@prisma/client';
-import { SuperResource, SuperAction } from '@wirecrest/auth';
+import { useRouter } from 'next/navigation';
+import { SuperAction , useSuperRole, SuperResource } from '@wirecrest/auth';
+
 import { SplashScreen } from 'src/components/loading-screen';
 
 interface RoleGuardProps {

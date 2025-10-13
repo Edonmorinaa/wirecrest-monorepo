@@ -15,3 +15,6 @@ export const prisma =
 if (process.env.NODE_ENV !== 'production' && typeof global !== 'undefined') {
   global.prisma = prisma;
 }
+
+// Re-export all Prisma types and enums
+export * from '@prisma/client';

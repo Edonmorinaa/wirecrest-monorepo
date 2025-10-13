@@ -1,6 +1,6 @@
-import Sentiment from 'sentiment';
 import natural from 'natural';
 import stopword from 'stopword';
+import Sentiment from 'sentiment';
 
 const sentimentAnalyzer = new Sentiment();
 const tokenizer = new natural.WordTokenizer();

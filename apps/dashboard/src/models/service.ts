@@ -1,5 +1,3 @@
 import { prisma } from '@wirecrest/db';
 
-export const getAllServices = async () => {
-  return await prisma.service.findMany();
-};
+export const getAllServices = async () => await prisma.service.findMany();

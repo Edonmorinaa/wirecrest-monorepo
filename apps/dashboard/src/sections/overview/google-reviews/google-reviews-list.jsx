@@ -1,17 +1,17 @@
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
 import Rating from '@mui/material/Rating';
 import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+
+import { fDate } from 'src/utils/format-time';
 
 import { Scrollbar } from 'src/components/scrollbar';
 import { TableNoData, TablePaginationCustom } from 'src/components/table';
-
-import { fDate } from 'src/utils/format-time';
 
 // ----------------------------------------------------------------------
 

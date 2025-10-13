@@ -1,12 +1,12 @@
 import { render } from '@react-email/render';
-import { sendEmail, SMTPClient, getAppConfig } from '@/core';
-import AccountLocked from '@/templates/AccountLocked';
+import { sendEmail, getAppConfig } from '../core';
+import AccountLocked from '../templates/AccountLocked';
 
 /**
  * Send account locked email
  */
 export const sendAccountLockedEmail = async (
-  smtpClient: SMTPClient,
+
   email: string,
   unlockUrl: string
 ): Promise<void> => {
@@ -15,7 +15,7 @@ export const sendAccountLockedEmail = async (
 
   const html = await render(AccountLocked({ subject, url: unlockUrl }));
 
-  await sendEmail(smtpClient, {
+  await sendEmail({
     to: email,
     subject,
     html,

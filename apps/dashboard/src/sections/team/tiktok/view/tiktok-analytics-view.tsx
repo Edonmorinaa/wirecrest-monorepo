@@ -1,31 +1,31 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import useTeam from '@/hooks/useTeam';
 import { useParams } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { PlatformFeatureGate } from '@/components/feature-gates/PlatformFeatureGate';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import Snackbar from '@mui/material/Snackbar';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import CardContent from '@mui/material/CardContent';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 
-import useTeam from '@/hooks/useTeam';
+import { paths } from 'src/routes/paths';
 
 import useTikTokBusinessProfile from 'src/hooks/useTikTokBusinessProfile';
 
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Iconify } from 'src/components/iconify';
-import { paths } from 'src/routes/paths';
-
 import { DashboardContent } from 'src/layouts/dashboard';
+
+import { Iconify } from 'src/components/iconify';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { TikTokGeneralInfo } from './tiktok-general-info';
 import { TikTokAnalyticsTabs } from './tiktok-analytics-tabs';
@@ -49,6 +49,7 @@ interface ToastState {
 export function TikTokAnalyticsView() {
   const params = useParams();
   const teamSlug = params?.slug as string;
+  const tenantId = teamSlug;
   
   const { team } = useTeam(teamSlug);
   const { businessProfile, isLoading: profileLoading } = useTikTokBusinessProfile(teamSlug);
@@ -194,8 +195,14 @@ export function TikTokAnalyticsView() {
   }
 
   return (
-    <DashboardContent maxWidth="xl" disablePadding={false} sx={{}} className="">
-      <Stack spacing={3}>
+    <PlatformFeatureGate 
+      platform="tiktok" 
+      tenantId={tenantId}
+      showUpgradePrompt
+      upgradeMessage="TikTok features are not available on your current plan. Please upgrade to access TikTok analytics and management."
+    >
+      <DashboardContent maxWidth="xl" disablePadding={false} sx={{}} className="">
+        <Stack spacing={3}>
         {/* Breadcrumbs */}
         <CustomBreadcrumbs
           heading="TikTok Analytics"
@@ -320,5 +327,6 @@ export function TikTokAnalyticsView() {
         </Alert>
       </Snackbar>
     </DashboardContent>
+    </PlatformFeatureGate>
   );
 }

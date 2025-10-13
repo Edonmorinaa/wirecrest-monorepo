@@ -1,9 +1,11 @@
+import type { ApiResponse } from 'src/types';
+
+import useSWR from 'swr';
 import { useMemo } from 'react';
 import { useRouter } from 'next/router';
-import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
-import type { ApiResponse } from 'src/types';
 import { Prisma } from '@prisma/client';
+
+import fetcher from 'src/lib/fetcher';
 
 // Use the same type as the API endpoint
 type FacebookProfileWithOverview = Prisma.FacebookBusinessProfileGetPayload<{
@@ -97,7 +99,7 @@ const useFacebookOverview = (slug?: string) => {
 
     return {
       businessProfile: profile,
-      overview: overview,
+      overview,
       sentimentAnalysis: overview.sentimentAnalysis,
       emotionalAnalysis: overview.emotionalAnalysis,
       reviewQuality: overview.reviewQuality,

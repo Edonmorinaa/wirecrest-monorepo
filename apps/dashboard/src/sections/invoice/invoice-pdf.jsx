@@ -25,7 +25,7 @@ import { Iconify } from 'src/components/iconify';
 export function InvoicePDFDownload({ invoice, currentStatus }) {
   const renderButton = (loading) => (
     <Tooltip title="Download">
-      <IconButton>
+      <IconButton disabled={!invoice}>
         {loading ? (
           <CircularProgress size={24} color="inherit" />
         ) : (
@@ -35,10 +35,14 @@ export function InvoicePDFDownload({ invoice, currentStatus }) {
     </Tooltip>
   );
 
+  if (!invoice) {
+    return renderButton(false);
+  }
+
   return (
     <PDFDownloadLink
       document={<InvoicePdfDocument invoice={invoice} currentStatus={currentStatus} />}
-      fileName={invoice?.invoiceNumber}
+      fileName={`${invoice?.invoiceNumber || 'invoice'}.pdf`}
       style={{ textDecoration: 'none' }}
     >
       {({ loading }) => renderButton(loading)}
@@ -49,6 +53,14 @@ export function InvoicePDFDownload({ invoice, currentStatus }) {
 // ----------------------------------------------------------------------
 
 export function InvoicePDFViewer({ invoice, currentStatus }) {
+  if (!invoice) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <p>No invoice data available</p>
+      </div>
+    );
+  }
+
   return (
     <PDFViewer width="100%" height="100%" style={{ border: 'none' }}>
       <InvoicePdfDocument invoice={invoice} currentStatus={currentStatus} />
@@ -58,21 +70,38 @@ export function InvoicePDFViewer({ invoice, currentStatus }) {
 
 // ----------------------------------------------------------------------
 
-Font.register({
-  family: 'Roboto',
-  // fonts from public folder
-  fonts: [{ src: '/fonts/Roboto-Regular.ttf' }, { src: '/fonts/Roboto-Bold.ttf' }],
-});
+// Register fonts with proper format specification and error handling
+// This will only register once globally
+if (typeof window !== 'undefined') {
+  try {
+    Font.register({
+      family: 'Roboto',
+      src: '/fonts/Roboto-Regular.ttf',
+      fontWeight: 'normal',
+    });
+    
+    Font.register({
+      family: 'Roboto',
+      src: '/fonts/Roboto-Bold.ttf', 
+      fontWeight: 'bold',
+    });
+  } catch (error) {
+    console.warn('Failed to register Roboto fonts, using system fonts:', error);
+  }
+}
 
-const useStyles = () =>
-  useMemo(
+const useStyles = () => {
+  // Use Helvetica as fallback if Roboto registration fails
+  const fontFamily = 'Roboto'; // Will fallback to Helvetica automatically if not available
+  
+  return useMemo(
     () =>
       StyleSheet.create({
         // layout
         page: {
           fontSize: 9,
           lineHeight: 1.6,
-          fontFamily: 'Roboto',
+          fontFamily,
           backgroundColor: '#FFFFFF',
           padding: '40px 24px 120px 24px',
         },
@@ -115,22 +144,24 @@ const useStyles = () =>
         cell_5: { width: '15%' },
         noBorder: { paddingTop: '10px', paddingBottom: 0, borderBottomWidth: 0 },
       }),
-    []
+    [fontFamily]
   );
+};
 
 function InvoicePdfDocument({ invoice, currentStatus }) {
+  // Provide defaults for missing data
   const {
-    items,
-    taxes,
-    dueDate,
-    discount,
-    shipping,
-    subtotal,
-    invoiceTo,
-    createDate,
-    totalAmount,
-    invoiceFrom,
-    invoiceNumber,
+    items = [],
+    taxes = 0,
+    dueDate = new Date(),
+    discount = 0,
+    shipping = 0,
+    subtotal = 0,
+    invoiceTo = { name: 'N/A', fullAddress: 'N/A', phoneNumber: 'N/A' },
+    createDate = new Date(),
+    totalAmount = 0,
+    invoiceFrom = { name: 'Wirecrest Inc.', fullAddress: 'N/A', phoneNumber: 'N/A' },
+    invoiceNumber = 'INV-000000',
   } = invoice ?? {};
 
   const styles = useStyles();
@@ -243,7 +274,7 @@ function InvoicePdfDocument({ invoice, currentStatus }) {
 
           {[
             { name: 'Subtotal', value: subtotal },
-            { name: 'Shipping', value: -(shipping ?? 0) },
+            { name: 'Shipping', value: shipping ?? 0 },
             { name: 'Discount', value: -(discount ?? 0) },
             { name: 'Taxes', value: taxes },
             { name: 'Total', value: totalAmount, styles: styles.h4 },

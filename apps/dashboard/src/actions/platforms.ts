@@ -1,16 +1,18 @@
 'use server';
 
-import { getSession } from '@wirecrest/auth/server';
-import { ApiError, recordMetric } from './lib';
+
 import { prisma } from '@wirecrest/db';
-import { throwIfNotSuperAdmin } from 'src/lib/permissions';
+import { MarketPlatform } from '@prisma/client';
+import { getSession } from '@wirecrest/auth/server';
 import {
   createBusinessMarketIdentifier,
   getAllBusinessMarketIdentifiers,
 } from '@/models/business-market-identifier';
-import { MarketPlatform } from '@prisma/client';
-import { createBusinessMarketIndetifiersSchema, validateWithSchema } from 'src/lib/zod';
-import type { ApiResponse } from './types';
+
+import { throwIfNotSuperAdmin } from 'src/lib/permissions';
+import { validateWithSchema, createBusinessMarketIndetifiersSchema } from 'src/lib/zod';
+
+import { ApiError, recordMetric } from './lib';
 
 // Business Market Identifiers Actions
 export async function getBusinessMarketIdentifiers(teamSlug: string) {
@@ -84,7 +86,7 @@ export async function createBusinessMarketIdentifierAction(
   // Create a new business market identifier
   const marketIdentifier = await createBusinessMarketIdentifier(
     {
-      identifier: identifier,
+      identifier,
       teamId: team.id,
       platform: platform as MarketPlatform,
     },
@@ -209,6 +211,18 @@ export async function createGoogleProfile(teamSlug: string, data: { placeId: str
     } else {
       console.log('Existing profile has different placeId, will update with new placeId');
     }
+  } else {
+    // Check location quota before creating new profile
+    const { createQuotaManager } = await import('@wirecrest/feature-flags');
+    const quotaManager = createQuotaManager(prisma);
+    const canAdd = await quotaManager.canPerformAction(team.id, {
+      type: 'locations',
+      amount: 1,
+    });
+
+    if (!canAdd.allowed) {
+      throw new ApiError(403, `Location limit reached: ${canAdd.reason}. Upgrade your plan to add more locations.`);
+    }
   }
 
   // Call the backend API to create or update the profile
@@ -231,6 +245,13 @@ export async function createGoogleProfile(teamSlug: string, data: { placeId: str
 
   const data_response = await backendResponse.json();
   console.log('Google profile created/updated successfully:', data_response);
+
+  // Record location usage if this was a new profile
+  if (!existingProfile) {
+    const { createQuotaManager } = await import('@wirecrest/feature-flags');
+    const quotaManager = createQuotaManager(prisma);
+    await quotaManager.recordUsage(team.id, 'locations', 1);
+  }
 
   return { data: data_response };
 }

@@ -1,8 +1,9 @@
 import { 
-  InstagramBusinessProfile, 
+  GeneralMetrics, 
   InstagramDailySnapshot, 
-  GeneralMetrics 
+  InstagramBusinessProfile 
 } from '@/types/instagram-analytics';
+
 import { InstagramCalculationUtils } from './instagram-calculation-utils';
 
 /**

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useTheme } from '@mui/material/styles';
+import { useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
@@ -14,9 +14,11 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
+import { fNumber } from 'src/utils/format-number';
+
 import { Iconify } from 'src/components/iconify';
 import { Chart, useChart } from 'src/components/chart';
-import { fNumber } from 'src/utils/format-number';
 
 // ----------------------------------------------------------------------
 

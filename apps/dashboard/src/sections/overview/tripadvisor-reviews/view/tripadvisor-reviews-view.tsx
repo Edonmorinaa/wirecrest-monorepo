@@ -1,8 +1,8 @@
 'use client';
 
+import { useTeamSlug } from '@/hooks/use-subdomain';
 import { lazy, useMemo, Suspense, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useTeamSlug } from '@/hooks/use-subdomain';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -20,12 +20,11 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { TripAdvisorReviewsFilters } from '../tripadvisor-reviews-filters';
 import { TripAdvisorReviewsList } from '../tripadvisor-reviews-list';
 import { TripAdvisorReviewsStats } from '../tripadvisor-reviews-stats';
+import { TripAdvisorReviewsFilters } from '../tripadvisor-reviews-filters';
 import { TripAdvisorReviewsWelcome } from '../tripadvisor-reviews-welcome';
 import { TripAdvisorReviewsLoadingSkeleton } from '../tripadvisor-reviews-loading-skeleton';
-import { useTeamSlug } from '@/hooks/use-subdomain';
 
 // Lazy load the heavy analytics component
 const TripAdvisorReviewsAnalytics = lazy(() => import('../tripadvisor-reviews-analytics').then(module => ({ default: module.TripAdvisorReviewsAnalytics })));

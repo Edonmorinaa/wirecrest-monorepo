@@ -1,15 +1,14 @@
 import Box from '@mui/material/Box';
 
-import { fPercent, fCurrency } from 'src/utils/format-number';
+import { fCurrency } from 'src/utils/format-number';
 
 // ----------------------------------------------------------------------
 
 export function InvoiceTotalSummary({
   sx,
-  taxes,
-  shipping,
   subtotal,
-  discount,
+  taxAmount = 0,
+  taxRate,
   totalAmount,
   ...other
 }) {
@@ -51,38 +50,21 @@ export function InvoiceTotalSummary({
         </Box>
       </Box>
 
-      <Box sx={rowStyles}>
-        <Box component="span" sx={labelStyles}>
-          Shipping
+      {taxAmount > 0 && taxRate && (
+        <Box sx={rowStyles}>
+          <Box component="span" sx={labelStyles}>
+            Tax ({taxRate.display_name || `${taxRate.percentage}%`})
+          </Box>
+          <Box component="span" sx={valueStyles}>
+            {fCurrency(taxAmount)}
+          </Box>
         </Box>
-        <Box component="span" sx={[{ ...valueStyles }, !!shipping && { color: 'error.main' }]}>
-          {shipping ? `- ${fCurrency(shipping)}` : '-'}
-        </Box>
-      </Box>
-
-      <Box sx={rowStyles}>
-        <Box component="span" sx={labelStyles}>
-          Discount
-        </Box>
-
-        <Box component="span" sx={[{ ...valueStyles }, !!discount && { color: 'error.main' }]}>
-          {discount ? `- ${fCurrency(discount)}` : '-'}
-        </Box>
-      </Box>
-
-      <Box sx={rowStyles}>
-        <Box component="span" sx={labelStyles}>
-          Taxes
-        </Box>
-        <Box component="span" sx={valueStyles}>
-          {taxes ? fPercent(taxes) : '-'}
-        </Box>
-      </Box>
+      )}
 
       <Box sx={[rowStyles, { typography: 'subtitle1' }]}>
         <Box component="span">Total</Box>
         <Box component="span" sx={valueStyles}>
-          {fCurrency(totalAmount) || '-'}
+        {totalAmount != null ? fCurrency(totalAmount) : '-'}
         </Box>
       </Box>
     </Box>

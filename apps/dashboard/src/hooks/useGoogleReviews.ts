@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
-import { useRouter } from 'next/router';
-import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
 import type { ApiResponse } from 'src/types';
 import type { GoogleReviewWithMetadata } from '../pages/api/teams/[slug]/google/reviews';
+
+import useSWR from 'swr';
+import { useMemo } from 'react';
+import { useRouter } from 'next/router';
+
+import fetcher from 'src/lib/fetcher';
 
 interface GoogleReviewsResponse {
   reviews: GoogleReviewWithMetadata[];

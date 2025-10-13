@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@wirecrest/auth/server';
 import { SuperRole } from '@prisma/client';
-import { NotFoundView } from 'src/sections/error/not-found-view';
 import { getAuthUrl } from '@/lib/subdomain';
+import { getSession } from '@wirecrest/auth/server';
+
+import { NotFoundView } from 'src/sections/error/not-found-view';
 
 export default async function SuperAdminLayout({ children }) {
   const session = await getSession();

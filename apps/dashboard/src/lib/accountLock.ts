@@ -1,12 +1,13 @@
+import { User } from '@prisma/client';
+import { updateUser } from '@/models/user';
 import { render } from '@react-email/components';
+import { createVerificationToken } from '@/models/verificationToken';
+
+import AccountLocked from 'src/components/emailTemplates/AccountLocked';
 
 import app from './app';
 import env from './env';
-import { User } from '@prisma/client';
 import { sendEmail } from './email/sendEmail';
-import { createVerificationToken } from '@/models/verificationToken';
-import AccountLocked from 'src/components/emailTemplates/AccountLocked';
-import { updateUser } from '@/models/user';
 
 const UNLOCK_ACCOUNT_TOKEN_EXPIRATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -75,10 +76,6 @@ export const sendLockoutEmail = async (user: User, resending = false) => {
   });
 };
 
-export const exceededLoginAttemptsThreshold = (user: User) => {
-  return user.invalid_login_attempts >= env.maxLoginAttempts;
-};
+export const exceededLoginAttemptsThreshold = (user: User) => user.invalid_login_attempts >= env.maxLoginAttempts;
 
-export const isAccountLocked = (user: User) => {
-  return !!user.lockedAt && exceededLoginAttemptsThreshold(user);
-};
+export const isAccountLocked = (user: User) => !!user.lockedAt && exceededLoginAttemptsThreshold(user);

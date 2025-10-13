@@ -7,17 +7,28 @@
   ],
   "packageManager": "yarn@4.0.2",
   "scripts": {
-    "build": "yarn workspaces foreach -A run build",
-    "dev": "yarn workspaces foreach -A run dev",
-    "lint": "yarn workspaces foreach -A run lint",
-    "clean": "yarn workspaces foreach -A run clean",
-    "type-check": "yarn workspaces foreach -A run type-check"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "type-check": "turbo run type-check",
+    "dev:dashboard": "turbo run dev --filter=dashboard",
+    "dev:scraper": "turbo run dev --filter=scraper",
+    "dev:auth": "turbo run dev --filter=auth-service"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
+    "turbo": "^2.5.8",
     "typescript": "^5.2.0"
   },
   "dependencies": {
-    "fast-check": "^4.3.0"
+    "fast-check": "^4.3.0",
+    "net": "^1.0.2",
+    "tls": "^0.0.1",
+    "web-push": "^3.6.7"
+  },
+  "resolutions": {
+    "@typescript-eslint/typescript-estree": "^8.44.0",
+    "@smithy/util-hex-encoding": "^4.1.0"
   }
 }

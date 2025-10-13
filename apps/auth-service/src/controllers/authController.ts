@@ -110,8 +110,8 @@ export class AuthController {
     try {
       const { name, email, password, team, inviteToken, recaptchaToken } = req.body;
       
-      if (!name || !email || !password || !recaptchaToken) {
-        throw new ApiError(400, 'Name, email, password, and recaptcha token are required');
+      if (!name || !email || !password) {
+        throw new ApiError(400, 'Name, email, and password are required');
       }
 
       const result = await this.authService.registerUser({
@@ -120,7 +120,7 @@ export class AuthController {
         password,
         team,
         inviteToken,
-        recaptchaToken
+        recaptchaToken: recaptchaToken || undefined
       });
       
       res.json({

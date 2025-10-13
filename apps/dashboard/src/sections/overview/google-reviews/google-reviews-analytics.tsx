@@ -1,29 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
 import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Rating from '@mui/material/Rating';
 import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
-import { useRouter, useSearchParams } from 'next/navigation';
+import CardHeader from '@mui/material/CardHeader';
+import InputLabel from '@mui/material/InputLabel';
+import Typography from '@mui/material/Typography';
+import CardContent from '@mui/material/CardContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 
 import { Iconify } from 'src/components/iconify';
 import { Chart, useChart } from 'src/components/chart';
@@ -391,9 +390,7 @@ export function GoogleReviewsAnalytics({ teamSlug }: GoogleReviewsAnalyticsProps
   });
 
   // Get state from URL - memoized to prevent infinite loops
-  const timeRange = useMemo(() => {
-    return searchParams.get('timeRange') || '90d';
-  }, [searchParams]);
+  const timeRange = useMemo(() => searchParams.get('timeRange') || '90d', [searchParams]);
 
   const customRange = useMemo(() => {
     const customFrom = searchParams.get('customFrom');
@@ -448,7 +445,7 @@ export function GoogleReviewsAnalytics({ teamSlug }: GoogleReviewsAnalyticsProps
           status: response.status,
           statusText: response.statusText,
           url: apiUrl,
-          errorText: errorText
+          errorText
         });
         
         // Set default constraints instead of throwing

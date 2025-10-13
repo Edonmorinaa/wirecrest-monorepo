@@ -1,18 +1,21 @@
-import fetcher from 'src/lib/fetcher';
-import { useParams } from 'next/navigation';
-import useSWR, { mutate } from 'swr';
-import { useState, useEffect, useRef } from 'react';
-import { useTeamSlug } from './use-subdomain';
-import type { ApiResponse } from 'src/types';
 import type {
-  InstagramBusinessProfile,
   InstagramDailySnapshot,
   InstagramMediaSnapshot,
+  InstagramBusinessProfile,
   InstagramCommentSnapshot,
+  InstagramSnapshotSchedule,
   InstagramWeeklyAggregation,
   InstagramMonthlyAggregation,
-  InstagramSnapshotSchedule,
 } from '@prisma/client';
+import type { ApiResponse } from 'src/types';
+
+import useSWR, { mutate } from 'swr';
+import { useParams } from 'next/navigation';
+import { useRef, useState, useEffect } from 'react';
+
+import fetcher from 'src/lib/fetcher';
+
+import { useTeamSlug } from './use-subdomain';
 
 // Instagram Business Profile with relations using Prisma types
 export interface InstagramBusinessProfileWithRelations extends InstagramBusinessProfile {

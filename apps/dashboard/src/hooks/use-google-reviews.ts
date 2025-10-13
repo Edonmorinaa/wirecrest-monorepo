@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+
 import { useTeamSlug } from './use-subdomain';
 
 interface UseGoogleReviewsFilters {

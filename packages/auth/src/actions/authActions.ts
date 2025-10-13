@@ -85,8 +85,24 @@ export const unlockAccountRequest = async (data: { email: string; expiredToken: 
 // Note: customSignOut, getUserSessions, and deleteUserSession are not needed
 // for JWT-based authentication as NextAuth handles session management
 export const customSignOut = async () => {
-  // For JWT-based auth, NextAuth handles sign-out automatically
-  return { success: true, message: 'Sign out handled by NextAuth' };
+  try {
+    // Clear feature cache on logout to ensure fresh data on next login
+    console.log('🧹 Clearing feature cache on logout...');
+    
+    // Import billing package dynamically to avoid circular dependencies
+    const { clearAllCachesImmediately } = await import('@wirecrest/billing');
+    await clearAllCachesImmediately('user_logout', { 
+      timestamp: new Date().toISOString(),
+      reason: 'User logout - clearing all feature caches'
+    });
+    
+    console.log('✅ Feature cache cleared on logout');
+    return { success: true, message: 'Sign out handled by NextAuth with cache clearing' };
+  } catch (error) {
+    console.error('❌ Error clearing cache on logout:', error);
+    // Don't fail logout if cache clearing fails
+    return { success: true, message: 'Sign out handled by NextAuth (cache clearing failed)' };
+  }
 };
 
 export const getUserSessions = async () => {

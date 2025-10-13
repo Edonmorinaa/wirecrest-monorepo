@@ -54,7 +54,7 @@ export function useOwnerResponse() {
         rating: review.rating || review.stars || 0,
         reviewerName: review.reviewerName || review.name || '',
         businessName: review.businessName || '',
-        platform: platform,
+        platform,
         reviewDate: review.publishedDate || review.reviewDate || review.publishedAtDate,
         reviewUrl: review.reviewUrl || '',
         additionalContext: review.additionalContext || '',

@@ -1,54 +1,44 @@
 import React, { useState, useEffect } from 'react';
+import { DashboardContent } from '@/layouts/dashboard';
+
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
-import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
 import Chip from '@mui/material/Chip';
+import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
+import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
 import Dialog from '@mui/material/Dialog';
+import TextField from '@mui/material/TextField';
+import CardHeader from '@mui/material/CardHeader';
+import AlertTitle from '@mui/material/AlertTitle';
+import Typography from '@mui/material/Typography';
+import CardContent from '@mui/material/CardContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import Grid from '@mui/material/Grid';
-import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import { DashboardContent } from '@/layouts/dashboard';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import DialogContentText from '@mui/material/DialogContentText';
 import { 
-  PlayArrow, 
+  Bolt, 
   Pause, 
-  Settings, 
-  SmartToy, 
-  Message, 
-  MessageSharp,
-  CalendarToday, 
   People, 
-  Favorite, 
-  Repeat, 
-  Close, 
+  Repeat,
   Person, 
-  Notifications,
+  Refresh, 
+  Warning, 
+  Settings, 
+  Favorite,
+  PlayArrow,
+  OpenInNew,
   AccessTime,
   TrendingUp,
-  Bolt,
-  Security,
-  TrackChanges,
-  Refresh,
   CheckCircle,
-  Warning,
-  Info,
-  OpenInNew
+  MessageSharp,
+  CalendarToday
 } from '@mui/icons-material';
 
 interface TwitterProfile {

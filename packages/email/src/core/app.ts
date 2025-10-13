@@ -1,4 +1,4 @@
-import { AppConfig } from '@/types/email';
+import { AppConfig } from '../types/email';
 
 /**
  * Application configuration for email templates

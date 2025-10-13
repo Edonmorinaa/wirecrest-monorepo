@@ -1,8 +1,9 @@
+import type { ApiResponse } from 'src/types';
+
 import useSWR, { mutate } from 'swr';
+import { TeamInvitation } from '@/models/invitation';
 
 import fetcher from 'src/lib/fetcher';
-import type { ApiResponse } from 'src/types';
-import { TeamInvitation } from '@/models/invitation';
 
 interface Props {
   slug: string;

@@ -1,8 +1,9 @@
 import { 
   GrowthMetrics,
-  TikTokDailySnapshot,
-  TikTokAnalytics
+  TikTokAnalytics,
+  TikTokDailySnapshot
 } from '@/types/tiktok-analytics';
+
 import { TikTokCalculationUtils } from './tiktok-calculation-utils';
 
 /**

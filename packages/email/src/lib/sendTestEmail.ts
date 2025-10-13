@@ -1,12 +1,12 @@
 import { render } from '@react-email/render';
-import { sendEmail, SMTPClient, getAppConfig } from '@/core';
-import TestEmailTemplate from '@/templates/TestEmail';
+import { sendEmail, getAppConfig } from '../core';
+import TestEmailTemplate from '../templates/TestEmail';
 
 /**
  * Send test email
  */
 export const sendTestEmail = async (
-  smtpClient: SMTPClient,
+
   name: string,
   testEmail: string
 ): Promise<void> => {
@@ -18,7 +18,7 @@ export const sendTestEmail = async (
     TestEmailTemplate({ url, name, subject })
   );
 
-  await sendEmail(smtpClient, {
+  await sendEmail({
     to: testEmail,
     subject,
     html,

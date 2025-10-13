@@ -106,13 +106,13 @@ export function InvoiceTableRow({
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.invoiceTo.name}>{row.invoiceTo.name.charAt(0).toUpperCase()}</Avatar>
+            <Avatar alt={row.customer_name || 'Customer'}>{(row.customer_name || 'C').charAt(0).toUpperCase()}</Avatar>
 
             <ListItemText
-              primary={row.invoiceTo.name}
+              primary={row.customer_name || 'Customer'}
               secondary={
                 <Link component={RouterLink} href={detailsHref} color="inherit">
-                  {row.invoiceNumber}
+                  {row.number || row.id}
                 </Link>
               }
               slotProps={{
@@ -127,8 +127,8 @@ export function InvoiceTableRow({
 
         <TableCell>
           <ListItemText
-            primary={fDate(row.createDate)}
-            secondary={fTime(row.createDate)}
+            primary={fDate(new Date(row.created * 1000))}
+            secondary={fTime(new Date(row.created * 1000))}
             slotProps={{
               primary: { noWrap: true, sx: { typography: 'body2' } },
               secondary: { sx: { mt: 0.5, typography: 'caption' } },
@@ -138,8 +138,8 @@ export function InvoiceTableRow({
 
         <TableCell>
           <ListItemText
-            primary={fDate(row.dueDate)}
-            secondary={fTime(row.dueDate)}
+            primary={fDate(new Date(row.due_date * 1000))}
+            secondary={fTime(new Date(row.due_date * 1000))}
             slotProps={{
               primary: { noWrap: true, sx: { typography: 'body2' } },
               secondary: { sx: { mt: 0.5, typography: 'caption' } },
@@ -147,7 +147,7 @@ export function InvoiceTableRow({
           />
         </TableCell>
 
-        <TableCell>{fCurrency(row.totalAmount)}</TableCell>
+        <TableCell>{fCurrency(row.total / 100)}</TableCell>
 
         <TableCell align="center">{row.sent}</TableCell>
 
@@ -156,8 +156,8 @@ export function InvoiceTableRow({
             variant="soft"
             color={
               (row.status === 'paid' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'overdue' && 'error') ||
+              (row.status === 'open' && 'warning') ||
+              (row.status === 'uncollectible' && 'error') ||
               'default'
             }
           >

@@ -1,29 +1,29 @@
 'use client';
 
-import { useRouter, useParams } from 'next/navigation';
 import { useEffect } from 'react';
-import { Sidebar } from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Sidebar } from '@/components/ui/sidebar';
+import { useAuth, signOut } from '@wirecrest/auth';
+import { useRouter, useParams } from 'next/navigation';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { 
+  User, 
+  LogOut, 
+  Shield, 
+  Settings, 
+  Building,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
 import { 
   DropdownMenu, 
-  DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+  DropdownMenuContent, 
+  DropdownMenuTrigger, 
+  DropdownMenuSeparator 
 } from '@/components/ui/dropdown-menu';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Settings, 
-  LogOut, 
-  User,
-  Building,
-  Shield
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { useAuth, signOut } from '@wirecrest/auth';
 
 // Import navigation configs
 import { adminNavData } from 'src/layouts/nav-config-admin';
@@ -115,7 +115,7 @@ function DashboardContent({ children }) {
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary" />
       </div>
     );
   }
@@ -129,13 +129,11 @@ function DashboardContent({ children }) {
     await signOut({ callbackUrl: '/auth/sign-in' });
   };
 
-  const getUserInitials = (name) => {
-    return name
+  const getUserInitials = (name) => name
       ?.split(' ')
       .map((n) => n[0])
       .join('')
       .toUpperCase() || 'U';
-  };
 
   const getRoleBadge = () => {
     if (userSuperRole === 'ADMIN') {

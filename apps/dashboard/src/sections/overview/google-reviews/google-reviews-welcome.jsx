@@ -1,13 +1,12 @@
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import { CONFIG } from 'src/global-config';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------

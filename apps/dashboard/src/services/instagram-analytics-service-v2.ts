@@ -1,19 +1,19 @@
 import { prisma } from '@wirecrest/db';
 import { 
+  InstagramAnalytics, 
   InstagramAnalyticsData, 
   InstagramDailySnapshot, 
-  InstagramAnalytics, 
   InstagramBusinessProfile,
   AnalyticsServiceResponse 
 } from '@/types/instagram-analytics';
 
+import { InstagramDataValidator } from './validation/instagram-data-validator';
+import { GrowthMetricsCalculator } from './calculations/growth-metrics-calculator';
 // Import calculation services
 import { GeneralMetricsCalculator } from './calculations/general-metrics-calculator';
-import { OverviewMetricsCalculator } from './calculations/overview-metrics-calculator';
-import { GrowthMetricsCalculator } from './calculations/growth-metrics-calculator';
-import { EngagementMetricsCalculator } from './calculations/engagement-metrics-calculator';
 import { HistoryMetricsCalculator } from './calculations/history-metrics-calculator';
-import { InstagramDataValidator } from './validation/instagram-data-validator';
+import { OverviewMetricsCalculator } from './calculations/overview-metrics-calculator';
+import { EngagementMetricsCalculator } from './calculations/engagement-metrics-calculator';
 
 /**
  * Enhanced Instagram Analytics Service

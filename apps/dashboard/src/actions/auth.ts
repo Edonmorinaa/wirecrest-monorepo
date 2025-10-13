@@ -1,10 +1,10 @@
 // Re-export all auth actions from @wirecrest/auth
 export {
-  forgotPassword,
-  resetPassword,
-  updatePassword,
   joinUser,
-  resendEmailVerification,
-  unlockAccountRequest,
+  resetPassword,
   customSignOut,
+  forgotPassword,
+  updatePassword,
+  unlockAccountRequest,
+  resendEmailVerification,
 } from '@wirecrest/auth';

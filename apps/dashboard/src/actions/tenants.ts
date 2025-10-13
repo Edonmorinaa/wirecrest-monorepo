@@ -1,11 +1,11 @@
 'use server';
 
-import { getSession } from '@wirecrest/auth/server';
 import { prisma } from '@wirecrest/db';
-import { ApiError } from './lib/errors';
-import { throwIfNotSuperAdmin } from 'src/lib/permissions';
+
 import { RealtimeBroadcaster } from 'src/lib/realtime';
-import type { ApiResponse } from './types';
+import { throwIfNotSuperAdmin } from 'src/lib/permissions';
+
+import { ApiError } from './lib/errors';
 
 // Get all tenants with status information
 export async function getTenants(filters: {
@@ -161,6 +161,27 @@ export async function getTenants(filters: {
   } catch (error) {
     console.error('Error fetching tenants:', error);
     throw new ApiError(500, 'Failed to fetch tenants');
+  }
+}
+
+// Get tenant by slug (public access for team members)
+export async function getTenantBySlug(slug: string) {
+  try {
+    const team = await prisma.team.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    return team;
+  } catch (error) {
+    console.error('Error fetching tenant by slug:', error);
+    return null;
   }
 }
 

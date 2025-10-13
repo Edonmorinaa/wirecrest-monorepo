@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { recordMetric } from 'src/lib/metrics';
-import { ApiError } from 'src/lib/errors';
-import env from 'src/lib/env';
 import { getUser, updateUser } from '@/models/user';
-import { isEmailAllowed } from 'src/lib/email/utils';
-import { updateAccountSchema, validateWithSchema } from 'src/lib/zod';
 import { getSession } from "@wirecrest/auth/server";
+import { NextRequest, NextResponse } from 'next/server';
+
+import env from 'src/lib/env';
+import { ApiError } from 'src/lib/errors';
+import { recordMetric } from 'src/lib/metrics';
+import { isEmailAllowed } from 'src/lib/email/utils';
+import { validateWithSchema, updateAccountSchema } from 'src/lib/zod';
 
 export async function PUT(request: NextRequest) {
   try {

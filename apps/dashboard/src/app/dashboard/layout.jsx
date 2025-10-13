@@ -1,7 +1,6 @@
 import { CONFIG } from 'src/global-config';
 import { TeamDashboardLayout } from 'src/layouts/dashboard';
 
-import { AuthGuard } from 'src/components/guards';
 
 // ----------------------------------------------------------------------
 

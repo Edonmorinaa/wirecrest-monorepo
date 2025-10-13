@@ -1,8 +1,8 @@
 import { 
-  TikTokDailySnapshot,
   TikTokAnalytics,
-  TikTokBusinessProfile,
-  CalculationResult
+  CalculationResult,
+  TikTokDailySnapshot,
+  TikTokBusinessProfile
 } from '@/types/tiktok-analytics';
 
 /**

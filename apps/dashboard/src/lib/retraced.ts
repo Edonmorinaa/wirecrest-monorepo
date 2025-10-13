@@ -1,7 +1,8 @@
 import type { Team } from '@prisma/client';
-import { Client } from '@retracedhq/retraced';
-import type { CRUD, Event } from '@retracedhq/retraced';
 import type { User } from '@wirecrest/auth';
+import type { CRUD, Event } from '@retracedhq/retraced';
+
+import { Client } from '@retracedhq/retraced';
 
 import env from './env';
 

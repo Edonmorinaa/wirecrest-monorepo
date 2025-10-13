@@ -1,15 +1,16 @@
 
-import { Container, Typography, Box, Button, Grid, Card, CardContent } from '@mui/material';
-import { RouterLink } from 'src/routes/components';
+import { Box, Grid, Card, Button, Container, Typography, CardContent } from '@mui/material';
+
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
 export default function SuperAdminPage() {
   return (
-    <>
-      <Container maxWidth="xl">
+    <Container maxWidth="xl">
         <Box sx={{ mb: 5 }}>
           <Typography variant="h4" sx={{ mb: 1 }}>
             Super Admin Dashboard
@@ -223,6 +224,5 @@ export default function SuperAdminPage() {
           </Grid>
         </Grid>
       </Container>
-    </>
   );
 }

@@ -1,8 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-
 import { useTeamSlug, useSubdomain } from '@/hooks/use-subdomain';
+import { useState, useEffect, ReactNode, useContext, createContext } from 'react';
 
 interface TeamContextType {
   teamSlug: string | null;

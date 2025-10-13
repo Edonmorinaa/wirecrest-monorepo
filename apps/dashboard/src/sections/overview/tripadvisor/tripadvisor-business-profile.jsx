@@ -7,8 +7,8 @@ import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 
-import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 

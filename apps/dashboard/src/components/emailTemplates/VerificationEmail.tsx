@@ -1,14 +1,15 @@
-import {
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Text,
-} from '@react-email/components';
-import EmailLayout from './EmailLayout';
 import app from '@/lib/app';
+import {
+  Head,
+  Html,
+  Text,
+  Button,
+  Heading,
+  Preview,
+  Container,
+} from '@react-email/components';
+
+import EmailLayout from './EmailLayout';
 
 interface VerificationEmailProps {
   subject: string;
@@ -18,8 +19,7 @@ interface VerificationEmailProps {
 const VerificationEmail = ({
   subject,
   verificationLink,
-}: VerificationEmailProps) => {
-  return (
+}: VerificationEmailProps) => (
     <Html>
       <Head />
       <Preview>{subject}</Preview>
@@ -43,6 +43,5 @@ const VerificationEmail = ({
       </EmailLayout>
     </Html>
   );
-};
 
 export default VerificationEmail;

@@ -1,7 +1,7 @@
 'use client';
 
 import { sumBy } from 'es-toolkit';
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
@@ -21,16 +21,19 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { useInvoices } from 'src/hooks/useInvoices';
+
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
+import { INVOICE_SERVICE_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _invoices, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
+import { LoadingScreen } from 'src/components/loading-screen';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -52,10 +55,10 @@ import { InvoiceTableFiltersResult } from '../invoice-table-filters-result';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'invoiceNumber', label: 'Customer' },
-  { id: 'createDate', label: 'Create' },
-  { id: 'dueDate', label: 'Due' },
-  { id: 'price', label: 'Amount' },
+  { id: 'number', label: 'Customer' },
+  { id: 'created', label: 'Create' },
+  { id: 'due_date', label: 'Due' },
+  { id: 'total', label: 'Amount' },
   { id: 'sent', label: 'Sent', align: 'center' },
   { id: 'status', label: 'Status' },
   { id: '' },
@@ -66,11 +69,9 @@ const TABLE_HEAD = [
 export function InvoiceListView() {
   const theme = useTheme();
 
-  const table = useTable({ defaultOrderBy: 'createDate' });
+  const table = useTable({ defaultOrderBy: 'created' });
 
   const confirmDialog = useBoolean();
-
-  const [tableData, setTableData] = useState(_invoices);
 
   const filters = useSetState({
     name: '',
@@ -78,8 +79,26 @@ export function InvoiceListView() {
     status: 'all',
     startDate: null,
     endDate: null,
+    // Add cumulative status filters
+    statusFilters: [],
   });
   const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Use real Stripe invoice data instead of mock data
+  const { 
+    invoices: tableData, 
+    loading, 
+    refreshing,
+    error, 
+    deleteInvoice: apiDeleteInvoice, 
+    bulkOperation 
+  } = useInvoices({
+    // Don't pass status to useInvoices - handle it client-side for cumulative filtering
+    search: currentFilters.name,
+    startDate: currentFilters.startDate,
+    endDate: currentFilters.endDate,
+    service: currentFilters.service,
+  });
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
 
@@ -96,6 +115,7 @@ export function InvoiceListView() {
     !!currentFilters.name ||
     currentFilters.service.length > 0 ||
     currentFilters.status !== 'all' ||
+    (currentFilters.statusFilters && currentFilters.statusFilters.length > 0) ||
     (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
@@ -105,7 +125,7 @@ export function InvoiceListView() {
   const getTotalAmount = (status) =>
     sumBy(
       tableData.filter((item) => item.status === status),
-      (invoice) => invoice.totalAmount
+      (invoice) => invoice.total / 100
     );
 
   const getPercentByStatus = (status) => (getInvoiceLength(status) / tableData.length) * 100;
@@ -141,37 +161,71 @@ export function InvoiceListView() {
       color: 'default',
       count: getInvoiceLength('draft'),
     },
+    {
+      value: 'void',
+      label: 'Void',
+      color: 'error',
+      count: getInvoiceLength('void'),
+    },
   ];
 
   const handleDeleteRow = useCallback(
-    (id) => {
-      const deleteRow = tableData.filter((row) => row.id !== id);
-
-      toast.success('Delete success!');
-
-      setTableData(deleteRow);
-
-      table.onUpdatePageDeleteRow(dataInPage.length);
+    async (id) => {
+      try {
+        await apiDeleteInvoice(id);
+        toast.success('Delete success!');
+        table.onUpdatePageDeleteRow(dataInPage.length);
+      } catch (err) {
+        console.error('Failed to delete invoice:', err);
+        toast.error('Failed to delete invoice');
+      }
     },
-    [dataInPage.length, table, tableData]
+    [apiDeleteInvoice, dataInPage.length, table]
   );
 
-  const handleDeleteRows = useCallback(() => {
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
-
-    toast.success('Delete success!');
-
-    setTableData(deleteRows);
-
-    table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+  const handleDeleteRows = useCallback(async () => {
+    try {
+      // Use bulk delete operation
+      await bulkOperation('delete', table.selected);
+      
+      toast.success('Delete success!');
+      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+    } catch (err) {
+      console.error('Failed to delete invoices:', err);
+      toast.error('Failed to delete invoices');
+    }
+  }, [bulkOperation, dataFiltered.length, dataInPage.length, table]);
 
   const handleFilterStatus = useCallback(
     (event, newValue) => {
       table.onResetPage();
-      updateFilters({ status: newValue });
+      
+      if (newValue === 'all') {
+        // Clear all status filters
+        updateFilters({ 
+          status: 'all',
+          statusFilters: []
+        });
+      } else {
+        // Add to cumulative status filters
+        const currentStatusFilters = currentFilters.statusFilters || [];
+        let newStatusFilters;
+        
+        if (currentStatusFilters.includes(newValue)) {
+          // Remove if already selected (toggle off)
+          newStatusFilters = currentStatusFilters.filter(s => s !== newValue);
+        } else {
+          // Add to filters (toggle on)
+          newStatusFilters = [...currentStatusFilters, newValue];
+        }
+        
+        updateFilters({ 
+          status: newValue, // Keep the main status for UI
+          statusFilters: newStatusFilters
+        });
+      }
     },
-    [updateFilters, table]
+    [updateFilters, table, currentFilters.statusFilters]
   );
 
   const renderConfirmDialog = () => (
@@ -198,6 +252,40 @@ export function InvoiceListView() {
       }
     />
   );
+
+  // Show loading screen while fetching data
+  if (loading) {
+    return (
+      <DashboardContent>
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <LoadingScreen />
+          <Box sx={{ typography: 'body2', color: 'text.secondary', mt: 2 }}>
+            Loading invoices... If this takes too long, check the browser console for errors.
+          </Box>
+        </Box>
+      </DashboardContent>
+    );
+  }
+
+  // Show error message if there was an error
+  if (error) {
+    return (
+      <DashboardContent>
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <Iconify icon="solar:danger-bold" sx={{ fontSize: 64, color: 'error.main', mb: 2 }} />
+          <Box sx={{ typography: 'h6', mb: 1 }}>Error loading invoices</Box>
+          <Box sx={{ typography: 'body2', color: 'text.secondary', mb: 2 }}>{error}</Box>
+          <Button 
+            variant="contained" 
+            onClick={() => window.location.reload()}
+            sx={{ mt: 2 }}
+          >
+            Retry
+          </Button>
+        </Box>
+      </DashboardContent>
+    );
+  }
 
   return (
     <>
@@ -232,7 +320,7 @@ export function InvoiceListView() {
                 title="Total"
                 total={tableData.length}
                 percent={100}
-                price={sumBy(tableData, (invoice) => invoice.totalAmount)}
+                price={sumBy(tableData, (invoice) => invoice.total / 100)}
                 icon="solar:bill-list-bold-duotone"
                 color={theme.vars.palette.info.main}
               />
@@ -283,27 +371,38 @@ export function InvoiceListView() {
             sx={{
               px: { md: 2.5 },
               boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+              opacity: refreshing ? 0.7 : 1,
+              transition: 'opacity 0.2s ease',
             }}
           >
-            {TABS.map((tab) => (
-              <Tab
-                key={tab.value}
-                value={tab.value}
-                label={tab.label}
-                iconPosition="end"
-                icon={
-                  <Label
-                    variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
-                      'soft'
-                    }
-                    color={tab.color}
-                  >
-                    {tab.count}
-                  </Label>
-                }
-              />
-            ))}
+            {TABS.map((tab) => {
+              const isActive = currentFilters.statusFilters?.includes(tab.value) || 
+                              (tab.value === 'all' && currentFilters.status === 'all');
+              const isFiltered = currentFilters.statusFilters?.includes(tab.value);
+              
+              return (
+                <Tab
+                  key={tab.value}
+                  value={tab.value}
+                  label={tab.label}
+                  iconPosition="end"
+                  icon={
+                    <Label
+                      variant={isActive ? 'filled' : 'soft'}
+                      color={tab.color}
+                    >
+                      {tab.count}
+                    </Label>
+                  }
+                  sx={{
+                    // Visual indicator for active filters
+                    backgroundColor: isFiltered ? 'action.selected' : 'transparent',
+                    borderBottom: isFiltered ? '2px solid' : 'none',
+                    borderBottomColor: 'primary.main',
+                  }}
+                />
+              );
+            })}
           </Tabs>
 
           <InvoiceTableToolbar
@@ -335,20 +434,43 @@ export function InvoiceListView() {
               }}
               action={
                 <Box sx={{ display: 'flex' }}>
-                  <Tooltip title="Sent">
-                    <IconButton color="primary">
+                  <Tooltip title="Send">
+                    <IconButton 
+                      color="primary"
+                      onClick={async () => {
+                        try {
+                          await bulkOperation('send', table.selected);
+                          toast.success(`${table.selected.length} invoice(s) sent successfully!`);
+                          table.onSelectAllRows(false, []);
+                        } catch (err) {
+                          console.error('Failed to send invoices:', err);
+                          toast.error('Failed to send invoices');
+                        }
+                      }}
+                    >
                       <Iconify icon="custom:send-fill" />
                     </IconButton>
                   </Tooltip>
 
                   <Tooltip title="Download">
-                    <IconButton color="primary">
+                    <IconButton 
+                      color="primary"
+                      onClick={() => {
+                        // TODO: Implement bulk PDF download
+                        toast.info('Bulk download feature coming soon');
+                      }}
+                    >
                       <Iconify icon="solar:download-bold" />
                     </IconButton>
                   </Tooltip>
 
                   <Tooltip title="Print">
-                    <IconButton color="primary">
+                    <IconButton 
+                      color="primary"
+                      onClick={() => {
+                        window.print();
+                      }}
+                    >
                       <Iconify icon="solar:printer-minimalistic-bold" />
                     </IconButton>
                   </Tooltip>
@@ -363,7 +485,14 @@ export function InvoiceListView() {
             />
 
             <Scrollbar sx={{ minHeight: 444 }}>
-              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
+              <Table 
+                size={table.dense ? 'small' : 'medium'} 
+                sx={{ 
+                  minWidth: 800,
+                  opacity: refreshing ? 0.6 : 1,
+                  transition: 'opacity 0.2s ease',
+                }}
+              >
                 <TableHeadCustom
                   order={table.order}
                   orderBy={table.orderBy}
@@ -428,7 +557,7 @@ export function InvoiceListView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, comparator, filters, dateError }) {
-  const { name, status, service, startDate, endDate } = filters;
+  const { name, status, service, startDate, endDate, statusFilters } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -441,26 +570,31 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
   inputData = stabilizedThis.map((el) => el[0]);
 
   if (name) {
-    inputData = inputData.filter(({ invoiceNumber, invoiceTo }) =>
-      [invoiceNumber, invoiceTo.name, invoiceTo.company, invoiceTo.phoneNumber].some((field) =>
+    inputData = inputData.filter((invoice) => {
+      const invoiceTo = invoice.metadata?.invoiceTo ? JSON.parse(invoice.metadata.invoiceTo) : null;
+      return [invoice.number, invoice.customer_name, invoiceTo?.name, invoiceTo?.company, invoiceTo?.phoneNumber].some((field) =>
         field?.toLowerCase().includes(name.toLowerCase())
-      )
-    );
+      );
+    });
   }
 
-  if (status !== 'all') {
+  // Apply cumulative status filters
+  if (statusFilters && statusFilters.length > 0) {
+    inputData = inputData.filter((invoice) => statusFilters.includes(invoice.status));
+  } else if (status !== 'all') {
+    // Fallback to single status filter for backward compatibility
     inputData = inputData.filter((invoice) => invoice.status === status);
   }
 
   if (service.length) {
     inputData = inputData.filter((invoice) =>
-      invoice.items.some((filterItem) => service.includes(filterItem.service))
+      invoice.lines?.data?.some((filterItem) => service.includes(filterItem.description))
     );
   }
 
   if (!dateError) {
     if (startDate && endDate) {
-      inputData = inputData.filter((invoice) => fIsBetween(invoice.createDate, startDate, endDate));
+      inputData = inputData.filter((invoice) => fIsBetween(new Date(invoice.created * 1000), startDate, endDate));
     }
   }
 

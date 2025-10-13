@@ -1,11 +1,14 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@wirecrest/auth';
 import { useRouter } from 'next/navigation';
-import { NotFoundView } from 'src/sections/error/not-found-view';
+import { ReactNode, useEffect } from 'react';
+
 import { getSubdomainUrl } from 'src/lib/subdomain-config';
+
 import { SplashScreen } from 'src/components/loading-screen';
+
+import { NotFoundView } from 'src/sections/error/not-found-view';
 
 interface AuthGuardProps {
   children: ReactNode;

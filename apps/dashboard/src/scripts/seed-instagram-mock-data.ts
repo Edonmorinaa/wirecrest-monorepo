@@ -304,7 +304,7 @@ async function main() {
     const uniqueUsername = `mock-business-${teamSlug}`;
     const businessProfile = await prisma.instagramBusinessProfile.upsert({
       where: {
-        teamId: teamId
+        teamId
       },
       update: {
         username: uniqueUsername,
@@ -323,7 +323,7 @@ async function main() {
         totalSnapshots: 0
       },
       create: {
-        teamId: teamId,
+        teamId,
         username: uniqueUsername,
         userId: `mock-user-${teamSlug}`,
         profileUrl: `https://instagram.com/${uniqueUsername}`,

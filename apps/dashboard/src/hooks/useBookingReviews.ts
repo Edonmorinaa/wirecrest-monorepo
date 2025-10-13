@@ -1,9 +1,11 @@
+import type { BookingReview, ReviewMetadata } from '@prisma/client';
+import type { ApiResponse } from 'src/types';
+
+import useSWR from 'swr';
 import { useMemo } from 'react';
 import { useRouter } from 'next/router';
-import useSWR from 'swr';
+
 import fetcher from 'src/lib/fetcher';
-import type { ApiResponse } from 'src/types';
-import type { BookingReview, ReviewMetadata } from '@prisma/client';
 
 // Following the same pattern as other platforms
 export interface BookingReviewWithMetadata extends BookingReview {

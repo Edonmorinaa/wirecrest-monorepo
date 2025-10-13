@@ -1,14 +1,16 @@
-import { useParams } from 'next/navigation';
-import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
-import { useTeamSlug } from './use-subdomain';
-import type { ApiResponse } from 'src/types';
 import type {
-  FacebookBusinessProfile,
   FacebookOverview,
-  FacebookRecommendationDistribution,
+  FacebookBusinessProfile,
   FacebookBusinessMetadata,
 } from '@prisma/client';
+import type { ApiResponse } from 'src/types';
+
+import useSWR from 'swr';
+import { useParams } from 'next/navigation';
+
+import fetcher from 'src/lib/fetcher';
+
+import { useTeamSlug } from './use-subdomain';
 
 export interface FacebookBusinessProfileWithRelations extends FacebookBusinessProfile {
   overview?: FacebookOverview | null;

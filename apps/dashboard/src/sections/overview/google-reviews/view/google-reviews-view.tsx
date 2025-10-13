@@ -1,8 +1,8 @@
 'use client';
 
+import { useTeamSlug } from '@/hooks/use-subdomain';
 import { lazy, useMemo, Suspense, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useTeamSlug } from '@/hooks/use-subdomain';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';

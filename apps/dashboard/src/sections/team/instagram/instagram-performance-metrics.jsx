@@ -2,18 +2,17 @@
 
 import { format } from 'date-fns';
 
-import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
 
-import { Iconify } from 'src/components/iconify';
-
 import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
+import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 

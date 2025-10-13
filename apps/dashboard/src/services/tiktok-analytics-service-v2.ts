@@ -1,13 +1,13 @@
 import { prisma } from '@wirecrest/db';
 
 import { 
-  AnalyticsServiceResponse,
-  EngagementMetrics,
-  GeneralMetrics,
   GrowthMetrics,
-  HistoryDataPoint,
+  GeneralMetrics,
   OverviewMetrics,
-  TikTokAnalyticsData
+  HistoryDataPoint,
+  EngagementMetrics,
+  TikTokAnalyticsData,
+  AnalyticsServiceResponse
 } from '../types/tiktok-analytics';
 
 /**

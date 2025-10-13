@@ -20,7 +20,6 @@ import { BookingTotalIncomes } from '../booking-total-incomes';
 import { BookingWidgetSummary } from '../booking-widget-summary';
 import { BookingCheckInWidgets } from '../booking-check-in-widgets';
 import { BookingCustomerReviews } from '../booking-customer-reviews';
-import { BookingErrorState } from '../booking-error-state';
 
 // ----------------------------------------------------------------------
 

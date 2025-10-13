@@ -1,6 +1,6 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import { auth } from '@wirecrest/auth/server';
 import { SuperRole } from '@prisma/client';
+import { auth } from '@wirecrest/auth/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
 const protocol =
   process.env.NODE_ENV === 'production' ? 'https' : 'http';

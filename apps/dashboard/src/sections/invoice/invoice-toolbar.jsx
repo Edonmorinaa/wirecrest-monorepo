@@ -10,9 +10,11 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import DialogActions from '@mui/material/DialogActions';
 
-import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { useInvoices } from 'src/hooks/useInvoices';
+
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -29,6 +31,82 @@ const InvoicePDFViewer = dynamic(
 
 export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChangeStatus }) {
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
+  const { sendInvoice, shareInvoice } = useInvoices();
+
+  const handleSendInvoice = async () => {
+    try {
+      toast.loading('Sending invoice...', { id: 'send-invoice' });
+      
+      const result = await sendInvoice(invoice.id, {
+        subject: `Invoice ${invoice.invoiceNumber || invoice.id}`,
+        content: 'Please find your invoice attached.',
+      });
+      
+      toast.success(`Invoice ${result.invoiceNumber || ''} sent to ${result.sentTo}`, { 
+        id: 'send-invoice' 
+      });
+    } catch (error) {
+      console.error('Send invoice error:', error);
+      toast.error(error?.message || 'Failed to send invoice', { 
+        id: 'send-invoice' 
+      });
+    }
+  };
+
+  const handleShareInvoice = async () => {
+    try {
+      toast.loading('Generating share link...', { id: 'share-invoice' });
+      
+      const result = await shareInvoice(invoice.id, 30); // 30 days expiry
+      await navigator.clipboard.writeText(result.shareUrl);
+      
+      toast.success('Share link copied to clipboard! Link expires in 30 days.', { 
+        id: 'share-invoice' 
+      });
+    } catch (error) {
+      console.error('Share invoice error:', error);
+      toast.error(error?.message || 'Failed to generate share link', { 
+        id: 'share-invoice' 
+      });
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    // Create a new window with the invoice content
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Invoice ${invoice?.invoiceNumber || invoice?.id}</title>
+            <style>
+              @media print {
+                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                .no-print { display: none !important; }
+              }
+            </style>
+          </head>
+          <body>
+            <div id="invoice-content">
+              <!-- PDF content will be loaded here -->
+              <p>Preparing invoice for printing...</p>
+            </div>
+            <script>
+              window.onload = function() {
+                window.print();
+                window.close();
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    } else {
+      // Fallback to regular print
+      window.print();
+    }
+  };
 
   const renderDownloadButton = () =>
     invoice ? <InvoicePDFDownload invoice={invoice} currentStatus={currentStatus} /> : null;
@@ -70,7 +148,7 @@ export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChange
           <Tooltip title="Edit">
             <IconButton
               component={RouterLink}
-              href={paths.dashboard.invoice.edit(`${invoice?.id}`)}
+              href={`/dashboard/superadmin/invoice/${invoice?.id}/edit`}
             >
               <Iconify icon="solar:pen-bold" />
             </IconButton>
@@ -85,19 +163,19 @@ export function InvoiceToolbar({ invoice, currentStatus, statusOptions, onChange
           {renderDownloadButton()}
 
           <Tooltip title="Print">
-            <IconButton>
+            <IconButton onClick={handlePrintInvoice}>
               <Iconify icon="solar:printer-minimalistic-bold" />
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Send">
-            <IconButton>
+            <IconButton onClick={handleSendInvoice}>
               <Iconify icon="custom:send-fill" />
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Share">
-            <IconButton>
+            <IconButton onClick={handleShareInvoice}>
               <Iconify icon="solar:share-bold" />
             </IconButton>
           </Tooltip>

@@ -35,23 +35,19 @@ export const schemaUtils = {
   date: (props) =>
     z.preprocess(
       (val) => (val === undefined ? null : val), // Process input value before validation
-      z.union([z.string(), z.number(), z.date(), z.null()]).check((ctx) => {
-        const value = ctx.value;
-
+      z.union([z.string(), z.number(), z.date(), z.null()]).superRefine((value, ctx) => {
         if (value === null || value === '') {
-          ctx.issues.push({
+          ctx.addIssue({
             code: 'custom',
             message: props?.error?.required ?? 'Date is required!',
-            input: value,
           });
           return;
         }
 
         if (!dayjs(value).isValid()) {
-          ctx.issues.push({
+          ctx.addIssue({
             code: 'custom',
             message: props?.error?.invalid ?? 'Invalid date!',
-            input: value,
           });
         }
       })

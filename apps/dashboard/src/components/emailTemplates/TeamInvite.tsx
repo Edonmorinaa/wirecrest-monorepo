@@ -1,14 +1,15 @@
+import app from '@/lib/app';
+import { Team } from '@prisma/client';
 import {
-  Button,
-  Container,
   Head,
   Html,
-  Preview,
   Text,
+  Button,
+  Preview,
+  Container,
 } from '@react-email/components';
+
 import EmailLayout from './EmailLayout';
-import { Team } from '@prisma/client';
-import app from '@/lib/app';
 
 interface TeamInviteEmailProps {
   team: Team;
@@ -20,8 +21,7 @@ const TeamInviteEmail = ({
   team,
   invitationLink,
   subject,
-}: TeamInviteEmailProps) => {
-  return (
+}: TeamInviteEmailProps) => (
     <Html>
       <Head />
       <Preview>{subject}</Preview>
@@ -46,6 +46,5 @@ const TeamInviteEmail = ({
       </EmailLayout>
     </Html>
   );
-};
 
 export default TeamInviteEmail;

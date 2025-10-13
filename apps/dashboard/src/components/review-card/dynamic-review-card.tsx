@@ -1,4 +1,10 @@
 import { format } from 'date-fns';
+// Import platform types and configurations from @wirecrest/core
+import { 
+  PlatformType, 
+  PlatformConfig, 
+  PLATFORM_CONFIGS 
+} from '@wirecrest/core';
 
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
@@ -10,16 +16,8 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 
-import { Iconify } from 'src/components/iconify';
-
 // ----------------------------------------------------------------------
-
-// Import platform types and configurations from @wirecrest/core
-import { 
-  PlatformType, 
-  PlatformConfig, 
-  PLATFORM_CONFIGS 
-} from '@wirecrest/core';
+import { Iconify } from 'src/components/iconify';
 
 // Review data interface
 export interface ReviewData {

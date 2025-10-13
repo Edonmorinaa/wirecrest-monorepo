@@ -1,9 +1,7 @@
 const domainRegex =
   /(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]/;
 
-export const isValidDomain = (domain: string): boolean => {
-  return domainRegex.test(domain);
-};
+export const isValidDomain = (domain: string): boolean => domainRegex.test(domain);
 
 export const copyToClipboard = (text: string) => {
   navigator.clipboard.writeText(text);

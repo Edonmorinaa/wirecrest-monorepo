@@ -1,10 +1,8 @@
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 

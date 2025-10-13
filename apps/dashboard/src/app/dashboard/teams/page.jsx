@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getTeamsList } from 'src/actions/teams';
-import { TeamListView } from 'src/sections/team/view/team-list-view';
+
 import { useTeamsServerActions } from 'src/hooks/useTeamsServerActions';
+
+import { getTeamsList } from 'src/actions/teams';
+
+import { TeamListView } from 'src/sections/team/view/team-list-view';
 
 // ----------------------------------------------------------------------
 

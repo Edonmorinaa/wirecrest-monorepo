@@ -1,6 +1,5 @@
 import useSWR from 'swr';
 import { useParams } from 'next/navigation';
-
 import { useTeamSlug } from '@/hooks/use-subdomain';
 
 import fetcher from 'src/lib/fetcher';

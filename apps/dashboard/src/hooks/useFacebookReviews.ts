@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+
 import { getFacebookReviews } from 'src/actions/facebook-reviews';
 
 interface FacebookReviewFilters {

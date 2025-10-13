@@ -1,9 +1,10 @@
-import { Role, SuperRole } from '@prisma/client';
-import { ApiError } from './errors';
-import { getTeamMember } from '@/models/team';
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from '@wirecrest/auth/server';
 import { prisma } from '@wirecrest/db';
+import { getTeamMember } from '@/models/team';
+import { Role, SuperRole } from '@prisma/client';
+import { getSession } from '@wirecrest/auth/server';
+import { NextApiRequest, NextApiResponse } from 'next';
+
+import { ApiError } from './errors';
 
 export async function validateMembershipOperation(
   memberId: string,

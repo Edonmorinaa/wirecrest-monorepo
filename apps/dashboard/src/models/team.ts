@@ -1,11 +1,14 @@
-import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth/server';
-import { findOrCreateApp } from 'src/lib/svix';
-import { Role, Team } from '@prisma/client';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getCurrentUser } from './user';
-import { normalizeUser } from './user';
-import { validateWithSchema, teamSlugSchema } from 'src/lib/zod';
+
+import { prisma } from '@wirecrest/db';
+import { Role, Team } from '@prisma/client';
+import { getSession } from '@wirecrest/auth/server';
+import { createQuotaManager } from '@wirecrest/feature-flags';
+
+import { findOrCreateApp } from 'src/lib/svix';
+import { teamSlugSchema, validateWithSchema } from 'src/lib/zod';
+
+import { normalizeUser , getCurrentUser } from './user';
 
 export const createTeam = async (param: { userId: string; name: string; slug: string }) => {
   const { userId, name, slug } = param;
@@ -17,6 +20,7 @@ export const createTeam = async (param: { userId: string; name: string; slug: st
     },
   });
 
+  // OWNER is automatically added, no quota check needed for first member
   await addTeamMember(team.id, userId, Role.OWNER);
 
   await findOrCreateApp(team.name, team.id);
@@ -24,31 +28,48 @@ export const createTeam = async (param: { userId: string; name: string; slug: st
   return team;
 };
 
-export const getByCustomerId = async (billingId: string): Promise<Team | null> => {
-  return await prisma.team.findFirst({
+export const getByCustomerId = async (billingId: string): Promise<Team | null> => await prisma.team.findFirst({
     where: {
       billingId,
     },
   });
-};
 
-export const getTeam = async (key: { id: string } | { slug: string }) => {
-  return await prisma.team.findUniqueOrThrow({
+export const getTeam = async (key: { id: string } | { slug: string }) => await prisma.team.findUniqueOrThrow({
     where: key,
     include: {
       marketIdentifiers: true,
     },
   });
-};
 
-export const deleteTeam = async (key: { id: string } | { slug: string }) => {
-  return await prisma.team.delete({
+export const deleteTeam = async (key: { id: string } | { slug: string }) => await prisma.team.delete({
     where: key,
   });
-};
 
 export const addTeamMember = async (teamId: string, userId: string, role: Role) => {
-  return await prisma.teamMember.upsert({
+  // Check if member already exists (upsert case)
+  const existingMember = await prisma.teamMember.findUnique({
+    where: {
+      teamId_userId: {
+        teamId,
+        userId,
+      },
+    },
+  });
+
+  // Only check quota if this is a new member (not an update)
+  if (!existingMember) {
+    const quotaManager = createQuotaManager(prisma);
+    const canAdd = await quotaManager.canPerformAction(teamId, {
+      type: 'seats',
+      amount: 1,
+    });
+
+    if (!canAdd.allowed) {
+      throw new Error(`Cannot add team member: ${canAdd.reason}. Remaining seats: ${canAdd.remaining}`);
+    }
+  }
+
+  const member = await prisma.teamMember.upsert({
     create: {
       teamId,
       userId,
@@ -64,10 +85,18 @@ export const addTeamMember = async (teamId: string, userId: string, role: Role) 
       },
     },
   });
+
+  // Record usage only if new member was created
+  if (!existingMember) {
+    const quotaManager = createQuotaManager(prisma);
+    await quotaManager.recordUsage(teamId, 'seats', 1);
+  }
+
+  return member;
 };
 
 export const removeTeamMember = async (teamId: string, userId: string) => {
-  return await prisma.teamMember.delete({
+  const deleted = await prisma.teamMember.delete({
     where: {
       teamId_userId: {
         teamId,
@@ -75,6 +104,12 @@ export const removeTeamMember = async (teamId: string, userId: string) => {
       },
     },
   });
+
+  // Decrement seat usage when member is removed
+  const quotaManager = createQuotaManager(prisma);
+  await quotaManager.recordUsage(teamId, 'seats', -1);
+
+  return deleted;
 };
 
 /*
@@ -140,8 +175,7 @@ Nested Loop  (cost=1.01..3.09 rows=1 width=139) (actual time=0.169..0.172 rows=1
 Planning Time: 2.566 ms
 Execution Time: 0.322 ms
 */
-export const getTeams = async (userId: string) => {
-  return await prisma.team.findMany({
+export const getTeams = async (userId: string) => await prisma.team.findMany({
     where: {
       members: {
         some: {
@@ -155,7 +189,6 @@ export const getTeams = async (userId: string) => {
       },
     },
   });
-};
 
 export async function getTeamRoles(userId: string) {
   return await prisma.teamMember.findMany({
@@ -260,14 +293,12 @@ export const getTeamMembers = async (slug: string) => {
   });
 };
 
-export const updateTeam = async (slug: string, data: Partial<Team>) => {
-  return await prisma.team.update({
+export const updateTeam = async (slug: string, data: Partial<Team>) => await prisma.team.update({
     where: {
       slug,
     },
-    data: data,
+    data,
   });
-};
 
 /*
 Aggregate  (cost=124.01..124.02 rows=1 width=8) (actual time=0.216..0.216 rows=1 loops=1)
@@ -301,13 +332,11 @@ Aggregate  (cost=1.02..1.03 rows=1 width=8) (actual time=0.019..0.020 rows=1 loo
 Planning Time: 0.352 ms
 Execution Time: 0.055 ms
 */
-export const isTeamExists = async (slug: string) => {
-  return await prisma.team.count({
+export const isTeamExists = async (slug: string) => await prisma.team.count({
     where: {
       slug,
     },
   });
-};
 
 // Check if the current user has access to the team
 // Should be used in API routes to check if the user has access to the team

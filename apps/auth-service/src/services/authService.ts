@@ -191,7 +191,7 @@ export class AuthService {
     password: string;
     team?: string;
     inviteToken?: string;
-    recaptchaToken: string;
+    recaptchaToken?: string;
   }): Promise<{ success: boolean; data: { user: any; team: any; confirmEmail: boolean } }> {
     const { name, password, team, inviteToken, recaptchaToken } = userData;
 

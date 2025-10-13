@@ -1,8 +1,9 @@
 import { 
+  TikTokAnalytics,
   EngagementMetrics,
-  TikTokDailySnapshot,
-  TikTokAnalytics
+  TikTokDailySnapshot
 } from '@/types/tiktok-analytics';
+
 import { TikTokCalculationUtils } from './tiktok-calculation-utils';
 
 /**
@@ -108,9 +109,7 @@ export class TikTokEngagementMetricsCalculator {
     if (snapshots.length < 7) return 0;
     
     const recentSnapshots = snapshots.slice(-7);
-    const totalEngagement = recentSnapshots.reduce((sum, snapshot) => {
-      return sum + TikTokCalculationUtils.calculateEngagementRate(snapshot);
-    }, 0);
+    const totalEngagement = recentSnapshots.reduce((sum, snapshot) => sum + TikTokCalculationUtils.calculateEngagementRate(snapshot), 0);
     
     return totalEngagement / recentSnapshots.length;
   }

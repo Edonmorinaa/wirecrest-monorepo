@@ -1,13 +1,13 @@
 import { render } from '@react-email/render';
-import { sendEmail, SMTPClient, getAppConfig } from '@/core';
-import TeamInviteEmail from '@/templates/TeamInvite';
-import { Team, Invitation } from '@/types/email';
+import { sendEmail, getAppConfig } from '../core';
+import TeamInviteEmail from '../templates/TeamInvite';
+import { Team, Invitation } from '../types/email';
 
 /**
  * Send team invitation email
  */
 export const sendTeamInviteEmail = async (
-  smtpClient: SMTPClient,
+
   team: Team,
   invitation: Invitation
 ): Promise<void> => {
@@ -21,7 +21,7 @@ export const sendTeamInviteEmail = async (
 
   const html = await render(TeamInviteEmail({ invitationLink, team, subject }));
 
-  await sendEmail(smtpClient, {
+  await sendEmail({
     to: invitation.email,
     subject,
     html,

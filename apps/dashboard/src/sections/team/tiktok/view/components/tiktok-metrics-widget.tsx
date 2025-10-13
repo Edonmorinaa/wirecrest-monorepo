@@ -2,10 +2,10 @@
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
+import CardContent from '@mui/material/CardContent';
 
 import { Iconify } from 'src/components/iconify';
 

@@ -1,4 +1,5 @@
 import useSWR from 'swr';
+
 import fetcher from 'src/lib/fetcher';
 
 interface DashboardFilters {

@@ -1,4 +1,4 @@
-import { supabase, REALTIME_CHANNELS, REALTIME_EVENTS } from './supabase';
+import { supabase, REALTIME_EVENTS, REALTIME_CHANNELS } from './supabase';
 
 // Server-side real-time broadcasting utilities
 export class RealtimeBroadcaster {

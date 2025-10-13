@@ -1,11 +1,13 @@
-import { ApiError } from 'src/lib/errors';
-import { Action, Resource, permissions } from 'src/lib/permissions-client';
-import { prisma } from '@wirecrest/db';
-import { Role, TeamMember } from '@prisma/client';
 import type { Session } from '@wirecrest/auth';
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+import { prisma } from '@wirecrest/db';
+import { Role, TeamMember } from '@prisma/client';
 import { getSession } from '@wirecrest/auth/server';
+
+import { ApiError } from 'src/lib/errors';
 import { maxLengthPolicies } from 'src/lib/common';
+import { Action, Resource, permissions } from 'src/lib/permissions-client';
 
 export const normalizeUser = (user) => {
   if (user?.name) {
@@ -20,11 +22,9 @@ export const createUser = async (data: {
   email: string;
   password?: string;
   emailVerified?: Date | null;
-}) => {
-  return await prisma.user.create({
+}) => await prisma.user.create({
     data: normalizeUser(data),
   });
-};
 
 export const updateUser = async ({ where, data }) => {
   data = normalizeUser(data);
@@ -68,11 +68,9 @@ export const getUserBySession = async (session: Session | null) => {
   return await getUser({ id });
 };
 
-export const deleteUser = async (key: { id: string } | { email: string }) => {
-  return await prisma.user.delete({
+export const deleteUser = async (key: { id: string } | { email: string }) => await prisma.user.delete({
     where: key,
   });
-};
 
 export const findFirstUserOrThrow = async ({ where }) => {
   const user = await prisma.user.findFirstOrThrow({

@@ -1,8 +1,10 @@
-import { useOptimistic, useTransition } from 'react';
-import { getTeamsList, createNewTeam, updateTeamBySlug, deleteTeamBySlug } from 'src/actions/teams';
 import type { TeamWithMemberCount } from 'src/types';
+
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useOptimistic, useTransition } from 'react';
+
+import { createNewTeam, updateTeamBySlug, deleteTeamBySlug } from 'src/actions/teams';
 
 export function useTeamsServerActions(initialTeams: TeamWithMemberCount[] = []) {
   const [isPending, startTransition] = useTransition();

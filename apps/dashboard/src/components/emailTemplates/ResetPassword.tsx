@@ -1,12 +1,13 @@
 import app from '@/lib/app';
 import {
-  Button,
-  Container,
   Head,
   Html,
-  Preview,
   Text,
+  Button,
+  Preview,
+  Container,
 } from '@react-email/components';
+
 import EmailLayout from './EmailLayout';
 
 interface ResetPasswordEmailProps {
@@ -19,8 +20,7 @@ const ResetPasswordEmail = ({
   url,
   subject,
   email,
-}: ResetPasswordEmailProps) => {
-  return (
+}: ResetPasswordEmailProps) => (
     <Html>
       <Head />
       <Preview>{subject}</Preview>
@@ -48,6 +48,5 @@ const ResetPasswordEmail = ({
       </EmailLayout>
     </Html>
   );
-};
 
 export default ResetPasswordEmail;

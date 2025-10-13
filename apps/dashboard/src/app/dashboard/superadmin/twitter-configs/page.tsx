@@ -1,10 +1,10 @@
 import { Metadata } from 'next';
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth/server';
 import { notFound } from 'next/navigation';
+import { SuperRole } from '@prisma/client';
+import { getSession } from '@wirecrest/auth/server';
 import { DashboardContent } from '@/layouts/dashboard';
 import TwitterConfigList from '@/sections/superadmin/TwitterConfigList';
-import { SuperRole } from '@prisma/client';
 
 export const metadata: Metadata = {
   title: 'Twitter Configurations | Super Admin',

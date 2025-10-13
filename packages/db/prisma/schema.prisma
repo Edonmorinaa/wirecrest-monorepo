@@ -45,22 +45,26 @@ model VerificationToken {
 }
 
 model User {
-  id                     String               @id @default(uuid())
+  id                     String                  @id @default(uuid())
   name                   String
-  email                  String               @unique
+  email                  String                  @unique
   emailVerified          DateTime?
   password               String?
   image                  String?
-  superRole              SuperRole            @default(TENANT)
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @default(now())
-  invalid_login_attempts Int                  @default(0)
+  superRole              SuperRole               @default(TENANT)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @default(now())
+  invalid_login_attempts Int                     @default(0)
   lockedAt               DateTime?
+  accessTokens           AccessToken[]
+  accessTokenRedemptions AccessTokenRedemption[]
   accounts               Account[]
   invitations            Invitation[]
   sessions               Session[]
   superAdminDashboard    SuperAdminDashboard?
   teamMembers            TeamMember[]
+  notifications          Notification[]
+  pushSubscriptions      PushSubscription[]
 }
 
 model Team {
@@ -73,23 +77,34 @@ model Team {
   billingProvider            String?
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @default(now())
+  stripeCustomerId           String?                     @unique
+  accessTokenRedemptions     AccessTokenRedemption[]
   apiKeys                    ApiKey[]
+  billingAddresses           BillingAddress[]
   bookingBusinessProfile     BookingBusinessProfile?
   businessCreationTasks      BusinessCreationTask[]
   marketIdentifiers          BusinessMarketIdentifier[]
+  demoAccount                DemoAccount?
   facebookBusinessProfiles   FacebookBusinessProfile?
   businessProfile            GoogleBusinessProfile?
   instagramBusinessProfile   InstagramBusinessProfile?
   invitations                Invitation[]
+  paymentMethods             PaymentMethod[]
   members                    TeamMember[]
+  subscription               TeamSubscription?
   tiktokBusinessProfile      TikTokBusinessProfile?
   tripAdvisorBusinessProfile TripAdvisorBusinessProfile?
-  twitterProfiles            TwitterProfile[]
-  twitterProfileConfig       TwitterProfileConfig?
-  twitterAlertKeywords       TwitterAlertKeyword[]
   twitterAlerts              TwitterAlert[]
   twitterAlertConfig         TwitterAlertConfig?
   twitterAlertEngagements    TwitterAlertEngagement[]
+  twitterAlertKeywords       TwitterAlertKeyword[]
+  twitterProfiles            TwitterProfile[]
+  twitterProfileConfig       TwitterProfileConfig?
+  usageQuotas                UsageQuota[]
+  usageRecords               UsageRecord[]
+  apifySchedules             ApifySchedule[]
+  syncRecords                SyncRecord[]
+  notifications              Notification[]
 
   @@index([billingId])
 }
@@ -234,6 +249,8 @@ model GoogleBusinessProfile {
   subDestinations                    String[]                @default([])
   utcOffsetMinutes                   Int?
   adrFormatAddress                   String?
+  lastScrapedAt                      DateTime?
+  lastReviewDate                     DateTime?
   additionalInfo                     AdditionalInfo?
   addressComponents                  AddressComponent[]
   categories                         Category[]
@@ -635,6 +652,8 @@ model FacebookBusinessProfile {
   scrapedAt                  DateTime                            @default(now())
   createdAt                  DateTime                            @default(now())
   updatedAt                  DateTime                            @updatedAt
+  lastScrapedAt              DateTime?
+  lastReviewDate             DateTime?
   metadata                   Json?
   businessMetadata           FacebookBusinessMetadata?
   team                       Team                                @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -1075,6 +1094,8 @@ model TripAdvisorBusinessProfile {
   scrapedAt             DateTime
   createdAt             DateTime                         @default(now())
   updatedAt             DateTime                         @updatedAt
+  lastScrapedAt         DateTime?
+  lastReviewDate        DateTime?
   addressObj            TripAdvisorAddress?
   ancestorLocations     TripAdvisorAncestorLocation[]
   amenities             TripAdvisorBusinessAmenity[]
@@ -1718,6 +1739,8 @@ model BookingBusinessProfile {
   scrapedAt              DateTime
   createdAt              DateTime                   @default(now())
   updatedAt              DateTime                   @updatedAt
+  lastScrapedAt          DateTime?
+  lastReviewDate         DateTime?
   businessMetadata       BookingBusinessMetadata?
   photos                 BookingBusinessPhoto[]
   team                   Team                       @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -2055,8 +2078,8 @@ model InstagramBusinessProfile {
   contactAddress        String?
   contactEmail          String?
   contactPhone          String?
-  team                  Team                          @relation(fields: [teamId], references: [id], onDelete: Cascade)
   analytics             InstagramAnalytics[]
+  team                  Team                          @relation(fields: [teamId], references: [id], onDelete: Cascade)
   commentSnapshots      InstagramCommentSnapshot[]
   dailySnapshots        InstagramDailySnapshot[]
   mediaSnapshots        InstagramMediaSnapshot[]
@@ -2070,55 +2093,41 @@ model InstagramBusinessProfile {
 }
 
 model InstagramDailySnapshot {
-  id                String                     @id @default(uuid())
-  businessProfileId String
-  snapshotDate      DateTime
-  snapshotTime      DateTime
-  
-  // Core metrics
-  followersCount    Int
-  followingCount    Int
-  mediaCount        Int
-  
-  // Engagement metrics
-  totalLikes        Int                        @default(0)
-  totalComments     Int                        @default(0)
-  totalViews        Int                        @default(0)
-  totalSaves        Int                        @default(0)
-  totalShares       Int                        @default(0)
-  
-  // Content metrics
-  newPosts          Int                        @default(0)
-  newStories        Int                        @default(0)
-  newReels          Int                        @default(0)
-  storyViews        Int                        @default(0)
-  storyReplies      Int                        @default(0)
-  
-  // Calculated metrics for analytics
-  engagementRate    Float                      @default(0) // (likes + comments + saves + shares) / followers * 100
-  avgLikesPerPost   Float                      @default(0)
-  avgCommentsPerPost Float                     @default(0)
-  commentsRatio     Float                      @default(0) // comments per 100 likes
-  followersRatio    Float                      @default(0) // followers / following
-  
-  // Growth metrics (calculated from previous snapshots)
-  followersGrowth   Int                        @default(0) // delta from previous day
-  followingGrowth   Int                        @default(0) // delta from previous day
-  mediaGrowth       Int                        @default(0) // delta from previous day
-  
-  // Weekly/Monthly context for calculations
-  weeklyFollowersGrowth Int                   @default(0) // delta from 7 days ago
-  monthlyFollowersGrowth Int                  @default(0) // delta from 30 days ago
-  
-  // Additional data
-  topHashtags       Json?
-  hasErrors         Boolean                    @default(false)
-  errorMessage      String?
-  createdAt         DateTime                   @default(now())
-  snapshotType      InstagramSnapshotType
-  commentSnapshots  InstagramCommentSnapshot[]
-  businessProfile   InstagramBusinessProfile   @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
-  mediaSnapshots    InstagramMediaSnapshot[]
+  id                     String                     @id @default(uuid())
+  businessProfileId      String
+  snapshotDate           DateTime
+  snapshotTime           DateTime
+  followersCount         Int
+  followingCount         Int
+  mediaCount             Int
+  totalLikes             Int                        @default(0)
+  totalComments          Int                        @default(0)
+  totalViews             Int                        @default(0)
+  totalSaves             Int                        @default(0)
+  totalShares            Int                        @default(0)
+  newPosts               Int                        @default(0)
+  newStories             Int                        @default(0)
+  newReels               Int                        @default(0)
+  storyViews             Int                        @default(0)
+  storyReplies           Int                        @default(0)
+  topHashtags            Json?
+  hasErrors              Boolean                    @default(false)
+  errorMessage           String?
+  createdAt              DateTime                   @default(now())
+  snapshotType           InstagramSnapshotType
+  avgCommentsPerPost     Float                      @default(0)
+  avgLikesPerPost        Float                      @default(0)
+  commentsRatio          Float                      @default(0)
+  engagementRate         Float                      @default(0)
+  followersGrowth        Int                        @default(0)
+  followersRatio         Float                      @default(0)
+  followingGrowth        Int                        @default(0)
+  mediaGrowth            Int                        @default(0)
+  monthlyFollowersGrowth Int                        @default(0)
+  weeklyFollowersGrowth  Int                        @default(0)
+  commentSnapshots       InstagramCommentSnapshot[]
+  businessProfile        InstagramBusinessProfile   @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  mediaSnapshots         InstagramMediaSnapshot[]
 
   @@index([businessProfileId])
   @@index([snapshotDate])
@@ -2270,40 +2279,28 @@ model InstagramSnapshotSchedule {
   @@index([businessProfileId])
 }
 
-// Analytics and calculated metrics for frontend consumption
 model InstagramAnalytics {
-  id                String                   @id @default(uuid())
-  businessProfileId String
-  date              DateTime                 @db.Date
-  period            InstagramAnalyticsPeriod @default(DAILY)
-  
-  // Growth metrics
-  followersGrowthRate90d Float               @default(0) // 90-day growth rate percentage
-  steadyGrowthRate      Float               @default(0) // Growth consistency (0-100%)
-  dailyFollowersGrowth   Int                @default(0)
-  weeklyFollowersGrowth  Int                @default(0)
-  monthlyFollowersGrowth Int                @default(0)
-  
-  // Engagement metrics
-  engagementRate         Float              @default(0)
-  weeklyEngagementRate   Float              @default(0) // Cumulative for last 7 days
-  avgLikes               Float              @default(0)
-  avgComments            Float              @default(0)
-  commentsRatio          Float              @default(0) // Comments per 100 likes
-  weeklyPosts            Int                @default(0)
-  
-  // Ratios and relationships
-  followersRatio         Float              @default(0) // Followers / Following
-  
-  // Predictions (for growth charts)
+  id                     String                   @id @default(uuid())
+  businessProfileId      String
+  date                   DateTime                 @db.Date
+  period                 InstagramAnalyticsPeriod @default(DAILY)
+  followersGrowthRate90d Float                    @default(0)
+  steadyGrowthRate       Float                    @default(0)
+  dailyFollowersGrowth   Int                      @default(0)
+  weeklyFollowersGrowth  Int                      @default(0)
+  monthlyFollowersGrowth Int                      @default(0)
+  engagementRate         Float                    @default(0)
+  weeklyEngagementRate   Float                    @default(0)
+  avgLikes               Float                    @default(0)
+  avgComments            Float                    @default(0)
+  commentsRatio          Float                    @default(0)
+  weeklyPosts            Int                      @default(0)
+  followersRatio         Float                    @default(0)
   predictedFollowers     Int?
-  growthTrend           InstagramTrendDirection @default(STABLE)
-  
-  // Calculated at
-  calculatedAt          DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  
-  businessProfile       InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  growthTrend            InstagramTrendDirection  @default(STABLE)
+  calculatedAt           DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  businessProfile        InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
 
   @@unique([businessProfileId, date, period])
   @@index([businessProfileId])
@@ -2350,26 +2347,24 @@ model TikTokBusinessProfile {
 }
 
 model TwitterProfile {
-  id                    String   @id @default(uuid())
-  teamId                String
-  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  username              String
-  displayName           String
-  bio                   String?
-  profileUrl            String
-  verified              Boolean  @default(false)
-  followersCount        Int      @default(0)
-  followingCount        Int      @default(0)
-  tweetsCount           Int      @default(0)
-  profileImageUrl       String?
-  customBio             String?
-  isActive              Boolean  @default(true)
-  lastSyncAt            DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  // Relations
-  tweets                TwitterTweet[]
+  id              String         @id @default(uuid())
+  username        String
+  displayName     String
+  bio             String?
+  profileUrl      String
+  verified        Boolean        @default(false)
+  followersCount  Int            @default(0)
+  followingCount  Int            @default(0)
+  tweetsCount     Int            @default(0)
+  profileImageUrl String?
+  customBio       String?
+  isActive        Boolean        @default(true)
+  lastSyncAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  teamId          String
+  team            Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tweets          TwitterTweet[]
 
   @@unique([teamId, username])
   @@index([teamId])
@@ -2377,83 +2372,67 @@ model TwitterProfile {
 }
 
 model TwitterProfileConfig {
-  id                    String   @id @default(uuid())
-  teamId                String   @unique
-  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
-  // Profile Management Settings
-  maxProfiles           Int      @default(5)
-  allowProfileCreation  Boolean  @default(true)
-  allowProfileDeletion  Boolean  @default(true)
-  allowProfileRefresh   Boolean  @default(true)
-  
-  // Sync Settings
-  autoSyncEnabled       Boolean  @default(false)
-  syncIntervalHours     Int      @default(24)
+  id                    String    @id @default(uuid())
+  teamId                String    @unique
+  maxProfiles           Int       @default(5)
+  allowProfileCreation  Boolean   @default(true)
+  allowProfileDeletion  Boolean   @default(true)
+  allowProfileRefresh   Boolean   @default(true)
+  autoSyncEnabled       Boolean   @default(false)
+  syncIntervalHours     Int       @default(24)
   lastAutoSync          DateTime?
-  
-  // Tweet Settings
-  maxTweetsPerProfile   Int      @default(10)
-  includeReplies        Boolean  @default(false)
-  includeRetweets       Boolean  @default(false)
-  includeMediaOnly      Boolean  @default(false)
-  
-  // Notification Settings
-  notifyOnNewTweets     Boolean  @default(false)
-  notifyOnProfileUpdate Boolean  @default(false)
-  notificationChannels  String[] @default([]) // ['email', 'slack', 'webhook']
-  
-  // Custom Bio Settings
-  allowCustomBios       Boolean  @default(true)
-  requireApproval       Boolean  @default(false)
-  
-  // Advanced Settings
-  customApifyConfig     Json?    // Team-specific Apify configuration
-  rateLimitPerHour      Int      @default(100)
-  rateLimitPerDay       Int      @default(1000)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  maxTweetsPerProfile   Int       @default(10)
+  includeReplies        Boolean   @default(false)
+  includeRetweets       Boolean   @default(false)
+  includeMediaOnly      Boolean   @default(false)
+  notifyOnNewTweets     Boolean   @default(false)
+  notifyOnProfileUpdate Boolean   @default(false)
+  notificationChannels  String[]  @default([])
+  allowCustomBios       Boolean   @default(true)
+  requireApproval       Boolean   @default(false)
+  customApifyConfig     Json?
+  rateLimitPerHour      Int       @default(100)
+  rateLimitPerDay       Int       @default(1000)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  team                  Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
 }
 
 model TwitterTweet {
-  id                    String   @id @default(uuid())
-  profileId             String
-  profile               TwitterProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  tweetId               String
-  text                  String
-  url                   String
-  likes                 Int      @default(0)
-  retweets              Int      @default(0)
-  replies               Int      @default(0)
-  hasMedia              Boolean  @default(false)
-  mediaUrls             String[] @default([])
-  tweetCreatedAt        DateTime
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id             String         @id @default(uuid())
+  profileId      String
+  tweetId        String
+  text           String
+  url            String
+  likes          Int            @default(0)
+  retweets       Int            @default(0)
+  replies        Int            @default(0)
+  hasMedia       Boolean        @default(false)
+  mediaUrls      String[]       @default([])
+  tweetCreatedAt DateTime
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  profile        TwitterProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
   @@index([tweetCreatedAt])
 }
 
-// Twitter Alerts System Models
 model TwitterAlertKeyword {
-  id          String   @id @default(uuid())
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  keyword     String
-  enabled     Boolean  @default(true)
-  priority    String   @default("medium") // 'high', 'medium', 'low'
-  maxTweets   Int      @default(5)
-  totalFound  Int      @default(0)
-  lastFound   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  alerts      TwitterAlert[]
+  id         String         @id @default(uuid())
+  teamId     String
+  keyword    String
+  enabled    Boolean        @default(true)
+  priority   String         @default("medium")
+  maxTweets  Int            @default(5)
+  totalFound Int            @default(0)
+  lastFound  DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  alerts     TwitterAlert[]
+  team       Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, keyword])
   @@index([teamId])
@@ -2461,40 +2440,29 @@ model TwitterAlertKeyword {
 }
 
 model TwitterAlert {
-  id              String   @id @default(uuid())
-  teamId          String
-  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  keywordId       String
-  keyword         TwitterAlertKeyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
-  
-  // Tweet Information
-  tweetId         String
-  tweetText       String
-  author          String
-  authorHandle    String
-  authorVerified  Boolean  @default(false)
-  tweetUrl        String
-  imageCount      Int      @default(0)
-  hasCard         Boolean  @default(false)
-  
-  // Engagement Data
-  likes           Int      @default(0)
-  retweets        Int      @default(0)
-  replies         Int      @default(0)
-  
-  // Timestamps
-  tweetTimestamp  DateTime
-  scrapedAt       DateTime @default(now())
-  
-  // Status
-  status          String   @default("new") // 'new', 'processed', 'ignored'
-  alertSent       Boolean  @default(false)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  actions         TwitterAlertAction[]
+  id             String               @id @default(uuid())
+  teamId         String
+  keywordId      String
+  tweetId        String
+  tweetText      String
+  author         String
+  authorHandle   String
+  authorVerified Boolean              @default(false)
+  tweetUrl       String
+  imageCount     Int                  @default(0)
+  hasCard        Boolean              @default(false)
+  likes          Int                  @default(0)
+  retweets       Int                  @default(0)
+  replies        Int                  @default(0)
+  tweetTimestamp DateTime
+  scrapedAt      DateTime             @default(now())
+  status         String               @default("new")
+  alertSent      Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  keyword        TwitterAlertKeyword  @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  team           Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  actions        TwitterAlertAction[]
 
   @@index([teamId])
   @@index([keywordId])
@@ -2503,28 +2471,21 @@ model TwitterAlert {
 }
 
 model TwitterAlertAction {
-  id              String   @id @default(uuid())
-  alertId         String
-  alert           TwitterAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
-  
-  // Action Details
-  actionType      String   // 'like', 'retweet', 'comment', 'ai_comment'
-  completed       Boolean  @default(false)
-  profileId       String?  // Twitter profile that performed the action
-  profileName     String?
-  commentText     String?  // For comment actions
-  commentUrl      String?  // URL to the posted comment
-  
-  // Engagement Tracking
-  engagementBefore Json?   // { likes: number, retweets: number, replies: number }
-  engagementAfter  Json?   // { likes: number, retweets: number, replies: number }
-  
-  // Error Handling
-  errorMessage    String?
-  retryCount      Int      @default(0)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String       @id @default(uuid())
+  alertId          String
+  actionType       String
+  completed        Boolean      @default(false)
+  profileId        String?
+  profileName      String?
+  commentText      String?
+  commentUrl       String?
+  engagementBefore Json?
+  engagementAfter  Json?
+  errorMessage     String?
+  retryCount       Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  alert            TwitterAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
 
   @@index([alertId])
   @@index([actionType])
@@ -2533,65 +2494,47 @@ model TwitterAlertAction {
 }
 
 model TwitterAlertConfig {
-  id                    String   @id @default(uuid())
-  teamId                String   @unique
-  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
-  // Apify Configuration
-  apifyApiToken         String?
-  apifyBaseUrl          String   @default("https://api.apify.com/v2")
-  apifyActorId          String   @default("jupri~twitter-scraper")
-  twitterAuthToken      String?
-  
-  // Scraper Settings
-  searchMode            String   @default("live") // 'live', 'recent', 'top'
-  maxTweets             Int      @default(5)
-  maxRequestRetries     Int      @default(3)
-  addUserInfo           Boolean  @default(true)
-  maxConcurrency        Int      @default(1)
-  
-  // Monitoring Settings
-  autoScanEnabled       Boolean  @default(false)
-  scanIntervalMinutes   Int      @default(30)
-  lastScan              DateTime?
-  nextScan              DateTime?
-  
-  // Status
-  apifyStatus           String   @default("disconnected") // 'connected', 'disconnected', 'error'
-  scanStatus            String   @default("stopped") // 'running', 'stopped', 'error'
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                  String    @id @default(uuid())
+  teamId              String    @unique
+  apifyApiToken       String?
+  apifyBaseUrl        String    @default("https://api.apify.com/v2")
+  apifyActorId        String    @default("jupri~twitter-scraper")
+  twitterAuthToken    String?
+  searchMode          String    @default("live")
+  maxTweets           Int       @default(5)
+  maxRequestRetries   Int       @default(3)
+  addUserInfo         Boolean   @default(true)
+  maxConcurrency      Int       @default(1)
+  autoScanEnabled     Boolean   @default(false)
+  scanIntervalMinutes Int       @default(30)
+  lastScan            DateTime?
+  nextScan            DateTime?
+  apifyStatus         String    @default("disconnected")
+  scanStatus          String    @default("stopped")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  team                Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
 }
 
 model TwitterAlertEngagement {
-  id              String   @id @default(uuid())
-  teamId          String
-  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
-  // Action Details
-  actionType      String   // 'like', 'retweet', 'comment'
-  profileId       String
-  profileName     String?
-  alertId         String?  // Reference to the original alert
-  keyword         String?  // Keyword that triggered the alert
-  
-  // Tweet Information
-  tweetText       String?
-  tweetUrl        String?
-  
-  // Engagement Data
-  success         Boolean  @default(false)
-  errorMessage    String?
-  
-  // Custom Comment (for comment actions)
-  customComment   String?
-  isAI            Boolean  @default(false)
-  commentUrl      String?
-  
-  createdAt       DateTime @default(now())
+  id            String   @id @default(uuid())
+  teamId        String
+  actionType    String
+  profileId     String
+  profileName   String?
+  alertId       String?
+  keyword       String?
+  tweetText     String?
+  tweetUrl      String?
+  success       Boolean  @default(false)
+  errorMessage  String?
+  customComment String?
+  isAI          Boolean  @default(false)
+  commentUrl    String?
+  createdAt     DateTime @default(now())
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
   @@index([actionType])
@@ -2705,6 +2648,370 @@ model TikTokCommentSnapshot {
   @@index([commentId])
 }
 
+
+model TeamSubscription {
+  id                   String                 @id @default(uuid())
+  teamId               String                 @unique
+  stripeCustomerId     String?                @unique
+  stripeSubscriptionId String?                @unique
+  tier                 SubscriptionTier       @default(FREE)
+  status               SubscriptionStatus     @default(ACTIVE)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean                @default(false)
+  canceledAt           DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  basePrice            Decimal                @default(0)
+  includedSeats        Int                    @default(1)
+  includedLocations    Int                    @default(1)
+  includedRefreshes    Int                    @default(24)
+  pricePerSeat         Decimal                @default(0)
+  pricePerLocation     Decimal                @default(0)
+  pricePerRefresh      Decimal                @default(0)
+  currentSeats         Int                    @default(1)
+  currentLocations     Int                    @default(0)
+  enabledFeatures      String[]               @default([])
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  stripePriceId        String?
+  stripeProductId      String?
+  invoices             Invoice[]
+  team                 Team                   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  usageRecords         UsageRecord[]
+
+  @@index([stripeCustomerId])
+  @@index([status])
+  @@index([tier])
+}
+
+
+model UsageRecord {
+  id             String            @id @default(uuid())
+  teamId         String
+  subscriptionId String?
+  type           UsageType
+  category       String
+  resource       String?
+  quantity       Int               @default(1)
+  metadata       Json?
+  timestamp      DateTime          @default(now())
+  periodStart    DateTime
+  periodEnd      DateTime
+  subscription   TeamSubscription? @relation(fields: [subscriptionId], references: [id])
+  team           Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, type, periodStart])
+  @@index([subscriptionId])
+  @@index([category, timestamp])
+}
+
+model UsageQuota {
+  id           String      @id @default(uuid())
+  teamId       String
+  type         UsageType
+  category     String
+  limit        Int
+  period       QuotaPeriod @default(DAILY)
+  resetAt      DateTime
+  currentUsage Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  team         Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, type, category, period])
+  @@index([resetAt])
+}
+
+model AccessToken {
+  id              String                  @id @default(uuid())
+  token           String                  @unique
+  type            AccessTokenType         @default(DEMO)
+  maxTeams        Int                     @default(1)
+  maxLocations    Int                     @default(1)
+  maxDurationDays Int                     @default(14)
+  allowedFeatures String[]                @default([])
+  usedCount       Int                     @default(0)
+  maxUses         Int                     @default(1)
+  expiresAt       DateTime
+  createdAt       DateTime                @default(now())
+  createdBy       String?
+  creator         User?                   @relation(fields: [createdBy], references: [id])
+  redemptions     AccessTokenRedemption[]
+
+  @@index([token])
+  @@index([type])
+  @@index([expiresAt])
+}
+
+model AccessTokenRedemption {
+  id         String      @id @default(uuid())
+  tokenId    String
+  teamId     String
+  userId     String
+  redeemedAt DateTime    @default(now())
+  expiresAt  DateTime
+  team       Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  token      AccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id])
+
+  @@unique([tokenId, teamId])
+  @@index([teamId])
+  @@index([expiresAt])
+}
+
+model Invoice {
+  id              String            @id @default(uuid())
+  subscriptionId  String
+  stripeInvoiceId String?           @unique
+  number          String?
+  status          InvoiceStatus     @default(DRAFT)
+  amount          Decimal
+  currency        String            @default("usd")
+  periodStart     DateTime
+  periodEnd       DateTime
+  dueDate         DateTime?
+  paidAt          DateTime?
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  subscription    TeamSubscription  @relation(fields: [subscriptionId], references: [id])
+  lineItems       InvoiceLineItem[]
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  description String
+  quantity    Int
+  unitPrice   Decimal
+  amount      Decimal
+  metadata    Json?
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model PaymentMethod {
+  id                    String   @id @default(uuid())
+  teamId                String
+  stripePaymentMethodId String   @unique
+  type                  String
+  isDefault             Boolean  @default(false)
+  cardBrand             String?
+  cardLast4             String?
+  cardExpMonth          Int?
+  cardExpYear           Int?
+  nickname              String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([stripePaymentMethodId])
+}
+
+model BillingAddress {
+  id         String   @id @default(uuid())
+  teamId     String
+  isDefault  Boolean  @default(false)
+  name       String?
+  line1      String
+  line2      String?
+  city       String
+  state      String?
+  postalCode String
+  country    String   @default("US")
+  taxId      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([country])
+}
+
+model StripeProduct {
+  id              String            @id @default(uuid())
+  stripeProductId String            @unique
+  stripePriceId   String?           @unique
+  name            String
+  description     String?
+  tier            SubscriptionTier?
+  unitAmount      Int
+  currency        String            @default("usd")
+  interval        String
+  intervalCount   Int               @default(1)
+  active          Boolean           @default(true)
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([stripeProductId])
+  @@index([stripePriceId])
+  @@index([tier])
+}
+
+model SubscriptionTierConfig {
+  id                String           @id @default(uuid())
+  tier              SubscriptionTier @unique
+  name              String
+  description       String?
+  basePrice         Decimal          @default(0)
+  billingInterval   String           @default("month")
+  includedSeats     Int              @default(1)
+  includedLocations Int              @default(1)
+  includedRefreshes Int              @default(24)
+  pricePerSeat      Decimal          @default(0)
+  pricePerLocation  Decimal          @default(0)
+  pricePerRefresh   Decimal          @default(0)
+  enabledFeatures   String[]         @default([])
+  metadata          Json?
+  popular           Boolean          @default(false)
+  highlighted       Boolean          @default(false)
+  sortOrder         Int              @default(0)
+  active            Boolean          @default(true)
+  stripePriceId     String?
+  stripeProductId   String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([tier])
+  @@index([active])
+  @@index([sortOrder])
+  @@index([stripePriceId])
+}
+
+model TrialConfig {
+  id                    String        @id @default(uuid())
+  name                  String
+  description           String
+  durationDays          Int
+  tier                  String
+  features              String[]
+  limitations           Json
+  requiresPaymentMethod Boolean       @default(false)
+  autoConvert           Boolean       @default(false)
+  gracePeriodDays       Int?
+  retentionOffers       Json?
+  active                Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  DemoAccount           DemoAccount[]
+
+  @@index([tier])
+  @@index([active])
+}
+
+model DemoAccount {
+  id             String      @id @default(uuid())
+  teamId         String      @unique
+  email          String
+  name           String
+  trialConfigId  String
+  startedAt      DateTime
+  expiresAt      DateTime
+  status         String
+  conversionData Json?
+  usageStats     Json
+  metadata       Json?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  team           Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  trialConfig    TrialConfig @relation(fields: [trialConfigId], references: [id])
+
+  @@index([teamId])
+  @@index([trialConfigId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// =================== NOTIFICATIONS SYSTEM ===================
+
+enum NotificationType {
+  FRIEND
+  PROJECT
+  FILE
+  TAGS
+  PAYMENT
+  ORDER
+  DELIVERY
+  CHAT
+  MAIL
+}
+
+enum NotificationScope {
+  USER
+  TEAM
+  SUPER
+}
+
+model Notification {
+  id          String             @id @default(uuid())
+  type        NotificationType
+  scope       NotificationScope
+  
+  // Targeting
+  userId      String?
+  teamId      String?
+  superRole   SuperRole?
+  
+  // Content
+  title       String
+  category    String
+  avatarUrl   String?
+  
+  // State
+  isUnRead    Boolean            @default(true)
+  isArchived  Boolean            @default(false)
+  
+  // Metadata
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+  expiresAt   DateTime?
+  
+  // Relations
+  user        User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team        Team?              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isUnRead])
+  @@index([teamId, isUnRead])
+  @@index([scope, superRole])
+  @@index([expiresAt])
+  @@index([createdAt])
+}
+
+model PushSubscription {
+  id               String   @id @default(uuid())
+  userId           String
+  endpoint         String   @unique
+  p256dh           String   // Public key for encryption
+  auth             String   // Authentication secret
+  userAgent        String?
+  deviceType       String?  // 'web', 'ios', 'android'
+  isActive         Boolean  @default(true)
+  lastUsedAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now())
+  
+  // APNs specific fields (for iOS/macOS)
+  apnsToken        String?  // APNs device token
+  apnsEnvironment  String?  // 'production' or 'sandbox'
+  apnsBundleId     String?  // App bundle ID
+  
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isActive])
+  @@index([deviceType])
+  @@index([lastUsedAt])
+}
+
+// =================== ENUMS ===================
+
 enum Role {
   ADMIN
   OWNER
@@ -2794,6 +3101,174 @@ enum ServesWine {
 enum Takeout {
   TAKEOUT_AVAILABLE
   NO_TAKEOUT
+}
+
+// =================== APIFY SCHEDULING MODELS ===================
+
+// Legacy per-team schedules (being phased out)
+model ApifySchedule {
+  id                    String   @id @default(uuid())
+  teamId                String
+  platform              String   // 'google_reviews', 'facebook', 'tripadvisor', 'booking'
+  scheduleType          String   // 'reviews' | 'overview'
+  apifyScheduleId       String   @unique
+  apifyActorId          String
+  cronExpression        String
+  intervalHours         Int
+  maxReviewsPerRun      Int      @default(50)
+  isActive              Boolean  @default(true)
+  lastRunAt             DateTime?
+  nextRunAt             DateTime?
+  metadata              Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@unique([teamId, platform, scheduleType])
+  @@index([teamId, platform])
+  @@index([isActive, nextRunAt])
+  @@index([apifyScheduleId])
+}
+
+// Global schedules - one per (platform × interval × scheduleType) combination
+model ApifyGlobalSchedule {
+  id                    String   @id @default(uuid())
+  platform              String   // 'google_reviews', 'facebook', 'tripadvisor', 'booking'
+  scheduleType          String   // 'reviews' | 'overview'
+  intervalHours         Int      // 6, 12, 24, 72, etc.
+  batchIndex            Int      @default(0) // For batching large schedules
+  apifyScheduleId       String   @unique
+  apifyActorId          String
+  cronExpression        String
+  maxReviewsPerRun      Int      @default(50)
+  isActive              Boolean  @default(true)
+  lastRunAt             DateTime?
+  nextRunAt             DateTime?
+  businessCount         Int      @default(0) // Denormalized for performance
+  metadata              Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  businessMappings      BusinessScheduleMapping[]
+  
+  @@unique([platform, scheduleType, intervalHours, batchIndex])
+  @@index([platform, intervalHours])
+  @@index([isActive, nextRunAt])
+  @@index([businessCount])
+}
+
+// Maps individual businesses to global schedules
+model BusinessScheduleMapping {
+  id                    String   @id @default(uuid())
+  teamId                String   // Which team owns this business
+  businessProfileId     String   // References the specific business profile
+  platform              String   // 'google_reviews', 'facebook', 'tripadvisor', 'booking'
+  scheduleId            String   // References ApifyGlobalSchedule
+  intervalHours         Int      // Current interval for this business
+  
+  // Platform-specific identifiers (for quick lookup during webhook processing)
+  placeId               String?  // For Google Reviews
+  facebookUrl           String?  // For Facebook
+  tripAdvisorUrl        String?  // For TripAdvisor
+  bookingUrl            String?  // For Booking.com
+  
+  isActive              Boolean  @default(true)
+  addedAt               DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  schedule              ApifyGlobalSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  
+  @@unique([businessProfileId, platform])
+  @@index([scheduleId])
+  @@index([teamId, platform])
+  @@index([platform, intervalHours])
+  @@index([placeId])
+  @@index([facebookUrl])
+  @@index([tripAdvisorUrl])
+  @@index([bookingUrl])
+}
+
+// Custom intervals for Enterprise/special teams
+model ScheduleCustomInterval {
+  id                    String   @id @default(uuid())
+  teamId                String
+  platform              String   // 'google_reviews', 'facebook', 'tripadvisor', 'booking'
+  customIntervalHours   Int      // e.g., 8, 18, or any custom value
+  reason                String?  // Why this custom interval was set
+  setBy                 String?  // Admin user who set it
+  expiresAt             DateTime? // Optional expiration
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([teamId, platform])
+  @@index([teamId])
+  @@index([platform, customIntervalHours])
+}
+
+// Per-business retry queue for failed scrapes
+model BusinessRetryQueue {
+  id                    String   @id @default(uuid())
+  teamId                String
+  businessProfileId     String
+  platform              String   // 'google_reviews', 'facebook', 'tripadvisor', 'booking'
+  identifier            String   // placeId, URL, etc.
+  
+  retryCount            Int      @default(0)
+  maxRetries            Int      @default(3)
+  lastError             String?
+  lastAttemptAt         DateTime?
+  nextRetryAt           DateTime // When to retry next (exponential backoff)
+  
+  status                String   @default("pending") // 'pending' | 'retrying' | 'failed' | 'resolved'
+  resolvedAt            DateTime?
+  
+  metadata              Json?    // Store additional context
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([businessProfileId, platform])
+  @@index([status, nextRetryAt])
+  @@index([teamId])
+  @@index([platform])
+}
+
+model SyncRecord {
+  id                    String   @id @default(uuid())
+  teamId                String
+  platform              String   // 'google_reviews', 'facebook', 'tripadvisor', 'booking'
+  syncType              String   // 'initial' | 'recurring_reviews' | 'recurring_overview'
+  status                String   // 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  apifyRunId            String   @unique
+  apifyDatasetId        String?
+  startedAt             DateTime @default(now())
+  completedAt           DateTime?
+  reviewsProcessed      Int      @default(0)
+  reviewsNew            Int      @default(0)
+  reviewsDuplicate      Int      @default(0)
+  businessesUpdated     Int      @default(0)
+  errorMessage          String?
+  metadata              Json?
+  
+  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@index([teamId, platform, syncType])
+  @@index([status, startedAt])
+  @@index([apifyRunId])
+}
+
+model ApifyWebhookLog {
+  id                    String   @id @default(uuid())
+  teamId                String?
+  apifyRunId            String
+  eventType             String
+  payload               Json
+  processedAt           DateTime @default(now())
+  processingStatus      String   // 'success' | 'failed' | 'pending'
+  errorMessage          String?
+  
+  @@index([apifyRunId])
+  @@index([processingStatus, processedAt])
 }
 
 enum AdditionalInfoCategory {
@@ -2926,4 +3401,55 @@ enum InstagramAnalyticsPeriod {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+
+enum SubscriptionTier {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  CUSTOM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  TRIALING
+  UNPAID
+}
+
+
+enum UsageType {
+  SCRAPER_REFRESH
+  API_CALL
+  LOCATION
+  SEAT
+  STORAGE
+  BANDWIDTH
+}
+
+enum QuotaPeriod {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum AccessTokenType {
+  DEMO
+  TRIAL
+  BETA
+  ENTERPRISE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
 }

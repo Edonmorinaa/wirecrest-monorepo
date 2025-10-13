@@ -1,51 +1,49 @@
 'use client';
 
 import { useState } from 'react';
-
-import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { useAuth } from '@wirecrest/auth';
+import { SuperRole } from '@prisma/client';
+import { useRouter } from 'next/navigation';
+import { useSuperAdminTenants } from '@/hooks/useSuperAdminTenants';
 
-import Alert from '@mui/material/Alert';
-import AlertTitle from '@mui/material/AlertTitle';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import InputLabel from '@mui/material/InputLabel';
-import LinearProgress from '@mui/material/LinearProgress';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Select from '@mui/material/Select';
-import Skeleton from '@mui/material/Skeleton';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
+import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
+import Select from '@mui/material/Select';
+import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import { styled } from '@mui/material/styles';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
-import TablePagination from '@mui/material/TablePagination';
-import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
+import AlertTitle from '@mui/material/AlertTitle';
+import IconButton from '@mui/material/IconButton';
+import InputLabel from '@mui/material/InputLabel';
 import Typography from '@mui/material/Typography';
-import { styled } from '@mui/material/styles';
+import FormControl from '@mui/material/FormControl';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import InputAdornment from '@mui/material/InputAdornment';
+import LinearProgress from '@mui/material/LinearProgress';
+import TableContainer from '@mui/material/TableContainer';
+import TablePagination from '@mui/material/TablePagination';
 
-import { useSuperAdminTenants } from '@/hooks/useSuperAdminTenants';
-import { format } from 'date-fns';
-import { RoleGuard } from 'src/components/guards';
-import { SuperRole } from '@prisma/client';
 import { DashboardContent } from 'src/layouts/dashboard';
+
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
+import { RoleGuard } from 'src/components/guards';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableSkeleton } from 'src/components/table/table-skeleton';
 
@@ -132,12 +130,9 @@ export default function SuperAdminTenantsPage() {
     }));
   };
 
-  const getPlatformStatus = (tenant, platform) => {
-    return tenant.platforms[platform]?.status || 'not_started';
-  };
+  const getPlatformStatus = (tenant, platform) => tenant.platforms[platform]?.status || 'not_started';
 
-  const getPlatformChip = (status) => {
-    return (
+  const getPlatformChip = (status) => (
       <Chip
         icon={<Iconify icon={statusIcons[status]} />}
         label={status.replace('_', ' ')}
@@ -146,7 +141,6 @@ export default function SuperAdminTenantsPage() {
         variant="outlined"
       />
     );
-  };
 
   // Show loading state
   if (isLoading) {

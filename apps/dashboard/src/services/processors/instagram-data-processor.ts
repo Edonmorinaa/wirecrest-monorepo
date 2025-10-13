@@ -1,6 +1,6 @@
 import { prisma } from '@wirecrest/db';
+
 import { InstagramCalculationUtils } from '../calculations/instagram-calculation-utils';
-import { InstagramDailySnapshot } from '@/types/instagram-analytics';
 
 /**
  * Data processor for Instagram analytics

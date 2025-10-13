@@ -10,6 +10,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { toast } from 'src/components/snackbar';
 import { Form } from 'src/components/hook-form';
+import { PushNotificationSettings } from '@/components/push-notification-settings';
+import { PushNotificationDebug } from '@/components/push-notification-debug';
 
 // ----------------------------------------------------------------------
 
@@ -139,6 +141,9 @@ export function AccountNotifications({ sx, ...other }) {
         <Button type="submit" variant="contained" loading={isSubmitting} sx={{ ml: 'auto' }}>
           Save changes
         </Button>
+
+        <PushNotificationSettings />
+        <PushNotificationDebug />
       </Card>
     </Form>
   );

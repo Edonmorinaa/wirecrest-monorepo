@@ -1,7 +1,9 @@
-import fetcher from 'src/lib/fetcher';
-import { BusinessMarketIdentifier } from '@prisma/client';
-import useSWR, { mutate } from 'swr';
 import type { ApiResponse } from 'src/types';
+
+import useSWR, { mutate } from 'swr';
+import { BusinessMarketIdentifier } from '@prisma/client';
+
+import fetcher from 'src/lib/fetcher';
 
 const useBusinessMarketIdentifiers = (params: { teamSlug: string }) => {
   const url = `/api/business-market-identifiers/${params.teamSlug}`;

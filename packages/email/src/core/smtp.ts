@@ -1,5 +1,5 @@
 import * as nodemailer from 'nodemailer';
-import { SMTPConfig } from '@/types/email';
+import { SMTPConfig } from '../types/email';
 
 /**
  * SMTP Configuration for email sending

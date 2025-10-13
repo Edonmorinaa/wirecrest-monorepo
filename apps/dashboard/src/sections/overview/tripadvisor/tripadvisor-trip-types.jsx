@@ -102,7 +102,7 @@ export function TripAdvisorTripTypes({ data }) {
                         width: 48,
                         height: 48,
                         bgcolor: alpha(color, 0.12),
-                        color: color,
+                        color,
                         fontSize: '1.5rem',
                       }}
                     >

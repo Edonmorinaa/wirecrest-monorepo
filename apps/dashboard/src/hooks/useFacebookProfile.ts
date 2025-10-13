@@ -1,13 +1,15 @@
-import { useRouter } from 'next/router';
-import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
-import type { ApiResponse } from 'src/types';
 import type {
-  FacebookBusinessProfile,
   FacebookOverview,
-  FacebookRecommendationDistribution,
+  FacebookBusinessProfile,
   FacebookBusinessMetadata,
+  FacebookRecommendationDistribution,
 } from '@prisma/client';
+import type { ApiResponse } from 'src/types';
+
+import useSWR from 'swr';
+import { useRouter } from 'next/router';
+
+import fetcher from 'src/lib/fetcher';
 
 interface FacebookProfileWithRelations extends FacebookBusinessProfile {
   overview?: FacebookOverview | null;

@@ -13,7 +13,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-export function PaymentCardItem({ card, sx, ...other }) {
+export function PaymentCardItem({ card, onSetDefault, onDelete, loading, sx, ...other }) {
   const menuActions = usePopover();
 
   const renderMenuActions = () => (
@@ -23,7 +23,13 @@ export function PaymentCardItem({ card, sx, ...other }) {
       onClose={menuActions.onClose}
     >
       <MenuList>
-        <MenuItem onClick={menuActions.onClose}>
+        <MenuItem 
+          onClick={() => {
+            onSetDefault?.(card.id);
+            menuActions.onClose();
+          }}
+          disabled={loading || card.primary}
+        >
           <Iconify icon="eva:star-fill" />
           Set as primary
         </MenuItem>
@@ -33,7 +39,14 @@ export function PaymentCardItem({ card, sx, ...other }) {
           Edit
         </MenuItem>
 
-        <MenuItem onClick={menuActions.onClose} sx={{ color: 'error.main' }}>
+        <MenuItem 
+          onClick={() => {
+            onDelete?.(card.id);
+            menuActions.onClose();
+          }}
+          disabled={loading}
+          sx={{ color: 'error.main' }}
+        >
           <Iconify icon="solar:trash-bin-trash-bold" />
           Delete
         </MenuItem>

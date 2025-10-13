@@ -1,7 +1,9 @@
-import fetcher from 'src/lib/fetcher';
 import type { EndpointOut } from 'svix';
-import useSWR, { mutate } from 'swr';
 import type { ApiResponse } from 'src/types';
+
+import useSWR, { mutate } from 'swr';
+
+import fetcher from 'src/lib/fetcher';
 
 const useWebhooks = (slug: string) => {
   const url = `/api/teams/${slug}/webhooks`;

@@ -49,13 +49,50 @@ export class AuthApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
+        console.log('API Error Details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message,
+          code: error.code
+        });
+        
+        // Handle structured error response
         if (error.response?.data?.error) {
+          const errorData = error.response.data.error;
           throw new ApiError(
-            error.response.data.error.statusCode || 500,
-            error.response.data.error.message || 'API request failed'
+            errorData.statusCode || error.response.status || 500,
+            errorData.message || 'API request failed'
           );
         }
-        throw new ApiError(500, 'Network error');
+        
+        // Handle simple error message
+        if (error.response?.data?.message) {
+          throw new ApiError(
+            error.response.status || 500,
+            error.response.data.message
+          );
+        }
+        
+        // Handle HTTP status codes
+        if (error.response?.status) {
+          const message = error.response.data?.message || 
+                         error.response.statusText || 
+                         `HTTP ${error.response.status} error`;
+          throw new ApiError(error.response.status, message);
+        }
+        
+        // Handle network errors (no response)
+        if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+          throw new ApiError(500, `Cannot connect to auth service at ${this.baseURL}`);
+        }
+        
+        if (error.code === 'ETIMEDOUT') {
+          throw new ApiError(500, 'Request timeout - auth service is not responding');
+        }
+        
+        // Fallback for unknown errors
+        throw new ApiError(500, `Network error: ${error.message}`);
       }
     );
   }

@@ -1,8 +1,9 @@
 import { 
-  InstagramDailySnapshot, 
+  OverviewMetrics, 
   InstagramAnalytics, 
-  OverviewMetrics 
+  InstagramDailySnapshot 
 } from '@/types/instagram-analytics';
+
 import { InstagramCalculationUtils } from './instagram-calculation-utils';
 
 /**

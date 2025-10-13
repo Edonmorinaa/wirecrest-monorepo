@@ -1,14 +1,14 @@
-import fetcher from 'src/lib/fetcher';
-import { ApiKey } from '@prisma/client';
-import useSWR, { mutate } from 'swr';
 import type { ApiResponse } from 'src/types';
+
+import useSWR, { mutate } from 'swr';
+import { ApiKey } from '@prisma/client';
+
+import fetcher from 'src/lib/fetcher';
 
 const useAPIKeys = (slug: string | undefined) => {
   const url = `/api/teams/${slug}/api-keys`;
 
-  const { data, error, isLoading } = useSWR<ApiResponse<ApiKey[]>>(() => {
-    return slug ? url : null;
-  }, fetcher);
+  const { data, error, isLoading } = useSWR<ApiResponse<ApiKey[]>>(() => slug ? url : null, fetcher);
 
   const mutateAPIKeys = async () => {
     mutate(url);

@@ -1,8 +1,10 @@
-import { useRouter } from 'next/router';
-import useSWR from 'swr';
-import fetcher from 'src/lib/fetcher';
 import type { ApiResponse } from 'src/types';
+
+import useSWR from 'swr';
+import { useRouter } from 'next/router';
 import { Prisma } from '@prisma/client';
+
+import fetcher from 'src/lib/fetcher';
 
 // Use the same type as the API
 type BookingProfileWithOverview = Prisma.BookingBusinessProfileGetPayload<{

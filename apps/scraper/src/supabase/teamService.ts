@@ -88,10 +88,29 @@ export class TeamService {
     const team = await this.getTeamById(teamId);
     if (!team) return false;
 
-    const currentBusinessCount = await this.getBusinessCountForTeam(teamId);
-    // Use default FREE plan limits for now
-    const defaults = getSubscriptionDefaults(SubscriptionPlan.FREE);
-    return currentBusinessCount < defaults.maxBusinesses;
+    // Use the new QuotaManager for location limits
+    try {
+      const { createQuotaManager } = await import('@wirecrest/feature-flags');
+      const { PrismaClient } = await import('@prisma/client');
+      
+      const prisma = new PrismaClient();
+      const quotaManager = createQuotaManager(prisma);
+      
+      const canAdd = await quotaManager.canPerformAction(teamId, {
+        type: 'locations',
+        amount: 1,
+      });
+      
+      await prisma.$disconnect();
+      return canAdd.allowed;
+    } catch (error) {
+      console.error('Error checking quota with QuotaManager:', error);
+      
+      // Fallback to old logic
+      const currentBusinessCount = await this.getBusinessCountForTeam(teamId);
+      const defaults = getSubscriptionDefaults(SubscriptionPlan.FREE);
+      return currentBusinessCount < defaults.maxBusinesses;
+    }
   }
 
   async getTeamLimits(teamId: string): Promise<{
@@ -104,15 +123,37 @@ export class TeamService {
     if (!team) return null;
 
     const currentBusinessCount = await this.getBusinessCountForTeam(teamId);
-    // Use default FREE plan limits for now
-    const defaults = getSubscriptionDefaults(SubscriptionPlan.FREE);
+    
+    // Try to use QuotaManager for accurate limits
+    try {
+      const { createQuotaManager } = await import('@wirecrest/feature-flags');
+      const { PrismaClient } = await import('@prisma/client');
+      
+      const prisma = new PrismaClient();
+      const quotaManager = createQuotaManager(prisma);
+      const quotas = await quotaManager.getTenantQuotas(teamId);
+      
+      await prisma.$disconnect();
+      
+      return {
+        maxBusinesses: quotas.locations.max,
+        maxReviewsPerBusiness: quotas.reviewRateLimit.max,
+        updateFrequencyMinutes: 60, // Default, can be customized per tenant
+        currentBusinessCount,
+      };
+    } catch (error) {
+      console.error('Error getting quotas from QuotaManager:', error);
+      
+      // Fallback to old defaults
+      const defaults = getSubscriptionDefaults(SubscriptionPlan.FREE);
 
-    return {
-      maxBusinesses: defaults.maxBusinesses,
-      maxReviewsPerBusiness: defaults.maxReviewsPerBusiness,
-      updateFrequencyMinutes: defaults.updateFrequencyMinutes,
-      currentBusinessCount
-    };
+      return {
+        maxBusinesses: defaults.maxBusinesses,
+        maxReviewsPerBusiness: defaults.maxReviewsPerBusiness,
+        updateFrequencyMinutes: defaults.updateFrequencyMinutes,
+        currentBusinessCount
+      };
+    }
   }
 
   async close(): Promise<void> {

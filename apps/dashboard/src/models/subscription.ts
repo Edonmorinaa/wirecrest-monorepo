@@ -15,8 +15,7 @@ export const createStripeSubscription = async ({
   startDate: Date;
   endDate: Date;
   priceId: string;
-}) => {
-  return await prisma.subscription.create({
+}) => await prisma.subscription.create({
     data: {
       customerId,
       id,
@@ -26,37 +25,28 @@ export const createStripeSubscription = async ({
       priceId,
     },
   });
-};
 
-export const deleteStripeSubscription = async (id: string) => {
-  return await prisma.subscription.deleteMany({
+export const deleteStripeSubscription = async (id: string) => await prisma.subscription.deleteMany({
     where: {
       id,
     },
   });
-};
 
-export const updateStripeSubscription = async (id: string, data: any) => {
-  return await prisma.subscription.update({
+export const updateStripeSubscription = async (id: string, data: any) => await prisma.subscription.update({
     where: {
       id,
     },
     data,
   });
-};
 
-export const getByCustomerId = async (customerId: string) => {
-  return await prisma.subscription.findMany({
+export const getByCustomerId = async (customerId: string) => await prisma.subscription.findMany({
     where: {
       customerId,
     },
   });
-};
 
-export const getBySubscriptionId = async (subscriptionId: string): Promise<Subscription | null> => {
-  return await prisma.subscription.findUnique({
+export const getBySubscriptionId = async (subscriptionId: string): Promise<Subscription | null> => await prisma.subscription.findUnique({
     where: {
       id: subscriptionId,
     },
   });
-};

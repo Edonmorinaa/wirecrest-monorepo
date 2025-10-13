@@ -1,8 +1,10 @@
 import Stripe from 'stripe';
-import env from 'src/lib/env';
 import { updateTeam } from '@/models/team';
+import { StripeService } from '@wirecrest/billing';
 
-export const stripe = new Stripe(env.stripe.secretKey ?? '');
+import env from 'src/lib/env';
+
+export const stripe = StripeService.getStripeInstance();
 
 export async function getStripeCustomerId(teamMember, session?: any) {
   let customerId = '';

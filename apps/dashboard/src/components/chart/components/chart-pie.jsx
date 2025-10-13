@@ -1,8 +1,9 @@
 'use client';
 
 import PropTypes from 'prop-types';
-import { useChart } from '../use-chart';
+
 import { Chart } from '../chart';
+import { useChart } from '../use-chart';
 
 // ----------------------------------------------------------------------
 

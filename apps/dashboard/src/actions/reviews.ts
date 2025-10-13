@@ -1,15 +1,15 @@
 'use server';
 
-import { getSession } from '@wirecrest/auth/server';
-import type { ApiResponse } from './types';
 import type {
   GoogleReviewWithMetadata,
   FacebookReviewWithMetadata,
   TripAdvisorReviewWithMetadata,
-  BookingReviewWithMetadata,
 } from './types/reviews';
-import { ApiError } from './lib/errors';
+
 import { prisma } from '@wirecrest/db';
+import { getSession } from '@wirecrest/auth/server';
+
+import { ApiError } from './lib/errors';
 
 // Helper function to safely convert values to boolean
 function safeBoolean(value: any): boolean | undefined {
@@ -182,7 +182,7 @@ export async function getGoogleReviews(
   if (isRead !== undefined) {
     whereClause.reviewMetadata = {
       ...whereClause.reviewMetadata,
-      isRead: isRead,
+      isRead,
     };
   }
 
@@ -191,7 +191,7 @@ export async function getGoogleReviews(
   if (isImportant !== undefined) {
     whereClause.reviewMetadata = {
       ...whereClause.reviewMetadata,
-      isImportant: isImportant,
+      isImportant,
     };
   }
 
@@ -302,7 +302,7 @@ export async function updateGoogleReviewMetadata(
     // Update existing metadata
     const metadata = await prisma.reviewMetadata.update({
       where: { id: review.reviewMetadataId },
-      data: data,
+      data,
     });
     return metadata;
   } else {

@@ -1,8 +1,7 @@
 'use server';
 
-import { SuperRole } from '@prisma/client';
-
 import { prisma } from '@wirecrest/db';
+import { SuperRole } from '@prisma/client';
 import { getSession } from '@wirecrest/auth/server';
 
 import { ApiError, recordMetric } from './lib';

@@ -1,12 +1,14 @@
 'use server';
 
-import { getSession } from '@wirecrest/auth/server';
-import { ApiError, recordMetric } from './lib';
+
 import { prisma } from '@wirecrest/db';
-import { createWebhook, listWebhooks, updateWebhook, deleteWebhook, findWebhook } from 'src/lib/svix';
 import { getTeam } from '@/models/team';
 import { EndpointIn, EndpointOut } from 'svix';
-import type { ApiResponse } from './types';
+import { getSession } from '@wirecrest/auth/server';
+
+import { createWebhook } from 'src/lib/svix';
+
+import { ApiError, recordMetric } from './lib';
 
 // Webhook Management Actions
 // export async function getTeamWebhooks(slug: string): Promise<EndpointOut[]> {
@@ -481,15 +483,16 @@ export async function handleStripeWebhook(data: { body: string | Buffer; signatu
 
   // Import Stripe and related functions
   const Stripe = require('stripe');
+
   const { stripe } = require('src/lib/stripe');
   const env = require('src/lib/env').default;
+  const { getByCustomerId } = require('@/models/team');
   const {
     createStripeSubscription,
     deleteStripeSubscription,
     getBySubscriptionId,
     updateStripeSubscription,
   } = require('@/models/subscription');
-  const { getByCustomerId } = require('@/models/team');
 
   const { webhookSecret } = env.stripe;
   let event: any;

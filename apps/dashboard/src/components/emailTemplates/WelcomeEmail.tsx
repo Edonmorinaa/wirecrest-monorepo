@@ -1,14 +1,15 @@
-import {
-  Button,
-  Container,
-  Head,
-  Html,
-  Preview,
-  Text,
-} from '@react-email/components';
-import EmailLayout from './EmailLayout';
 import app from '@/lib/app';
 import env from '@/lib/env';
+import {
+  Head,
+  Html,
+  Text,
+  Button,
+  Preview,
+  Container,
+} from '@react-email/components';
+
+import EmailLayout from './EmailLayout';
 
 interface WelcomeEmailProps {
   name: string;
@@ -16,8 +17,7 @@ interface WelcomeEmailProps {
   subject: string;
 }
 
-const WelcomeEmail = ({ name, subject, team }: WelcomeEmailProps) => {
-  return (
+const WelcomeEmail = ({ name, subject, team }: WelcomeEmailProps) => (
     <Html>
       <Head />
       <Preview>{subject}</Preview>
@@ -39,6 +39,5 @@ const WelcomeEmail = ({ name, subject, team }: WelcomeEmailProps) => {
       </EmailLayout>
     </Html>
   );
-};
 
 export default WelcomeEmail;

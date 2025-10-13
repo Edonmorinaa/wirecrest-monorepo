@@ -1,11 +1,12 @@
 import {
-  Button,
-  Container,
   Head,
   Html,
-  Preview,
   Text,
+  Button,
+  Preview,
+  Container,
 } from '@react-email/components';
+
 import EmailLayout from './EmailLayout';
 
 interface TestEmailTemplateProps {
@@ -18,8 +19,7 @@ const TestEmailTemplate = ({
   url,
   name,
   subject
-}: TestEmailTemplateProps) => {
-  return (
+}: TestEmailTemplateProps) => (
     <Html>
       <Head />
       <Preview>{subject}</Preview>
@@ -38,6 +38,5 @@ const TestEmailTemplate = ({
       </EmailLayout>
     </Html>
   );
-};
 
 export default TestEmailTemplate;

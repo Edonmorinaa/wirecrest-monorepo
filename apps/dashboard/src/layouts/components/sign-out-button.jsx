@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import { signOut } from '@wirecrest/auth';
-
 import { getAuthUrl } from '@/lib/subdomain';
 
 import Button from '@mui/material/Button';

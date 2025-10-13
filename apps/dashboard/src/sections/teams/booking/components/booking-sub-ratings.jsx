@@ -2,12 +2,12 @@
 
 import PropTypes from 'prop-types';
 
-import Card from '@mui/material/Card';
-import CardHeader from '@mui/material/CardHeader';
-import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
+import CardHeader from '@mui/material/CardHeader';
+import Typography from '@mui/material/Typography';
+import CardContent from '@mui/material/CardContent';
 import LinearProgress from '@mui/material/LinearProgress';
 
 // ----------------------------------------------------------------------

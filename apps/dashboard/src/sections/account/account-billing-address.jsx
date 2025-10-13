@@ -1,13 +1,23 @@
+import { useTeam } from '@wirecrest/auth';
 import { useState, useCallback } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
+import { 
+  deleteBillingAddress,
+  upsertBillingAddress,
+  validateBillingAddress,
+} from '@wirecrest/billing';
 
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
-import IconButton from '@mui/material/IconButton';
+import MenuList from '@mui/material/MenuList';
+import Snackbar from '@mui/material/Snackbar';
 import CardHeader from '@mui/material/CardHeader';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -16,27 +26,71 @@ import { AddressItem, AddressCreateForm } from '../address';
 
 // ----------------------------------------------------------------------
 
-export function AccountBillingAddress({ addressBook, sx, ...other }) {
+export function AccountBillingAddress({ addressBook, onRefresh, sx, ...other }) {
+  const { team } = useTeam();
+  const teamId = team?.id;
+  
   const menuActions = usePopover();
   const newAddressForm = useBoolean();
 
-  const [addressId, setAddressId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
-  const handleAddAddress = useCallback((address) => {
-    console.info('ADD ADDRESS', address);
-  }, []);
+  const handleAddAddress = useCallback(async (addressData) => {
+    if (!teamId) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Validate address first
+      const validation = await validateBillingAddress(addressData);
+      if (!validation.isValid) {
+        setError(validation.errors.join(', '));
+        return;
+      }
+
+      await upsertBillingAddress(teamId, addressData);
+      setSuccess('Billing address updated successfully');
+      newAddressForm.onFalse();
+      onRefresh?.();
+    } catch (err) {
+      console.error('Failed to add billing address:', err);
+      setError(err.message || 'Failed to add billing address');
+    } finally {
+      setLoading(false);
+    }
+  }, [teamId, newAddressForm, onRefresh]);
+
+  const handleDeleteAddress = useCallback(async () => {
+    if (!teamId) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      await deleteBillingAddress(teamId);
+      setSuccess('Billing address deleted successfully');
+      menuActions.onClose();
+      onRefresh?.();
+    } catch (err) {
+      console.error('Failed to delete billing address:', err);
+      setError(err.message || 'Failed to delete billing address');
+    } finally {
+      setLoading(false);
+    }
+  }, [teamId, menuActions, onRefresh]);
 
   const handleSelectedId = useCallback(
-    (event, id) => {
+    (event) => {
       menuActions.onOpen(event);
-      setAddressId(id);
     },
     [menuActions]
   );
 
   const handleClose = useCallback(() => {
     menuActions.onClose();
-    setAddressId('');
   }, [menuActions]);
 
   const renderMenuActions = () => (
@@ -45,7 +99,8 @@ export function AccountBillingAddress({ addressBook, sx, ...other }) {
         <MenuItem
           onClick={() => {
             handleClose();
-            console.info('SET AS PRIMARY', addressId);
+            // Set as primary is handled automatically when there's only one address
+            setSuccess('Address is already set as primary');
           }}
         >
           <Iconify icon="eva:star-fill" />
@@ -55,7 +110,8 @@ export function AccountBillingAddress({ addressBook, sx, ...other }) {
         <MenuItem
           onClick={() => {
             handleClose();
-            console.info('EDIT', addressId);
+            // Open edit form with current address data
+            newAddressForm.onTrue();
           }}
         >
           <Iconify icon="solar:pen-bold" />
@@ -64,13 +120,13 @@ export function AccountBillingAddress({ addressBook, sx, ...other }) {
 
         <MenuItem
           onClick={() => {
-            handleClose();
-            console.info('DELETE', addressId);
+            handleDeleteAddress();
           }}
           sx={{ color: 'error.main' }}
+          disabled={loading}
         >
           <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
+          {loading ? 'Deleting...' : 'Delete'}
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -88,43 +144,67 @@ export function AccountBillingAddress({ addressBook, sx, ...other }) {
     <>
       <Card sx={sx} {...other}>
         <CardHeader
-          title="Address book"
+          title="Billing address"
           action={
             <Button
               size="small"
               color="primary"
               startIcon={<Iconify icon="mingcute:add-line" />}
               onClick={newAddressForm.onTrue}
+              disabled={loading}
             >
-              Add address
+              {addressBook.length === 0 ? 'Add address' : 'Update address'}
             </Button>
           }
         />
 
+        {error && (
+          <Alert severity="error" sx={{ mx: 3, mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         <Stack spacing={2.5} sx={{ p: 3 }}>
-          {addressBook.map((address) => (
-            <AddressItem
-              variant="outlined"
-              key={address.id}
-              address={address}
-              action={
-                <IconButton
-                  onClick={(event) => {
-                    handleSelectedId(event, `${address.id}`);
-                  }}
-                  sx={{ position: 'absolute', top: 8, right: 8 }}
-                >
-                  <Iconify icon="eva:more-vertical-fill" />
-                </IconButton>
-              }
-              sx={{ p: 2.5, borderRadius: 1 }}
-            />
-          ))}
+          {addressBook.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="body2" color="text.secondary">
+                No billing address on file
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Add a billing address for invoicing and tax purposes
+              </Typography>
+            </Box>
+          ) : (
+            addressBook.map((address) => (
+              <AddressItem
+                variant="outlined"
+                key={address.id}
+                address={address}
+                action={
+                  <IconButton
+                    onClick={handleSelectedId}
+                    sx={{ position: 'absolute', top: 8, right: 8 }}
+                    disabled={loading}
+                  >
+                    <Iconify icon="eva:more-vertical-fill" />
+                  </IconButton>
+                }
+                sx={{ p: 2.5, borderRadius: 1 }}
+              />
+            ))
+          )}
         </Stack>
       </Card>
 
       {renderMenuActions()}
       {renderAddressCreateForm()}
+      
+      <Snackbar
+        open={!!success}
+        autoHideDuration={6000}
+        onClose={() => setSuccess(null)}
+        message={success}
+      />
     </>
   );
 }

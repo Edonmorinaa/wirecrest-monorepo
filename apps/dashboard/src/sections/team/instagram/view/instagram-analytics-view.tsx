@@ -1,30 +1,30 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import useTeam from '@/hooks/useTeam';
 import { useParams } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import Snackbar from '@mui/material/Snackbar';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import CardContent from '@mui/material/CardContent';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 
-import useTeam from '@/hooks/useTeam';
-
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Iconify } from 'src/components/iconify';
-import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
 import { paths } from 'src/routes/paths';
 
+import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
 import { DashboardContent } from 'src/layouts/dashboard';
+
+import { Iconify } from 'src/components/iconify';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { InstagramGeneralInfo } from './instagram-general-info';
 import { InstagramAnalyticsTabs } from './instagram-analytics-tabs';

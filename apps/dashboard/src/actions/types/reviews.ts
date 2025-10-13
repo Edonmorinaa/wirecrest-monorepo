@@ -1,9 +1,9 @@
 import type {
   GoogleReview,
-  FacebookReview,
-  TripAdvisorReview,
   BookingReview,
+  FacebookReview,
   ReviewMetadata,
+  TripAdvisorReview,
 } from '@prisma/client';
 
 // Google Review Types

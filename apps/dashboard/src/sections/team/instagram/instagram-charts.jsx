@@ -3,12 +3,10 @@
 import { useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Grid from '@mui/material/Grid';
 import Tab from '@mui/material/Tab';
+import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
+import CardContent from '@mui/material/CardContent';
 
 import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
 

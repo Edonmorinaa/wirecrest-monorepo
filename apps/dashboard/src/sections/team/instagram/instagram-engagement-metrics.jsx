@@ -10,11 +10,11 @@ import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
 
+import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
 import { fShortenNumber } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-
-import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
 
 // ----------------------------------------------------------------------
 

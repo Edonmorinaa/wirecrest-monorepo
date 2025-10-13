@@ -34,7 +34,19 @@ const renderIcon = (type) =>
     delivery: notificationIcons.delivery,
   })[type];
 
-export function NotificationItem({ notification }) {
+export function NotificationItem({ notification, onMarkAsRead, onArchive }) {
+  const notificationType = notification.type?.toLowerCase() || 'mail';
+
+  const handleClick = async () => {
+    if (notification.isUnRead && onMarkAsRead) {
+      try {
+        await onMarkAsRead(notification.id);
+      } catch (error) {
+        console.error('Failed to mark as read:', error);
+      }
+    }
+  };
+
   const renderAvatar = () => (
     <ListItemAvatar>
       {notification.avatarUrl ? (
@@ -51,7 +63,7 @@ export function NotificationItem({ notification }) {
             bgcolor: 'background.neutral',
           }}
         >
-          <SvgIcon sx={{ width: 24, height: 24 }}>{renderIcon(notification.type)}</SvgIcon>
+          <SvgIcon sx={{ width: 24, height: 24 }}>{renderIcon(notificationType)}</SvgIcon>
         </Box>
       )}
     </ListItemAvatar>
@@ -208,6 +220,7 @@ export function NotificationItem({ notification }) {
   return (
     <ListItemButton
       disableRipple
+      onClick={handleClick}
       sx={[
         (theme) => ({
           p: 2.5,
@@ -221,11 +234,11 @@ export function NotificationItem({ notification }) {
 
       <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
         {renderText()}
-        {notification.type === 'friend' && renderFriendAction()}
-        {notification.type === 'project' && renderProjectAction()}
-        {notification.type === 'file' && renderFileAction()}
-        {notification.type === 'tags' && renderTagsAction()}
-        {notification.type === 'payment' && renderPaymentAction()}
+        {notificationType === 'friend' && renderFriendAction()}
+        {notificationType === 'project' && renderProjectAction()}
+        {notificationType === 'file' && renderFileAction()}
+        {notificationType === 'tags' && renderTagsAction()}
+        {notificationType === 'payment' && renderPaymentAction()}
       </Box>
     </ListItemButton>
   );

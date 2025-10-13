@@ -2,11 +2,8 @@
 
 import PropTypes from 'prop-types';
 
-import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
 
 import { BookingWidgetSummary } from 'src/sections/overview/booking';
 
