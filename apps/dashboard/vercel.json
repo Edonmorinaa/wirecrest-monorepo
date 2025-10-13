@@ -73,12 +73,12 @@
       ]
     }
   ],
-  "crons": [
-    {
-      "path": "/api/cron/quota-reset",
-      "schedule": "0 * * * *"
-    }
-  ],
+  // "crons": [
+  //   {
+  //     "path": "/api/cron/quota-reset",
+  //     "schedule": "0 * * * *"
+  //   }
+  // ],
   "functions": {
     "api/**/*.{js,ts,tsx}": {
       "memory": 1024,
