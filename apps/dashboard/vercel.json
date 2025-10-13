@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd ../.. && yarn build --filter=dashboard",
+  "buildCommand": "cd ../.. && yarn install && yarn turbo build --filter=dashboard",
   "installCommand": "cd ../.. && yarn install",
   "framework": "nextjs",
   "outputDirectory": ".next",
