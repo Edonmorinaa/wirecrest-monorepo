@@ -56,13 +56,13 @@ Click on **"Variables"** tab and add:
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 
 # Apify Configuration
-APIFY_API_TOKEN=apify_api_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-APIFY_WEBHOOK_SECRET=your-webhook-secret-here
+APIFY_API_TOKEN=apify_api_your_apify_token_here
+APIFY_WEBHOOK_SECRET=your_webhook_secret_here
 WEBHOOK_BASE_URL=https://[your-service].up.railway.app
 
 # Stripe Configuration
-STRIPE_SECRET_KEY=sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 
 # Node Environment
 NODE_ENV=production
