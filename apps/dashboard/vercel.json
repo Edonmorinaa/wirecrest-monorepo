@@ -74,13 +74,17 @@
     }
   ],
   "crons": [
+    {
+      "path": "/api/cron/quota-reset",
+      "schedule": "0 0 * * *"
+    }
   ],
   "functions": {
-    "api/**/*.{js,ts,tsx}": {
+    "src/app/api/**/*.{js,ts,tsx}": {
       "memory": 1024,
       "maxDuration": 60
     },
-    "api/cron/**/*.{js,ts,tsx}": {
+    "src/app/api/cron/**/*.{js,ts,tsx}": {
       "memory": 512,
       "maxDuration": 300
     }
