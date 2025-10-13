@@ -61,8 +61,8 @@ APIFY_WEBHOOK_SECRET=your_webhook_secret_here
 WEBHOOK_BASE_URL=https://[your-service].up.railway.app
 
 # Stripe Configuration
-STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key_here
-STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+STRIPE_SECRET_KEY=your_stripe_secret_key_here
+STRIPE_WEBHOOK_SECRET=your_webhook_secret_here
 
 # Node Environment
 NODE_ENV=production
