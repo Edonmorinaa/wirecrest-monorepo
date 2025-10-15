@@ -26,7 +26,7 @@ COPY packages/db ./packages/db
 COPY apps/auth-service/package.json ./apps/auth-service/
 
 # Install dependencies (workspace-aware)
-RUN yarn install --immutable
+RUN yarn install --check-cache
 
 # ==============================
 # Build stage
