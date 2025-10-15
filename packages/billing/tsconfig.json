@@ -29,5 +29,11 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/examples/**/*"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/examples/**/*",
+    "src/actions.ts",
+    "src/admin-actions.ts"
+  ]
 }
