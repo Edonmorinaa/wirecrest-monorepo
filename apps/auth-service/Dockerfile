@@ -7,6 +7,9 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+# Enable Corepack to use the correct Yarn version
+RUN corepack enable
+
 # Copy workspace configuration files
 COPY package.json yarn.lock turbo.json ./
 COPY yarn.lock* ./
@@ -18,12 +21,16 @@ COPY packages/db ./packages/db
 # Copy auth-service package.json
 COPY apps/auth-service/package.json ./apps/auth-service/
 
-# Install dependencies
+# Install dependencies using the correct Yarn version
 RUN yarn install --frozen-lockfile --production=false
 
 # Build stage
 FROM base AS builder
 WORKDIR /app
+
+# Enable Corepack to use the correct Yarn version
+RUN corepack enable
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
 COPY apps/auth-service ./apps/auth-service
