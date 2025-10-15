@@ -15,14 +15,18 @@ import { SubscriptionOrchestrator } from './services/subscription/SubscriptionOr
 import { ApifyScheduleService } from './services/apify/ApifyScheduleService';
 import { ApifyTaskService } from './services/apify/ApifyTaskService';
 import { FeatureExtractor } from './services/subscription/FeatureExtractor';
+import { validateEnv } from './config/env';
+
+// Validate environment before starting
+const env = validateEnv();
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = env.PORT;
 
 // Configuration
-const APIFY_TOKEN = process.env.APIFY_TOKEN!;
-const WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL || `http://localhost:${PORT}`;
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
+const APIFY_TOKEN = env.APIFY_TOKEN;
+const WEBHOOK_BASE_URL = env.WEBHOOK_BASE_URL || `http://localhost:${PORT}`;
+const STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET;
 
 // Middleware
 app.use(cors());
@@ -76,7 +80,7 @@ async function initializeServices(): Promise<void> {
 // =================== HEALTH CHECK ===================
 
 app.get('/health', (_req: Request, res: Response) => {
-  const servicesReady = !!(
+  const isInitializing = !(
     stripeWebhookController &&
     apifyWebhookController &&
     platformConfigWebhookController &&
@@ -85,14 +89,25 @@ app.get('/health', (_req: Request, res: Response) => {
     taskService
   );
 
+  if (isInitializing) {
+    // Return 200 during initialization to pass Railway health checks
+    res.status(200).json({
+      success: true,
+      status: 'starting',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      message: 'Services initializing...',
+    });
+    return;
+  }
+
   res.status(200).json({
     success: true,
-    status: servicesReady ? 'healthy' : 'starting',
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
+    environment: env.NODE_ENV,
     port: PORT,
-    message: servicesReady ? 'Scraper service running' : 'Services starting',
   });
 });
 

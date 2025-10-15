@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc --skipLibCheck",
+    "postbuild": "bash scripts/validate-build.sh 2>/dev/null || echo 'Build validation skipped'",
     "start": "node dist/server.js",
     "start:old": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",

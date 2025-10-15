@@ -34,6 +34,8 @@ COPY tsconfig.json ./
 
 # Generate Prisma client first
 WORKDIR /app/packages/db
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL:-"postgresql://placeholder:placeholder@placeholder:5432/placeholder"}
 RUN npx prisma generate
 
 # Build only scraper and its dependencies using Turbo
