@@ -37,8 +37,12 @@ RUN corepack enable
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/.yarnrc.yml ./.yarnrc.yml
 COPY apps/auth-service ./apps/auth-service
 COPY package.json yarn.lock turbo.json ./
+
+# Set Yarn to use node-modules linker
+RUN yarn config set nodeLinker node-modules
 
 # Build the auth-service
 WORKDIR /app/apps/auth-service
