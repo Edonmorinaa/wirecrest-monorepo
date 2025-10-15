@@ -12,7 +12,6 @@ RUN corepack enable
 
 # Copy workspace configuration files
 COPY package.json yarn.lock turbo.json ./
-COPY yarn.lock* ./
 
 # Copy workspace packages that auth-service depends on
 COPY packages/auth ./packages/auth
@@ -22,7 +21,8 @@ COPY packages/db ./packages/db
 COPY apps/auth-service/package.json ./apps/auth-service/
 
 # Install dependencies using the correct Yarn version
-RUN yarn install --immutable
+# Allow lockfile updates for workspace resolution
+RUN yarn install
 
 # Build stage
 FROM base AS builder
