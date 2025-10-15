@@ -12,6 +12,7 @@ RUN corepack enable
 
 # Copy workspace configuration files
 COPY package.json yarn.lock turbo.json ./
+COPY .yarnrc.yml .yarnrc.yml* ./
 
 # Copy workspace packages that auth-service depends on
 COPY packages/auth ./packages/auth
@@ -19,6 +20,9 @@ COPY packages/db ./packages/db
 
 # Copy auth-service package.json
 COPY apps/auth-service/package.json ./apps/auth-service/
+
+# Set Yarn to use node-modules linker instead of PnP
+RUN yarn config set nodeLinker node-modules
 
 # Install dependencies using the correct Yarn version
 # Allow lockfile updates for workspace resolution
