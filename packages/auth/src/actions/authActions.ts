@@ -90,11 +90,15 @@ export const customSignOut = async () => {
     console.log('🧹 Clearing feature cache on logout...');
     
     // Import billing package dynamically to avoid circular dependencies
-    const { clearAllCachesImmediately } = await import('@wirecrest/billing');
-    await clearAllCachesImmediately('user_logout', { 
-      timestamp: new Date().toISOString(),
-      reason: 'User logout - clearing all feature caches'
-    });
+    try {
+      const { clearAllCachesImmediately } = await import('@wirecrest/billing');
+      await clearAllCachesImmediately('user_logout', { 
+        timestamp: new Date().toISOString(),
+        reason: 'User logout - clearing all feature caches'
+      });
+    } catch (error) {
+      console.log('⚠️ Billing package not available, skipping cache clear:', error);
+    }
     
     console.log('✅ Feature cache cleared on logout');
     return { success: true, message: 'Sign out handled by NextAuth with cache clearing' };

@@ -1,4 +1,5 @@
-import NextAuth, { type NextAuthConfig, type Account, type Profile, type User } from 'next-auth';
+import NextAuth, { type Account, type Profile, type User } from 'next-auth';
+import type { NextAuthConfig } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import type { Provider } from 'next-auth/providers';
@@ -201,7 +202,7 @@ const authConfig: NextAuthConfig = {
     },
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile }: { user: User; account: Account | null; profile?: Profile }) {
       if (!user || !user.email || !account) {
         return false;
       }
@@ -259,7 +260,7 @@ const authConfig: NextAuthConfig = {
       return true;
     },
 
-    async session({ session, token, user }) {
+    async session({ session, token, user }: { session: any; token: any; user?: User }) {
       // When using JWT for sessions, the JWT payload (token) is provided.
       // When using database sessions, the User (user) object is provided.
       if (session && (token || user)) {
@@ -285,7 +286,7 @@ const authConfig: NextAuthConfig = {
       return session;
     },
 
-    async jwt({ token, user, account, trigger, session }) {
+    async jwt({ token, user, account, trigger, session }: { token: any; user?: User; account?: Account | null; trigger?: string; session?: any }) {
       if (trigger === 'signIn' && account?.provider === 'boxyhq-idp') {
         const userByAccount = await adapter.getUserByAccount!({
           providerAccountId: account.providerAccountId,

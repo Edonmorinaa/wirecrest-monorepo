@@ -220,7 +220,7 @@ export class AuthApiClient {
    * NextAuth manages sessions automatically
    */
   async getUserSessions(): Promise<{ success: boolean; data: any[] }> {
-    return { success: true, data: [], message: 'Sessions managed by NextAuth' };
+    return { success: true, data: [] };
   }
 
   /**
@@ -228,7 +228,7 @@ export class AuthApiClient {
    * NextAuth manages session deletion automatically
    */
   async deleteUserSession(sessionId: string): Promise<{ success: boolean }> {
-    return { success: true, message: 'Session deletion handled by NextAuth' };
+    return { success: true };
   }
 
   /**
