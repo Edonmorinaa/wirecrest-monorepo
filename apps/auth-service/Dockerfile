@@ -67,7 +67,10 @@ COPY --from=builder --chown=authservice:nodejs /app/apps/auth-service/package.js
 # Copy production dependencies (includes Prisma client)
 COPY --from=deps --chown=authservice:nodejs /app/node_modules ./node_modules
 
-# Optionally copy Prisma schema if needed at runtime
+# Copy workspace packages for runtime
+COPY --from=builder --chown=authservice:nodejs /app/packages ./packages
+
+# Copy Prisma schema if needed at runtime
 COPY --from=builder --chown=authservice:nodejs /app/packages/db/prisma ./prisma
 
 # Switch to non-root user
