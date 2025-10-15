@@ -27,8 +27,13 @@ COPY apps ./apps
 COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
 
-# Build only auth-service and its dependencies
-RUN npx turbo run build --filter=apps/auth-service...
+# Generate Prisma client first
+WORKDIR /app/packages/db
+RUN npx prisma generate
+
+# Build only auth-service and its dependencies using Turbo
+WORKDIR /app
+RUN npx turbo run build --filter=auth-service
 
 # ==============================
 # Production stage
@@ -42,15 +47,16 @@ COPY --from=builder /app/apps/auth-service/dist ./dist
 COPY --from=builder /app/apps/auth-service/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy built packages
-COPY --from=builder /app/packages/db/dist ./packages/db/dist
-COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
-COPY --from=builder /app/packages/db/package.json ./packages/db/package.json
-COPY --from=builder /app/packages/auth/dist ./packages/auth/dist
-COPY --from=builder /app/packages/auth/package.json ./packages/auth/package.json
+# Copy workspace packages for runtime
+COPY --from=builder /app/packages ./packages
 
 USER authservice
 EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', res => process.exit(res.statusCode === 200 ? 0 : 1))"
+
 CMD ["node", "dist/index.js"]
