@@ -33,7 +33,7 @@ RUN yarn install --immutable
 # ==============================
 FROM base AS builder
 
-# Copy node_modules from deps
+# Copy node_modules from deps; workspace-aware
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source code
