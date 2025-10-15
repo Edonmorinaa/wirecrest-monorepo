@@ -42,9 +42,14 @@ COPY apps/auth-service ./apps/auth-service
 COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
 
-# Generate Prisma client in db package
+# Generate Prisma client and build db package
 WORKDIR /app/packages/db
 RUN npx prisma generate
+RUN yarn build
+
+# Build auth package
+WORKDIR /app/packages/auth
+RUN yarn build
 
 # Build auth-service
 WORKDIR /app/apps/auth-service
@@ -67,8 +72,12 @@ COPY --from=builder --chown=authservice:nodejs /app/apps/auth-service/package.js
 # Copy production dependencies (includes Prisma client)
 COPY --from=deps --chown=authservice:nodejs /app/node_modules ./node_modules
 
-# Copy workspace packages for runtime
-COPY --from=builder --chown=authservice:nodejs /app/packages ./packages
+# Copy workspace packages for runtime (with built dist folders)
+COPY --from=builder --chown=authservice:nodejs /app/packages/db/dist ./packages/db/dist
+COPY --from=builder --chown=authservice:nodejs /app/packages/db/package.json ./packages/db/package.json
+COPY --from=builder --chown=authservice:nodejs /app/packages/db/prisma ./packages/db/prisma
+COPY --from=builder --chown=authservice:nodejs /app/packages/auth/dist ./packages/auth/dist
+COPY --from=builder --chown=authservice:nodejs /app/packages/auth/package.json ./packages/auth/package.json
 
 # Copy Prisma schema if needed at runtime
 COPY --from=builder --chown=authservice:nodejs /app/packages/db/prisma ./prisma

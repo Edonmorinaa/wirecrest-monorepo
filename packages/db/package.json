@@ -1,19 +1,19 @@
 {
   "name": "@wirecrest/db",
   "version": "1.0.0",
-  "main": "index.ts",
-  "types": "index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "packageManager": "yarn@4.0.2",
   "dependencies": {
     "@prisma/client": "6.16.2"
   },
   "scripts": {
     "generate": "prisma generate",
-    "build": "echo 'No build step required for db package'",
+    "build": "tsc --project tsconfig.json",
     "dev": "echo 'No dev step required for db package'",
     "lint": "echo 'No lint step required for db package'",
-    "clean": "echo 'No clean step required for db package'",
-    "type-check": "echo 'No type-check step required for db package'",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
     "seed:feature-flags": "tsx seed/seedFeatureFlags.ts"
   }
 }
