@@ -43,10 +43,10 @@
     "typescript": "^5.2.0"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json --noEmit false",
+    "build": "npx tsc --project tsconfig.json --noEmit false",
     "dev": "echo 'No dev step required for auth package'",
     "lint": "echo 'No lint step required for auth package'",
     "clean": "rm -rf dist",
-    "type-check": "tsc --noEmit"
+    "type-check": "npx tsc --noEmit"
   }
 }

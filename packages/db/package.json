@@ -9,11 +9,11 @@
   },
   "scripts": {
     "generate": "prisma generate",
-    "build": "tsc --project tsconfig.json",
+    "build": "npx tsc --project tsconfig.json",
     "dev": "echo 'No dev step required for db package'",
     "lint": "echo 'No lint step required for db package'",
     "clean": "rm -rf dist",
-    "type-check": "tsc --noEmit",
+    "type-check": "npx tsc --noEmit",
     "seed:feature-flags": "tsx seed/seedFeatureFlags.ts"
   }
 }
