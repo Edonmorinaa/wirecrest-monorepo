@@ -15,6 +15,7 @@ COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
 COPY packages/core/package.json ./packages/core/package.json
 COPY packages/db/package.json ./packages/db/package.json
+COPY packages/auth/package.json ./packages/auth/package.json
 COPY packages/billing/package.json ./packages/billing/package.json
 COPY packages/notifications/package.json ./packages/notifications/package.json
 COPY apps/scraper/package.json ./apps/scraper/package.json
