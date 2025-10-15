@@ -65,6 +65,7 @@ export function NextAuthSignUpView() {
     try {
       setErrorMessage(null);
 
+      console.log('onSubmit', data);
       const result = await joinUser({
         name: data.name,
         email: data.email,

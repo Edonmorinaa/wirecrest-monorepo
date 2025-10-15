@@ -71,6 +71,7 @@ export const joinUser = async (data: {
   inviteToken?: string;
   recaptchaToken: string;
 }) => {
+  console.log('joinUser', data);
   return await authApiClient.registerUser(data);
 };
 

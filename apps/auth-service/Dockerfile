@@ -52,9 +52,11 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 
 USER authservice
-EXPOSE 3000
+ARG PORT=3000
+ENV PORT=$PORT
+EXPOSE $PORT
 ENV NODE_ENV=production
-ENV PORT=3000
+
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

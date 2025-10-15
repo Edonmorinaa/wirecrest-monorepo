@@ -8239,6 +8239,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/web-push@npm:^3.6.0":
+  version: 3.6.4
+  resolution: "@types/web-push@npm:3.6.4"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: f3b656510241020f66615cb662702c0778e68f407fb59b3671758a3fe5b8982824a8b4b70339f3d3901458cdbfe5e981d84c1a75298807f2694a2b3390ebb2da
+  languageName: node
+  linkType: hard
+
 "@types/ws@npm:^8.18.1":
   version: 8.18.1
   resolution: "@types/ws@npm:8.18.1"
@@ -8634,6 +8643,7 @@ __metadata:
   dependencies:
     "@supabase/supabase-js": "npm:^2.39.0"
     "@types/node": "npm:^20.10.0"
+    "@types/web-push": "npm:^3.6.0"
     "@wirecrest/db": "workspace:*"
     typescript: "npm:^5.3.0"
     web-push: "npm:^3.6.7"
