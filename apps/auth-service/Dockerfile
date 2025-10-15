@@ -3,96 +3,54 @@
 # ==============================
 FROM node:18-alpine AS base
 WORKDIR /app
-
-# Install minimal system dependencies
 RUN apk add --no-cache libc6-compat bash
-
-# Enable Corepack for Yarn 3
 RUN corepack enable
 RUN yarn config set nodeLinker node-modules
 
 # ==============================
-# Dependencies stage
+# Dependencies
 # ==============================
 FROM base AS deps
-
-# Copy monorepo root files
 COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
-
-# Copy packages and apps needed for auth-service
-COPY packages/auth ./packages/auth
-COPY packages/db ./packages/db
-COPY apps/auth-service/package.json ./apps/auth-service/
-
-# Install dependencies (workspace-aware)
+COPY packages/*/package.json ./packages/*/package.json
+COPY apps/auth-service/package.json ./apps/auth-service/package.json
 RUN yarn install --check-cache
 
 # ==============================
 # Build stage
 # ==============================
 FROM base AS builder
-
-# Copy node_modules from deps; workspace-aware
 COPY --from=deps /app/node_modules ./node_modules
-
-# Copy source code
 COPY packages ./packages
-COPY apps/auth-service ./apps/auth-service
+COPY apps ./apps
 COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
 
-# Generate Prisma client and build db package
-WORKDIR /app/packages/db
-RUN npx prisma generate
-RUN yarn build
-
-# Build auth package
-WORKDIR /app/packages/auth
-RUN yarn build
-
-# Build auth-service
-WORKDIR /app/apps/auth-service
-RUN yarn build
+# Build only auth-service and its dependencies
+RUN npx turbo run build --filter=apps/auth-service...
 
 # ==============================
 # Production stage
 # ==============================
 FROM node:18-alpine AS runner
 WORKDIR /app
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 authservice
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 authservice
+# Copy built app and runtime deps
+COPY --from=builder /app/apps/auth-service/dist ./dist
+COPY --from=builder /app/apps/auth-service/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
 
-# Copy built app
-COPY --from=builder --chown=authservice:nodejs /app/apps/auth-service/dist ./dist
-COPY --from=builder --chown=authservice:nodejs /app/apps/auth-service/package.json ./package.json
+# Copy built packages
+COPY --from=builder /app/packages/db/dist ./packages/db/dist
+COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
+COPY --from=builder /app/packages/db/package.json ./packages/db/package.json
+COPY --from=builder /app/packages/auth/dist ./packages/auth/dist
+COPY --from=builder /app/packages/auth/package.json ./packages/auth/package.json
 
-# Copy production dependencies (includes Prisma client)
-COPY --from=deps --chown=authservice:nodejs /app/node_modules ./node_modules
-
-# Copy workspace packages for runtime (with built dist folders)
-COPY --from=builder --chown=authservice:nodejs /app/packages/db/dist ./packages/db/dist
-COPY --from=builder --chown=authservice:nodejs /app/packages/db/package.json ./packages/db/package.json
-COPY --from=builder --chown=authservice:nodejs /app/packages/db/prisma ./packages/db/prisma
-COPY --from=builder --chown=authservice:nodejs /app/packages/auth/dist ./packages/auth/dist
-COPY --from=builder --chown=authservice:nodejs /app/packages/auth/package.json ./packages/auth/package.json
-
-# Copy Prisma schema if needed at runtime
-COPY --from=builder --chown=authservice:nodejs /app/packages/db/prisma ./prisma
-
-# Switch to non-root user
 USER authservice
-
-# Expose port
 EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
-
-# Optional healthcheck
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', res => process.exit(res.statusCode === 200 ? 0 : 1))"
-
-# Start app
 CMD ["node", "dist/index.js"]
