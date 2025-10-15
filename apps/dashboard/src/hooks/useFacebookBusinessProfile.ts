@@ -8,7 +8,7 @@ import type { ApiResponse } from 'src/types';
 import useSWR from 'swr';
 import { useParams } from 'next/navigation';
 
-import fetcher from 'src/lib/fetcher';
+import { getFacebookBusinessProfile } from 'src/actions/platforms';
 
 import { useTeamSlug } from './use-subdomain';
 
@@ -24,9 +24,9 @@ const useFacebookBusinessProfile = (slug?: string) => {
   const rawTeamSlug = slug || subdomainTeamSlug || (params?.slug as string);
   const teamSlug = typeof rawTeamSlug === 'string' ? rawTeamSlug : null;
 
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<FacebookBusinessProfileWithRelations>>(
-    teamSlug ? `/api/teams/${teamSlug}/facebook/overview` : null,
-    fetcher,
+  const { data, error, isLoading, mutate } = useSWR<FacebookBusinessProfileWithRelations | null>(
+    teamSlug ? `facebook-business-profile-${teamSlug}` : null,
+    () => getFacebookBusinessProfile(teamSlug!),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -41,7 +41,7 @@ const useFacebookBusinessProfile = (slug?: string) => {
   };
 
   return {
-    businessProfile: data?.data || null,
+    businessProfile: data || null,
     isLoading,
     error,
     refreshProfile,

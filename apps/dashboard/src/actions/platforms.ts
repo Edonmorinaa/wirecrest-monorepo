@@ -172,6 +172,8 @@ export async function getGoogleBusinessProfile(teamSlug: string) {
   return profile;
 }
 
+// DEPRECATED: Profile creation moved to scraper
+// Use admin.createOrUpdateMarketIdentifier + admin.executePlatformAction instead
 export async function createGoogleProfile(teamSlug: string, data: { placeId: string }) {
   await throwIfNotSuperAdmin();
 
@@ -190,70 +192,27 @@ export async function createGoogleProfile(teamSlug: string, data: { placeId: str
     throw new ApiError(404, 'Team not found');
   }
 
+  console.log('⚠️ DEPRECATED: createGoogleProfile called. Use admin actions instead.');
   console.log('Creating Google profile for team:', team.id, 'with placeId:', placeId);
 
-  // Check if Google business profile already exists for this team
-  const existingProfile = await prisma.googleBusinessProfile.findFirst({
-    where: { teamId: team.id },
+  // Import admin actions
+  const { createOrUpdateMarketIdentifier, executePlatformAction } = await import('./admin');
+
+  // Step 1: Create/update market identifier
+  await createOrUpdateMarketIdentifier({
+    teamId: team.id,
+    platform: 'GOOGLE_MAPS',
+    identifier: placeId,
   });
 
-  if (existingProfile) {
-    console.log('Google business profile already exists for team:', team.id);
-
-    // If the placeId is different, we might want to update it or create a new profile
-    // For now, let's return the existing profile but still call backend to ensure sync
-    if (existingProfile.placeId === placeId) {
-      console.log('Existing profile has same placeId, returning existing profile');
-      return {
-        data: existingProfile,
-        message: 'Google business profile already exists',
-      };
-    } else {
-      console.log('Existing profile has different placeId, will update with new placeId');
-    }
-  } else {
-    // Check location quota before creating new profile
-    const { createQuotaManager } = await import('@wirecrest/feature-flags');
-    const quotaManager = createQuotaManager(prisma);
-    const canAdd = await quotaManager.canPerformAction(team.id, {
-      type: 'locations',
-      amount: 1,
-    });
-
-    if (!canAdd.allowed) {
-      throw new ApiError(403, `Location limit reached: ${canAdd.reason}. Upgrade your plan to add more locations.`);
-    }
-  }
-
-  // Call the backend API to create or update the profile
-  const backendResponse = await fetch(`${process.env.BACKEND_URL}/api/google/profile`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      teamId: team.id,
-      placeId,
-    }),
+  // Step 2: Execute platform action (delegates to scraper)
+  const result = await executePlatformAction({
+    teamId: team.id,
+    platform: 'google_maps',
+    action: 'create_profile',
   });
 
-  if (!backendResponse.ok) {
-    const errorData = await backendResponse.json();
-    console.error('Backend error creating Google profile:', errorData);
-    throw new Error(errorData.error || 'Failed to create Google business profile');
-  }
-
-  const data_response = await backendResponse.json();
-  console.log('Google profile created/updated successfully:', data_response);
-
-  // Record location usage if this was a new profile
-  if (!existingProfile) {
-    const { createQuotaManager } = await import('@wirecrest/feature-flags');
-    const quotaManager = createQuotaManager(prisma);
-    await quotaManager.recordUsage(team.id, 'locations', 1);
-  }
-
-  return { data: data_response };
+  return { data: result, message: 'Profile creation initiated via scraper' };
 }
 
 export async function getGoogleReviewsAction(
@@ -285,33 +244,13 @@ export async function getGoogleReviewsAction(
   });
 
   if (!existingProfile) {
-    console.log('Google business profile not found, creating one first...');
-
-    // Create Google business profile first
-    const profileResponse = await fetch(`${process.env.BACKEND_URL}/api/google/profile`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        teamId: team.id,
-        placeId,
-      }),
-    });
-
-    if (!profileResponse.ok) {
-      const profileError = await profileResponse.json();
-      console.error('Backend error creating Google profile before reviews:', profileError);
-      throw new Error(
-        profileError.error || 'Failed to create Google business profile before fetching reviews'
-      );
-    }
-
-    const profileData = await profileResponse.json();
-    console.log('Google profile created successfully before fetching reviews:', profileData);
-  } else {
-    console.log('Google business profile exists, proceeding with review fetch...');
+    throw new ApiError(
+      404,
+      'Google business profile not found. Please create the profile first using the superadmin panel.'
+    );
   }
+
+  console.log('Google business profile exists, proceeding with review fetch...');
 
   // Call the backend API to fetch reviews
   const backendResponse = await fetch(`${process.env.BACKEND_URL}/api/google/reviews`, {
@@ -428,6 +367,8 @@ export async function getFacebookBusinessProfile(teamSlug: string) {
   return profile;
 }
 
+// DEPRECATED: Profile creation moved to scraper
+// Use admin.createOrUpdateMarketIdentifier + admin.executePlatformAction instead
 export async function createFacebookProfile(teamSlug: string, data: { facebookUrl: string }) {
   await throwIfNotSuperAdmin();
 
@@ -446,30 +387,27 @@ export async function createFacebookProfile(teamSlug: string, data: { facebookUr
     throw new ApiError(404, 'Team not found');
   }
 
+  console.log('⚠️ DEPRECATED: createFacebookProfile called. Use admin actions instead.');
   console.log('Creating Facebook profile for team:', team.id, 'with URL:', facebookUrl);
 
-  // Call the backend API
-  const backendResponse = await fetch(`${process.env.BACKEND_URL}/api/facebook/profile`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      teamId: team.id,
-      facebookUrl,
-    }),
+  // Import admin actions
+  const { createOrUpdateMarketIdentifier, executePlatformAction } = await import('./admin');
+
+  // Step 1: Create/update market identifier
+  await createOrUpdateMarketIdentifier({
+    teamId: team.id,
+    platform: 'FACEBOOK',
+    identifier: facebookUrl,
   });
 
-  if (!backendResponse.ok) {
-    const errorData = await backendResponse.json();
-    console.error('Backend error creating Facebook profile:', errorData);
-    throw new Error(errorData.error || 'Failed to create Facebook business profile');
-  }
+  // Step 2: Execute platform action (delegates to scraper)
+  const result = await executePlatformAction({
+    teamId: team.id,
+    platform: 'facebook',
+    action: 'create_profile',
+  });
 
-  const data_response = await backendResponse.json();
-  console.log('Facebook profile created successfully:', data_response);
-
-  return { data: data_response };
+  return { data: result, message: 'Profile creation initiated via scraper' };
 }
 
 export async function getFacebookReviewsAction(
@@ -577,75 +515,6 @@ export async function getInstagramBusinessProfile(teamSlug: string) {
   return profile;
 }
 
-export async function takeInstagramSnapshot(teamSlug: string) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    throw new ApiError(401, 'Unauthorized');
-  }
-
-  const team = await prisma.team.findUnique({
-    where: { slug: teamSlug },
-  });
-
-  if (!team) {
-    throw new ApiError(404, 'Team not found');
-  }
-
-  // Check if user is a member of this team
-  const membership = await prisma.teamMember.findFirst({
-    where: {
-      teamId: team.id,
-      userId: session.user.id,
-    },
-  });
-
-  if (!membership) {
-    throw new ApiError(403, 'Access denied. You must be a member of this team.');
-  }
-
-  // Get Instagram market identifier
-  const marketIdentifier = await prisma.businessMarketIdentifier.findFirst({
-    where: {
-      teamId: team.id,
-      platform: 'INSTAGRAM',
-    },
-  });
-
-  if (!marketIdentifier?.identifier) {
-    throw new ApiError(400, 'Instagram username not configured');
-  }
-
-  // Call backend to take snapshot
-  const response = await fetch(
-    `${process.env.SCRAPER_API_URL || 'http://localhost:3001'}/api/instagram/snapshots`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        teamId: team.id,
-        instagramUsername: marketIdentifier.identifier,
-        forceRefresh: true,
-        includeMedia: true,
-        includeComments: true,
-        maxMedia: 20,
-        maxComments: 50,
-      }),
-    }
-  );
-
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new ApiError(response.status, result.error || 'Snapshot failed');
-  }
-
-  return {
-    success: true,
-    data: result,
-    message: 'Snapshot taken successfully',
-  };
-}
-
 // TikTok Business Profile Actions
 export async function getTikTokBusinessProfile(teamSlug: string) {
   const session = await getSession();
@@ -685,71 +554,6 @@ export async function getTikTokBusinessProfile(teamSlug: string) {
   });
 
   return profile;
-}
-
-export async function takeTikTokSnapshot(teamSlug: string) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    throw new ApiError(401, 'Unauthorized');
-  }
-
-  const team = await prisma.team.findUnique({
-    where: { slug: teamSlug },
-  });
-
-  if (!team) {
-    throw new ApiError(404, 'Team not found');
-  }
-
-  // Check if user is a member of this team
-  const membership = await prisma.teamMember.findFirst({
-    where: {
-      teamId: team.id,
-      userId: session.user.id,
-    },
-  });
-
-  if (!membership) {
-    throw new ApiError(403, 'Access denied. You must be a member of this team.');
-  }
-
-  // Get TikTok market identifier
-  const marketIdentifier = await prisma.businessMarketIdentifier.findFirst({
-    where: {
-      teamId: team.id,
-      platform: 'TIKTOK',
-    },
-  });
-
-  if (!marketIdentifier?.identifier) {
-    throw new ApiError(400, 'TikTok username not configured');
-  }
-
-  // Call backend to take snapshot
-  const response = await fetch(
-    `${process.env.SCRAPER_API_URL || 'http://localhost:3001'}/api/tiktok/snapshots`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        teamId: team.id,
-        tiktokUsername: marketIdentifier.identifier,
-        forceRefresh: true,
-      }),
-    }
-  );
-
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new ApiError(response.status, result.error || 'Snapshot failed');
-  }
-
-  return {
-    success: true,
-    data: result,
-    message: 'Snapshot taken successfully',
-  };
 }
 
 // Platform Status Actions

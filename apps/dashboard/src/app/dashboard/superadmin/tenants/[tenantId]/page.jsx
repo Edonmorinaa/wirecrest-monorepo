@@ -36,6 +36,7 @@ import { RoleGuard } from 'src/components/guards';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useSuperAdminTenant } from '@/hooks/useSuperAdminTenant';
+import { useSyncStatus } from '@/hooks/useSyncStatus';
 import {
   deletePlatformData,
   executePlatformAction,
@@ -98,6 +99,13 @@ export default function SuperAdminTenantDetailPage() {
     refresh
   } = useSuperAdminTenant(tenantId);
 
+  // Use sync status hook for real-time updates
+  const { syncStatus, getPlatformSyncStatus } = useSyncStatus({
+    teamId: tenantId,
+    refreshInterval: 5000, // Poll every 5 seconds
+    onlyPollWhenActive: true,
+  });
+
   // Initialize market identifiers when data loads
   useEffect(() => {
     if (platforms) {
@@ -112,30 +120,6 @@ export default function SuperAdminTenantDetailPage() {
       setMarketIdentifiers(identifiers);
     }
   }, [platforms]);
-
-  // Auto-fill identifiers for platforms that have data but no identifier in state
-  useEffect(() => {
-    if (platforms && Object.keys(marketIdentifiers).length > 0) {
-      const updatedIdentifiers = { ...marketIdentifiers };
-      let hasUpdates = false;
-
-      ['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING', 'INSTAGRAM', 'TIKTOK'].forEach(platform => {
-        const platformKey = platform.toLowerCase();
-        const platformData = platforms[platformKey];
-        const currentIdentifier = marketIdentifiers[platform] || '';
-        
-        // If platform has data but no identifier in state, auto-fill it
-        if (platformData?.identifier && !currentIdentifier) {
-          updatedIdentifiers[platform] = platformData.identifier;
-          hasUpdates = true;
-        }
-      });
-
-      if (hasUpdates) {
-        setMarketIdentifiers(updatedIdentifiers);
-      }
-    }
-  }, [platforms, marketIdentifiers]);
 
   const handleIdentifierChange = useCallback((platform, value) => {
     setMarketIdentifiers(prev => ({
@@ -435,27 +419,32 @@ export default function SuperAdminTenantDetailPage() {
 
                   {/* Regular Platform Cards */}
                   <Grid container spacing={3}>
-                    {['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING', 'TIKTOK'].map((platform) => (
-                      <Grid size={{ xs: 12, md: 6 }} key={platform}>
-                        <PlatformCard
-                          platform={platform}
-                          config={
-                            ['INSTAGRAM', 'TIKTOK'].includes(platform)
-                              ? socialPlatformConfig[platform]
-                              : platformConfig[platform]
-                          }
-                          identifier={marketIdentifiers[platform] || ''}
-                          status={getPlatformStatus(platform)}
-                          platformData={platforms?.[platform.toLowerCase()]}
-                          currentStepMessage={getCurrentStepMessage(platform)}
-                          loading={platformLoadingStates[platform] || false}
-                          onIdentifierChange={handleIdentifierChange}
-                          onSave={handleSaveIdentifier}
-                          onAction={handlePlatformAction}
-                          onMenuOpen={handleMenuOpen}
-                        />
-                      </Grid>
-                    ))}
+                    {['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING', 'TIKTOK'].map((platform) => {
+                      const platformKey = PLATFORM_MAPPING[platform] || platform;
+                      return (
+                        <Grid size={{ xs: 12, md: 6 }} key={platform}>
+                          <PlatformCard
+                            platform={platform}
+                            config={
+                              ['INSTAGRAM', 'TIKTOK'].includes(platform)
+                                ? socialPlatformConfig[platform]
+                                : platformConfig[platform]
+                            }
+                            identifier={marketIdentifiers[platform] || ''}
+                            status={getPlatformStatus(platform)}
+                            syncStatus={getPlatformSyncStatus(platformKey.toLowerCase())}
+                            platformData={platforms?.[platform.toLowerCase()]}
+                            currentStepMessage={getCurrentStepMessage(platform)}
+                            loading={platformLoadingStates[platform] || false}
+                            isLoadingData={isLoading}
+                            onIdentifierChange={handleIdentifierChange}
+                            onSave={handleSaveIdentifier}
+                            onAction={handlePlatformAction}
+                            onMenuOpen={handleMenuOpen}
+                          />
+                        </Grid>
+                      );
+                    })}
                   </Grid>
                 </Box>
               </TabPanel>

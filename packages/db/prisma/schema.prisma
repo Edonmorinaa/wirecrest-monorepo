@@ -3259,8 +3259,8 @@ model SyncRecord {
 
 model ApifyWebhookLog {
   id                    String   @id @default(uuid())
-  teamId                String?
-  apifyRunId            String
+  teamId                String?  // NOW POPULATED for scheduled runs
+  apifyRunId            String   // For manual/subscription: original ID, for scheduled: {runId}-{teamId}
   eventType             String
   payload               Json
   processedAt           DateTime @default(now())
@@ -3268,6 +3268,7 @@ model ApifyWebhookLog {
   errorMessage          String?
   
   @@index([apifyRunId])
+  @@index([teamId, processingStatus])
   @@index([processingStatus, processedAt])
 }
 

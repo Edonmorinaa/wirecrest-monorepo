@@ -11,6 +11,7 @@ import {
 } from '../supabase/models';
 import { marketIdentifierEvents } from '../events/marketIdentifierEvents';
 import { randomUUID } from 'crypto';
+import { prisma } from '@wirecrest/db';
 
 export class BusinessProfileCreationService {
   private supabase: SupabaseClient;
@@ -29,6 +30,164 @@ export class BusinessProfileCreationService {
     if (!this.googleApiKey) {
       console.warn('[WARN] Google API Key not provided to BusinessProfileCreationService. Google profile creation will likely fail.');
     }
+  }
+
+  /**
+   * Ensure business profile exists - create if missing, return existing if found
+   * This is the main entry point for all profile creation
+   */
+  async ensureBusinessProfileExists(
+    teamId: string,
+    platform: MarketPlatform,
+    identifier: string
+  ): Promise<{ exists: boolean; businessProfileId?: string; created?: boolean; error?: string }> {
+    try {
+      // Check if profile already exists
+      const profileId = await this.getExistingProfileId(teamId, platform, identifier);
+      
+      if (profileId) {
+        console.log(`✓ Business profile already exists: ${profileId}`);
+        return { exists: true, businessProfileId: profileId, created: false };
+      }
+      
+      // Profile doesn't exist - create it
+      console.log(`Creating new business profile for team ${teamId}, platform ${platform}`);
+      const result = await this.createBusinessProfile(teamId, platform, identifier);
+      
+      return {
+        exists: result.success,
+        businessProfileId: result.businessProfileId,
+        created: result.success,
+        error: result.error
+      };
+    } catch (error) {
+      console.error('Error in ensureBusinessProfileExists:', error);
+      return {
+        exists: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Get existing profile ID for team + platform + identifier
+   */
+  private async getExistingProfileId(
+    teamId: string,
+    platform: MarketPlatform,
+    identifier: string
+  ): Promise<string | null> {
+    try {
+      switch (platform) {
+        case MarketPlatform.GOOGLE_MAPS:
+          const google = await this.supabase
+            .from('GoogleBusinessProfile')
+            .select('id')
+            .eq('teamId', teamId)
+            .eq('placeId', identifier)
+            .single();
+          return google.data?.id || null;
+
+        case MarketPlatform.FACEBOOK:
+          const facebook = await this.supabase
+            .from('FacebookBusinessProfile')
+            .select('id')
+            .eq('teamId', teamId)
+            .eq('facebookUrl', identifier)
+            .single();
+          return facebook.data?.id || null;
+
+        case MarketPlatform.TRIPADVISOR:
+          const tripadvisor = await this.supabase
+            .from('TripAdvisorBusinessProfile')
+            .select('id')
+            .eq('teamId', teamId)
+            .eq('tripAdvisorUrl', identifier)
+            .single();
+          return tripadvisor.data?.id || null;
+
+        case MarketPlatform.BOOKING:
+          const booking = await this.supabase
+            .from('BookingBusinessProfile')
+            .select('id')
+            .eq('teamId', teamId)
+            .eq('bookingUrl', identifier)
+            .single();
+          return booking.data?.id || null;
+
+        default:
+          return null;
+      }
+    } catch (error) {
+      // PGRST116 is "no rows returned" - not an error in this context
+      return null;
+    }
+  }
+
+  /**
+   * Update business creation task progress with real-time updates
+   */
+  private async updateTaskProgress(
+    teamId: string,
+    platform: string,
+    step: string,
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED',
+    message: string,
+    progressPercent: number
+  ): Promise<void> {
+    try {
+      const platformType = this.marketPlatformToPlatformType(platform);
+      
+      // Update task progress
+      await prisma.businessCreationTask.updateMany({
+        where: {
+          teamId,
+          platform: platformType,
+          status: { in: ['IN_PROGRESS', 'PENDING'] }
+        },
+        data: {
+          currentStep: step,
+          status,
+          lastActivityAt: new Date(),
+          progressPercent,
+        }
+      });
+      
+      // Create status message for realtime updates
+      const task = await prisma.businessCreationTask.findFirst({
+        where: { teamId, platform: platformType },
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      if (task) {
+        await prisma.businessStatusMessage.create({
+          data: {
+            businessCreationId: task.id,
+            step,
+            status,
+            message,
+            messageType: status === 'FAILED' ? 'error' : status === 'COMPLETED' ? 'success' : 'info'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error updating task progress:', error);
+      // Don't throw - progress tracking shouldn't break profile creation
+    }
+  }
+
+  /**
+   * Map MarketPlatform enum to PlatformType enum
+   */
+  private marketPlatformToPlatformType(platform: string): string {
+    const upperPlatform = platform.toUpperCase();
+    
+    if (upperPlatform.includes('GOOGLE')) return 'GOOGLE';
+    if (upperPlatform.includes('FACEBOOK')) return 'FACEBOOK';
+    if (upperPlatform.includes('TRIPADVISOR')) return 'TRIPADVISOR';
+    if (upperPlatform.includes('BOOKING')) return 'BOOKING';
+    
+    return 'GOOGLE'; // Default fallback
   }
 
   /**
@@ -76,6 +235,16 @@ export class BusinessProfileCreationService {
       return { success: false, error: 'Google API Key is not configured for Places API call.' };
     }
     try {
+      // Update progress: Starting
+      await this.updateTaskProgress(
+        teamId,
+        'GOOGLE_MAPS',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Checking for existing Google business profile...',
+        10
+      );
+
       console.log(`[Google Places HTTP API] Checking existing profile for team: ${teamId}`);
       
       // Check if team already has a Google business profile (one-to-one relationship)
@@ -94,6 +263,16 @@ export class BusinessProfileCreationService {
           return { success: false, error: `Team already has a Google business profile for a different place. Each team can only have one Google business profile.` };
         }
       }
+
+      // Update progress: Fetching from Google
+      await this.updateTaskProgress(
+        teamId,
+        'GOOGLE_MAPS',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Fetching business details from Google Places API...',
+        25
+      );
 
       console.log(`[Google Places HTTP API] Fetching details for placeId: ${placeId}`);
       const fieldMask = [
@@ -131,6 +310,16 @@ export class BusinessProfileCreationService {
 
       const placeData = await response.json() as GooglePlaceV1;
       console.log(`[Google Places HTTP API] Successfully fetched details for: ${placeData.displayName?.text}`);
+
+      // Update progress: Saving to database
+      await this.updateTaskProgress(
+        teamId,
+        'GOOGLE_MAPS',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Saving business profile to database...',
+        50
+      );
 
       // Map to new Prisma schema for GoogleBusinessProfile
       const businessProfileSupabaseData: any = {
@@ -327,6 +516,16 @@ export class BusinessProfileCreationService {
         identifier: placeId,
         timestamp: new Date()
       });
+
+      // Update progress: Completed
+      await this.updateTaskProgress(
+        teamId,
+        'GOOGLE_MAPS',
+        'CREATING_PROFILE',
+        'COMPLETED',
+        'Business profile created successfully',
+        100
+      );
 
       return { success: true, businessProfileId };
 

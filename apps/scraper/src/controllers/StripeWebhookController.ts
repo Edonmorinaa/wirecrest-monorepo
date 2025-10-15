@@ -101,6 +101,11 @@ export class StripeWebhookController {
     // Trigger initial data fetch and setup schedules
     const result = await this.orchestrator.handleNewSubscription(teamId);
 
+    // Log warning if no platforms configured
+    if (result.businessesAdded === 0) {
+      console.warn(`⚠️ Team ${teamId} subscribed but has no platforms configured yet. Scraping will start when platforms are added.`);
+    }
+
     console.log('✅ Subscription setup result:', result);
   }
 

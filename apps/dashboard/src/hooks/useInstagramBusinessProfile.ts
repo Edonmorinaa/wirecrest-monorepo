@@ -13,7 +13,7 @@ import useSWR, { mutate } from 'swr';
 import { useParams } from 'next/navigation';
 import { useRef, useState, useEffect } from 'react';
 
-import fetcher from 'src/lib/fetcher';
+import { getInstagramBusinessProfile } from 'src/actions/platforms';
 
 import { useTeamSlug } from './use-subdomain';
 
@@ -39,9 +39,9 @@ const useInstagramBusinessProfile = (slug?: string) => {
   console.log('Instagram hook - teamSlug:', teamSlug);
   console.log('Instagram hook - params:', params);
   
-  const { data, error, isLoading } = useSWR<ApiResponse<InstagramBusinessProfileWithRelations>>(
-    teamSlug ? `/api/teams/${teamSlug}/instagram-business-profile` : null,
-    fetcher,
+  const { data, error, isLoading } = useSWR<InstagramBusinessProfileWithRelations | null>(
+    teamSlug ? `instagram-business-profile-${teamSlug}` : null,
+    () => getInstagramBusinessProfile(teamSlug!),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -54,33 +54,6 @@ const useInstagramBusinessProfile = (slug?: string) => {
   console.log('Instagram hook - data:', data);
   console.log('Instagram hook - error:', error);
   console.log('Instagram hook - isLoading:', isLoading);
-
-  // Trigger workflow by calling backend endpoint
-  const triggerWorkflow = async () => {
-    if (!teamSlug) return null;
-
-    try {
-      const response = await fetch('/api/trigger-workflow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          teamSlug,
-          platform: 'INSTAGRAM',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Failed to trigger workflow');
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Error triggering Instagram workflow:', error);
-      throw error;
-    }
-  };
 
   // Auto-sync logic when team changes or when data is missing
   useEffect(() => {
@@ -95,7 +68,7 @@ const useInstagramBusinessProfile = (slug?: string) => {
       const teamChanged = previousTeamSlugRef.current !== teamSlug;
 
       // Check if we have no data or error (and haven't attempted auto-sync for this team yet)
-      const noDataOrError = (!data?.data || error) && !hasAttemptedAutoSync;
+      const noDataOrError = (!data || error) && !hasAttemptedAutoSync;
 
       return teamChanged || noDataOrError;
     };
@@ -121,11 +94,12 @@ const useInstagramBusinessProfile = (slug?: string) => {
 
     // Update the previous team slug reference
     previousTeamSlugRef.current = teamSlug;
-  }, [teamSlug, data?.data, error, isLoading, hasAttemptedAutoSync]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamSlug, isLoading, hasAttemptedAutoSync]);
 
   const mutateBusinessProfile = async () => {
     if (teamSlug) {
-      await mutate(`/api/teams/${teamSlug}/instagram-business-profile`);
+      await mutate(`instagram-business-profile-${teamSlug}`);
     }
   };
 
@@ -156,9 +130,8 @@ const useInstagramBusinessProfile = (slug?: string) => {
   return {
     isLoading,
     isError: error,
-    businessProfile: data?.data,
+    businessProfile: data || null,
     mutateBusinessProfile,
-    triggerWorkflow,
     takeSnapshot,
   };
 };

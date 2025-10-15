@@ -9,10 +9,12 @@
  */
 
 import { prisma } from '@wirecrest/db';
+import { MarketPlatform } from '@prisma/client';
 import { ApifyTaskService } from '../apify/ApifyTaskService';
 import { ApifyDataSyncService } from '../apify/ApifyDataSyncService';
 import { FeatureExtractor } from './FeatureExtractor';
 import { GlobalScheduleOrchestrator } from './GlobalScheduleOrchestrator';
+import { BusinessProfileCreationService } from '../businessProfileCreationService';
 import type { Platform, TaskRunConfig } from '../../types/apify.types';
 
 export class SubscriptionOrchestrator {
@@ -20,12 +22,14 @@ export class SubscriptionOrchestrator {
   private syncService: ApifyDataSyncService;
   private featureExtractor: FeatureExtractor;
   private globalOrchestrator: GlobalScheduleOrchestrator;
+  private apifyToken: string;
 
   constructor(apifyToken: string, webhookBaseUrl: string) {
     this.taskService = new ApifyTaskService(apifyToken, webhookBaseUrl);
     this.syncService = new ApifyDataSyncService(apifyToken);
     this.featureExtractor = new FeatureExtractor();
     this.globalOrchestrator = new GlobalScheduleOrchestrator(apifyToken, webhookBaseUrl);
+    this.apifyToken = apifyToken;
   }
 
   /**
@@ -38,6 +42,7 @@ export class SubscriptionOrchestrator {
     message: string;
     initialTasksStarted: number;
     businessesAdded: number;
+    profilesCreated: number;
   }> {
     try {
       console.log(`🆕 Handling new subscription for team ${teamId}`);
@@ -54,14 +59,19 @@ export class SubscriptionOrchestrator {
           message: 'No platforms enabled in subscription',
           initialTasksStarted: 0,
           businessesAdded: 0,
+          profilesCreated: 0,
         };
       }
 
       // Get business identifiers for all enabled platforms
       const identifiers = await this.getTeamBusinessIdentifiers(teamId, enabledPlatforms);
+      
+      // Initialize profile creation service
+      const profileService = new BusinessProfileCreationService(this.apifyToken);
 
       let initialTasksStarted = 0;
       let businessesAdded = 0;
+      let profilesCreated = 0;
 
       // For each enabled platform
       for (const platform of enabledPlatforms) {
@@ -74,12 +84,31 @@ export class SubscriptionOrchestrator {
 
         console.log(`  📍 Processing ${platformIdentifiers.length} ${platform} business(es)`);
 
-        // Trigger initial data fetch
+        // Ensure profiles exist for all identifiers (create if missing)
+        for (const identifier of platformIdentifiers) {
+          const profileResult = await profileService.ensureBusinessProfileExists(
+            teamId,
+            this.mapPlatformToMarketPlatform(platform),
+            identifier
+          );
+          
+          if (!profileResult.exists) {
+            console.error(`Failed to create profile for ${platform}:${identifier}`, profileResult.error);
+            continue;
+          }
+          
+          if (profileResult.created) {
+            profilesCreated++;
+            console.log(`    ✓ Created business profile for ${identifier}`);
+          }
+        }
+
+        // Trigger initial data fetch - get ALL reviews for initial sync
         const taskConfig: TaskRunConfig = {
           platform: platform as Platform,
           identifiers: platformIdentifiers,
           isInitial: true,
-          maxReviews: features.limits.maxReviewsPerBusiness,
+          maxReviews: 99999, // Unlimited for initial sync - get all historical reviews
           webhookUrl: '',
         };
 
@@ -126,7 +155,7 @@ export class SubscriptionOrchestrator {
         }
       }
 
-      const message = `Successfully started ${initialTasksStarted} initial tasks and added ${businessesAdded} businesses to global schedules`;
+      const message = `Started ${initialTasksStarted} tasks, added ${businessesAdded} businesses, created ${profilesCreated} new profiles`;
       console.log(`✅ ${message}`);
 
       return {
@@ -134,6 +163,7 @@ export class SubscriptionOrchestrator {
         message,
         initialTasksStarted,
         businessesAdded,
+        profilesCreated,
       };
     } catch (error: any) {
       console.error('Error handling new subscription:', error);
@@ -142,6 +172,7 @@ export class SubscriptionOrchestrator {
         message: `Failed to setup subscription: ${error.message}`,
         initialTasksStarted: 0,
         businessesAdded: 0,
+        profilesCreated: 0,
       };
     }
   }
@@ -287,6 +318,99 @@ export class SubscriptionOrchestrator {
   }
 
   /**
+   * Handle platform added: trigger initial scrape when platform is configured after subscription
+   * This is called when a user adds a platform identifier after already having an active subscription
+   */
+  async handlePlatformAdded(
+    teamId: string,
+    platform: Platform,
+    identifier: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    initialTaskStarted: boolean;
+    businessAdded: boolean;
+  }> {
+    try {
+      console.log(`🆕 Handling platform addition for team ${teamId}, platform: ${platform}, identifier: ${identifier}`);
+
+      // Extract features to get interval
+      const features = await this.featureExtractor.extractTeamFeatures(teamId);
+      const interval = await this.featureExtractor.getIntervalForTeamPlatform(
+        teamId,
+        platform,
+        'reviews'
+      );
+
+      console.log(`  📊 Team features: tier=${features.tier}, interval=${interval}h`);
+
+      // Trigger initial data fetch - get ALL reviews for initial sync
+      const taskConfig: TaskRunConfig = {
+        platform,
+        identifiers: [identifier],
+        isInitial: true,
+        maxReviews: 99999, // Unlimited for initial sync - get all historical reviews
+        webhookUrl: '',
+      };
+
+      console.log(`  🚀 Starting initial task for ${platform}`);
+      const taskResult = await this.taskService.runInitialTask(taskConfig);
+      
+      // Create sync record
+      await this.syncService.createSyncRecord(
+        teamId,
+        platform,
+        'initial',
+        taskResult.apifyRunId
+      );
+
+      console.log(`  ✅ Initial task started: ${taskResult.apifyRunId}`);
+
+      // Get business profile ID and add to schedule
+      // Note: Business profile might not exist yet if this is the first time
+      // The profile will be created by the Apify actor
+      const businessProfileId = await this.getBusinessProfileId(teamId, platform, identifier);
+      
+      let businessAdded = false;
+      if (businessProfileId) {
+        console.log(`  📍 Adding business ${businessProfileId} to global schedule (${interval}h)`);
+        
+        const result = await this.globalOrchestrator.addBusinessToSchedule(
+          businessProfileId,
+          teamId,
+          platform,
+          identifier,
+          interval
+        );
+
+        if (result.success) {
+          businessAdded = true;
+          console.log(`  ✅ Business added to schedule successfully`);
+        } else {
+          console.error(`  ✗ Failed to add business to schedule: ${result.message}`);
+        }
+      } else {
+        console.log(`  ⚠️ Business profile not found yet, will be added to schedule after profile creation`);
+      }
+
+      return {
+        success: true,
+        message: 'Platform configured and scraping initiated',
+        initialTaskStarted: true,
+        businessAdded,
+      };
+    } catch (error: any) {
+      console.error('Error handling platform addition:', error);
+      return {
+        success: false,
+        message: `Failed to setup platform: ${error.message}`,
+        initialTaskStarted: false,
+        businessAdded: false,
+      };
+    }
+  }
+
+  /**
    * Get business profile ID from identifier
    * Helper method to look up the business profile ID for a given identifier
    */
@@ -405,6 +529,20 @@ export class SubscriptionOrchestrator {
     }
 
     return identifiers;
+  }
+
+  /**
+   * Map platform string to MarketPlatform enum
+   */
+  private mapPlatformToMarketPlatform(platform: string): MarketPlatform {
+    const mapping: Record<string, MarketPlatform> = {
+      'google_maps': MarketPlatform.GOOGLE_MAPS,
+      'google_reviews': MarketPlatform.GOOGLE_MAPS,
+      'facebook': MarketPlatform.FACEBOOK,
+      'tripadvisor': MarketPlatform.TRIPADVISOR,
+      'booking': MarketPlatform.BOOKING,
+    };
+    return mapping[platform] || MarketPlatform.GOOGLE_MAPS; // Default fallback
   }
 }
 

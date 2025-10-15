@@ -1,6 +1,6 @@
 'use client';
 
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -10,6 +10,7 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import CardHeader from '@mui/material/CardHeader';
 import IconButton from '@mui/material/IconButton';
@@ -20,15 +21,51 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { alpha } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';
+import SyncProgressIndicator from './SyncProgressIndicator';
 
 const statusConfig = {
-  not_started: { color: 'default', icon: 'solar:clock-circle-bold', label: 'Not Started' },
-  identifier_set: { color: 'info', icon: 'solar:check-circle-bold', label: 'Identifier Set' },
-  profile_in_progress: { color: 'warning', icon: 'solar:activity-bold', label: 'Processing' },
-  profile_completed: { color: 'success', icon: 'solar:check-circle-bold', label: 'Profile Ready' },
-  reviews_in_progress: { color: 'warning', icon: 'solar:activity-bold', label: 'Syncing' },
-  completed: { color: 'success', icon: 'solar:check-circle-bold', label: 'Active' },
-  failed: { color: 'error', icon: 'solar:close-circle-bold', label: 'Failed' }
+  not_started: { 
+    color: 'default', 
+    icon: 'solar:clock-circle-bold', 
+    label: 'Not Started',
+    description: 'Configure identifier to begin'
+  },
+  identifier_set: { 
+    color: 'info', 
+    icon: 'solar:check-circle-bold', 
+    label: 'Configured',
+    description: 'Ready for setup'
+  },
+  profile_in_progress: { 
+    color: 'warning', 
+    icon: 'solar:activity-bold', 
+    label: 'Processing',
+    description: 'Creating business profile'
+  },
+  profile_completed: { 
+    color: 'success', 
+    icon: 'solar:check-circle-bold', 
+    label: 'Profile Ready',
+    description: 'Profile created successfully'
+  },
+  reviews_in_progress: { 
+    color: 'primary', 
+    icon: 'solar:refresh-bold', 
+    label: 'Syncing',
+    description: 'Fetching platform data'
+  },
+  completed: { 
+    color: 'success', 
+    icon: 'solar:check-circle-bold', 
+    label: 'Active',
+    description: 'All data synced'
+  },
+  failed: { 
+    color: 'error', 
+    icon: 'solar:close-circle-bold', 
+    label: 'Failed',
+    description: 'Setup encountered an error'
+  }
 };
 
 export default function PlatformCard({
@@ -37,8 +74,10 @@ export default function PlatformCard({
   identifier,
   status,
   platformData,
+  syncStatus,
   currentStepMessage,
   loading,
+  isLoadingData,
   onIdentifierChange,
   onSave,
   onAction,
@@ -46,6 +85,33 @@ export default function PlatformCard({
 }) {
   const statusInfo = statusConfig[status] || statusConfig.not_started;
   const hasData = platformData && (platformData.reviewsCount > 0 || platformData.lastReviewDate);
+
+  // Show loading skeleton
+  if (isLoadingData) {
+    return (
+      <Card 
+        elevation={2}
+        sx={{ 
+          height: '100%',
+        }}
+      >
+        <CardHeader
+          avatar={<Skeleton variant="circular" width={48} height={48} />}
+          title={<Skeleton variant="text" width="60%" />}
+          subheader={<Skeleton variant="text" width="40%" />}
+        />
+        <CardContent>
+          <Stack spacing={2}>
+            <Skeleton variant="rectangular" height={56} sx={{ borderRadius: 1 }} />
+            <Stack direction="row" spacing={1}>
+              <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" width={100} height={36} sx={{ borderRadius: 1 }} />
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card 
@@ -190,6 +256,45 @@ export default function PlatformCard({
               </Button>
             )}
           </Stack>
+
+          {/* Sync Progress Indicator */}
+          <SyncProgressIndicator syncStatus={syncStatus} platform={config.name} />
+
+          {/* Sync Status Display */}
+          {syncStatus && !syncStatus.isActive && (
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 1,
+                bgcolor: (theme) => alpha(
+                  syncStatus.lastSync ? theme.palette.success.main : theme.palette.warning.main,
+                  0.08
+                ),
+                border: (theme) => `1px solid ${alpha(
+                  syncStatus.lastSync ? theme.palette.success.main : theme.palette.warning.main,
+                  0.2
+                )}`,
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1}>
+                {syncStatus.lastSync ? (
+                  <>
+                    <Iconify icon="solar:check-circle-bold" width={16} color="success.main" />
+                    <Typography variant="caption" color="text.secondary">
+                      Last synced {formatDistanceToNow(new Date(syncStatus.lastSync), { addSuffix: true })}
+                    </Typography>
+                  </>
+                ) : (
+                  <>
+                    <Iconify icon="solar:clock-circle-bold" width={16} color="warning.main" />
+                    <Typography variant="caption" color="text.secondary">
+                      Waiting for initial sync
+                    </Typography>
+                  </>
+                )}
+              </Stack>
+            </Box>
+          )}
 
           {/* Statistics */}
           {hasData && (

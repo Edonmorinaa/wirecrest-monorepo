@@ -90,7 +90,6 @@ bower_components/
 
 # Package manager files
 package-lock.json
-yarn.lock
 pnpm-lock.yaml
 .pnp
 .pnp.js

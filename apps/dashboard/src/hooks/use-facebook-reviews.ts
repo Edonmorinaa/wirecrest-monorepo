@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getFacebookReviews } from 'src/actions/reviews';
 
 interface UseFacebookReviewsFilters {
   page?: number;
@@ -92,16 +93,8 @@ const useFacebookReviews = (teamSlug?: string, filters: UseFacebookReviewsFilter
       setError(null);
 
       try {
-        const queryParams = buildQueryParams(filterParams);
-        const response = await fetch(`/api/teams/${teamSlug}/facebook/reviews?${queryParams}`);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error?.message || 'Failed to fetch reviews');
-        }
-
-        const result = await response.json();
-        setData(result.data);
+        const result = await getFacebookReviews(teamSlug, filterParams);
+        setData(result);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
         console.error('Error fetching Facebook reviews:', err);

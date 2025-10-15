@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TikTokBusinessProfile } from '@/types/tiktok-analytics';
+import { getTikTokBusinessProfile } from 'src/actions/platforms';
 
 interface UseTikTokBusinessProfileReturn {
   businessProfile: TikTokBusinessProfile | null;
@@ -18,28 +19,8 @@ export default function useTikTokBusinessProfile(teamSlug: string): UseTikTokBus
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/teams/${teamSlug}/tiktok-business-profile`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          setBusinessProfile(null);
-          return;
-        }
-        throw new Error(`Failed to fetch TikTok business profile: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.data) {
-        setBusinessProfile(result.data);
-      } else {
-        setBusinessProfile(null);
-      }
+      const data = await getTikTokBusinessProfile(teamSlug);
+      setBusinessProfile(data as any);
     } catch (err) {
       console.error('Error fetching TikTok business profile:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch business profile');

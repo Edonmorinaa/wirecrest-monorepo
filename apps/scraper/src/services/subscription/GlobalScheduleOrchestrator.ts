@@ -491,8 +491,9 @@ export class GlobalScheduleOrchestrator {
     const batchSuffix = config.batchIndex && config.batchIndex > 0 ? `_batch_${config.batchIndex}` : '';
 
     // Create schedule in Apify
+    const scheduleName = `${config.platform}_${config.scheduleType}_${config.intervalHours}h${batchSuffix}`.replace(/[^a-z0-9-]/g, '-');
     const apifySchedule = await this.apifyClient.schedules().create({
-      name: `${config.platform}_${config.scheduleType}_${config.intervalHours}h${batchSuffix}`,
+      name: scheduleName,
       cronExpression,
       isEnabled: false, // Start disabled, enable when first business added
       isExclusive: false,
@@ -607,35 +608,50 @@ export class GlobalScheduleOrchestrator {
           personalData: false,
         };
 
-      case 'facebook':
-        return {
+      case 'facebook': {
+        const input: any = {
           startUrls: identifiers.map((url) => ({ url })),
-          resultsLimit: maxReviews,
           proxy: {
             apifyProxyGroups: ['RESIDENTIAL'],
           },
           maxRequestRetries: 10,
         };
+        // Only add limit if reasonable (not "unlimited")
+        if (maxReviews < 99999) {
+          input.resultsLimit = maxReviews;
+        }
+        return input;
+      }
 
-      case 'tripadvisor':
-        return {
+      case 'tripadvisor': {
+        const input: any = {
           startUrls: identifiers.map((url) => ({ url })),
-          maxItemsPerQuery: maxReviews,
           scrapeReviewerInfo: true,
           reviewRatings: ['ALL_REVIEW_RATINGS'],
           reviewsLanguages: ['ALL_REVIEW_LANGUAGES'],
         };
+        // Only add limit if reasonable (not "unlimited")
+        if (maxReviews < 99999) {
+          input.maxItemsPerQuery = maxReviews;
+        }
+        return input;
+      }
 
-      case 'booking':
-        return {
+      case 'booking': {
+        const input: any = {
           startUrls: identifiers.map((url) => ({ url })),
-          maxReviewsPerHotel: maxReviews,
           sortReviewsBy: 'f_recent_desc',
           reviewScores: ['ALL'],
           proxyConfiguration: {
             useApifyProxy: true,
           },
         };
+        // Only add limit if reasonable (not "unlimited")
+        if (maxReviews < 99999) {
+          input.maxReviewsPerHotel = maxReviews;
+        }
+        return input;
+      }
     }
   }
 

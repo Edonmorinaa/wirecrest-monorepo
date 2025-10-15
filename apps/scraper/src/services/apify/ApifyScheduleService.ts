@@ -281,38 +281,53 @@ export class ApifyScheduleService {
           personalData: false,       // GDPR compliant
         };
 
-      case 'facebook':
+      case 'facebook': {
         // Facebook Reviews Scraper
-        return {
+        const input: any = {
           startUrls: config.identifiers.map((url) => ({ url })),
-          resultsLimit: config.maxReviewsPerRun,
           proxy: {
             apifyProxyGroups: ['RESIDENTIAL'],
           },
           maxRequestRetries: 10,
         };
+        // Only add limit if reasonable (not "unlimited")
+        if (config.maxReviewsPerRun < 99999) {
+          input.resultsLimit = config.maxReviewsPerRun;
+        }
+        return input;
+      }
 
-      case 'tripadvisor':
+      case 'tripadvisor': {
         // TripAdvisor Reviews Scraper
-        return {
+        const input: any = {
           startUrls: config.identifiers.map((url) => ({ url })),
-          maxItemsPerQuery: config.maxReviewsPerRun,
           scrapeReviewerInfo: true,
           reviewRatings: ['ALL_REVIEW_RATINGS'],
           reviewsLanguages: ['ALL_REVIEW_LANGUAGES'],
         };
+        // Only add limit if reasonable (not "unlimited")
+        if (config.maxReviewsPerRun < 99999) {
+          input.maxItemsPerQuery = config.maxReviewsPerRun;
+        }
+        return input;
+      }
 
-      case 'booking':
+      case 'booking': {
         // Booking.com Reviews Scraper
-        return {
+        const input: any = {
           startUrls: config.identifiers.map((url) => ({ url })),
-          maxReviewsPerHotel: config.maxReviewsPerRun,
           sortReviewsBy: 'f_recent_desc',  // Newest first for deduplication
           reviewScores: ['ALL'],
           proxyConfiguration: {
             useApifyProxy: true,
           },
         };
+        // Only add limit if reasonable (not "unlimited")
+        if (config.maxReviewsPerRun < 99999) {
+          input.maxReviewsPerHotel = config.maxReviewsPerRun;
+        }
+        return input;
+      }
     }
   }
 

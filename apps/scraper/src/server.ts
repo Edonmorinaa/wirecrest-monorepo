@@ -10,6 +10,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { StripeWebhookController } from './controllers/StripeWebhookController';
 import { ApifyWebhookController } from './controllers/ApifyWebhookController';
+import { PlatformConfigWebhookController } from './controllers/PlatformConfigWebhookController';
 import { SubscriptionOrchestrator } from './services/subscription/SubscriptionOrchestrator';
 import { ApifyScheduleService } from './services/apify/ApifyScheduleService';
 import { ApifyTaskService } from './services/apify/ApifyTaskService';
@@ -19,7 +20,7 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // Configuration
-const APIFY_TOKEN = process.env.APIFY_API_TOKEN!;
+const APIFY_TOKEN = process.env.APIFY_TOKEN!;
 const WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL || `http://localhost:${PORT}`;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
 
@@ -39,6 +40,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Initialize controllers
 let stripeWebhookController: StripeWebhookController;
 let apifyWebhookController: ApifyWebhookController;
+let platformConfigWebhookController: PlatformConfigWebhookController;
 let orchestrator: SubscriptionOrchestrator;
 let scheduleService: ApifyScheduleService;
 let taskService: ApifyTaskService;
@@ -58,6 +60,7 @@ async function initializeServices(): Promise<void> {
     );
 
     apifyWebhookController = new ApifyWebhookController(APIFY_TOKEN);
+    platformConfigWebhookController = new PlatformConfigWebhookController(APIFY_TOKEN, WEBHOOK_BASE_URL);
     orchestrator = new SubscriptionOrchestrator(APIFY_TOKEN, WEBHOOK_BASE_URL);
     scheduleService = new ApifyScheduleService(APIFY_TOKEN, WEBHOOK_BASE_URL);
     taskService = new ApifyTaskService(APIFY_TOKEN, WEBHOOK_BASE_URL);
@@ -76,6 +79,7 @@ app.get('/health', (_req: Request, res: Response) => {
   const servicesReady = !!(
     stripeWebhookController &&
     apifyWebhookController &&
+    platformConfigWebhookController &&
     orchestrator &&
     scheduleService &&
     taskService
@@ -116,6 +120,18 @@ app.post('/webhooks/apify', async (req: Request, res: Response) => {
     return;
   }
   await apifyWebhookController.handleWebhook(req, res);
+});
+
+/**
+ * Platform configuration webhook endpoint
+ * Handles platform setup from dashboard
+ */
+app.post('/api/webhooks/platform-configured', async (req: Request, res: Response) => {
+  if (!platformConfigWebhookController) {
+    res.status(503).json({ error: 'Service not ready' });
+    return;
+  }
+  await platformConfigWebhookController.handlePlatformConfigured(req, res);
 });
 
 // =================== DASHBOARD API ENDPOINTS (Read-Only) ===================

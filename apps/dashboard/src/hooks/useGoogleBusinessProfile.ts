@@ -27,7 +27,7 @@ import {
   GoogleBusinessMetadata,
 } from '@prisma/client';
 
-import fetcher from 'src/lib/fetcher';
+import { getGoogleBusinessProfile } from 'src/actions/platforms';
 
 import { useTeamSlug } from './use-subdomain';
 
@@ -94,9 +94,9 @@ const useGoogleBusinessProfile = (slug?: string) => {
   const previousTeamSlugRef = useRef<string | null>(null);
 
   console.log('teamSlug', teamSlug);
-  const { data, error, isLoading } = useSWR<ApiResponse<GoogleBusinessProfileWithRelations>>(
-    teamSlug ? `/api/teams/${teamSlug}/google-business-profile` : null,
-    fetcher,
+  const { data, error, isLoading } = useSWR<GoogleBusinessProfileWithRelations | null>(
+    teamSlug ? `google-business-profile-${teamSlug}` : null,
+    () => getGoogleBusinessProfile(teamSlug!),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -146,7 +146,7 @@ const useGoogleBusinessProfile = (slug?: string) => {
       const teamChanged = previousTeamSlugRef.current !== teamSlug;
 
       // Check if we have no data or error (and haven't attempted auto-sync for this team yet)
-      const noDataOrError = (!data?.data || error) && !hasAttemptedAutoSync;
+      const noDataOrError = (!data || error) && !hasAttemptedAutoSync;
 
       return teamChanged || noDataOrError;
     };
@@ -172,18 +172,19 @@ const useGoogleBusinessProfile = (slug?: string) => {
 
     // Update the previous team slug reference
     previousTeamSlugRef.current = teamSlug;
-  }, [teamSlug, data?.data, error, isLoading, hasAttemptedAutoSync]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamSlug, isLoading, hasAttemptedAutoSync]);
 
   const mutateBusinessProfile = async () => {
     if (teamSlug) {
-      await mutate(`/api/teams/${teamSlug}/google-business-profile`);
+      await mutate(`google-business-profile-${teamSlug}`);
     }
   };
 
   return {
     isLoading,
     isError: error,
-    businessProfile: data?.data,
+    businessProfile: data || null,
     mutateBusinessProfile,
     // triggerWorkflow,
   };

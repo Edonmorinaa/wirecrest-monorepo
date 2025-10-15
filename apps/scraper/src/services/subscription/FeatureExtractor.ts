@@ -4,7 +4,7 @@
  * Also handles custom intervals for Enterprise/special teams
  */
 
-import { FeatureChecker, ProductFeaturesService, StripeFeatureLookupKeys } from '@wirecrest/billing/server-only';
+import { FeatureChecker, ProductFeaturesService, StripeFeatureLookupKeys, StripeService } from '@wirecrest/billing/server-only';
 import { prisma } from '@wirecrest/db';
 import type {
   ExtractedFeatures,
@@ -39,7 +39,7 @@ export class FeatureExtractor {
     
     // Convert to a map for easier access
     const featureMap: Record<string, boolean> = {};
-    enabledFeatures.forEach(feature => {
+    enabledFeatures.forEach((feature: string) => {
       featureMap[feature] = true;
     });
 
@@ -54,8 +54,8 @@ export class FeatureExtractor {
       booking: featureMap[StripeFeatureLookupKeys.BOOKING_REVIEWS] === true,
     };
 
-    // Extract limits based on tier
-    const limits = this.extractLimits(featureMap, tier);
+    // Extract limits based on tier (with Stripe as source of truth)
+    const limits = await this.extractLimits(teamId, featureMap, tier);
 
     return {
       tier,
@@ -92,9 +92,61 @@ export class FeatureExtractor {
   }
 
   /**
-   * Extract subscription limits
+   * Get subscription limits from Stripe product metadata
+   * This is the source of truth for limits
    */
-  private extractLimits(features: Record<string, any>, tier: SubscriptionTier): SubscriptionLimits {
+  private async getStripeLimits(teamId: string): Promise<Partial<SubscriptionLimits> | null> {
+    try {
+      // Get team's Stripe subscription
+      const subscription = await prisma.teamSubscription.findUnique({
+        where: { teamId },
+        select: { stripeSubscriptionId: true, stripeProductId: true },
+      });
+
+      if (!subscription?.stripeProductId) {
+        return null;
+      }
+
+      // Get product with metadata from Stripe
+      const stripe = StripeService.getStripeInstance();
+      const product = await stripe.products.retrieve(subscription.stripeProductId);
+      
+      // Parse limits from metadata
+      const limits: Partial<SubscriptionLimits> = {};
+      
+      if (product.metadata.maxReviewsPerBusiness) {
+        limits.maxReviewsPerBusiness = parseInt(product.metadata.maxReviewsPerBusiness);
+      }
+      if (product.metadata.maxBusinessLocations) {
+        limits.maxBusinessLocations = parseInt(product.metadata.maxBusinessLocations);
+      }
+      if (product.metadata.reviewsScrapeIntervalHours) {
+        limits.reviewsScrapeIntervalHours = parseInt(product.metadata.reviewsScrapeIntervalHours);
+      }
+      if (product.metadata.overviewScrapeIntervalHours) {
+        limits.overviewScrapeIntervalHours = parseInt(product.metadata.overviewScrapeIntervalHours);
+      }
+      if (product.metadata.historicalDataMonths) {
+        limits.historicalDataMonths = parseInt(product.metadata.historicalDataMonths);
+      }
+      if (product.metadata.concurrentScrapes) {
+        limits.concurrentScrapes = parseInt(product.metadata.concurrentScrapes);
+      }
+      
+      return limits;
+    } catch (error) {
+      console.error('Failed to get Stripe limits:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extract subscription limits
+   * Priority: Stripe metadata > Feature flags > Hardcoded tier defaults
+   */
+  private async extractLimits(teamId: string, features: Record<string, any>, tier: SubscriptionTier): Promise<SubscriptionLimits> {
+    // Get limits from Stripe (source of truth)
+    const stripeLimits = await this.getStripeLimits(teamId);
     // Base limits by tier
     const tierLimits: Record<SubscriptionTier, SubscriptionLimits> = {
       starter: {
@@ -125,17 +177,30 @@ export class FeatureExtractor {
 
     const baseLimits = tierLimits[tier];
 
-    // Override with feature-specific limits if present
+    // Priority: Stripe > Feature flags > Hardcoded defaults
     return {
-      ...baseLimits,
       maxReviewsPerBusiness:
-        features['reviews.maxPerBusiness'] || baseLimits.maxReviewsPerBusiness,
+        stripeLimits?.maxReviewsPerBusiness ||
+        features['reviews.maxPerBusiness'] ||
+        baseLimits.maxReviewsPerBusiness,
       maxBusinessLocations:
-        features['reviews.maxLocations'] || baseLimits.maxBusinessLocations,
+        stripeLimits?.maxBusinessLocations ||
+        features['reviews.maxLocations'] ||
+        baseLimits.maxBusinessLocations,
       reviewsScrapeIntervalHours:
-        features['reviews.scrapeInterval'] || baseLimits.reviewsScrapeIntervalHours,
+        stripeLimits?.reviewsScrapeIntervalHours ||
+        features['reviews.scrapeInterval'] ||
+        baseLimits.reviewsScrapeIntervalHours,
       overviewScrapeIntervalHours:
-        features['overview.scrapeInterval'] || baseLimits.overviewScrapeIntervalHours,
+        stripeLimits?.overviewScrapeIntervalHours ||
+        features['overview.scrapeInterval'] ||
+        baseLimits.overviewScrapeIntervalHours,
+      historicalDataMonths:
+        stripeLimits?.historicalDataMonths ||
+        baseLimits.historicalDataMonths,
+      concurrentScrapes:
+        stripeLimits?.concurrentScrapes ||
+        baseLimits.concurrentScrapes,
     };
   }
 

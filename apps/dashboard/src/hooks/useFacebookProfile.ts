@@ -35,6 +35,8 @@ const useFacebookProfile = (slug?: string) => {
     }
   );
 
+  // DEPRECATED: Profile creation moved to scraper
+  // Use admin actions: createOrUpdateMarketIdentifier + executePlatformAction
   const createProfile = async (profileData?: {
     pageId?: string;
     facebookId?: string;
@@ -46,24 +48,9 @@ const useFacebookProfile = (slug?: string) => {
     info?: string[];
     websites?: string[];
   }) => {
-    if (!teamSlug) throw new Error('Team slug is required');
-
-    const response = await fetch(`/api/teams/${teamSlug}/facebook-business-profile`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(profileData || {}),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'Failed to create Facebook profile');
-    }
-
-    const result = await response.json();
-    await mutate();
-    return result;
+    throw new Error(
+      'DEPRECATED: Profile creation moved to scraper. Please use the superadmin panel to create profiles via the new flow.'
+    );
   };
 
   const updateProfile = async (updateData: Partial<FacebookBusinessProfile>) => {

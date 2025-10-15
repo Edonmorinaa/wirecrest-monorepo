@@ -51,6 +51,87 @@ export interface ApifyWebhookPayload {
 }
 
 /**
+ * Actual Apify webhook payload structure from dashboard
+ * Payload template:
+ * {
+ *   "platform": "facebook_reviews",
+ *   "createdAt": {{createdAt}},
+ *   "eventType": {{eventType}},
+ *   "eventData": {{eventData}},
+ *   "resource": {{resource}}
+ * }
+ */
+export interface ActualApifyWebhookPayload {
+  platform: string; // e.g., "facebook_reviews", "google_reviews"
+  createdAt: string; // ISO timestamp
+  eventType: ApifyEventType | 'TEST'; // Can be TEST for webhook testing
+  eventData: {
+    actorId: string;
+    actorRunId: string;
+  } | null; // null for TEST events
+  resource: {
+    id: string;
+    actId: string;
+    userId: string;
+    startedAt: string;
+    finishedAt: string;
+    status: 'SUCCEEDED' | 'FAILED' | 'ABORTED';
+    statusMessage?: string;
+    isStatusMessageTerminal?: boolean;
+    defaultKeyValueStoreId: string;
+    defaultDatasetId: string;
+    defaultRequestQueueId: string;
+    exitCode?: number;
+    buildId?: string;
+    meta?: {
+      origin: string;
+      userAgent: string;
+    };
+    stats?: {
+      inputBodyLen: number;
+      migrationCount: number;
+      rebootCount: number;
+      restartCount: number;
+      durationMillis: number;
+      resurrectCount: number;
+      runTimeSecs: number;
+      metamorph: number;
+      computeUnits: number;
+      memAvgBytes: number;
+      memMaxBytes: number;
+      memCurrentBytes: number;
+      cpuAvgUsage: number;
+      cpuMaxUsage: number;
+      cpuCurrentUsage: number;
+      netRxBytes: number;
+      netTxBytes: number;
+    };
+    options?: {
+      build: string;
+      timeoutSecs: number;
+      memoryMbytes: number;
+      maxTotalChargeUsd: number;
+      diskMbytes: number;
+    };
+    pricingInfo?: any;
+    chargedEventCounts?: Record<string, number>;
+    platformUsageBillingModel?: string;
+    accountedChargedEventCounts?: Record<string, number>;
+    generalAccess?: string;
+    buildNumber?: string | null;
+    containerUrl?: string;
+    usageTotalUsd?: number;
+    links?: {
+      publicRunUrl: string;
+      consoleRunUrl: string;
+      apiRunUrl: string;
+    };
+    // For TEST webhooks
+    joke?: string;
+  };
+}
+
+/**
  * Business identifiers for different platforms
  */
 export interface BusinessIdentifiers {
@@ -79,7 +160,7 @@ export interface GoogleMapsActorInput {
 // Facebook Reviews Scraper (dX3d80hsNMilEwjXG)
 export interface FacebookActorInput {
   startUrls: Array<{ url: string }>;
-  resultsLimit?: number;      // Max reviews per page (replaces maxReviews)
+  resultsLimit?: number;      // TOTAL limit for all reviews. Omit for unlimited (all reviews)
   proxy?: {
     apifyProxyGroups?: string[];
   };
@@ -90,7 +171,7 @@ export interface FacebookActorInput {
 // TripAdvisor Reviews Scraper (Hvp4YfFGyLM635Q2F)
 export interface TripAdvisorActorInput {
   startUrls: Array<{ url: string }>;
-  maxItemsPerQuery?: number;  // Limit reviews per place (replaces maxReviews)
+  maxItemsPerQuery?: number;  // TOTAL limit for reviews per place. Omit for unlimited (all reviews)
   scrapeReviewerInfo?: boolean;
   lastReviewDate?: string;    // YYYY-MM-DD or "3 days"
   reviewRatings?: string[];   // e.g., ["ALL_REVIEW_RATINGS"] or ["4", "5"]
@@ -101,7 +182,7 @@ export interface TripAdvisorActorInput {
 // Booking.com Reviews Scraper (PbMHke3jW25J6hSOA)
 export interface BookingActorInput {
   startUrls: Array<{ url: string; userData?: any }>;
-  maxReviewsPerHotel?: number;
+  maxReviewsPerHotel?: number;  // TOTAL limit for reviews per hotel. Omit for unlimited (all reviews)
   sortReviewsBy?: 'f_relevance' | 'f_recent_desc' | 'f_recent_asc' | 'f_score_desc' | 'f_score_asc';
   cutoffDate?: string;         // UTC date for stopping scrape
   reviewScores?: string[];     // e.g., ["ALL"] or ["review_adj_superb", "review_adj_good"]

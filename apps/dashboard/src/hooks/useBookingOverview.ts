@@ -4,7 +4,7 @@ import useSWR from 'swr';
 import { useRouter } from 'next/router';
 import { Prisma } from '@prisma/client';
 
-import fetcher from 'src/lib/fetcher';
+import { getBookingBusinessProfile } from 'src/actions/platforms';
 
 // Use the same type as the API
 type BookingProfileWithOverview = Prisma.BookingBusinessProfileGetPayload<{
@@ -46,9 +46,9 @@ const useBookingOverview = (slug?: string) => {
   const rawTeamSlug = slug || (isReady ? query.slug : null);
   const teamSlug = typeof rawTeamSlug === 'string' ? rawTeamSlug : null;
 
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<BookingProfileWithOverview>>(
-    teamSlug ? `/api/teams/${teamSlug}/booking/overview` : null,
-    fetcher,
+  const { data, error, isLoading, mutate } = useSWR<BookingProfileWithOverview | null>(
+    teamSlug ? `booking-overview-${teamSlug}` : null,
+    () => getBookingBusinessProfile(teamSlug!) as unknown as Promise<BookingProfileWithOverview | null>,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -57,7 +57,7 @@ const useBookingOverview = (slug?: string) => {
       errorRetryInterval: 5000,
       onError: (error) => {
         // Silently handle 404 errors (profile not found) as this is expected
-        if (error?.status !== 404) {
+        if (error instanceof Error && !error.message.includes('404')) {
           console.error('Booking.com overview fetch error:', error);
         }
       },
@@ -69,7 +69,7 @@ const useBookingOverview = (slug?: string) => {
   };
 
   // Extract data with proper fallbacks
-  const businessProfile = data?.data || null;
+  const businessProfile = data || null;
   const overview = businessProfile?.overview || null;
   const sentimentAnalysis = overview?.sentimentAnalysis || null;
   const topKeywords = overview?.topKeywords || [];

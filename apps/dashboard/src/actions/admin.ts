@@ -417,20 +417,16 @@ export async function executePlatformAction(data: {
   // Handle different actions
   switch (action) {
     case 'create_profile': {
-        // Create or update business creation task
+      // Create or update business creation task for tracking
       const existingTask = await prisma.businessCreationTask.findUnique({
         where: {
-          teamId_platform: {
-            teamId,
-              platform: platformType,
-          },
+          teamId_platform: { teamId, platform: platformType },
         },
       });
 
       let taskId: string;
       if (existingTask) {
-        // Update existing task to IN_PROGRESS
-          const updatedTask = await prisma.businessCreationTask.update({
+        const updatedTask = await prisma.businessCreationTask.update({
           where: { id: existingTask.id },
           data: {
             status: 'IN_PROGRESS',
@@ -441,63 +437,36 @@ export async function executePlatformAction(data: {
             lastError: null,
           },
         });
-          taskId = updatedTask.id;
+        taskId = updatedTask.id;
       } else {
-        // Create new task
         const newTask = await prisma.businessCreationTask.create({
           data: {
             teamId,
-              platform: platformType,
+            platform: platformType,
             status: 'IN_PROGRESS',
             currentStep: 'CREATING_PROFILE',
-              googlePlaceId: platformType === 'GOOGLE' ? marketIdentifier?.identifier : null,
-              facebookUrl: platformType === 'FACEBOOK' ? marketIdentifier?.identifier : null,
-              tripAdvisorUrl: platformType === 'TRIPADVISOR' ? marketIdentifier?.identifier : null,
-              bookingUrl: platformType === 'BOOKING' ? marketIdentifier?.identifier : null,
+            googlePlaceId: platformType === 'GOOGLE' ? marketIdentifier?.identifier : null,
+            facebookUrl: platformType === 'FACEBOOK' ? marketIdentifier?.identifier : null,
+            tripAdvisorUrl: platformType === 'TRIPADVISOR' ? marketIdentifier?.identifier : null,
+            bookingUrl: platformType === 'BOOKING' ? marketIdentifier?.identifier : null,
             startedAt: new Date(),
-              createdBy: teamId, // Using teamId as createdBy for now
+            createdBy: teamId,
           },
         });
         taskId = newTask.id;
       }
 
-      // Call external backend to create profile
+      // Call scraper webhook (scraper handles ALL profile creation now)
       try {
-          const backendResponse = await callExternalBackend('profile', platform, marketIdentifier!.identifier, teamId);
+        const backendResponse = await callExternalBackend('profile', platform, marketIdentifier!.identifier, teamId);
 
-        // Check if backend response indicates success
         if (backendResponse.success) {
-          // Update task to COMPLETED since the backend handles the full profile creation flow
-          await prisma.businessCreationTask.update({
-            where: { id: taskId },
-            data: {
-              status: 'COMPLETED',
-              currentStep: 'CREATING_PROFILE',
-              completedAt: new Date(),
-              lastActivityAt: new Date(),
-              completedSteps: 1,
-              progressPercent: 25, // Profile creation is 25% of total process
-                lastError: null
-              }
-          });
-
-          // Create success status message
-          await prisma.businessStatusMessage.create({
-            data: {
-              businessCreationId: taskId,
-              step: 'CREATING_PROFILE',
-              status: 'COMPLETED',
-              message: backendResponse.message || `${platform} profile created successfully`,
-                messageType: 'success'
-              }
-            });
-
-            console.log(`✅ Platform action ${action} completed successfully for ${platform}`);
+          console.log(`✅ Platform action ${action} completed successfully for ${platform}`);
           return {
-              success: true,
-              taskId,
-            message: `${platform} profile created successfully`,
-              backendResponse
+            success: true,
+            taskId,
+            message: `${platform} profile creation initiated`,
+            backendResponse
           };
         } else {
           throw new Error(backendResponse.error || 'Backend returned unsuccessful response');
@@ -505,15 +474,14 @@ export async function executePlatformAction(data: {
       } catch (backendError) {
         console.error('Backend API error:', backendError);
 
-        // Reset task status to FAILED if backend call fails
         await prisma.businessCreationTask.update({
           where: { id: taskId },
           data: {
             status: 'FAILED',
             lastActivityAt: new Date(),
             errorCount: (existingTask?.errorCount || 0) + 1,
-              lastError: backendError instanceof Error ? backendError.message : 'External backend API call failed'
-            }
+            lastError: backendError instanceof Error ? backendError.message : 'External backend API call failed'
+          }
         });
 
         // Create error status message
@@ -1476,129 +1444,41 @@ async function callExternalBackend(
       teamId,
       timestamp: new Date().toISOString(),
       message: `Mock ${action} completed for ${platform}`,
+      error: undefined
     };
   }
 
-  // Convert platform names to backend API format
-  let platformName: string;
-  let endpoint: string;
+  // Map platform names to match scraper's expected format
+  const platformMapping: Record<string, string> = {
+    'google_maps': 'google_maps',
+    'google': 'google_maps',
+    'facebook': 'facebook',
+    'tripadvisor': 'tripadvisor',
+    'booking': 'booking',
+    'instagram': 'instagram',
+    'tiktok': 'tiktok'
+  };
+
+  const mappedPlatform = platformMapping[platform.toLowerCase()] || platform.toLowerCase();
   
-  switch (platform.toLowerCase()) {
-    case 'google_maps':
-      platformName = 'google';
-      endpoint = `${env.backendUrl}/api/${platformName}/${action}`;
-      break;
-    case 'facebook':
-      platformName = 'facebook';
-      endpoint = `${env.backendUrl}/api/${platformName}/${action}`;
-      break;
-    case 'tripadvisor':
-      platformName = 'tripadvisor';
-      endpoint = `${env.backendUrl}/api/${platformName}/${action}`;
-      break;
-    case 'booking':
-      platformName = 'booking';
-      endpoint = `${env.backendUrl}/api/${platformName}/${action}`;
-      break;
-    case 'instagram':
-      platformName = 'instagram';
-      endpoint = `${env.backendUrl}/api/${platformName}/${action}`;
-      break;
-    case 'tiktok':
-      platformName = 'tiktok';
-      endpoint = `${env.backendUrl}/api/${platformName}/${action}`;
-      break;
-    default:
-      throw new ApiError(400, `Unsupported platform: ${platform}`);
-  }
+  console.log('🚀 Calling scraper webhook for platform configuration');
+  console.log('Platform:', platform, '→', mappedPlatform, 'Action:', action, 'TeamId:', teamId);
+
+  // Use the new webhook-driven architecture
+  // The scraper will handle profile creation and initial data fetch automatically
+  const webhookEndpoint = `${env.backendUrl}/api/webhooks/platform-configured`;
   
-  console.log('Making request to endpoint:', endpoint);
-  console.log('Platform:', platform, 'Action:', action, 'TeamId:', teamId);
-
-  // Build request payload based on platform and backend API expectations
-  const requestPayload: any = { teamId };
-
-  switch (platform.toLowerCase()) {
-    case 'google_maps':
-      requestPayload.placeId = identifier;
-      if (action === 'reviews') {
-        requestPayload.forceRefresh = true;
-      }
-      break;
-    case 'facebook':
-      requestPayload.facebookUrl = identifier;
-      if (action === 'reviews') {
-        requestPayload.forceRefresh = true;
-      }
-      break;
-    case 'tripadvisor':
-      requestPayload.tripAdvisorUrl = identifier;
-      if (action === 'reviews') {
-        requestPayload.forceRefresh = true;
-      }
-      break;
-    case 'booking':
-      requestPayload.bookingUrl = identifier;
-      if (action === 'reviews') {
-        requestPayload.forceRefresh = true;
-      }
-      break;
-    case 'instagram':
-      requestPayload.instagramUsername = identifier;
-      if (action === 'reviews') {
-        // For Instagram, we call snapshots instead of reviews
-        const snapshotsEndpoint = `${env.backendUrl}/api/instagram/snapshots`;
-        console.log('Making Instagram snapshots request to:', snapshotsEndpoint);
-        
-        const snapshotsResponse = await fetch(snapshotsEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestPayload)
-        });
-
-        if (!snapshotsResponse.ok) {
-          const errorText = await snapshotsResponse.text();
-          console.error('Instagram snapshots API error response:', errorText);
-          throw new ApiError(snapshotsResponse.status, `Instagram snapshots API error: ${snapshotsResponse.statusText} - ${errorText}`);
-        }
-
-        return await snapshotsResponse.json();
-      }
-      break;
-    case 'tiktok':
-      requestPayload.tiktokUsername = identifier;
-      if (action === 'reviews') {
-        // For TikTok, 'reviews' maps to snapshots (historical data collection)
-        const snapshotsEndpoint = `${env.backendUrl}/api/tiktok/snapshots`;
-        console.log('Making TikTok snapshots request to:', snapshotsEndpoint);
-
-        const snapshotsResponse = await fetch(snapshotsEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestPayload)
-        });
-
-        if (!snapshotsResponse.ok) {
-          const errorText = await snapshotsResponse.text();
-          console.error('TikTok snapshots API error response:', errorText);
-          throw new ApiError(snapshotsResponse.status, `TikTok snapshots API error: ${snapshotsResponse.statusText} - ${errorText}`);
-        }
-
-        return await snapshotsResponse.json();
-      }
-      break;
-    default:
-      throw new ApiError(400, `Unsupported platform: ${platform}`);
-  }
+  const requestPayload = {
+    teamId,
+    platform: mappedPlatform,
+    identifier
+  };
 
   console.log('Request payload:', requestPayload);
+  console.log('Webhook endpoint:', webhookEndpoint);
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(webhookEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1610,24 +1490,37 @@ async function callExternalBackend(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Backend API error response:', errorText);
+      console.error('Scraper webhook error response:', errorText);
       throw new ApiError(
         response.status,
-        `Backend API error: ${response.statusText} - ${errorText}`
+        `Scraper webhook error: ${response.statusText} - ${errorText}`
       );
     }
 
     const jsonResponse = await response.json();
-    console.log('Backend API success response:', jsonResponse);
-    return jsonResponse;
+    console.log('✅ Scraper webhook success response:', jsonResponse);
+    
+    // Transform response to match expected format
+    return {
+      success: jsonResponse.success,
+      message: jsonResponse.message || 'Platform configured and scraping initiated',
+      error: jsonResponse.error || undefined,
+      initialTaskStarted: jsonResponse.initialTaskStarted,
+      businessAdded: jsonResponse.businessAdded,
+      action,
+      platform: mappedPlatform,
+      identifier,
+      teamId,
+      timestamp: new Date().toISOString()
+    };
   } catch (fetchError) {
-    console.error('Fetch error details:', fetchError);
+    console.error('❌ Fetch error details:', fetchError);
     if (fetchError instanceof ApiError) {
       throw fetchError;
     }
     throw new ApiError(
       500,
-      `Network error calling backend: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`
+      `Network error calling scraper: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`
     );
   }
 }

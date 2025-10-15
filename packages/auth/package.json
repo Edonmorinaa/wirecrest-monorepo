@@ -21,7 +21,6 @@
       "default": "./src/route.ts"
     }
   },
-  "packageManager": "yarn@4.0.2",
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "@wirecrest/db": "workspace:^",

@@ -57,7 +57,7 @@ export const createBusinessMarketIdentifier = async (
       await deleteAssociatedGoogleProfile(teamId, existingIdentifier.identifier);
     }
 
-    return await prisma.businessMarketIdentifier.update({
+    const result = await prisma.businessMarketIdentifier.update({
       where: {
         teamId_platform: {
           teamId,
@@ -68,10 +68,15 @@ export const createBusinessMarketIdentifier = async (
         identifier: identifier.identifier,
       },
     });
+
+    // Notify scraper service about platform configuration
+    await notifyScraperPlatformConfigured(teamId, platform, identifier.identifier);
+
+    return result;
   }
 
   // If it doesn't exist or doesn't have an identifier, create/upsert it
-  return await prisma.businessMarketIdentifier.upsert({
+  const result = await prisma.businessMarketIdentifier.upsert({
     create: {
       ...identifier,
       teamId,
@@ -85,7 +90,50 @@ export const createBusinessMarketIdentifier = async (
       },
     },
   });
+
+  // Notify scraper service about platform configuration
+  await notifyScraperPlatformConfigured(teamId, platform, identifier.identifier);
+
+  return result;
 };
+
+/**
+ * Notify scraper service when a platform is configured
+ * This triggers initial scraping for the platform
+ */
+async function notifyScraperPlatformConfigured(
+  teamId: string,
+  platform: MarketPlatform,
+  identifier: string
+): Promise<void> {
+  try {
+    const scraperUrl = process.env.SCRAPER_API_URL || 'http://localhost:3001';
+    
+    console.log(`🔔 Notifying scraper about ${platform} configuration for team ${teamId}`);
+    
+    const response = await fetch(`${scraperUrl}/api/webhooks/platform-configured`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        teamId,
+        platform,
+        identifier,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Failed to notify scraper: ${response.status} ${errorText}`);
+      return;
+    }
+
+    const result = await response.json();
+    console.log(`✅ Scraper notified successfully:`, result);
+  } catch (error) {
+    console.error('Error notifying scraper:', error);
+    // Don't fail the operation if webhook fails - scraping can be triggered manually
+  }
+}
 
 export const getBusinessMarketIdentifier = async (teamId: string, platform: MarketPlatform) => await prisma.businessMarketIdentifier.findUnique({
     where: {

@@ -93,51 +93,71 @@ export class ApifyTaskService {
   /**
    * Build Facebook actor input
    * Using Facebook Reviews Scraper (dX3d80hsNMilEwjXG)
+   * 
+   * Note: For initial syncs, we remove resultsLimit to get ALL reviews.
+   * The actor will scrape all available reviews when no limit is set.
    */
   private buildFacebookInput(
     config: TaskRunConfig,
     webhooks: ApifyWebhookConfig[]
   ): FacebookActorInput {
-    return {
+    const input: FacebookActorInput = {
       startUrls: config.identifiers.map((url) => ({ url })),
-      resultsLimit: config.maxReviews,
       proxy: {
         apifyProxyGroups: ['RESIDENTIAL'],
       },
       maxRequestRetries: 10,
       webhooks,
     };
+    
+    // Only add resultsLimit for recurring syncs (not initial)
+    // For initial sync, omit the limit to get all historical reviews
+    if (!config.isInitial && config.maxReviews < 99999) {
+      input.resultsLimit = config.maxReviews;
+    }
+    
+    return input;
   }
 
   /**
    * Build TripAdvisor actor input
    * Using TripAdvisor Reviews Scraper (Hvp4YfFGyLM635Q2F)
+   * 
+   * Note: For initial syncs, we remove maxItemsPerQuery to get ALL reviews.
    */
   private buildTripAdvisorInput(
     config: TaskRunConfig,
     webhooks: ApifyWebhookConfig[]
   ): TripAdvisorActorInput {
-    return {
+    const input: TripAdvisorActorInput = {
       startUrls: config.identifiers.map((url) => ({ url })),
-      maxItemsPerQuery: config.maxReviews,
       scrapeReviewerInfo: true,
       reviewRatings: ['ALL_REVIEW_RATINGS'],
       reviewsLanguages: ['ALL_REVIEW_LANGUAGES'],
       webhooks,
     };
+    
+    // Only add limit for recurring syncs (not initial)
+    // For initial sync, omit the limit to get all historical reviews
+    if (!config.isInitial && config.maxReviews < 99999) {
+      input.maxItemsPerQuery = config.maxReviews;
+    }
+    
+    return input;
   }
 
   /**
    * Build Booking.com actor input
    * Using Booking.com Reviews Scraper (PbMHke3jW25J6hSOA)
+   * 
+   * Note: For initial syncs, we remove maxReviewsPerHotel to get ALL reviews.
    */
   private buildBookingInput(
     config: TaskRunConfig,
     webhooks: ApifyWebhookConfig[]
   ): BookingActorInput {
-    return {
+    const input: BookingActorInput = {
       startUrls: config.identifiers.map((url) => ({ url })),
-      maxReviewsPerHotel: config.maxReviews,
       sortReviewsBy: 'f_recent_desc',  // Newest first for deduplication
       reviewScores: ['ALL'],
       proxyConfiguration: {
@@ -145,6 +165,14 @@ export class ApifyTaskService {
       },
       webhooks,
     };
+    
+    // Only add limit for recurring syncs (not initial)
+    // For initial sync, omit the limit to get all historical reviews
+    if (!config.isInitial && config.maxReviews < 99999) {
+      input.maxReviewsPerHotel = config.maxReviews;
+    }
+    
+    return input;
   }
 
   /**

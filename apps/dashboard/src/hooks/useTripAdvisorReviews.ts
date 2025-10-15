@@ -1,52 +1,12 @@
-import type { ApiResponse } from 'src/types';
-import type { TripAdvisorReviewWithMetadata } from 'src/app/api/teams/[slug]/tripadvisor/reviews';
-
 import useSWR from 'swr';
 import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
 
-import fetcher from 'src/lib/fetcher';
+import { getTripAdvisorReviews } from 'src/actions/reviews';
+import type { TripAdvisorReviewsResponse } from 'src/actions/types/reviews';
 
 import { useTeamSlug } from './use-subdomain';
 
-interface TripAdvisorReviewsResponse {
-  reviews: TripAdvisorReviewWithMetadata[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-  stats: {
-    total: number;
-    averageRating: number;
-    ratingDistribution: {
-      oneStar: number;
-      twoStar: number;
-      threeStar: number;
-      fourStar: number;
-      fiveStar: number;
-    };
-    tripTypeDistribution: {
-      family: number;
-      couples: number;
-      solo: number;
-      business: number;
-      friends: number;
-    };
-    totalHelpfulVotes: number;
-    totalPhotos: number;
-    averageHelpfulVotes: number;
-    sentimentScore: number;
-    qualityScore: number;
-    unread: number;
-    withPhotos: number;
-    withOwnerResponse: number;
-    responseRate: number;
-  };
-}
 
 interface UseTripAdvisorReviewsFilters {
   page?: number;
@@ -118,9 +78,9 @@ const useTripAdvisorReviews = (slug?: string, filters: UseTripAdvisorReviewsFilt
     return searchParams.toString();
   }, [filters]);
 
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<TripAdvisorReviewsResponse>>(
-    teamSlug ? `/api/teams/${teamSlug}/tripadvisor/reviews?${queryParams}` : null,
-    fetcher,
+  const { data, error, isLoading, mutate } = useSWR<TripAdvisorReviewsResponse | null>(
+    teamSlug ? `tripadvisor-reviews-${teamSlug}-${queryParams}` : null,
+    () => getTripAdvisorReviews(teamSlug!, filters),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -135,8 +95,8 @@ const useTripAdvisorReviews = (slug?: string, filters: UseTripAdvisorReviewsFilt
   };
 
   return {
-    reviews: data?.data?.reviews || [],
-    pagination: data?.data?.pagination || {
+    reviews: data?.reviews || [],
+    pagination: data?.pagination || {
       page: 1,
       limit: 10,
       total: 0,
@@ -144,7 +104,7 @@ const useTripAdvisorReviews = (slug?: string, filters: UseTripAdvisorReviewsFilt
       hasNextPage: false,
       hasPreviousPage: false,
     },
-    stats: data?.data?.stats || {
+    stats: data?.stats || {
       total: 0,
       averageRating: 0,
       ratingDistribution: {
