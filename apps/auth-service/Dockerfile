@@ -26,7 +26,7 @@ COPY packages/db ./packages/db
 COPY apps/auth-service/package.json ./apps/auth-service/
 
 # Install dependencies (workspace-aware)
-RUN yarn install
+RUN yarn install --frozen-lockfile
 
 # ==============================
 # Build stage
@@ -64,12 +64,11 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=authservice:nodejs /app/apps/auth-service/dist ./dist
 COPY --from=builder --chown=authservice:nodejs /app/apps/auth-service/package.json ./package.json
 
-# Copy Prisma schema & client from db package
-COPY --from=builder --chown=authservice:nodejs /app/packages/db/prisma ./prisma
-COPY --from=builder --chown=authservice:nodejs /app/packages/db/node_modules/.prisma ./node_modules/.prisma
-
-# Copy only production dependencies
+# Copy production dependencies (includes Prisma client)
 COPY --from=deps --chown=authservice:nodejs /app/node_modules ./node_modules
+
+# Optionally copy Prisma schema if needed at runtime
+COPY --from=builder --chown=authservice:nodejs /app/packages/db/prisma ./prisma
 
 # Switch to non-root user
 USER authservice
