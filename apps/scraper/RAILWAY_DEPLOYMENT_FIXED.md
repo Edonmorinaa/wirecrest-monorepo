@@ -53,20 +53,44 @@ All fixes have been successfully implemented to enable Railway deployment of the
 
 **Critical - Must Be Set:**
 ```bash
+# Database
 DATABASE_URL=postgresql://user:pass@host:port/dbname
-APIFY_TOKEN=apify_api_xxxxxxxxxxxxx
-STRIPE_SECRET_KEY=sk_live_xxxxxxxxxx (or sk_test_xxx for testing)
-STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxx
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Redis
+REDIS_HOST=redis-xxxxx.redis-cloud.com
+REDIS_USERNAME=default
+REDIS_PASSWORD=your_redis_password
+REDIS_PORT=17588
+
+# Apify
+APIFY_TOKEN=apify_api_xxxxxxxxxxxxx
+APIFY_GOOGLE_REVIEWS_ACTOR_ID=Xb8osYTtOjlsgI6k9
+APIFY_FACEBOOK_PROFILE_ACTOR_ID=4Hv5RhChiaDk6iwad
+APIFY_FACEBOOK_REVIEWS_ACTOR_ID=dX3d80hsNMilEwjXG
+APIFY_BOOKING_PROFILE_ACTOR_ID=oeiQgfg5fsmIJB7Cn
+APIFY_BOOKING_REVIEWS_ACTOR_ID=PbMHke3jW25J6hSOA
+APIFY_WEBHOOK_SECRET=your_webhook_secret
+
+# External API Keys
+GOOGLE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+HIKER_API_KEY=swd3rlhjsuk8pfj3un9i22yzx50lczi4
+LAMATOK_ACCESS_KEY=2rdlqci52fv3nmjo9l5dsen55pobuu89
+
+# Stripe
+STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxx
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxx (or sk_live_xxx for production)
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxx
 ```
 
-**Optional:**
+**Optional (have defaults):**
 ```bash
 NODE_ENV=production
-PORT=3000 (Railway auto-injects, usually not needed)
+PORT=3000 (Railway auto-injects)
 WEBHOOK_BASE_URL=https://your-service.railway.app
-REDIS_URL=redis://default:password@host:port
+POLLING_INTERVAL_MS=300000 (default: 5 minutes)
+ACTOR_MEMORY_LIMIT_MB=32768 (default: 32GB)
 LOG_LEVEL=info
 ```
 
