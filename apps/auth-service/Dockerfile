@@ -44,7 +44,7 @@ COPY .yarnrc.yml ./
 
 # Generate Prisma client in db package
 WORKDIR /app/packages/db
-RUN yarn prisma generate
+RUN npx prisma generate
 
 # Build auth-service
 WORKDIR /app/apps/auth-service
