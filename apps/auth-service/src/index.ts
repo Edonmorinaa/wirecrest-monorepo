@@ -17,14 +17,15 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: [
-    'https://*.wirecrest.com',
-    'https://www.wirecrest.com',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3032',
-    'http://auth.wirecrest.local:3032'
-  ],
+  // origin: [
+  //   'https://*.wirecrest.com',
+  //   'https://www.wirecrest.com',
+  //   'http://localhost:3000',
+  //   'http://localhost:3001',
+  //   'http://localhost:3032',
+  //   'http://auth.wirecrest.local:3032'
+  // ],
+  origin: '*',
   credentials: true
 }));
 
