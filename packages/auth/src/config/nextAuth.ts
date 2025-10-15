@@ -1,5 +1,4 @@
 import NextAuth, { type Account, type Profile, type User } from 'next-auth';
-import type { NextAuthConfig } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import type { Provider } from 'next-auth/providers';
@@ -123,7 +122,7 @@ export const sessionTokenCookieName =
   );
 
 
-const authConfig: NextAuthConfig = {
+const authConfig: any = {
   debug: process.env.NODE_ENV === 'development',
   adapter,
   providers,
@@ -347,10 +346,10 @@ const linkAccount = async (user: User, account: Account) => {
       providerAccountId: account.providerAccountId,
       userId: user.id || '',
       provider: account.provider || 'unknown',
-      type: 'oauth',
-      scope: account.scope,
-      token_type: account.token_type,
-      access_token: account.access_token,
+      type: 'oauth' as any,
+      scope: account.scope as any,
+      token_type: account.token_type as any,
+      access_token: account.access_token as any,
     });
   }
 };

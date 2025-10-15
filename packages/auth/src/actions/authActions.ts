@@ -91,6 +91,7 @@ export const customSignOut = async () => {
     
     // Import billing package dynamically to avoid circular dependencies
     try {
+      // @ts-ignore - billing package may not be available
       const { clearAllCachesImmediately } = await import('@wirecrest/billing');
       await clearAllCachesImmediately('user_logout', { 
         timestamp: new Date().toISOString(),

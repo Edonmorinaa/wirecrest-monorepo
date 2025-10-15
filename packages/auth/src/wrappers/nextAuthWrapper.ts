@@ -72,13 +72,11 @@ export const signOut = async (options?: SignOutOptions) => {
       if (options?.redirect === false) {
         await nextAuthSignOut({
           redirect: false,
-          redirectTo: options?.redirectTo ?? "/",
-        });
+        } as any);
       } else {
         await nextAuthSignOut({
           redirect: true,
-          redirectTo: options?.redirectTo ?? "/",
-        });
+        } as any);
       }
     } catch (fallbackError) {
       console.error('Fallback NextAuth signout also failed:', fallbackError);
