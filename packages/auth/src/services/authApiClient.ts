@@ -1,7 +1,10 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { ApiError } from '../utils/errors';
+import dotenv from 'dotenv';
 
-/**
+
+dotenv.config();
+  /**
  * Authentication API client for communicating with auth-service
  * Follows Dependency Inversion Principle - depends on abstractions, not concretions
  */
@@ -179,6 +182,7 @@ export class AuthApiClient {
     inviteToken?: string;
     recaptchaToken: string;
   }): Promise<{ success: boolean; data: any }> {
+    console.log('registerUser', userData);
     const response: AxiosResponse = await this.client.post('/register', userData);
     return response.data;
   }
