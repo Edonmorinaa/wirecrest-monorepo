@@ -29,6 +29,7 @@ COPY packages ./packages
 COPY apps ./apps
 COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
+COPY tsconfig.json ./
 
 # Generate Prisma client first
 WORKDIR /app/packages/db
