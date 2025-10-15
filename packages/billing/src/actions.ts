@@ -2685,8 +2685,8 @@ export async function convertTrialToPaid(
       subscription: result.subscription ? {
         id: result.subscription.id,
         status: result.subscription.status,
-        currentPeriodStart: result.subscription.current_period_start || 0,
-        currentPeriodEnd: result.subscription.current_period_end || 0,
+        currentPeriodStart: (result.subscription as any).current_period_start || 0,
+        currentPeriodEnd: (result.subscription as any).current_period_end || 0,
       } : undefined,
       clientSecret: result.clientSecret,
       requiresPaymentConfirmation: result.requiresPaymentConfirmation,

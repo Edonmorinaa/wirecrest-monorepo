@@ -235,8 +235,8 @@ export class StripeService {
         currentSeats: team.members.length || 1,
         currentLocations: 0,
         enabledFeatures: tierConfig.enabledFeatures,
-        currentPeriodStart: new Date((stripeSubscription.current_period_start || 0) * 1000),
-        currentPeriodEnd: new Date((stripeSubscription.current_period_end || 0) * 1000),
+        currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
+        currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
         trialStart: stripeSubscription.trial_start ? new Date((stripeSubscription.trial_start || 0) * 1000) : null,
         trialEnd: stripeSubscription.trial_end ? new Date((stripeSubscription.trial_end || 0) * 1000) : null,
       },
@@ -252,8 +252,8 @@ export class StripeService {
         pricePerLocation: tierConfig.pricePerLocation,
         pricePerRefresh: tierConfig.pricePerRefresh,
         enabledFeatures: tierConfig.enabledFeatures,
-        currentPeriodStart: new Date((stripeSubscription.current_period_start || 0) * 1000),
-        currentPeriodEnd: new Date((stripeSubscription.current_period_end || 0) * 1000),
+        currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
+        currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
         trialStart: stripeSubscription.trial_start ? new Date((stripeSubscription.trial_start || 0) * 1000) : null,
         trialEnd: stripeSubscription.trial_end ? new Date((stripeSubscription.trial_end || 0) * 1000) : null,
       },
@@ -263,7 +263,7 @@ export class StripeService {
     let clientSecret: string | undefined;
     if (stripeSubscription.latest_invoice) {
       const invoice = stripeSubscription.latest_invoice as Stripe.Invoice;
-      if (invoice.payment_intent && typeof invoice.payment_intent === 'object') {
+      if ('payment_intent' in invoice && invoice.payment_intent && typeof invoice.payment_intent === 'object') {
         const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
         clientSecret = paymentIntent.client_secret || undefined;
       }
@@ -574,8 +574,8 @@ export class StripeService {
       where: { stripeSubscriptionId: subscription.id },
       data: {
         status: subscription.status.toUpperCase() as any,
-        currentPeriodStart: new Date((subscription.current_period_start || 0) * 1000),
-        currentPeriodEnd: new Date((subscription.current_period_end || 0) * 1000),
+        currentPeriodStart: new Date(((subscription as any).current_period_start || 0) * 1000),
+        currentPeriodEnd: new Date(((subscription as any).current_period_end || 0) * 1000),
         cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
         canceledAt: subscription.canceled_at ? new Date((subscription.canceled_at || 0) * 1000) : null,
       },

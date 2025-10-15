@@ -10,7 +10,7 @@ import { auth } from '@wirecrest/auth/server';
 import { SuperRole } from '@wirecrest/auth';
 import { revalidatePath } from 'next/cache';
 import { AccessTokenService } from './access-token-service';
-import type { SubscriptionTier, SubscriptionStatus, OverrideType } from './types';
+import type { SubscriptionTier, SubscriptionStatus } from './types';
 
 /**
  * Ensure user has admin privileges
@@ -33,9 +33,6 @@ export async function getAllTeamSubscriptions() {
     include: {
       team: {
         select: { name: true, slug: true },
-      },
-      overrides: {
-        select: { id: true, type: true, key: true },
       },
       _count: {
         select: { usageRecords: true },
@@ -94,104 +91,36 @@ export async function updateTeamSubscription(
   }
 }
 
-/**
- * Create subscription override (admin only)
- */
-export async function createSubscriptionOverride(input: {
-  teamId: string;
-  type: OverrideType;
-  key: string;
-  value: any;
-  reason?: string;
-  expiresAt?: Date;
-}): Promise<{ success: boolean; id?: string; error?: string }> {
-  try {
-    const user = await requireAdmin();
+// /**
+//  * Create subscription override (admin only)
+//  * DEPRECATED: Override system removed - features now managed directly in Stripe
+//  */
+// export async function createSubscriptionOverride(input: {
+//   teamId: string;
+//   key: string;
+//   value: any;
+//   reason?: string;
+//   expiresAt?: Date;
+// }): Promise<{ success: boolean; id?: string; error?: string }> {
+//   return { success: false, error: 'Override system deprecated' };
+// }
 
-    // Get the team's subscription
-    const subscription = await prisma.teamSubscription.findUnique({
-      where: { teamId: input.teamId },
-    });
+// /**
+//  * Get subscription overrides (admin only)
+//  * DEPRECATED: Override system removed - features now managed directly in Stripe
+//  */
+// export async function getSubscriptionOverrides(teamId: string) {
+//   await requireAdmin();
+//   return [];
+// }
 
-    if (!subscription) {
-      return { success: false, error: 'Team subscription not found' };
-    }
-
-    // Check if override already exists
-    const existing = await prisma.subscriptionOverride.findUnique({
-      where: {
-        subscriptionId_key: {
-          subscriptionId: subscription.id,
-          key: input.key,
-        },
-      },
-    });
-
-    if (existing) {
-      return { success: false, error: 'Override already exists for this key' };
-    }
-
-    const override = await prisma.subscriptionOverride.create({
-      data: {
-        subscriptionId: subscription.id,
-        type: input.type,
-        key: input.key,
-        value: JSON.stringify(input.value),
-        reason: input.reason,
-        expiresAt: input.expiresAt,
-        createdBy: user.id,
-      },
-    });
-
-    revalidatePath('/admin/subscriptions');
-    return { success: true, id: override.id };
-  } catch (error) {
-    console.error('Failed to create subscription override:', error);
-    return { success: false, error: 'Failed to create subscription override' };
-  }
-}
-
-/**
- * Get subscription overrides (admin only)
- */
-export async function getSubscriptionOverrides(teamId: string) {
-  await requireAdmin();
-
-  const subscription = await prisma.teamSubscription.findUnique({
-    where: { teamId },
-    include: {
-      overrides: {
-        include: {
-          creator: {
-            select: { name: true, email: true },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
-  });
-
-  return subscription?.overrides || [];
-}
-
-/**
- * Delete subscription override (admin only)
- */
-export async function deleteSubscriptionOverride(id: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    await requireAdmin();
-
-    await prisma.subscriptionOverride.delete({
-      where: { id },
-    });
-
-    revalidatePath('/admin/subscriptions');
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to delete subscription override:', error);
-    return { success: false, error: 'Failed to delete subscription override' };
-  }
-}
+// /**
+//  * Delete subscription override (admin only)
+//  * DEPRECATED: Override system removed - features now managed directly in Stripe
+//  */
+// export async function deleteSubscriptionOverride(id: string): Promise<{ success: boolean; error?: string }> {
+//   return { success: false, error: 'Override system deprecated' };
+// }
 
 /**
  * Create access token (admin only)
@@ -337,7 +266,7 @@ export async function getSubscriptionAnalytics() {
 export async function getTeamBillingOverview(teamId: string) {
   await requireAdmin();
 
-  const [subscription, usageRecords, quotas, overrides] = await Promise.all([
+  const [subscription, usageRecords, quotas] = await Promise.all([
     prisma.teamSubscription.findUnique({
       where: { teamId },
       include: {
@@ -361,24 +290,13 @@ export async function getTeamBillingOverview(teamId: string) {
     prisma.usageQuota.findMany({
       where: { teamId },
     }),
-    
-    prisma.subscriptionOverride.findMany({
-      where: {
-        subscription: { teamId },
-      },
-      include: {
-        creator: {
-          select: { name: true, email: true },
-        },
-      },
-    }),
   ]);
 
   return {
     subscription,
     usageRecords,
     quotas,
-    overrides,
+    overrides: [], // Override system removed
   };
 }
 
@@ -396,19 +314,8 @@ export async function cleanupExpiredData(): Promise<{
     const accessTokenService = new AccessTokenService();
     const tokenCleanup = await accessTokenService.cleanupExpired();
 
-    // Cleanup expired feature flag overrides
-    const expiredOverrides = await prisma.featureFlagOverride.deleteMany({
-      where: {
-        expiresAt: { lt: new Date() },
-      },
-    });
-
-    // Cleanup expired subscription overrides
-    const expiredSubOverrides = await prisma.subscriptionOverride.deleteMany({
-      where: {
-        expiresAt: { lt: new Date() },
-      },
-    });
+    // Override system removed - features managed in Stripe
+    // No longer need to cleanup overrides
 
     revalidatePath('/admin');
     
@@ -416,7 +323,7 @@ export async function cleanupExpiredData(): Promise<{
       success: true,
       deleted: {
         tokens: tokenCleanup.deletedTokens,
-        overrides: expiredOverrides.count + expiredSubOverrides.count,
+        overrides: 0, // Override system removed
         redemptions: tokenCleanup.deletedRedemptions,
       },
     };

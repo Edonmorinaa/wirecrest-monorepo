@@ -10,6 +10,7 @@ import {
   SetupIntentResult, 
   AttachPaymentMethodResult 
 } from './types';
+import { StripeService } from './stripe-service';
 
 export class PaymentMethodService {
   private stripe: Stripe;
@@ -19,10 +20,7 @@ export class PaymentMethodService {
       throw new Error('STRIPE_SECRET_KEY environment variable is required');
     }
 
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16',
-      typescript: true,
-    });
+    this.stripe = StripeService.getStripeInstance();
   }
 
   /**

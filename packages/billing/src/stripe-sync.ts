@@ -1,5 +1,16 @@
 import Stripe from 'stripe';
-import { StripePlanMetadata } from '@wirecrest/feature-flags';
+
+/**
+ * Plan metadata structure from Stripe
+ */
+export interface StripePlanMetadata {
+  bundle?: string;
+  features?: string;
+  featuresJson?: string;
+  scrapeIntervalHours?: string;
+  custom?: string;
+  basePlanId?: string;
+}
 
 /**
  * Stripe synchronization service for feature flags

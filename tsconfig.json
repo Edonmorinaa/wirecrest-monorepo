@@ -1,24 +1,43 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Wirecrest Monorepo Base",
+  "files": [],
+  "references": [
+    { "path": "./packages/auth" },
+    { "path": "./packages/billing" },
+    { "path": "./packages/core" },
+    { "path": "./packages/db" },
+    { "path": "./packages/email" },
+    { "path": "./packages/notifications" },
+    { "path": "./apps/dashboard" },
+    { "path": "./apps/scraper" },
+    { "path": "./apps/auth-service" }
+  ],
   "compilerOptions": {
+    // Language & Environment
     "target": "ES2020",
     "lib": ["ES2020"],
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
+    "jsx": "preserve",
+    
+    // Modules
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    
+    // Type Checking
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "checkJs": false,
-    "incremental": true,
-    "composite": true
-  },
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+    
+    // Emit
+    "noEmit": true,
+    
+    // Interop Constraints
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    
+    // Advanced
+    "allowJs": false
+  }
 }

@@ -3140,6 +3140,7 @@ model ApifyGlobalSchedule {
   batchIndex            Int      @default(0) // For batching large schedules
   apifyScheduleId       String   @unique
   apifyActorId          String
+  apifyTaskId           String?  // Apify task ID if using task-based scheduling
   cronExpression        String
   maxReviewsPerRun      Int      @default(50)
   isActive              Boolean  @default(true)

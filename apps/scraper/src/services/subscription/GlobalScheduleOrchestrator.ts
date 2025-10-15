@@ -24,6 +24,14 @@ const ACTOR_IDS: Record<Platform, string> = {
   booking: 'PbMHke3jW25J6hSOA',
 };
 
+// Task IDs for each platform - tasks allow flexible input schemas
+const TASK_IDS: Record<Platform, string> = {
+  google_reviews: process.env.APIFY_GOOGLE_REVIEWS_TASK_ID || '',
+  facebook: process.env.APIFY_FACEBOOK_TASK_ID || '',
+  tripadvisor: process.env.APIFY_TRIPADVISOR_TASK_ID || '',
+  booking: process.env.APIFY_BOOKING_TASK_ID || '',
+};
+
 // Maximum businesses per schedule before batching
 const MAX_BATCH_SIZE: Record<Platform, number> = {
   google_reviews: 50,  // Google can handle more efficiently
@@ -48,10 +56,97 @@ interface BusinessIdentifier {
 export class GlobalScheduleOrchestrator {
   private apifyClient: ApifyClient;
   private webhookBaseUrl: string;
+  private taskCache: Map<Platform, string> = new Map();
 
   constructor(apifyToken: string, webhookBaseUrl: string) {
     this.apifyClient = new ApifyClient({ token: apifyToken });
     this.webhookBaseUrl = webhookBaseUrl;
+  }
+
+  /**
+   * Get or create a task for a platform actor
+   * Tasks allow flexible input schemas for schedules
+   */
+  private async getOrCreateTaskForActor(platform: Platform): Promise<string> {
+    // Check cache first
+    if (this.taskCache.has(platform)) {
+      return this.taskCache.get(platform)!;
+    }
+
+    // Check if task ID is provided via environment
+    const envTaskId = TASK_IDS[platform];
+    if (envTaskId) {
+      this.taskCache.set(platform, envTaskId);
+      return envTaskId;
+    }
+
+    // Create a new task for this actor
+    const actorId = ACTOR_IDS[platform];
+    const taskName = `wirecrest-${platform}-scheduled`;
+
+    try {
+      // Check if task already exists
+      const tasks = await this.apifyClient.tasks().list();
+      const existingTask = tasks.items.find((t: any) => t.name === taskName);
+      
+      if (existingTask) {
+        console.log(`✓ Found existing task for ${platform}: ${existingTask.id}`);
+        this.taskCache.set(platform, existingTask.id);
+        return existingTask.id;
+      }
+
+      // Create new task with minimal default input
+      const defaultInput = this.buildDefaultTaskInput(platform);
+      const newTask = await this.apifyClient.tasks().create({
+        actId: actorId,
+        name: taskName,
+        options: {
+          build: 'latest',
+          timeoutSecs: 3600,
+          memoryMbytes: 4096,
+        },
+        input: defaultInput,
+      });
+
+      console.log(`✓ Created new task for ${platform}: ${newTask.id}`);
+      this.taskCache.set(platform, newTask.id);
+      return newTask.id;
+    } catch (error: any) {
+      console.error(`Error creating task for ${platform}:`, error);
+      // Fallback to actor ID if task creation fails
+      console.warn(`⚠️  Falling back to actor ID for ${platform}`);
+      return actorId;
+    }
+  }
+
+  /**
+   * Build minimal default input for task creation
+   */
+  private buildDefaultTaskInput(platform: Platform): any {
+    switch (platform) {
+      case 'google_reviews':
+        return {
+          placeIds: [],
+          maxReviews: 100,
+          reviewsSort: 'newest',
+          language: 'en',
+        };
+      case 'facebook':
+        return {
+          startUrls: [],
+          maxRequestRetries: 10,
+        };
+      case 'tripadvisor':
+        return {
+          startUrls: [],
+          scrapeReviewerInfo: true,
+        };
+      case 'booking':
+        return {
+          startUrls: [],
+          sortReviewsBy: 'f_recent_desc',
+        };
+    }
   }
 
   /**
@@ -406,14 +501,31 @@ export class GlobalScheduleOrchestrator {
       // Get current schedule from Apify to preserve all settings
       const apifySchedule = await this.apifyClient.schedule(schedule.apifyScheduleId).get();
 
+      // Determine if this is a task-based or actor-based schedule
+      const isTaskBased = schedule.apifyTaskId !== null;
+
       // Clone existing actions but replace the input
-      const updatedActions = apifySchedule.actions.map(action => ({
-        ...action,
-        runInput: {
-          ...input,
-          webhooks: webhookConfig,
-        },
-      }));
+      const updatedActions = apifySchedule.actions.map((action: any) => {
+        if (isTaskBased) {
+          // For task-based schedules, use 'input' field
+          return {
+            ...action,
+            input: {
+              ...input,
+              webhooks: webhookConfig,
+            },
+          };
+        } else {
+          // For actor-based schedules, use 'runInput' field
+          return {
+            ...action,
+            runInput: {
+              ...input,
+              webhooks: webhookConfig,
+            },
+          };
+        }
+      });
 
       // Update schedule in Apify with new actions
       await this.apifyClient.schedule(schedule.apifyScheduleId).update({
@@ -487,31 +599,50 @@ export class GlobalScheduleOrchestrator {
    */
   private async createGlobalSchedule(config: GlobalScheduleConfig): Promise<any> {
     const actorId = ACTOR_IDS[config.platform];
+    
+    // Get or create task for this actor to allow flexible input schemas
+    const taskId = await this.getOrCreateTaskForActor(config.platform);
+    const isTask = taskId !== actorId; // If they're different, we're using a task
+    
     const cronExpression = this.intervalToCron(config.intervalHours, config.batchIndex);
     const batchSuffix = config.batchIndex && config.batchIndex > 0 ? `_batch_${config.batchIndex}` : '';
 
+    // Build initial empty input (will be populated when businesses are added)
+    const initialInput = this.buildScheduleInput(config.platform, [], 100);
+    const webhookConfig = this.buildWebhookConfig(config.platform);
+
     // Create schedule in Apify
     const scheduleName = `${config.platform}_${config.scheduleType}_${config.intervalHours}h${batchSuffix}`.replace(/[^a-z0-9-]/g, '-');
-    const apifySchedule = await this.apifyClient.schedules().create({
-      name: scheduleName,
-      cronExpression,
-      isEnabled: false, // Start disabled, enable when first business added
-      isExclusive: false,
-      actions: [
-        {
-          type: 'RUN_ACTOR' as any,
+    
+    const scheduleAction: any = isTask
+      ? {
+          type: 'RUN_ACTOR_TASK',
+          actorTaskId: taskId,
+          input: {
+            ...initialInput,
+            webhooks: webhookConfig,
+          },
+        }
+      : {
+          type: 'RUN_ACTOR',
           actorId,
           runInput: {
-            body: JSON.stringify({}),
-            contentType: 'application/json',
+            ...initialInput,
+            webhooks: webhookConfig,
           },
           runOptions: {
             build: 'latest',
             timeoutSecs: 3600,
             memoryMbytes: 4096,
-          } as any,
-        },
-      ],
+          },
+        };
+
+    const apifySchedule = await this.apifyClient.schedules().create({
+      name: scheduleName,
+      cronExpression,
+      isEnabled: false, // Start disabled, enable when first business added
+      isExclusive: false,
+      actions: [scheduleAction],
     });
 
     // Create database record
@@ -523,13 +654,14 @@ export class GlobalScheduleOrchestrator {
         batchIndex: config.batchIndex || 0,
         apifyScheduleId: apifySchedule.id,
         apifyActorId: actorId,
+        apifyTaskId: isTask ? taskId : null,
         cronExpression,
         isActive: false,
         businessCount: 0,
       },
     });
 
-    console.log(`✓ Created global schedule: ${apifySchedule.name}`);
+    console.log(`✓ Created global schedule: ${apifySchedule.name} (${isTask ? 'task' : 'actor'}-based)`);
     return schedule;
   }
 

@@ -11,6 +11,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { StripeService } from '@wirecrest/billing';
 import Stripe from 'stripe';
 
 const prisma = new PrismaClient();
@@ -18,9 +19,7 @@ const prisma = new PrismaClient();
 // Initialize Stripe (optional - only if STRIPE_SECRET_KEY is set)
 let stripe: Stripe | null = null;
 if (process.env.STRIPE_SECRET_KEY) {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-12-18.acacia',
-  });
+  stripe = StripeService.getStripeInstance();
 }
 
 interface BackfillStats {

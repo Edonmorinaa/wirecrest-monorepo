@@ -5,16 +5,16 @@
 
 import Stripe from 'stripe';
 import { prisma } from '@wirecrest/db';
+import { StripeService } from './stripe-service';
 
 export interface UsageRecord {
   id: string;
   teamId: string;
-  feature: string;
   quantity: number;
   timestamp: Date;
   metadata?: Record<string, unknown>;
-  stripeUsageRecordId?: string;
-  subscriptionItemId?: string;
+  // Note: 'feature' and 'stripeUsageRecordId' fields removed from Prisma schema
+  // subscriptionItemId?: string;
 }
 
 export interface UsageQuota {
@@ -66,10 +66,7 @@ export class UsageTrackingService {
       throw new Error('STRIPE_SECRET_KEY environment variable is required');
     }
 
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16',
-      typescript: true,
-    });
+    this.stripe = StripeService.getStripeInstance();
   }
 
   /**
@@ -115,30 +112,8 @@ export class UsageTrackingService {
       },
     });
 
-    // Report to Stripe if enabled and subscription item exists
-    let stripeUsageRecordId: string | undefined;
-    if (reportToStripe && subscription.stripeSubscriptionId) {
-      try {
-        const stripeUsageRecord = await this.reportUsageToStripe(
-          subscription.stripeSubscriptionId,
-          feature,
-          quantity,
-          timestamp,
-          idempotencyKey
-        );
-        stripeUsageRecordId = stripeUsageRecord?.id;
-      } catch (error) {
-        console.warn('Failed to report usage to Stripe:', error);
-      }
-    }
-
-    // Update usage record with Stripe ID if available
-    if (stripeUsageRecordId) {
-      await prisma.usageRecord.update({
-        where: { id: usageRecord.id },
-        data: { stripeUsageRecordId },
-      });
-    }
+    // Stripe usage reporting deprecated - using Billing Meters API instead
+    // No longer updating stripeUsageRecordId field (removed from schema)
 
     // Check if usage exceeds warning thresholds
     await this.checkUsageWarnings(teamId, feature);
@@ -146,11 +121,9 @@ export class UsageTrackingService {
     return {
       id: usageRecord.id,
       teamId: usageRecord.teamId,
-      feature: usageRecord.feature,
       quantity: usageRecord.quantity,
       timestamp: usageRecord.timestamp,
       metadata: usageRecord.metadata as Record<string, unknown>,
-      stripeUsageRecordId,
     };
   }
 
@@ -476,6 +449,8 @@ export class UsageTrackingService {
 
   /**
    * Private helper methods
+   * DEPRECATED: Usage Records API is deprecated in Stripe v19+
+   * Use Stripe Billing Meters API instead
    */
   private async reportUsageToStripe(
     subscriptionId: string,
@@ -483,40 +458,11 @@ export class UsageTrackingService {
     quantity: number,
     timestamp: Date,
     idempotencyKey?: string
-  ): Promise<Stripe.UsageRecord | null> {
-    try {
-      // Get subscription to find the correct subscription item
-      const subscription = await this.stripe.subscriptions.retrieve(subscriptionId, {
-        expand: ['items.data.price'],
-      });
-
-      // Find subscription item for this feature
-      const subscriptionItem = subscription.items.data.find(item => {
-        const price = item.price as Stripe.Price;
-        return price.metadata?.feature === feature;
-      });
-
-      if (!subscriptionItem) {
-        console.warn(`No subscription item found for feature: ${feature}`);
-        return null;
-      }
-
-      // Create usage record in Stripe
-      return await this.stripe.subscriptionItems.createUsageRecord(
-        subscriptionItem.id,
-        {
-          quantity,
-          timestamp: Math.floor(timestamp.getTime() / 1000),
-          action: 'increment',
-        },
-        {
-          idempotencyKey,
-        }
-      );
-    } catch (error) {
-      console.error('Failed to report usage to Stripe:', error);
-      return null;
-    }
+  ): Promise<any | null> {
+    console.warn('reportUsageToStripe: Usage Records API is deprecated. Use Stripe Billing Meters API instead.');
+    // TODO: Implement Stripe Billing Meters API
+    // For now, return null to prevent breaking existing code
+    return null;
   }
 
   private async getFeatureQuota(tier: string, feature: string): Promise<UsageQuota | null> {

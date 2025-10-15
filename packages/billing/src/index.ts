@@ -55,11 +55,11 @@ export * from './admin-actions';
 // Types and constants
 export * from './types';
 
-// Feature access system
-export * from './feature-access';
+// Feature access system (deprecated feature-access removed - use StripeFirstSubscriptionService)
+// export * from './feature-access'; // REMOVED - deprecated
 export * from './feature-flags';
-export * from './hooks/use-feature-access';
-export * from './middleware/feature-gate';
+// export * from './hooks/use-feature-access'; // REMOVED - depends on deleted feature-access
+// export * from './middleware/feature-gate'; // REMOVED - depends on deleted feature-access
 
 // Stripe synchronization services
 export { StripeSyncService, createStripeSyncService } from './stripe-sync';

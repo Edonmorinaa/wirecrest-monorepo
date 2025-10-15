@@ -20,6 +20,7 @@ const nextConfig = {
   // Environment variables exposed to the client
   env: {
     BUILD_STATIC_EXPORT: JSON.stringify(isStaticExport),
+    AUTH_SERVICE_URL: process.env.AUTH_SERVICE_URL,
   },
   
   // TypeScript configuration

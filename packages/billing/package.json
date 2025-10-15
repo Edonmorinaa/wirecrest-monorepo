@@ -19,6 +19,7 @@
   "dependencies": {
     "@stripe/react-stripe-js": "^5.0.0",
     "@stripe/stripe-js": "^8.0.0",
+    "@wirecrest/auth": "workspace:^",
     "@wirecrest/core": "workspace:^",
     "@wirecrest/db": "workspace:^",
     "decimal.js": "^10.4.3",

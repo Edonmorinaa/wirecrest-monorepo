@@ -5,6 +5,7 @@
 
 import Stripe from 'stripe';
 import { prisma } from '@wirecrest/db';
+import { StripeService } from './stripe-service';
 
 export interface TaxCalculationRequest {
   customerId: string;
@@ -71,10 +72,7 @@ export class TaxService {
       throw new Error('STRIPE_SECRET_KEY environment variable is required');
     }
 
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16',
-      typescript: true,
-    });
+    this.stripe = StripeService.getStripeInstance();
   }
 
   /**

@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { ApiError } from '../utils/errors';
 import dotenv from 'dotenv';
 
-
+// Load environment variables
 dotenv.config();
   /**
  * Authentication API client for communicating with auth-service

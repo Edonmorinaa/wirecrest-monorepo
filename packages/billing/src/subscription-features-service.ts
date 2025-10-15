@@ -6,6 +6,7 @@
 import Stripe from 'stripe';
 import { prisma } from '@wirecrest/db';
 import { ProductService } from './product-service';
+import { StripeService } from './stripe-service';
 
 export class SubscriptionFeaturesService {
   private stripe: Stripe;
@@ -16,10 +17,7 @@ export class SubscriptionFeaturesService {
       throw new Error('STRIPE_SECRET_KEY environment variable is required');
     }
 
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16',
-      typescript: true,
-    });
+    this.stripe = StripeService.getStripeInstance();
 
     this.productService = new ProductService();
   }
@@ -197,8 +195,8 @@ export class SubscriptionFeaturesService {
         where: { teamId },
         data: {
           status: stripeSubscription.status.toUpperCase() as any,
-          currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-          currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+          currentPeriodStart: new Date((stripeSubscription as any).current_period_start * 1000),
+          currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
           cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
           canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : null,
           trialStart: stripeSubscription.trial_start ? new Date(stripeSubscription.trial_start * 1000) : null,

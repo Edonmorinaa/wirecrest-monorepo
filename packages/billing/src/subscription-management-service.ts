@@ -235,7 +235,7 @@ export class SubscriptionManagementService {
 
     if (subscription.latest_invoice) {
       const invoice = subscription.latest_invoice as Stripe.Invoice;
-      if (invoice.payment_intent) {
+      if ('payment_intent' in invoice && invoice.payment_intent) {
         const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
         clientSecret = paymentIntent.client_secret || undefined;
         requiresPaymentConfirmation = paymentIntent.status === 'requires_payment_method' || 
@@ -344,7 +344,7 @@ export class SubscriptionManagementService {
 
     if (updatedSubscription.latest_invoice) {
       invoice = updatedSubscription.latest_invoice as Stripe.Invoice;
-      if (invoice.payment_intent) {
+      if ('payment_intent' in invoice && invoice.payment_intent) {
         paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
         requiresPaymentConfirmation = paymentIntent.status === 'requires_payment_method' || 
                                      paymentIntent.status === 'requires_confirmation';
@@ -576,8 +576,8 @@ export class SubscriptionManagementService {
         maxRefreshes,
       },
       billing: {
-        currentPeriodStart: stripeSubscription ? new Date(stripeSubscription.current_period_start * 1000) : null,
-        currentPeriodEnd: stripeSubscription ? new Date(stripeSubscription.current_period_end * 1000) : null,
+        currentPeriodStart: stripeSubscription ? new Date((stripeSubscription as any).current_period_start * 1000) : null,
+        currentPeriodEnd: stripeSubscription ? new Date((stripeSubscription as any).current_period_end * 1000) : null,
         cancelAtPeriodEnd: stripeSubscription?.cancel_at_period_end || false,
         trialEnd: stripeSubscription?.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
       },

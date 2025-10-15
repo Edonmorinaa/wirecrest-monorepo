@@ -7,7 +7,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useSubscription, useAccessToken } from './hooks';
-import type { SubscriptionTier, OverrideType } from './types';
+import type { SubscriptionTier } from './types';
 
 interface TeamSubscriptionManagerProps {
   teamId: string;
@@ -198,7 +198,7 @@ export const BillingOverrideManager: React.FC<BillingOverrideManagerProps> = ({
   const [overrides, setOverrides] = useState<any[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createFormData, setCreateFormData] = useState({
-    type: 'FEATURE' as OverrideType,
+    type: 'FEATURE' as string,
     key: '',
     value: '',
     reason: '',
@@ -258,7 +258,7 @@ export const BillingOverrideManager: React.FC<BillingOverrideManagerProps> = ({
               value={createFormData.type}
               onChange={(e) => setCreateFormData(prev => ({ 
                 ...prev, 
-                type: e.target.value as OverrideType 
+                type: e.target.value as string 
               }))}
             >
               <option value="FEATURE">Feature</option>

@@ -7,8 +7,14 @@ import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from 'next-auth/
  */
 export const signIn = async (provider?: string, options?: { redirect?: boolean; callbackUrl?: string }) => {
   try {
-    const result = await nextAuthSignIn(provider, options);
-    return result;
+    // Handle redirect option with proper type narrowing for NextAuth overloads
+    if (options?.redirect === false) {
+      const result = await nextAuthSignIn(provider, { redirect: false, callbackUrl: options.callbackUrl });
+      return result;
+    } else {
+      const result = await nextAuthSignIn(provider, { redirect: true, callbackUrl: options?.callbackUrl });
+      return result;
+    }
   } catch (error) {
     console.error('Sign in error:', error);
     throw error;
@@ -23,19 +29,23 @@ export const signOut = async (options?: { redirect?: boolean }) => {
     // Call auth-service for custom cleanup (team cache, etc.)
     await customSignOut();
     
-    // Use NextAuth's signOut to ensure complete cleanup
-    await nextAuthSignOut({
-      redirect: options?.redirect ?? false,
-    });
+    // Use NextAuth's signOut to ensure complete cleanup with proper type narrowing
+    if (options?.redirect === true) {
+      await nextAuthSignOut({ redirect: true });
+    } else {
+      await nextAuthSignOut({ redirect: false });
+    }
     
     return { success: true };
   } catch (error) {
     console.error('Error during sign out:', error);
     // Even if custom signout fails, try NextAuth signout as fallback
     try {
-      await nextAuthSignOut({
-        redirect: options?.redirect ?? false,
-      });
+      if (options?.redirect === true) {
+        await nextAuthSignOut({ redirect: true });
+      } else {
+        await nextAuthSignOut({ redirect: false });
+      }
     } catch (fallbackError) {
       console.error('Fallback NextAuth signout also failed:', fallbackError);
     }
@@ -94,10 +104,7 @@ export const customSignOut = async () => {
     try {
       // @ts-ignore - billing package may not be available
       const { clearAllCachesImmediately } = await import('@wirecrest/billing');
-      await clearAllCachesImmediately('user_logout', { 
-        timestamp: new Date().toISOString(),
-        reason: 'User logout - clearing all feature caches'
-      });
+      await clearAllCachesImmediately('user_logout');
     } catch (error) {
       console.log('⚠️ Billing package not available, skipping cache clear:', error);
     }
