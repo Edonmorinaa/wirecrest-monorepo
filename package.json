@@ -14,7 +14,8 @@
     "type-check": "turbo run type-check",
     "dev:dashboard": "turbo run dev --filter=dashboard",
     "dev:scraper": "turbo run dev --filter=scraper",
-    "dev:auth": "turbo run dev --filter=auth-service"
+    "dev:auth": "turbo run dev --filter=auth-service",
+    "start": "echo 'This monorepo requires Dockerfile deployment. Please configure Railway to use Dockerfile builder.' && exit 1"
   },
   "devDependencies": {
     "eslint": "^9.0.0",

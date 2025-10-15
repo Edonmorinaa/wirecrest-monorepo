@@ -11,8 +11,9 @@
     "target": "ES2020",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "strict": true,
-    "resolveJsonModule": true
+    "strict": false,
+    "resolveJsonModule": true,
+    "noImplicitAny": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

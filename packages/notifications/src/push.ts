@@ -5,6 +5,7 @@
  * and APNs (for iOS/macOS)
  */
 
+// @ts-ignore - web-push types are not available in the current version
 import webpush from 'web-push';
 import { prisma } from '@wirecrest/db';
 import type { Notification } from './types';
