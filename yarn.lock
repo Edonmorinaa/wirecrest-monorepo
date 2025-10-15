@@ -111,7 +111,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@auth/prisma-adapter@npm:^2.10.0":
+"@auth/prisma-adapter@npm:^2.10.0, @auth/prisma-adapter@npm:^2.7.2":
   version: 2.11.0
   resolution: "@auth/prisma-adapter@npm:2.11.0"
   dependencies:
@@ -8548,6 +8548,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@wirecrest/auth@workspace:packages/auth"
   dependencies:
+    "@auth/prisma-adapter": "npm:^2.7.2"
     "@prisma/client": "npm:^6.16.2"
     "@types/bcryptjs": "npm:^2.4.6"
     "@types/react": "npm:^18.0.0"
@@ -10760,9 +10761,9 @@ __metadata:
   linkType: hard
 
 "electron-to-chromium@npm:^1.5.227":
-  version: 1.5.235
-  resolution: "electron-to-chromium@npm:1.5.235"
-  checksum: 2de9b3e4138457ee627d9f88c5773129cf36f4d5fa5d8983ed7b8abf3c6a6bf19575355bc001c4af1497ada503ade519025903aff4e9b2b38a0f4957a2525bf0
+  version: 1.5.236
+  resolution: "electron-to-chromium@npm:1.5.236"
+  checksum: ea0767cc49461790d556a76c3928f1596d4a25be3e1f6570e27c2693db4499b7ca3b968c6649020ec5fe2cb031e1a179c89902048dda507dff543cb3a5bb845c
   languageName: node
   linkType: hard
 

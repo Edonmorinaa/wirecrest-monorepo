@@ -1,37 +1,68 @@
-# Use Node.js 18 Alpine Linux as base image
-FROM node:18-alpine
+# ==============================
+# Base image
+# ==============================
+FROM node:18-alpine AS base
+WORKDIR /app
+RUN apk add --no-cache libc6-compat bash
+RUN corepack enable
+RUN yarn config set nodeLinker node-modules
 
-# Set working directory
-WORKDIR /usr/src/app
+# ==============================
+# Dependencies
+# ==============================
+FROM base AS deps
+COPY package.json yarn.lock turbo.json ./
+COPY .yarnrc.yml ./
+COPY packages/core/package.json ./packages/core/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/billing/package.json ./packages/billing/package.json
+COPY packages/notifications/package.json ./packages/notifications/package.json
+COPY apps/scraper/package.json ./apps/scraper/package.json
+RUN yarn install --check-cache
 
-# Copy package files first for better caching
-COPY package*.json ./
-COPY tsconfig.json ./
+# ==============================
+# Build stage
+# ==============================
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY packages ./packages
+COPY apps ./apps
+COPY package.json yarn.lock turbo.json ./
+COPY .yarnrc.yml ./
 
-# Install all dependencies (including devDependencies needed for build)
-RUN npm ci --silent
+# Generate Prisma client first
+WORKDIR /app/packages/db
+RUN npx prisma generate
 
-# Copy source code and build files
-COPY src ./src
-COPY declarations.d.ts ./
+# Build only scraper and its dependencies using Turbo
+WORKDIR /app
+RUN npx turbo run build --filter=scraper
 
-# Build the TypeScript application
-RUN npm run build
-
-# Remove devDependencies after build to reduce image size
-RUN npm prune --production --silent && npm cache clean --force
+# ==============================
+# Production stage
+# ==============================
+FROM node:18-alpine AS runner
+WORKDIR /app
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 scraperservice
 
 # Create directory for model files if needed
-RUN mkdir -p /usr/src/app/models
+RUN mkdir -p /app/models
 
-# Expose port (Railway will inject the PORT environment variable)
+# Copy built app and runtime deps
+COPY --from=builder /app/apps/scraper/dist ./dist
+COPY --from=builder /app/apps/scraper/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy workspace packages for runtime
+COPY --from=builder /app/packages ./packages
+
+USER scraperservice
 EXPOSE 3000
-
-# Set environment variables with defaults for Railway
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Note: Railway handles health checks externally, so we don't need a Docker HEALTHCHECK
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', res => process.exit(res.statusCode === 200 ? 0 : 1))"
 
-# Start the application
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/server.js"]
