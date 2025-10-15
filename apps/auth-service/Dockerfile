@@ -1,64 +1,72 @@
-# Multi-stage build for optimized production image
+# ==============================
+# Base image
+# ==============================
 FROM node:18-alpine AS base
+WORKDIR /app
 
-# Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
-WORKDIR /
+# Install minimal system dependencies
+RUN apk add --no-cache libc6-compat bash
 
-# Enable Corepack to use the correct Yarn version
+# Enable Corepack for Yarn 3
 RUN corepack enable
+RUN yarn config set nodeLinker node-modules
 
-# Copy workspace configuration files
+# ==============================
+# Dependencies stage
+# ==============================
+FROM base AS deps
+
+# Copy monorepo root files
 COPY package.json yarn.lock turbo.json ./
-COPY .yarnrc.yml .yarnrc.yml* ./
+COPY .yarnrc.yml ./
 
-# Copy workspace packages that auth-service depends on
+# Copy packages and apps needed for auth-service
 COPY packages/auth ./packages/auth
 COPY packages/db ./packages/db
-
-# Copy auth-service package.json
 COPY apps/auth-service/package.json ./apps/auth-service/
 
-# Set Yarn to use node-modules linker instead of PnP
-RUN yarn config set nodeLinker node-modules
+# Install dependencies (workspace-aware)
+RUN yarn install --frozen-lockfile
 
-# Install dependencies using the correct Yarn version
-# Allow lockfile updates for workspace resolution
-RUN yarn install
-
+# ==============================
 # Build stage
+# ==============================
 FROM base AS builder
-WORKDIR /
 
-# Enable Corepack to use the correct Yarn version
-RUN corepack enable
-
+# Copy node_modules from deps
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages ./packages
-COPY --from=deps /app/.yarnrc.yml ./.yarnrc.yml
+
+# Copy source code
+COPY packages ./packages
 COPY apps/auth-service ./apps/auth-service
 COPY package.json yarn.lock turbo.json ./
+COPY .yarnrc.yml ./
 
-# Set Yarn to use node-modules linker
-RUN yarn config set nodeLinker node-modules
+# Generate Prisma client in db package
+WORKDIR /app/packages/db
+RUN yarn prisma generate
 
-# Build the auth-service
-WORKDIR /apps/auth-service
+# Build auth-service
+WORKDIR /app/apps/auth-service
 RUN yarn build
 
+# ==============================
 # Production stage
-FROM base AS runner
-WORKDIR /
+# ==============================
+FROM node:18-alpine AS runner
+WORKDIR /app
 
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 authservice
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 authservice
 
-# Copy built application
+# Copy built app
 COPY --from=builder --chown=authservice:nodejs /app/apps/auth-service/dist ./dist
 COPY --from=builder --chown=authservice:nodejs /app/apps/auth-service/package.json ./package.json
+
+# Copy Prisma schema & client from db package
+COPY --from=builder --chown=authservice:nodejs /app/packages/db/prisma ./prisma
+COPY --from=builder --chown=authservice:nodejs /app/packages/db/node_modules/.prisma ./node_modules/.prisma
 
 # Copy only production dependencies
 COPY --from=deps --chown=authservice:nodejs /app/node_modules ./node_modules
@@ -66,16 +74,14 @@ COPY --from=deps --chown=authservice:nodejs /app/node_modules ./node_modules
 # Switch to non-root user
 USER authservice
 
-# Expose port (Railway will override this)
+# Expose port
 EXPOSE 3000
-
-# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Health check
+# Optional healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD node -e "require('http').get('http://localhost:3000/health', res => process.exit(res.statusCode === 200 ? 0 : 1))"
 
-# Start the application
+# Start app
 CMD ["node", "dist/index.js"]
