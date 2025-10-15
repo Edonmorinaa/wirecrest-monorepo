@@ -5,7 +5,7 @@ FROM node:18-alpine AS base
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
-WORKDIR /app
+WORKDIR /
 
 # Enable Corepack to use the correct Yarn version
 RUN corepack enable
@@ -30,7 +30,7 @@ RUN yarn install
 
 # Build stage
 FROM base AS builder
-WORKDIR /app
+WORKDIR /
 
 # Enable Corepack to use the correct Yarn version
 RUN corepack enable
@@ -45,12 +45,12 @@ COPY package.json yarn.lock turbo.json ./
 RUN yarn config set nodeLinker node-modules
 
 # Build the auth-service
-WORKDIR /app/apps/auth-service
+WORKDIR /apps/auth-service
 RUN yarn build
 
 # Production stage
 FROM base AS runner
-WORKDIR /app
+WORKDIR /
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs
