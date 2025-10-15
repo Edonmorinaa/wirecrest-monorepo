@@ -47,19 +47,16 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 authservi
 COPY --from=builder /app/apps/auth-service/dist ./dist
 COPY --from=builder /app/apps/auth-service/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
-
-# Copy workspace packages for runtime
 COPY --from=builder /app/packages ./packages
 
 USER authservice
-ARG PORT=3000
-ENV PORT=$PORT
-EXPOSE $PORT
 ENV NODE_ENV=production
 
+# Railway injects PORT automatically at runtime
+EXPOSE 8080
 
-# Health check
+# Health check (uses dynamic $PORT)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', res => process.exit(res.statusCode === 200 ? 0 : 1))"
+  CMD wget --quiet --tries=1 --spider "http://localhost:${PORT:-8080}/health" || exit 1
 
 CMD ["node", "dist/index.js"]
