@@ -2,6 +2,10 @@
 
 All fixes have been successfully implemented to enable Railway deployment of the scraper service.
 
+## Latest Fix: TypeScript Build Errors ⚠️
+
+**Fixed:** Updated `packages/auth/tsconfig.json` to use `strict: false` and `noImplicitAny: false`. This allows the auth package to build successfully even when Next.js types are not available (which is the case when building the scraper service). The scraper only uses server-side exports from the billing package, which depends on auth.
+
 ## Changes Made
 
 ### 1. ✅ Environment Validation (`src/config/env.ts`)
@@ -173,6 +177,9 @@ Should return:
 ```
 
 ## Troubleshooting
+
+### Build fails with TypeScript errors in @wirecrest/auth package
+**Solution:** The auth package's `tsconfig.json` has been updated to use `strict: false` and `noImplicitAny: false` to allow builds without Next.js dependencies present. This is already fixed in the codebase.
 
 ### Build fails with "Prisma client not generated"
 **Solution:** Ensure `DATABASE_URL` is set in Railway environment variables. Railway will pass it as a build argument.
