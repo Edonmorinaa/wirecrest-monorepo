@@ -4,11 +4,16 @@ All fixes have been successfully implemented to enable Railway deployment of the
 
 ## Latest Fix: TypeScript Build Errors ⚠️
 
-**Fixed:** Excluded `actions.ts` and `admin-actions.ts` from the billing package build. These files import from `@wirecrest/auth` with Next.js dependencies, but are NOT needed by the scraper service. The scraper only uses server-only exports from `@wirecrest/billing/server-only`, which don't include these files.
+**Fixed:** Excluded all Next.js-dependent files from both auth and billing packages. The scraper service doesn't need these files - it only uses server-side exports that don't depend on Next.js.
+
+**Root Cause:** When TurboRepo builds the workspace packages, it compiles ALL TypeScript files by default, including Next.js-specific files that aren't needed by the scraper.
+
+**Solution:** Explicitly excluded Next.js-dependent files from compilation in both packages.
 
 **Changed files:**
-- `packages/billing/tsconfig.json` - Added exclusions for Next.js-dependent files
-- `packages/auth/tsconfig.json` - Relaxed TypeScript strictness (`strict: false`, `noImplicitAny: false`) as a safety measure
+- `packages/auth/tsconfig.json` - Excluded 10 Next.js-dependent files (actions, hooks, providers, wrappers, etc.)
+- `packages/billing/tsconfig.json` - Excluded `actions.ts` and `admin-actions.ts` (Next.js server actions)
+- Both packages relaxed TypeScript strictness (`strict: false`, `noImplicitAny: false`) as an additional safety measure
 
 ## Changes Made
 
@@ -183,13 +188,29 @@ Should return:
 ## Troubleshooting
 
 ### Build fails with TypeScript errors in @wirecrest/auth or @wirecrest/billing
-**Root Cause:** The billing package's `actions.ts` and `admin-actions.ts` import from `@wirecrest/auth` with Next.js dependencies that are not available during the scraper build.
+**Root Cause:** TurboRepo compiles ALL TypeScript files in workspace packages by default, including Next.js-specific files that have dependencies not available during the scraper build.
 
-**Solution:** Excluded these files from the billing build since they're only used for Next.js server actions, not by the scraper. The scraper only uses `@wirecrest/billing/server-only` exports.
+**Solution:** Excluded Next.js-dependent files from both packages since they're only used by the dashboard Next.js app, not by the scraper.
 
 **Files changed:**
-- `packages/billing/tsconfig.json` - Excludes `actions.ts` and `admin-actions.ts`
-- `packages/auth/tsconfig.json` - Relaxed strictness as safety measure
+- `packages/auth/tsconfig.json` - Excludes 10 Next.js-dependent files:
+  - `src/actions/authActions.ts`
+  - `src/actions/nextauth.ts`
+  - `src/config/nextAuth.ts`
+  - `src/hooks/useAuthApi.ts`
+  - `src/hooks/useSuperRole.ts`
+  - `src/hooks/useUser.ts`
+  - `src/providers/NextAuthProvider.tsx`
+  - `src/types/nextauth.ts`
+  - `src/wrappers/authWrapper.ts`
+  - `src/wrappers/nextAuthWrapper.ts`
+- `packages/billing/tsconfig.json` - Excludes:
+  - `src/actions.ts`
+  - `src/admin-actions.ts`
+
+**What the scraper uses:**
+- From auth: Only server-side utilities (no Next.js dependencies)
+- From billing: Only `@wirecrest/billing/server-only` exports (StripeService, FeatureChecker, etc.)
 
 ### Build fails with "Prisma client not generated"
 **Solution:** Ensure `DATABASE_URL` is set in Railway environment variables. Railway will pass it as a build argument.

@@ -23,5 +23,18 @@
     "composite": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/actions/authActions.ts",
+    "src/actions/nextauth.ts",
+    "src/config/nextAuth.ts",
+    "src/hooks/useAuthApi.ts",
+    "src/hooks/useSuperRole.ts",
+    "src/hooks/useUser.ts",
+    "src/providers/NextAuthProvider.tsx",
+    "src/types/nextauth.ts",
+    "src/wrappers/authWrapper.ts",
+    "src/wrappers/nextAuthWrapper.ts"
+  ]
 }
