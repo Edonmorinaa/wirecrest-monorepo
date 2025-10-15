@@ -22,7 +22,7 @@ COPY packages/db ./packages/db
 COPY apps/auth-service/package.json ./apps/auth-service/
 
 # Install dependencies using the correct Yarn version
-RUN yarn install --frozen-lockfile --production=false
+RUN yarn install --immutable
 
 # Build stage
 FROM base AS builder
