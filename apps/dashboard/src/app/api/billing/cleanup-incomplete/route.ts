@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { StripeService } from '@wirecrest/billing';
 import { prisma } from '@wirecrest/db';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 
 const stripe = StripeService.getStripeInstance();
 

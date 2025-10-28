@@ -1,0 +1,32 @@
+{
+  "name": "@wirecrest/auth-core",
+  "version": "1.0.0",
+  "description": "Server-only authentication utilities and session management for Wirecrest applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "@wirecrest/db": "workspace:^",
+    "bcryptjs": "^2.4.3",
+    "crypto": "^1.0.1",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@wirecrest/typescript-config": "workspace:*",
+    "typescript": "^5.2.0"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev": "echo 'No dev step required for auth package'",
+    "lint": "echo 'No lint step required for auth package'",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit"
+  }
+}

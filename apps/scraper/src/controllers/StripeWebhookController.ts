@@ -6,7 +6,7 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { SubscriptionOrchestrator } from '../services/subscription/SubscriptionOrchestrator';
-import { StripeService } from '@wirecrest/billing/server-only';
+import { StripeService } from '@wirecrest/billing/server';
 import { prisma } from '@wirecrest/db';
 
 const stripe = StripeService.getStripeInstance();

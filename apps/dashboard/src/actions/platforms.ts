@@ -2,8 +2,8 @@
 
 
 import { prisma } from '@wirecrest/db';
+import { auth } from '@wirecrest/auth-next';
 import { MarketPlatform } from '@prisma/client';
-import { getSession } from '@wirecrest/auth/server';
 import {
   createBusinessMarketIdentifier,
   getAllBusinessMarketIdentifiers,
@@ -16,7 +16,7 @@ import { ApiError, recordMetric } from './lib';
 
 // Business Market Identifiers Actions
 export async function getBusinessMarketIdentifiers(teamSlug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -52,7 +52,7 @@ export async function createBusinessMarketIdentifierAction(
   teamSlug: string,
   data: { platform: MarketPlatform; identifier: string }
 ) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -99,7 +99,7 @@ export async function createBusinessMarketIdentifierAction(
 
 // Google Business Profile Actions
 export async function getGoogleBusinessProfile(teamSlug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -208,7 +208,7 @@ export async function createGoogleProfile(teamSlug: string, data: { placeId: str
   // Step 2: Execute platform action (delegates to scraper)
   const result = await executePlatformAction({
     teamId: team.id,
-    platform: 'google_maps',
+    platform: "GOOGLE_MAPS",
     action: 'create_profile',
   });
 
@@ -279,7 +279,7 @@ export async function getGoogleReviewsAction(
 
 // Facebook Business Profile Actions
 export async function getFacebookBusinessProfile(teamSlug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -403,7 +403,7 @@ export async function createFacebookProfile(teamSlug: string, data: { facebookUr
   // Step 2: Execute platform action (delegates to scraper)
   const result = await executePlatformAction({
     teamId: team.id,
-    platform: 'facebook',
+    platform: 'FACEBOOK',
     action: 'create_profile',
   });
 
@@ -460,7 +460,7 @@ export async function getFacebookReviewsAction(
 
 // Instagram Business Profile Actions
 export async function getInstagramBusinessProfile(teamSlug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -517,7 +517,7 @@ export async function getInstagramBusinessProfile(teamSlug: string) {
 
 // TikTok Business Profile Actions
 export async function getTikTokBusinessProfile(teamSlug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -558,7 +558,7 @@ export async function getTikTokBusinessProfile(teamSlug: string) {
 
 // Platform Status Actions
 export async function getPlatformStatus(teamSlug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -627,7 +627,7 @@ export async function getPlatformStatus(teamSlug: string) {
 
 
 export async function getBookingBusinessProfile(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -705,7 +705,7 @@ export async function getBookingBusinessProfile(slug: string) {
 }
 
 export async function getTripAdvisorBusinessProfile(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -747,7 +747,7 @@ export async function getTripAdvisorBusinessProfile(slug: string) {
 }
 
 export async function triggerInstagramSnapshot(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -790,7 +790,7 @@ export async function triggerInstagramSnapshot(slug: string) {
 }
 
 export async function triggerTikTokSnapshot(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -833,7 +833,7 @@ export async function triggerTikTokSnapshot(slug: string) {
 }
 
 export async function getBookingOverview(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }

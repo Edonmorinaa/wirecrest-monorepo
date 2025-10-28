@@ -4,7 +4,7 @@
  * Also handles custom intervals for Enterprise/special teams
  */
 
-import { FeatureChecker, ProductFeaturesService, StripeFeatureLookupKeys, StripeService } from '@wirecrest/billing/server-only';
+import { FeatureChecker, ProductFeaturesService, StripeFeatureLookupKeys, StripeService } from '@wirecrest/billing/server';
 import { prisma } from '@wirecrest/db';
 import type {
   ExtractedFeatures,

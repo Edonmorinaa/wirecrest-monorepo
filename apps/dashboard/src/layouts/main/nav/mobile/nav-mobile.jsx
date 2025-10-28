@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { SignInButton } from '@/layouts/components/sign-in-button';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -12,7 +13,6 @@ import { Scrollbar } from 'src/components/scrollbar';
 
 import { Nav, NavUl } from '../components';
 import { NavList } from './nav-mobile-list';
-import { SignInButton } from '../../../components/sign-in-button';
 
 // ----------------------------------------------------------------------
 

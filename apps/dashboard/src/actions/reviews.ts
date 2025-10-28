@@ -7,7 +7,7 @@ import type {
 } from './types/reviews';
 
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 
 import { ApiError } from './lib/errors';
 
@@ -43,7 +43,7 @@ interface ReviewFilters {
 
 // Get all reviews for a team across platforms
 export async function getTeamReviews(teamSlug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -111,7 +111,7 @@ export async function getGoogleReviews(
   pagination: any;
   stats: any;
 }> {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -258,7 +258,7 @@ export async function updateGoogleReviewMetadata(
   reviewId: string,
   data: { isRead?: boolean; isImportant?: boolean }
 ) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -339,7 +339,7 @@ export async function getFacebookReviews(
   pagination: any;
   stats: any;
 }> {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -533,7 +533,7 @@ export async function getTripAdvisorReviews(
   pagination: any;
   stats: any;
 }> {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -683,7 +683,7 @@ export async function updateReviewStatus(
   field: string,
   value: any
 ) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }

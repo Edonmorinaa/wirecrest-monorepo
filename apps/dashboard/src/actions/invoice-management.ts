@@ -6,7 +6,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import { InvoiceService } from '@wirecrest/billing';
 
 // Helper function to check admin access

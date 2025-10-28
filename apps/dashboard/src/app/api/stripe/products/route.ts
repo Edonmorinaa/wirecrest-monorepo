@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import { InvoiceService } from '@wirecrest/billing';
 
 // ----------------------------------------------------------------------

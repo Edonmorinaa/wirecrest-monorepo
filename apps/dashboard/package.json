@@ -1,5 +1,5 @@
 {
-  "name": "dashboard",
+  "name": "@wirecrest/dashboard",
   "author": "Wirecrest",
   "version": "1.0.0",
   "description": "Next & JavaScript",
@@ -27,7 +27,6 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "yarn@4.0.2",
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
     "@atlaskit/pragmatic-drag-and-drop-auto-scroll": "^2.1.1",
@@ -75,7 +74,7 @@
     "@tiptap/react": "^3.0.9",
     "@tiptap/starter-kit": "^3.0.9",
     "@upstash/redis": "^1.35.3",
-    "@wirecrest/auth": "workspace:^",
+    "@wirecrest/auth-next": "workspace:^",
     "@wirecrest/billing": "workspace:^",
     "@wirecrest/core": "workspace:^",
     "@wirecrest/db": "workspace:^",

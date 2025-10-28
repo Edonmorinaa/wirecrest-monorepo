@@ -3,7 +3,7 @@
  * POST /api/invoices/[id]/void - Void a Stripe invoice
  */
 
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import { InvoiceService } from '@wirecrest/billing';
 import { NextRequest, NextResponse } from 'next/server';
 

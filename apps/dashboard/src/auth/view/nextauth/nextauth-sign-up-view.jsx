@@ -3,7 +3,7 @@
 import * as z from 'zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { joinUser } from '@wirecrest/auth';
+import { joinUser } from '@wirecrest/auth-next';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 

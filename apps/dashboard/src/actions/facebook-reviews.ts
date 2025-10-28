@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 
 import { ApiError } from './lib/errors';
 

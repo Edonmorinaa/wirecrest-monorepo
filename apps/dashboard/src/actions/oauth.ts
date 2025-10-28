@@ -8,7 +8,7 @@
 import { prisma } from '@wirecrest/db';
 import { getTeam } from '@/models/team';
 import { throwIfNotAllowed } from '@/models/user';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 
 import env from 'src/lib/env';
 

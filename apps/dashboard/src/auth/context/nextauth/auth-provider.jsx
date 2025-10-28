@@ -1,6 +1,6 @@
 'use client';
 
-import { AuthWrapper } from '@wirecrest/auth';
+import { AuthWrapper } from '@wirecrest/auth-next';
 
 // ----------------------------------------------------------------------
 

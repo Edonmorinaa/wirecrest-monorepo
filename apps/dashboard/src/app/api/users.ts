@@ -1,5 +1,5 @@
 import { getUser, updateUser } from '@/models/user';
-import { getSession } from "@wirecrest/auth/server";
+import { getSession } from "@wirecrest/auth-next";
 import { NextRequest, NextResponse } from 'next/server';
 
 import env from 'src/lib/env';

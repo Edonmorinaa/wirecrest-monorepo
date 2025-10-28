@@ -2,7 +2,7 @@
 
 import * as z from 'zod';
 import { useState } from 'react';
-import { signIn } from '@wirecrest/auth';
+import { signIn } from '@wirecrest/auth-next';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { useBoolean } from 'minimal-shared/hooks';

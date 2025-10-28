@@ -8,6 +8,7 @@ import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   StripeService,
+  // BillingService,
   getGlobalFeatureChecker,
   createProductWebhookHandler,
 } from '@wirecrest/billing';
@@ -62,13 +63,12 @@ export async function POST(request: NextRequest) {
     console.log(`🔍 Processing webhook event: ${event.type}`);
     
     // Handle subscription and billing events with BillingService
-    if (['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted',
-         'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.created', 'invoice.updated'].includes(event.type)) {
-      const { BillingService } = await import('@wirecrest/billing/server-only');
-      const billingService = new BillingService();
-      await billingService.handleWebhook(rawBody, signature);
-      console.log(`✅ [BillingService] Handled event: ${event.type}`);
-    }
+    // if (['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted',
+    //      'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.created', 'invoice.updated'].includes(event.type)) {
+    //   const billingService = new BillingService();
+    //   await billingService.handleWebhook(rawBody, signature);
+    //   console.log(`✅ [BillingService] Handled event: ${event.type}`);
+    // }
     
     // Also handle product changes for cache invalidation
     await webhookHandler.handleWebhookEvent(event);

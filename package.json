@@ -12,24 +12,22 @@
     "lint": "turbo run lint",
     "clean": "turbo run clean",
     "type-check": "turbo run type-check",
-    "dev:dashboard": "turbo run dev --filter=dashboard",
-    "dev:scraper": "turbo run dev --filter=scraper",
-    "dev:auth": "turbo run dev --filter=auth-service",
-    "start": "echo 'This monorepo requires Dockerfile deployment. Please configure Railway to use Dockerfile builder.' && exit 1"
+    "dev:dashboard": "turbo run dev --filter=@wirecrest/dashboard",
+    "dev:scraper": "turbo run dev --filter=@wirecrest/scraper",
+    "dev:auth": "turbo run dev --filter=@wirecrest/auth-service"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
     "turbo": "^2.5.8",
     "typescript": "^5.2.0"
   },
-  "dependencies": {
-    "fast-check": "^4.3.0",
-    "net": "^1.0.2",
-    "tls": "^0.0.1",
-    "web-push": "^3.6.7"
-  },
   "resolutions": {
     "@typescript-eslint/typescript-estree": "^8.44.0",
     "@smithy/util-hex-encoding": "^4.1.0"
+  },
+  "dependencies": {
+    "jose": "^6.1.0",
+    "net": "^1.0.2",
+    "tls": "^0.0.1"
   }
 }

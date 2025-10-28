@@ -5,7 +5,7 @@ import type { TeamWithMemberCount } from './types/common';
 
 import { Role } from '@prisma/client';
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 import {
   updateTeamMember,
 } from '@/models/teamMember';

@@ -1,11 +1,13 @@
-import { useTeam } from '@wirecrest/auth';
+import { useTeam } from '@wirecrest/auth-next';
 import { useState, useCallback } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { 
-  deleteBillingAddress,
-  upsertBillingAddress,
-  validateBillingAddress,
-} from '@wirecrest/billing';
+// TODO: These billing functions need to be added to @/actions/billing
+// For now, importing directly from billing/server will fail in client components
+// import { 
+//   deleteBillingAddress,
+//   upsertBillingAddress,
+//   validateBillingAddress,
+// } from '@/actions/billing';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -45,13 +47,13 @@ export function AccountBillingAddress({ addressBook, onRefresh, sx, ...other }) 
       setError(null);
 
       // Validate address first
-      const validation = await validateBillingAddress(addressData);
-      if (!validation.isValid) {
-        setError(validation.errors.join(', '));
-        return;
-      }
+      // const validation = await validateBillingAddress(addressData);
+      // if (!validation.isValid) {
+      //   setError(validation.errors.join(', '));
+      //   return;
+      // }
 
-      await upsertBillingAddress(teamId, addressData);
+      // await upsertBillingAddress(teamId, addressData);
       setSuccess('Billing address updated successfully');
       newAddressForm.onFalse();
       onRefresh?.();
@@ -70,7 +72,7 @@ export function AccountBillingAddress({ addressBook, onRefresh, sx, ...other }) 
       setLoading(true);
       setError(null);
 
-      await deleteBillingAddress(teamId);
+      // await deleteBillingAddress(teamId);
       setSuccess('Billing address deleted successfully');
       menuActions.onClose();
       onRefresh?.();

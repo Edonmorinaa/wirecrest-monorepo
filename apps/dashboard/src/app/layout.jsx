@@ -1,6 +1,6 @@
 import 'src/global.css';
 
-import { AuthWrapper } from '@wirecrest/auth';
+import { AuthWrapper } from '@wirecrest/auth-next';
 
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';

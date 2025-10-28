@@ -12,7 +12,7 @@ import {
   getVapidPublicKey,
   testPushNotification,
 } from '@wirecrest/notifications';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 
 /**
  * Get VAPID public key for client-side subscription

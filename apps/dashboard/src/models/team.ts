@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 import { prisma } from '@wirecrest/db';
 import { Role, Team } from '@prisma/client';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 import { createQuotaManager } from '@wirecrest/feature-flags';
 
 import { findOrCreateApp } from 'src/lib/svix';

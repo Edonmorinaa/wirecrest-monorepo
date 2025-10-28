@@ -9,7 +9,7 @@ import Stripe from 'stripe';
 import { Role } from '@prisma/client';
 import { prisma } from '@wirecrest/db';
 import { revalidatePath } from 'next/cache';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import { StripeService, InvoiceService } from '@wirecrest/billing';
 
 import { isValidEmail, getCustomerEmail, validateCustomerEmail } from '../lib/email-validation';

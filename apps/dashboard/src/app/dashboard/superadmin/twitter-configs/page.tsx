@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { prisma } from '@wirecrest/db';
 import { notFound } from 'next/navigation';
 import { SuperRole } from '@prisma/client';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 import { DashboardContent } from '@/layouts/dashboard';
 import TwitterConfigList from '@/sections/superadmin/TwitterConfigList';
 

@@ -16,6 +16,8 @@ import { ApifyScheduleService } from './services/apify/ApifyScheduleService';
 import { ApifyTaskService } from './services/apify/ApifyTaskService';
 import { FeatureExtractor } from './services/subscription/FeatureExtractor';
 import { validateEnv } from './config/env';
+import { authenticate, requireAdminAuth, requireTeamAccess } from './middleware/authMiddleware';
+import { SentimentAnalyzer } from './sentimentAnalyzer/sentimentAnalyzer';
 
 // Validate environment before starting
 const env = validateEnv();
@@ -44,6 +46,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Initialize controllers
 let stripeWebhookController: StripeWebhookController;
 let apifyWebhookController: ApifyWebhookController;
+export let sentimentAnalyzer: SentimentAnalyzer;
 let platformConfigWebhookController: PlatformConfigWebhookController;
 let orchestrator: SubscriptionOrchestrator;
 let scheduleService: ApifyScheduleService;
@@ -69,7 +72,7 @@ async function initializeServices(): Promise<void> {
     scheduleService = new ApifyScheduleService(APIFY_TOKEN, WEBHOOK_BASE_URL);
     taskService = new ApifyTaskService(APIFY_TOKEN, WEBHOOK_BASE_URL);
     featureExtractor = new FeatureExtractor();
-
+    sentimentAnalyzer = new SentimentAnalyzer();
     console.log('✅ Services initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize services:', error);
@@ -157,7 +160,7 @@ app.post('/api/webhooks/platform-configured', async (req: Request, res: Response
  * Get sync status for team
  * GET /api/sync-status/:teamId
  */
-app.get('/api/sync-status/:teamId', async (req: Request, res: Response) => {
+app.get('/api/sync-status/:teamId', requireTeamAccess, async (req: Request, res: Response) => {
   try {
     const { teamId } = req.params;
     const { prisma } = await import('@wirecrest/db');
@@ -197,7 +200,7 @@ app.get('/api/sync-status/:teamId', async (req: Request, res: Response) => {
  * Get schedules for team
  * GET /api/schedules/:teamId
  */
-app.get('/api/schedules/:teamId', async (req: Request, res: Response) => {
+app.get('/api/schedules/:teamId', requireTeamAccess, async (req: Request, res: Response) => {
   try {
     const { teamId } = req.params;
 
@@ -243,7 +246,7 @@ async function initializeAdminController(): Promise<void> {
  * Get all teams with schedule status
  * GET /api/admin/teams
  */
-app.get('/api/admin/teams', async (req: Request, res: Response) => {
+app.get('/api/admin/teams', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -256,7 +259,7 @@ app.get('/api/admin/teams', async (req: Request, res: Response) => {
  * Get detailed status for a team
  * GET /api/admin/teams/:teamId/status
  */
-app.get('/api/admin/teams/:teamId/status', async (req: Request, res: Response) => {
+app.get('/api/admin/teams/:teamId/status', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -269,7 +272,7 @@ app.get('/api/admin/teams/:teamId/status', async (req: Request, res: Response) =
  * Manually trigger full subscription setup
  * POST /api/admin/teams/:teamId/setup
  */
-app.post('/api/admin/teams/:teamId/setup', async (req: Request, res: Response) => {
+app.post('/api/admin/teams/:teamId/setup', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -282,7 +285,7 @@ app.post('/api/admin/teams/:teamId/setup', async (req: Request, res: Response) =
  * Manually trigger platform sync
  * POST /api/admin/teams/:teamId/platforms/:platform/sync
  */
-app.post('/api/admin/teams/:teamId/platforms/:platform/sync', async (req: Request, res: Response) => {
+app.post('/api/admin/teams/:teamId/platforms/:platform/sync', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -295,7 +298,7 @@ app.post('/api/admin/teams/:teamId/platforms/:platform/sync', async (req: Reques
  * Refresh schedules (re-sync identifiers)
  * POST /api/admin/teams/:teamId/schedules/refresh
  */
-app.post('/api/admin/teams/:teamId/schedules/refresh', async (req: Request, res: Response) => {
+app.post('/api/admin/teams/:teamId/schedules/refresh', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -308,7 +311,7 @@ app.post('/api/admin/teams/:teamId/schedules/refresh', async (req: Request, res:
  * Pause all schedules for a team
  * POST /api/admin/teams/:teamId/schedules/pause
  */
-app.post('/api/admin/teams/:teamId/schedules/pause', async (req: Request, res: Response) => {
+app.post('/api/admin/teams/:teamId/schedules/pause', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -321,7 +324,7 @@ app.post('/api/admin/teams/:teamId/schedules/pause', async (req: Request, res: R
  * Resume all schedules for a team
  * POST /api/admin/teams/:teamId/schedules/resume
  */
-app.post('/api/admin/teams/:teamId/schedules/resume', async (req: Request, res: Response) => {
+app.post('/api/admin/teams/:teamId/schedules/resume', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -334,7 +337,7 @@ app.post('/api/admin/teams/:teamId/schedules/resume', async (req: Request, res: 
  * Delete all schedules for a team
  * DELETE /api/admin/teams/:teamId/schedules
  */
-app.delete('/api/admin/teams/:teamId/schedules', async (req: Request, res: Response) => {
+app.delete('/api/admin/teams/:teamId/schedules', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -347,7 +350,7 @@ app.delete('/api/admin/teams/:teamId/schedules', async (req: Request, res: Respo
  * Trigger specific schedule manually
  * POST /api/admin/schedules/:scheduleId/trigger
  */
-app.post('/api/admin/schedules/:scheduleId/trigger', async (req: Request, res: Response) => {
+app.post('/api/admin/schedules/:scheduleId/trigger', requireAdminAuth, async (req: Request, res: Response) => {
   await initializeAdminController();
   if (!adminController) {
     res.status(503).json({ error: 'Service not ready' });
@@ -359,7 +362,7 @@ app.post('/api/admin/schedules/:scheduleId/trigger', async (req: Request, res: R
 /**
  * Get team schedules
  */
-app.get('/api/schedules/:teamId', async (req: Request, res: Response) => {
+app.get('/api/schedules/:teamId', requireTeamAccess, async (req: Request, res: Response) => {
   try {
     const { teamId } = req.params;
 
@@ -379,7 +382,7 @@ app.get('/api/schedules/:teamId', async (req: Request, res: Response) => {
 /**
  * Get team features
  */
-app.get('/api/features/:teamId', async (req: Request, res: Response) => {
+app.get('/api/features/:teamId', requireTeamAccess, async (req: Request, res: Response) => {
   try {
     const { teamId } = req.params;
 

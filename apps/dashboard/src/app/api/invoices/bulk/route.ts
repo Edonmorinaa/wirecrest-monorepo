@@ -3,7 +3,7 @@
  * POST /api/invoices/bulk - Perform bulk operations on invoices
  */
 
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import { InvoiceService } from '@wirecrest/billing';
 import { NextRequest, NextResponse } from 'next/server';
 

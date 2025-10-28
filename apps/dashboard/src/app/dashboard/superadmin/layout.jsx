@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { SuperRole } from '@prisma/client';
 import { getAuthUrl } from '@/lib/subdomain';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 
 import { NotFoundView } from 'src/sections/error/not-found-view';
 
@@ -10,7 +10,7 @@ export default async function SuperAdminLayout({ children }) {
   
   // If not authenticated, redirect to auth subdomain
   if (!session?.user?.id) {
-    redirect(getAuthUrl('/sign-in'));
+    redirect(getAuthUrl('/auth/sign-in'));
   }
   
   // If not super admin, show 404 component

@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 
 export default async function TeamsLayout({ children }) {
-  const session = await getSession();
+  const session = await auth();
   
   // If not authenticated, redirect to login
   if (!session?.user?.id) {

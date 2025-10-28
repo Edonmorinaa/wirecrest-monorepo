@@ -1,5 +1,5 @@
 import type { Team } from '@prisma/client';
-import type { User } from '@wirecrest/auth';
+import type { User } from '@wirecrest/auth-next';
 import type { CRUD, Event } from '@retracedhq/retraced';
 
 import { Client } from '@retracedhq/retraced';

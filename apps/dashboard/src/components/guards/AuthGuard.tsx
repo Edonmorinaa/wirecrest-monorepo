@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@wirecrest/auth';
+import { useAuth } from '@wirecrest/auth-next';
 import { useRouter } from 'next/navigation';
 import { ReactNode, useEffect } from 'react';
 
@@ -24,7 +24,7 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
 
   useEffect(() => {
     if (!loading && requireAuth && !authenticated) {
-      router.push(getSubdomainUrl('auth', '/sign-in'));
+      router.push(getSubdomainUrl('auth', '/auth/sign-in'));
     }
   }, [loading, requireAuth, authenticated, router]);
 

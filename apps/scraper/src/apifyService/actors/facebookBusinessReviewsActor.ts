@@ -8,70 +8,9 @@ import {
     ReviewMetadata, 
     MarketPlatform 
 } from '../../supabase/models';
-import { SentimentAnalyzer } from '../../sentimentAnalyzer/sentimentAnalyzer';
 import { FacebookReviewAnalyticsService } from '../../services/facebookReviewAnalyticsService';
 import { createClient } from '@supabase/supabase-js';
-import { sentimentAnalyzer } from '../..';
-
-// Common words to exclude from keyword analysis
-const COMMON_WORDS = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'was', 'are', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'her', 'its', 'our', 'their'];
-
-async function analyzeReview(text?: string, rating?: number): Promise<{ 
-  sentiment: number; 
-  emotional?: string;
-  keywords: string[];
-  topics: string[];
-  responseUrgency: number;
-}> {
-  if (!text) {
-    return {
-      sentiment: 0,
-      keywords: [],
-      topics: [],
-      responseUrgency: 0
-    };
-  }
-
-  try {
-    const sentiment = await sentimentAnalyzer.analyzeSentiment(text);
-    
-    // Extract keywords (simple approach - get unique words)
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, '')
-      .split(/\s+/)
-      .filter(word => word.length > 3 && !COMMON_WORDS.includes(word));
-    
-    const keywords = Array.from(new Set(words)).slice(0, 10);
-    
-    // Determine emotional tone
-    let emotional = 'neutral';
-    if (sentiment > 0.3) emotional = 'positive';
-    else if (sentiment < -0.3) emotional = 'negative';
-    
-    // Calculate response urgency (1-10 scale)
-    let urgency = 1;
-    if (rating && rating <= 2) urgency = 10;
-    else if (rating && rating <= 3) urgency = 7;
-    else if (sentiment < -0.5) urgency = 8;
-    else if (sentiment < -0.2) urgency = 5;
-    
-    return {
-      sentiment,
-      emotional,
-      keywords,
-      topics: keywords.slice(0, 5), // Use top keywords as topics for now
-      responseUrgency: urgency
-    };
-  } catch (error) {
-    console.error('Error analyzing review:', error);
-    return {
-      sentiment: 0,
-      keywords: [],
-      topics: [],
-      responseUrgency: 1
-    };
-  }
-}
+import { reviewAnalysisService } from '../../services/analysis/ReviewAnalysisService';
 
 export class FacebookBusinessReviewsActor extends Actor {
     constructor() {
@@ -196,7 +135,7 @@ async function handleFacebookBusinessReviews(
                 // Use isRecommended as rating equivalent (true = 5, false = 1)
                 const equivalentRating = isRecommended ? 5 : 1;
                 
-                const analysis = await analyzeReview(reviewText, equivalentRating);
+                const analysis = await reviewAnalysisService.analyzeReview(reviewText, equivalentRating);
                 
                 // Process photos if present
                 const photos: FacebookReviewPhoto[] = [];

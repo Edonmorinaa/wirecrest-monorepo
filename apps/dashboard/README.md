@@ -299,7 +299,7 @@ The dashboard uses Next.js middleware to handle subdomain-based routing:
 - `/analytics` - Platform analytics
 
 #### **Auth Subdomain** (`auth.wirecrest.local:3032`)
-- `/sign-in` - Login page
+- `/auth/sign-in` - Login page
 - `/sign-up` - Registration page
 - `/forgot-password` - Password reset
 

@@ -6,9 +6,9 @@
  */
 
 import Stripe from 'stripe';
-import { auth } from '@wirecrest/auth/server';
-import { InvoiceService } from '@wirecrest/billing';
+import { auth } from '@wirecrest/auth-next';
 import { NextRequest, NextResponse } from 'next/server';
+import { InvoiceService } from '@wirecrest/billing/server';
 
 export async function GET(
   request: NextRequest,

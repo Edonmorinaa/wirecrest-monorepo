@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '@wirecrest/db';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import { BillingService } from '@wirecrest/billing';
 import { NextRequest, NextResponse } from 'next/server';
 

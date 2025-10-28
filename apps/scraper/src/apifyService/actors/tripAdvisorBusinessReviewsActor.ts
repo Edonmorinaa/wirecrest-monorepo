@@ -9,14 +9,10 @@ import {
     ReviewMetadata, 
     MarketPlatform 
 } from '../../supabase/models';
-import { SentimentAnalyzer } from '../../sentimentAnalyzer/sentimentAnalyzer';
 import { TripAdvisorReviewAnalyticsService } from '../../services/tripAdvisorReviewAnalyticsService';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
-import { sentimentAnalyzer } from '../..';
-
-// Common words to exclude from keyword analysis
-const COMMON_WORDS = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'was', 'are', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'her', 'its', 'our', 'their'];
+import { reviewAnalysisService } from '../../services/analysis/ReviewAnalysisService';
 
 // Function to validate and normalize trip type
 function validateTripType(tripType?: string): string {
@@ -30,64 +26,6 @@ function validateTripType(tripType?: string): string {
     }
     
     return TripAdvisorTripType.NONE;
-}
-
-async function analyzeReview(text?: string, rating?: number): Promise<{ 
-  sentiment: number; 
-  emotional?: string;
-  keywords: string[];
-  topics: string[];
-  responseUrgency: number;
-}> {
-  if (!text) {
-    return {
-      sentiment: 0,
-      keywords: [],
-      topics: [],
-      responseUrgency: 0
-    };
-  }
-
-  try {
-    
-    const sentiment = await sentimentAnalyzer.analyzeSentiment(text);
-    
-    // Extract keywords (simple approach - get unique words)
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, '')
-      .split(/\s+/)
-      .filter(word => word.length > 3 && !COMMON_WORDS.includes(word));
-    
-    const keywords = Array.from(new Set(words)).slice(0, 10);
-    
-    // Determine emotional tone
-    let emotional = 'neutral';
-    if (sentiment > 0.3) emotional = 'positive';
-    else if (sentiment < -0.3) emotional = 'negative';
-    
-    // Calculate response urgency (1-10 scale)
-    let urgency = 1;
-    if (rating && rating <= 2) urgency = 10;
-    else if (rating && rating <= 3) urgency = 7;
-    else if (sentiment < -0.5) urgency = 8;
-    else if (sentiment < -0.2) urgency = 5;
-    
-    return {
-      sentiment,
-      emotional,
-      keywords,
-      topics: keywords.slice(0, 5), // Use top keywords as topics for now
-      responseUrgency: urgency
-    };
-  } catch (error) {
-    console.error('Error analyzing review:', error);
-    return {
-      sentiment: 0,
-      keywords: [],
-      topics: [],
-      responseUrgency: 1
-    };
-  }
 }
 
 export class TripAdvisorBusinessReviewsActor extends Actor {
@@ -201,7 +139,7 @@ async function handleTripAdvisorBusinessReviews(
                 const reviewDate = review.publishedDate ? new Date(review.publishedDate) : new Date();
                 const visitDate = review.travelDate ? new Date(review.travelDate) : undefined;
                 
-                const analysis = await analyzeReview(reviewText, reviewRating);
+                const analysis = await reviewAnalysisService.analyzeReview(reviewText, reviewRating);
                 
                 // Create TripAdvisor review
                 const reviewId = review.id || `ta-${Date.now()}-${processedReviews.length}`;

@@ -7,7 +7,7 @@
 
 import { prisma } from '@wirecrest/db';
 import { revalidatePath } from 'next/cache';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 
 import { calculateInvoiceTotal } from '../lib/invoice-utils';
 

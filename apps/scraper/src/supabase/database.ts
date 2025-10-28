@@ -16,7 +16,6 @@ import {
 import { prisma } from '@wirecrest/db';
 import { TeamService } from './teamService';
 import { randomUUID } from 'crypto';
-import { SentimentAnalyzer } from '../sentimentAnalyzer/sentimentAnalyzer';
 import { logger } from '../utils/logger';
 import { 
   GoogleReviewWithMetadata,
@@ -24,18 +23,7 @@ import {
   TripAdvisorReviewWithMetadata,
   BookingReviewWithMetadata
 } from '../types/extended-types';
-
-// Common words to exclude from keyword analysis
-const COMMON_WORDS = new Set(['the', 'and', 'a', 'to', 'of', 'in', 'is', 'it', 'that', 'for', 'on', 'with', 'as', 'at', 'this', 'by', 'from', 'an', 'be', 'or']);
-
-// Business-specific terms and their categories
-const BUSINESS_TERMS = {
-  'service': ['service', 'staff', 'employee', 'server', 'waiter', 'waitress', 'host', 'hostess'],
-  'food': ['food', 'meal', 'dish', 'taste', 'flavor', 'delicious', 'fresh', 'quality'],
-  'ambiance': ['atmosphere', 'ambiance', 'decor', 'music', 'lighting', 'noise', 'crowded'],
-  'value': ['price', 'expensive', 'cheap', 'worth', 'value', 'money', 'cost', 'affordable'],
-  'location': ['location', 'parking', 'access', 'convenient', 'downtown', 'area', 'street']
-};
+import { reviewAnalysisService } from '../services/analysis/ReviewAnalysisService';
 
 // Type definitions for review metadata insertion
 type ReviewMetadataInsertData = {
@@ -125,11 +113,9 @@ interface GoogleReviewInsertData {
 
 export class DatabaseService {
   private teamService: TeamService;
-  private sentimentAnalyzer: SentimentAnalyzer;
 
   constructor() {
-      this.teamService = new TeamService();
-      this.sentimentAnalyzer = new SentimentAnalyzer(['en']);
+    this.teamService = new TeamService();
   }
 
   // Input validation methods
@@ -193,86 +179,6 @@ export class DatabaseService {
     return {
       businessId: businessProfileId,
       placeId: placeId,
-    };
-  }
-
-  private async analyzeReview(text?: string, rating?: number): Promise<{ 
-    sentiment: number; 
-    emotional?: string;
-    keywords: string[];
-    topics: string[];
-    responseUrgency: number;
-  }> {
-    if (!text) {
-      return {
-        sentiment: 0,
-        keywords: [],
-        topics: [],
-        responseUrgency: 0
-      };
-    }
-
-    const analysisStartTime = Date.now();
-    
-    // Basic sentiment analysis based on rating and keywords
-    let sentiment = 0;
-    if (rating) {
-      sentiment = (rating - 3) / 2; // Convert 1-5 rating to -1 to 1 sentiment
-    }
-
-    // Analyze text for emotional indicators
-    const emotionalKeywords = {
-      positive: ['excellent', 'amazing', 'wonderful', 'fantastic', 'great', 'love', 'perfect', 'outstanding'],
-      negative: ['terrible', 'awful', 'horrible', 'disgusting', 'hate', 'worst', 'disappointed', 'bad']
-    };
-
-    const lowerText = text.toLowerCase();
-    let emotional = null;
-    
-    const positiveCount = emotionalKeywords.positive.filter(word => lowerText.includes(word)).length;
-    const negativeCount = emotionalKeywords.negative.filter(word => lowerText.includes(word)).length;
-    
-    if (positiveCount > negativeCount) {
-      emotional = 'positive';
-      sentiment = Math.max(sentiment, 0.5);
-    } else if (negativeCount > positiveCount) {
-      emotional = 'negative';
-      sentiment = Math.min(sentiment, -0.5);
-    }
-
-    // Extract keywords
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 2 && !COMMON_WORDS.has(word));
-
-    const wordCounts = new Map<string, number>();
-    words.forEach(word => {
-      wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
-    });
-
-    const keywords = Array.from(wordCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([word]) => word);
-
-    // Extract topics based on business terms
-    const topics = new Set<string>();
-    Object.entries(BUSINESS_TERMS).forEach(([category, terms]) => {
-      if (terms.some(term => lowerText.includes(term))) {
-        topics.add(category);
-      }
-    });
-
-    // Calculate response urgency (higher for negative reviews)
-    const responseUrgency = sentiment < 0 ? Math.abs(sentiment) * 10 : 0;
-
-    return {
-      sentiment: Math.max(-1, Math.min(1, sentiment)),
-      emotional: emotional || undefined,
-      keywords,
-      topics: Array.from(topics),
-      responseUrgency
     };
   }
 

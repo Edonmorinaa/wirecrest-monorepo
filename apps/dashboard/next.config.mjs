@@ -52,7 +52,7 @@ const nextConfig = {
   
   // Experimental features for performance
   experimental: {
-    optimizeCss: true,
+    // optimizeCss: true, // Disabled to avoid critters dependency
     optimizePackageImports: [
       '@mui/material',
       '@mui/icons-material',

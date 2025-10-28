@@ -3,7 +3,7 @@
 // import jackson from 'src/lib/jackson';
 
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 import { getInvitation, isInvitationExpired } from '@/models/invitation';
 
 import { validateWithSchema, getInvitationSchema } from 'src/lib/zod';

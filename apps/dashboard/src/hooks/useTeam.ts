@@ -1,7 +1,7 @@
 import type { ApiResponse } from 'src/types';
 
 import useSWR from 'swr';
-import { useAuth } from '@wirecrest/auth';
+import { useAuth } from '@wirecrest/auth-next';
 import { useParams } from 'next/navigation';
 import { Team, BusinessMarketIdentifier } from '@prisma/client';
 

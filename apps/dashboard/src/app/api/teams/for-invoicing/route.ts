@@ -5,7 +5,7 @@
 
 import { Role } from '@prisma/client';
 import { prisma } from '@wirecrest/db';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {

@@ -1,9 +1,9 @@
-import type { Session } from '@wirecrest/auth';
+import type { Session } from '@wirecrest/auth-next';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 import { prisma } from '@wirecrest/db';
 import { Role, TeamMember } from '@prisma/client';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 
 import { ApiError } from 'src/lib/errors';
 import { maxLengthPolicies } from 'src/lib/common';

@@ -1,2 +1,2 @@
-// Re-export useSuperRole from @wirecrest/auth
-export { useSuperRole } from '@wirecrest/auth';
+// Re-export useSuperRole from @wirecrest/auth-next
+export { useSuperRole } from '@wirecrest/auth-next';

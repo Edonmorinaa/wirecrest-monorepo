@@ -1,12 +1,14 @@
-import { useTeam } from '@wirecrest/auth';
+import { useTeam } from '@wirecrest/auth-next';
 import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
-import { 
-  createSetupIntent,
-  attachPaymentMethod,
-  deletePaymentMethod,
-  setDefaultPaymentMethod,
-} from '@wirecrest/billing';
+// TODO: These billing functions need to be added to @/actions/billing
+// For now, importing directly from billing/server will fail in client components
+// import { 
+//   createSetupIntent,
+//   attachPaymentMethod,
+//   deletePaymentMethod,
+//   setDefaultPaymentMethod,
+// } from '@/actions/billing';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';

@@ -1,8 +1,14 @@
 {
-  "name": "scraper",
+  "name": "@wirecrest/scraper",
   "version": "1.0.0",
   "description": "Production-ready Google Review Analytics Service with comprehensive error handling, monitoring, and performance optimization",
   "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc --skipLibCheck",
     "postbuild": "bash scripts/validate-build.sh 2>/dev/null || echo 'Build validation skipped'",
@@ -31,6 +37,7 @@
     "@nlpjs/sentiment": "^5.0.0-alpha.5",
     "@supabase/supabase-js": "^2.45.4",
     "@types/pg": "^8.15.2",
+    "@wirecrest/auth-core": "workspace:^",
     "@wirecrest/billing": "workspace:^",
     "@wirecrest/db": "workspace:^",
     "@wirecrest/notifications": "workspace:^",
@@ -60,6 +67,7 @@
     "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
+    "@wirecrest/typescript-config": "workspace:*",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",

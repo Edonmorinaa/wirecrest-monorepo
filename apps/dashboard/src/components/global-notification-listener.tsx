@@ -13,7 +13,7 @@
  */
 
 import { useEffect } from 'react';
-import { useAuth } from '@wirecrest/auth';
+import { useAuth } from '@wirecrest/auth-next';
 import {
   subscribeToTeamNotifications,
   subscribeToSuperNotifications,

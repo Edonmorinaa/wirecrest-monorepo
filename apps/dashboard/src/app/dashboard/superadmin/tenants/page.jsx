@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { useAuth } from '@wirecrest/auth';
+import { useAuth } from '@wirecrest/auth-next';
 import { SuperRole } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { useSuperAdminTenants } from '@/hooks/useSuperAdminTenants';

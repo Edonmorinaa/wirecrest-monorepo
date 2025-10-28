@@ -47,29 +47,29 @@ export const paths = {
   // AUTH
   auth: {
     amplify: {
-      signIn: `${ROOTS.AUTH}/amplify/sign-in`,
+      signIn: `${ROOTS.AUTH}/amplify/auth/sign-in`,
       verify: `${ROOTS.AUTH}/amplify/verify`,
       signUp: `${ROOTS.AUTH}/amplify/sign-up`,
       updatePassword: `${ROOTS.AUTH}/amplify/update-password`,
       resetPassword: `${ROOTS.AUTH}/amplify/reset-password`,
     },
     jwt: {
-      signIn: `${ROOTS.AUTH}/jwt/sign-in`,
+      signIn: `${ROOTS.AUTH}/jwt/auth/sign-in`,
       signUp: `${ROOTS.AUTH}/jwt/sign-up`,
     },
     firebase: {
-      signIn: `${ROOTS.AUTH}/firebase/sign-in`,
+      signIn: `${ROOTS.AUTH}/firebase/auth/sign-in`,
       verify: `${ROOTS.AUTH}/firebase/verify`,
       signUp: `${ROOTS.AUTH}/firebase/sign-up`,
       resetPassword: `${ROOTS.AUTH}/firebase/reset-password`,
     },
-    auth0: { signIn: `${ROOTS.AUTH}/auth0/sign-in` },
+    auth0: { signIn: `${ROOTS.AUTH}/auth0/auth/sign-in` },
     nextauth: {
-      signIn: `${ROOTS.AUTH}/sign-in`,
+      signIn: `${ROOTS.AUTH}/auth/sign-in`,
       signUp: `${ROOTS.AUTH}/sign-up`,
     },
     supabase: {
-      signIn: `${ROOTS.AUTH}/supabase/sign-in`,
+      signIn: `${ROOTS.AUTH}/supabase/auth/sign-in`,
       verify: `${ROOTS.AUTH}/supabase/verify`,
       signUp: `${ROOTS.AUTH}/supabase/sign-up`,
       updatePassword: `${ROOTS.AUTH}/supabase/update-password`,
@@ -78,14 +78,14 @@ export const paths = {
   },
   authDemo: {
     split: {
-      signIn: `${ROOTS.AUTH_DEMO}/split/sign-in`,
+      signIn: `${ROOTS.AUTH_DEMO}/split/auth/sign-in`,
       signUp: `${ROOTS.AUTH_DEMO}/split/sign-up`,
       resetPassword: `${ROOTS.AUTH_DEMO}/split/reset-password`,
       updatePassword: `${ROOTS.AUTH_DEMO}/split/update-password`,
       verify: `${ROOTS.AUTH_DEMO}/split/verify`,
     },
     centered: {
-      signIn: `${ROOTS.AUTH_DEMO}/centered/sign-in`,
+      signIn: `${ROOTS.AUTH_DEMO}/centered/auth/sign-in`,
       signUp: `${ROOTS.AUTH_DEMO}/centered/sign-up`,
       resetPassword: `${ROOTS.AUTH_DEMO}/centered/reset-password`,
       updatePassword: `${ROOTS.AUTH_DEMO}/centered/update-password`,

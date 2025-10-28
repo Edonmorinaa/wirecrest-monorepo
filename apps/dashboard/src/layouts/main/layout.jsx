@@ -1,6 +1,7 @@
 'use client';
 
 import { useBoolean } from 'minimal-shared/hooks';
+import { SignInButton } from '@/layouts/components/sign-in-button';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -16,9 +17,9 @@ import { NavDesktop } from './nav/desktop';
 import { Footer, HomeFooter } from './footer';
 import { MenuButton } from '../components/menu-button';
 import { navData as mainNavData } from '../nav-config-main';
-import { SignInButton } from '../components/sign-in-button';
 import { SettingsButton } from '../components/settings-button';
 import { MainSection, LayoutSection, HeaderSection } from '../core';
+
 
 // ----------------------------------------------------------------------
 

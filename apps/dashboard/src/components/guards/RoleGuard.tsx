@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import { SuperRole } from '@prisma/client';
 import { useRouter } from 'next/navigation';
-import { SuperAction , useSuperRole, SuperResource } from '@wirecrest/auth';
+import { SuperAction , useSuperRole, SuperResource } from '@wirecrest/auth-next';
 
 import { SplashScreen } from 'src/components/loading-screen';
 

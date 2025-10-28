@@ -139,7 +139,7 @@ export function isValidTeamSlug(slug: string): boolean {
  * Get auth subdomain URL for a given path
  * Simplified helper for common auth redirects
  */
-export function getAuthUrl(path: string = '/sign-in'): string {
+export function getAuthUrl(path: string = '/auth/sign-in'): string {
   // Check if we're in browser environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;

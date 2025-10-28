@@ -1,1 +1,1 @@
-export { GET, POST } from "@wirecrest/auth/route";
+export { GET, POST } from "@wirecrest/auth-next";

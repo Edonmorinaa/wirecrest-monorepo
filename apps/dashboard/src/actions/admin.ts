@@ -3,7 +3,7 @@
 import type { PlatformType, MarketPlatform, BusinessMarketIdentifier } from '@prisma/client';
 
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 
 import env from 'src/lib/env';
 import { RealtimeBroadcaster } from 'src/lib/realtime';

@@ -2,7 +2,7 @@
 
 import { prisma } from '@wirecrest/db';
 import { SuperRole } from '@prisma/client';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 
 import { ApiError, recordMetric } from './lib';
 

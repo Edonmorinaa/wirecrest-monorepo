@@ -2,120 +2,14 @@ import { Actor, ActorJob, ReviewActorJobData } from "./actor";
 import { DatabaseService } from "../../supabase/database";
 import { GoogleReview, ReviewMetadata, MarketPlatform } from "@prisma/client";
 import { GoogleOverviewService } from "../../supabase/googleOverviewService";
-import { SentimentAnalyzer } from "../../sentimentAnalyzer/sentimentAnalyzer";
 import { ApifyClient } from 'apify-client';
 import { GoogleReviewAnalyticsService } from '../../services/googleReviewAnalyticsService';
-
-// Common words to exclude from keyword analysis
-const COMMON_WORDS = new Set(['the', 'and', 'a', 'to', 'of', 'in', 'is', 'it', 'that', 'for', 'on', 'with', 'as', 'at', 'this', 'by', 'from', 'an', 'be', 'or']);
-
-// Business-specific terms and their categories
-const BUSINESS_TERMS = {
-  service: ['service', 'staff', 'employee', 'server', 'waiter', 'host', 'friendly', 'helpful', 'attentive', 'professional', 'rude', 'slow', 'unhelpful'],
-  food: ['food', 'dish', 'meal', 'taste', 'flavor', 'menu', 'delicious', 'fresh', 'quality', 'portion', 'cooked', 'spicy', 'bland'],
-  ambiance: ['ambiance', 'atmosphere', 'decor', 'environment', 'setting', 'clean', 'dirty', 'noisy', 'quiet', 'cozy', 'modern', 'traditional'],
-  value: ['price', 'value', 'worth', 'expensive', 'cheap', 'affordable', 'overpriced', 'reasonable', 'budget', 'cost'],
-  location: ['location', 'place', 'area', 'neighborhood', 'district', 'parking', 'accessible', 'convenient', 'remote'],
-  timing: ['wait', 'time', 'quick', 'fast', 'slow', 'busy', 'crowded', 'empty', 'reservation', 'booking'],
-  quality: ['quality', 'excellent', 'good', 'bad', 'poor', 'amazing', 'terrible', 'outstanding', 'disappointing'],
-  experience: ['experience', 'visit', 'return', 'recommend', 'enjoy', 'disappoint', 'satisfy', 'impress']
-};
-
-// Initialize sentiment analyzer
-const sentimentAnalyzer = new SentimentAnalyzer(['en']);
-
-async function analyzeReview(text?: string, rating?: number): Promise<{ 
-  sentiment: number; 
-  emotional?: string;
-  keywords: string[];
-  topics: string[];
-  responseUrgency: number;
-}> {
-  if (!text) {
-    return {
-      sentiment: 0,
-      emotional: 'neutral',
-      keywords: [],
-      topics: [],
-      responseUrgency: 3 // Changed from 0.3 to 3 (scale 1-10)
-    };
-  }
-
-  // Get sentiment score from analyzer
-  const sentimentScore = await sentimentAnalyzer.analyzeSentiment(text);
-  
-  // Determine emotional state based on sentiment score and rating
-  let emotional: string;
-  if (sentimentScore > 0.3) emotional = 'positive';
-  else if (sentimentScore < -0.3) emotional = 'negative';
-  else emotional = 'neutral';
-
-  // If we have a rating, adjust sentiment based on it
-  const finalSentiment = rating ? (sentimentScore + (rating - 3) / 2) / 2 : sentimentScore;
-
-  // Extract keywords using TF-IDF like approach
-  const words = text.toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .split(/\s+/)
-    .filter(word => word.length > 3 && !COMMON_WORDS.has(word));
-
-  // Count word frequencies
-  const wordFreq: { [key: string]: number } = {};
-  words.forEach(word => {
-    wordFreq[word] = (wordFreq[word] || 0) + 1;
-  });
-
-  // Calculate word importance based on frequency and position
-  const wordImportance: { [key: string]: number } = {};
-  Object.entries(wordFreq).forEach(([word, freq]) => {
-    // Words that appear in business terms get a boost
-    const isBusinessTerm = Object.values(BUSINESS_TERMS).some(terms => 
-      terms.some(term => word.includes(term) || term.includes(word))
-    );
-    
-    // Words that appear in the first or last sentence get a boost
-    const sentences = text.split(/[.!?]+/);
-    const isInImportantPosition = sentences[0].includes(word) || sentences[sentences.length - 1].includes(word);
-    
-    wordImportance[word] = freq * (isBusinessTerm ? 1.5 : 1) * (isInImportantPosition ? 1.3 : 1);
-  });
-
-  // Get top keywords
-  const keywords = Object.entries(wordImportance)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([word]) => word);
-
-  // Extract topics based on business terms
-  const topics = new Set<string>();
-  Object.entries(BUSINESS_TERMS).forEach(([topic, terms]) => {
-    if (terms.some(term => text.toLowerCase().includes(term))) {
-      topics.add(topic);
-    }
-  });
-
-  // Calculate response urgency on scale 1-10 (integers only)
-  let responseUrgency = 3; // Default urgency
-  if (rating && rating <= 2) responseUrgency = 10;
-  else if (rating && rating === 3) responseUrgency = 7;
-  if (sentimentScore < -0.5) responseUrgency = Math.max(responseUrgency, 8);
-  if (text.toLowerCase().includes('complaint') || text.toLowerCase().includes('issue')) {
-    responseUrgency = Math.max(responseUrgency, 9);
-  }
-
-  return {
-    sentiment: Number(finalSentiment.toFixed(2)),
-    emotional,
-    keywords,
-    topics: Array.from(topics),
-    responseUrgency: responseUrgency // Now returns integer
-  };
-}
 
 export class GoogleBusinessReviewsActor extends Actor {
     constructor() {
         // Use 1GB for initialization jobs, 4GB for regular jobs
-        super('Xb8osYTtOjlsgI6k9', 1024, MarketPlatform.GOOGLE_MAPS);
+        const platform: MarketPlatform = 'GOOGLE_MAPS' as MarketPlatform;
+        super('Xb8osYTtOjlsgI6k9', 1024, platform);
     }
 
     /**

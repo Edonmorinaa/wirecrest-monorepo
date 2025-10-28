@@ -1,5 +1,5 @@
 import { SuperRole } from '@prisma/client';
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const protocol =

@@ -6,7 +6,7 @@
  * Provides server-side actions for notification management.
  */
 
-import { auth } from '@wirecrest/auth/server';
+import { auth } from '@wirecrest/auth-next';
 import {
   markAsRead,
   markAllAsRead,

@@ -1,6 +1,6 @@
 import { NextPage } from 'next';
 import { AppProps } from 'next/app';
-import { Session } from '@wirecrest/auth';
+import { Session } from '@wirecrest/auth-next';
 import { ReactNode, ReactElement } from 'react';
 
 export type AppPropsWithLayout = AppProps & {

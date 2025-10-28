@@ -20,7 +20,7 @@ export function ProtectedPage() {
 ### **RoleGuard**
 ```tsx
 import { RoleGuard } from '@/components/guards/RoleGuard';
-import { SuperRole, SuperResource, SuperAction } from '@wirecrest/auth';
+import { SuperRole, SuperResource, SuperAction } from '@wirecrest/auth-next';
 
 export function AdminPage() {
   return (
@@ -78,7 +78,7 @@ export function MyComponent() {
 For conditional rendering without guards, use the logic-only functions from `@wirecrest/auth`:
 
 ```tsx
-import { hasPermission, canManage, isSuperAdmin } from '@wirecrest/auth';
+import { hasPermission, canManage, isSuperAdmin } from '@wirecrest/auth-next';
 
 export function MyComponent() {
   const { superRole } = useSuperRole();

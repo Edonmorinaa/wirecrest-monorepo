@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@wirecrest/auth';
 import { SuperRole } from '@prisma/client';
+import { useAuth } from '@wirecrest/auth-next';
 import { getAuthUrl, getSubdomainUrlForSubdomain } from '@/lib/subdomain';
 
 import { SplashScreen } from 'src/components/loading-screen';
@@ -17,7 +17,7 @@ export default function AuthRedirectPage() {
 
     if (!user) {
       // User not authenticated, redirect to sign-in
-      const redirectUrl = getAuthUrl('/sign-in');
+      const redirectUrl = getAuthUrl('/auth/sign-in');
       window.location.href = redirectUrl;
       return;
     }

@@ -4,7 +4,7 @@
 import { prisma } from '@wirecrest/db';
 import { getTeam } from '@/models/team';
 import { EndpointIn, EndpointOut } from 'svix';
-import { getSession } from '@wirecrest/auth/server';
+import { getSession } from '@wirecrest/auth-next';
 
 import { createWebhook } from 'src/lib/svix';
 

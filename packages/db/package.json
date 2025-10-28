@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "packageManager": "yarn@4.0.2",
   "dependencies": {
-    "@prisma/client": "6.16.2"
+    "@prisma/client": "6.18.0"
+  },
+  "devDependencies": {
+    "@wirecrest/typescript-config": "workspace:*"
   },
   "scripts": {
     "generate": "prisma generate",

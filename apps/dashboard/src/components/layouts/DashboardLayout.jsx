@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sidebar } from '@/components/ui/sidebar';
-import { useAuth, signOut } from '@wirecrest/auth';
+import { useAuth, signOut } from '@wirecrest/auth-next';
 import { useRouter, useParams } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { 

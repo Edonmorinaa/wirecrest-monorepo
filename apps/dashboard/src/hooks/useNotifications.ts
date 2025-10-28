@@ -8,7 +8,7 @@
 
 import type { Notification, NotificationRealtimeEvent } from '@wirecrest/notifications';
 
-import { useAuth } from '@wirecrest/auth';
+import { useAuth } from '@wirecrest/auth-next';
 import { useState, useEffect, useCallback } from 'react';
 import {
   subscribeToTeamNotifications,

@@ -1,8 +1,14 @@
 {
   "name": "@wirecrest/core",
   "version": "1.0.0",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "license": "MIT",
   "scripts": {
     "build": "tsc",
@@ -15,6 +21,7 @@
     "@prisma/client": "^5.0.0"
   },
   "devDependencies": {
+    "@wirecrest/typescript-config": "workspace:*",
     "eslint": "^8.57.0",
     "typescript": "^5.2.0"
   }

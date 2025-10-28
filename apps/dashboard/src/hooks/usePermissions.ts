@@ -17,7 +17,7 @@ import {
   hasPermission, 
   canAccessRoute,
   hasDashboardAccess,
-} from '@wirecrest/auth';
+} from '@wirecrest/auth-next';
 
 /**
  * Dashboard permission hook that uses logic-only functions
