@@ -1,7 +1,8 @@
 {
-  "buildCommand": "cd ../.. && yarn turbo build --filter=dashboard --force",
+  "buildCommand": "cd ../.. && yarn install && yarn turbo build --filter=@wirecrest/dashboard --force",
   "installCommand": "cd ../.. && yarn install",
   "framework": "nextjs",
+  "rootDirectory": "apps/dashboard",
   "outputDirectory": ".next",
   "git": {
     "deploymentEnabled": {

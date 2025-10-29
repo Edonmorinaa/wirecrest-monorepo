@@ -91,7 +91,7 @@ export function GoogleOverviewWelcome({ displayName, averageRating, totalReviews
             >
               <Stack spacing={2} alignItems="center" textAlign="center">
                 <Typography variant="h2" sx={{ fontWeight: 'bold', color: theme.palette.common.white }} >
-                  {averageRating.toFixed(1)}
+                  {averageRating?.toFixed(1)}
                 </Typography>
 
                 <Stack direction="row" spacing={0.5}>
