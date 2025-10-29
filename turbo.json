@@ -54,13 +54,16 @@
       ]
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "type-check": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "clean": {
-      "cache": false
+      "cache": false,
+      "persistent": true
     }
   }
 }

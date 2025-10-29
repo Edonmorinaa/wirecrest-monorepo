@@ -43,7 +43,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/redis": "^4.0.11",
     "@wirecrest/typescript-config": "workspace:*",
-    "eslint": "^8.57.0",
+    "eslint": "^9.32.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "typescript": "^5.2.0"
