@@ -159,7 +159,7 @@ export class GoogleBusinessController {
       const profile = await prisma.googleBusinessProfile.findFirst({
         where: { teamId },
         include: {
-          businessMetadata: true,
+          metadata: true,
         },
       });
 

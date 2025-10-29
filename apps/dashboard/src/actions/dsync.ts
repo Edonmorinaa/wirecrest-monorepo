@@ -10,7 +10,7 @@
 import { prisma } from '@wirecrest/db';
 import { getTeam } from '@/models/team';
 import { throwIfNotAllowed } from '@/models/user';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 
 import env from 'src/lib/env';
 
@@ -31,7 +31,7 @@ export async function getDirectorySyncProviders() {
 
 // Team Directory Sync Connections
 export async function getDirectorySyncConnections(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -72,7 +72,7 @@ export async function getDirectorySyncConnections(slug: string) {
 }
 
 export async function createDirectorySyncConnection(slug: string, connectionData: any) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -121,7 +121,7 @@ export async function createDirectorySyncConnection(slug: string, connectionData
 }
 
 export async function getDirectorySyncConnection(slug: string, directoryId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -167,7 +167,7 @@ export async function updateDirectorySyncConnection(
   directoryId: string,
   connectionData: any
 ) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -217,7 +217,7 @@ export async function updateDirectorySyncConnection(
 }
 
 export async function deleteDirectorySyncConnection(slug: string, directoryId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }

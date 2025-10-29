@@ -16,4 +16,5 @@ export interface BusinessProfileResult {
   businessId?: string;
   profileData?: any;
   error?: string;
+  created?: boolean; // Indicates if the profile was newly created (true) or already existed (false)
 }

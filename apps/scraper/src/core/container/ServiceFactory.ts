@@ -42,8 +42,10 @@ import { BackendOrchestrator } from '../services/BackendOrchestrator';
  */
 export class ServiceFactory {
   private container: DependencyContainer;
+  private apifyToken: string;
 
-  constructor() {
+  constructor(apifyToken?: string) {
+    this.apifyToken = apifyToken || process.env.APIFY_TOKEN || '';
     this.container = new DependencyContainer();
     this.registerRepositories();
     this.registerServices();
@@ -59,8 +61,9 @@ export class ServiceFactory {
     this.container.registerRepository(SERVICE_TOKENS.TRIPADVISOR_REVIEW_REPOSITORY, new TripAdvisorReviewRepository());
     this.container.registerRepository(SERVICE_TOKENS.BOOKING_BUSINESS_REPOSITORY, new BookingBusinessRepository());
     this.container.registerRepository(SERVICE_TOKENS.BOOKING_REVIEW_REPOSITORY, new BookingReviewRepository());
-    this.container.registerRepository(SERVICE_TOKENS.TIKTOK_BUSINESS_REPOSITORY, new TikTokBusinessRepository());
-    this.container.registerRepository(SERVICE_TOKENS.TIKTOK_REVIEW_REPOSITORY, new TikTokReviewRepository());
+    // TODO: TikTok repositories are not fully implemented yet
+    // this.container.registerRepository(SERVICE_TOKENS.TIKTOK_BUSINESS_REPOSITORY, new TikTokBusinessRepository());
+    // this.container.registerRepository(SERVICE_TOKENS.TIKTOK_REVIEW_REPOSITORY, new TikTokReviewRepository());
   }
 
   private registerServices(): void {
@@ -69,7 +72,8 @@ export class ServiceFactory {
       SERVICE_TOKENS.GOOGLE_BUSINESS_SERVICE,
       new GoogleBusinessService(
         this.container.getRepository(SERVICE_TOKENS.GOOGLE_BUSINESS_REPOSITORY),
-        null // TODO: Inject proper team service
+        null, // TODO: Inject proper team service
+        this.apifyToken
       )
     );
 
@@ -93,7 +97,8 @@ export class ServiceFactory {
       SERVICE_TOKENS.FACEBOOK_BUSINESS_SERVICE,
       new FacebookBusinessService(
         this.container.getRepository(SERVICE_TOKENS.FACEBOOK_BUSINESS_REPOSITORY),
-        null // TODO: Inject proper team service
+        null, // TODO: Inject proper team service
+        this.apifyToken
       )
     );
 
@@ -117,7 +122,8 @@ export class ServiceFactory {
       SERVICE_TOKENS.TRIPADVISOR_BUSINESS_SERVICE,
       new TripAdvisorBusinessService(
         this.container.getRepository(SERVICE_TOKENS.TRIPADVISOR_BUSINESS_REPOSITORY),
-        null // TODO: Inject proper team service
+        null, // TODO: Inject proper team service
+        this.apifyToken
       )
     );
 
@@ -141,7 +147,8 @@ export class ServiceFactory {
       SERVICE_TOKENS.BOOKING_BUSINESS_SERVICE,
       new BookingBusinessService(
         this.container.getRepository(SERVICE_TOKENS.BOOKING_BUSINESS_REPOSITORY),
-        null // TODO: Inject proper team service
+        null, // TODO: Inject proper team service
+        this.apifyToken
       )
     );
 
@@ -161,28 +168,28 @@ export class ServiceFactory {
     );
 
     // Register TikTok services
-    this.container.registerService(
-      SERVICE_TOKENS.TIKTOK_BUSINESS_SERVICE,
-      new TikTokBusinessService(
-        this.container.getRepository(SERVICE_TOKENS.TIKTOK_BUSINESS_REPOSITORY),
-        null // TODO: Inject proper team service
-      )
-    );
+    // this.container.registerService(
+    //   SERVICE_TOKENS.TIKTOK_BUSINESS_SERVICE,
+    //   new TikTokBusinessService(
+    //     this.container.getRepository(SERVICE_TOKENS.TIKTOK_BUSINESS_REPOSITORY),
+    //     null // TODO: Inject proper team service
+    //   )
+    // );
 
-    this.container.registerService(
-      SERVICE_TOKENS.TIKTOK_REVIEW_SERVICE,
-      new TikTokReviewService(
-        this.container.getRepository(SERVICE_TOKENS.TIKTOK_REVIEW_REPOSITORY)
-      )
-    );
+    // this.container.registerService(
+    //   SERVICE_TOKENS.TIKTOK_REVIEW_SERVICE,
+    //   new TikTokReviewService(
+    //     this.container.getRepository(SERVICE_TOKENS.TIKTOK_REVIEW_REPOSITORY)
+    //   )
+    // );
 
-    this.container.registerService(
-      SERVICE_TOKENS.TIKTOK_ANALYTICS_SERVICE,
-      new TikTokAnalyticsService(
-        this.container.getRepository(SERVICE_TOKENS.TIKTOK_REVIEW_REPOSITORY),
-        null // TODO: Inject proper sentiment analyzer
-      )
-    );
+    // this.container.registerService(
+    //   SERVICE_TOKENS.TIKTOK_ANALYTICS_SERVICE,
+    //   new TikTokAnalyticsService(
+    //     this.container.getRepository(SERVICE_TOKENS.TIKTOK_REVIEW_REPOSITORY),
+    //     null // TODO: Inject proper sentiment analyzer
+    //   )
+    // );
 
       // Register Task Tracker Service
       this.container.registerService(
@@ -200,7 +207,7 @@ export class ServiceFactory {
       // Register Backend Orchestrator
       this.container.registerService(
         SERVICE_TOKENS.BACKEND_ORCHESTRATOR,
-        new BackendOrchestrator(this.container, this.container.getService(SERVICE_TOKENS.APIFY_SERVICE))
+        new BackendOrchestrator(this.container, this.container.getService(SERVICE_TOKENS.APIFY_SERVICE), null)
       );
     }
 

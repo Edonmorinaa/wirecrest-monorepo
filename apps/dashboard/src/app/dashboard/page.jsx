@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 
 import { getTeamsList } from 'src/actions/teams';
 import { getSubdomainUrl } from 'src/lib/subdomain-config';
@@ -12,7 +12,7 @@ export const metadata = { title: `Dashboard` };
 
 export default async function DashboardPage() {
   // Check authentication on server side
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     redirect(getSubdomainUrl('auth', '/auth/sign-in'));
   }

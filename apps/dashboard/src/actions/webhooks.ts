@@ -4,7 +4,7 @@
 import { prisma } from '@wirecrest/db';
 import { getTeam } from '@/models/team';
 import { EndpointIn, EndpointOut } from 'svix';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 
 import { createWebhook } from 'src/lib/svix';
 
@@ -12,7 +12,7 @@ import { ApiError, recordMetric } from './lib';
 
 // Webhook Management Actions
 // export async function getTeamWebhooks(slug: string): Promise<EndpointOut[]> {
-//   const session = await getSession();
+//   const session = await auth();
 //   if (!session?.user?.id) {
 //     throw new ApiError(401, 'Unauthorized');
 //   }
@@ -42,7 +42,7 @@ import { ApiError, recordMetric } from './lib';
 // }
 
 export async function createTeamWebhook(slug: string, data: EndpointIn): Promise<EndpointOut> {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -73,7 +73,7 @@ export async function createTeamWebhook(slug: string, data: EndpointIn): Promise
 }
 
 // export async function getTeamWebhook(slug: string, endpointId: string): Promise<EndpointOut> {
-//   const session = await getSession();
+//   const session = await auth();
 //   if (!session?.user?.id) {
 //     throw new ApiError(401, 'Unauthorized');
 //   }
@@ -112,7 +112,7 @@ export async function createTeamWebhook(slug: string, data: EndpointIn): Promise
 //   endpointId: string,
 //   data: EndpointIn
 // ): Promise<EndpointOut> {
-//   const session = await getSession();
+//   const session = await auth();
 //   if (!session?.user?.id) {
 //     throw new ApiError(401, 'Unauthorized');
 //   }
@@ -155,7 +155,7 @@ export async function createTeamWebhook(slug: string, data: EndpointIn): Promise
 // }
 
 // export async function deleteTeamWebhook(slug: string, endpointId: string): Promise<void> {
-//   const session = await getSession();
+//   const session = await auth();
 //   if (!session?.user?.id) {
 //     throw new ApiError(401, 'Unauthorized');
 //   }
@@ -201,7 +201,7 @@ export async function createTeamWebhook(slug: string, data: EndpointIn): Promise
 // }
 
 // export async function deleteAllTeamWebhooks(slug: string): Promise<void> {
-//   const session = await getSession();
+//   const session = await auth();
 //   if (!session?.user?.id) {
 //     throw new ApiError(401, 'Unauthorized');
 //   }
@@ -313,7 +313,7 @@ async function handleMessageAttemptExhausted(data: any) {
 
 // Directory Sync (SCIM) Actions
 export async function getDirectorySync(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -358,7 +358,7 @@ export async function createDirectorySync(
     webhook_secret?: string;
   }
 ) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -408,7 +408,7 @@ export async function updateDirectorySync(
     webhook_secret?: string;
   }
 ) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -443,7 +443,7 @@ export async function updateDirectorySync(
 }
 
 export async function deleteDirectorySync(slug: string, directoryId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }

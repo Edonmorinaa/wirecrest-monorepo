@@ -2,8 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 import { prisma } from '@wirecrest/db';
 import { Role, Team } from '@prisma/client';
-import { getSession } from '@wirecrest/auth-next';
-import { createQuotaManager } from '@wirecrest/feature-flags';
+import { auth } from '@wirecrest/auth-next';
 
 import { findOrCreateApp } from 'src/lib/svix';
 import { teamSlugSchema, validateWithSchema } from 'src/lib/zod';
@@ -57,17 +56,17 @@ export const addTeamMember = async (teamId: string, userId: string, role: Role) 
   });
 
   // Only check quota if this is a new member (not an update)
-  if (!existingMember) {
-    const quotaManager = createQuotaManager(prisma);
-    const canAdd = await quotaManager.canPerformAction(teamId, {
-      type: 'seats',
-      amount: 1,
-    });
+  // if (!existingMember) {
+  //   const quotaManager = createQuotaManager(prisma);
+  //   const canAdd = await quotaManager.canPerformAction(teamId, {
+  //     type: 'seats',
+  //     amount: 1,
+  //   });
 
-    if (!canAdd.allowed) {
-      throw new Error(`Cannot add team member: ${canAdd.reason}. Remaining seats: ${canAdd.remaining}`);
-    }
-  }
+  //   if (!canAdd.allowed) {
+  //     throw new Error(`Cannot add team member: ${canAdd.reason}. Remaining seats: ${canAdd.remaining}`);
+  //   }
+  // }
 
   const member = await prisma.teamMember.upsert({
     create: {
@@ -87,10 +86,10 @@ export const addTeamMember = async (teamId: string, userId: string, role: Role) 
   });
 
   // Record usage only if new member was created
-  if (!existingMember) {
-    const quotaManager = createQuotaManager(prisma);
-    await quotaManager.recordUsage(teamId, 'seats', 1);
-  }
+  // if (!existingMember) {
+  //   const quotaManager = createQuotaManager(prisma);
+  //   await quotaManager.recordUsage(teamId, 'seats', 1);
+  // }
 
   return member;
 };
@@ -106,8 +105,8 @@ export const removeTeamMember = async (teamId: string, userId: string) => {
   });
 
   // Decrement seat usage when member is removed
-  const quotaManager = createQuotaManager(prisma);
-  await quotaManager.recordUsage(teamId, 'seats', -1);
+  // const quotaManager = createQuotaManager(prisma);
+  // await quotaManager.recordUsage(teamId, 'seats', -1);
 
   return deleted;
 };
@@ -341,7 +340,7 @@ export const isTeamExists = async (slug: string) => await prisma.team.count({
 // Check if the current user has access to the team
 // Should be used in API routes to check if the user has access to the team
 export const throwIfNoTeamAccess = async (req: NextApiRequest, res: NextApiResponse) => {
-  const session = await getSession(req, res);
+  const session = await auth();
 
   if (!session) {
     throw new Error('Unauthorized');

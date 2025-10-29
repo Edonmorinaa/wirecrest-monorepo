@@ -1,7 +1,7 @@
 import { prisma } from '@wirecrest/db';
 import { getTeamMember } from '@/models/team';
 import { Role, SuperRole } from '@prisma/client';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 import { NextApiRequest, NextApiResponse } from 'next';
 
 import { ApiError } from './errors';
@@ -210,7 +210,7 @@ export async function throwIfNotSuperRole(
   res: NextApiResponse,
   requiredRoles: SuperRole[] = [SuperRole.ADMIN, SuperRole.SUPPORT]
 ) {
-  const session = await getSession(req, res);
+  const session = await auth();
   if (!session) {
     throw new ApiError(401, 'Unauthorized');
   }

@@ -2,13 +2,13 @@
 
 import { prisma } from '@wirecrest/db';
 import { SuperRole } from '@prisma/client';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 
 import { ApiError, recordMetric } from './lib';
 
 // Superadmin Team Management Actions
 export async function getAllTeams() {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -46,7 +46,7 @@ export async function getAllTeams() {
 }
 
 export async function getTeamById(teamId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -88,7 +88,7 @@ export async function getTeamById(teamId: string) {
 }
 
 export async function updateTeamById(teamId: string, data: { name?: string; slug?: string; domain?: string }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -133,7 +133,7 @@ export async function updateTeamById(teamId: string, data: { name?: string; slug
 }
 
 export async function deleteTeamById(teamId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -153,7 +153,7 @@ export async function deleteTeamById(teamId: string) {
 }
 
 export async function createTeam(data: { name: string; slug: string; domain?: string }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -188,7 +188,7 @@ export async function createTeam(data: { name: string; slug: string; domain?: st
  * Fetches market identifiers, business profiles, review counts, and sync status
  */
 export async function getTeamPlatformData(teamId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }

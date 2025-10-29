@@ -1561,6 +1561,7 @@ model TripAdvisorPeriodicalMetric {
   topKeywords               TripAdvisorPeriodicalKeyword[]
   overview                  TripAdvisorOverview            @relation(fields: [tripAdvisorOverviewId], references: [id], onDelete: Cascade)
 
+  @@unique([tripAdvisorOverviewId, periodKey])
   @@index([tripAdvisorOverviewId])
   @@index([periodKey])
   @@index([createdAt])

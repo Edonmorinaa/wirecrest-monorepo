@@ -90,19 +90,20 @@ export class TeamService {
 
     // Use the new QuotaManager for location limits
     try {
-      const { createQuotaManager } = await import('@wirecrest/feature-flags');
-      const { PrismaClient } = await import('@prisma/client');
+      return true
+      // const { createQuotaManager } = await import('@wirecrest/feature-flags');
+      // const { PrismaClient } = await import('@prisma/client');
       
-      const prisma = new PrismaClient();
-      const quotaManager = createQuotaManager(prisma);
+      // const prisma = new PrismaClient();
+      // // const quotaManager = createQuotaManager(prisma);
       
-      const canAdd = await quotaManager.canPerformAction(teamId, {
-        type: 'locations',
-        amount: 1,
-      });
+      // const canAdd = await quotaManager.canPerformAction(teamId, {
+      //   type: 'locations',
+      //   amount: 1,
+      // });
       
-      await prisma.$disconnect();
-      return canAdd.allowed;
+      // await prisma.$disconnect();
+      // return canAdd.allowed;
     } catch (error) {
       console.error('Error checking quota with QuotaManager:', error);
       
@@ -123,24 +124,31 @@ export class TeamService {
     if (!team) return null;
 
     const currentBusinessCount = await this.getBusinessCountForTeam(teamId);
+
+    return {
+      maxBusinesses: 99,
+      maxReviewsPerBusiness: 9999,
+      updateFrequencyMinutes: 1,
+      currentBusinessCount
+    }
     
     // Try to use QuotaManager for accurate limits
     try {
-      const { createQuotaManager } = await import('@wirecrest/feature-flags');
-      const { PrismaClient } = await import('@prisma/client');
+      // const { createQuotaManager } = await import('@wirecrest/feature-flags');
+      // const { PrismaClient } = await import('@prisma/client');
       
-      const prisma = new PrismaClient();
-      const quotaManager = createQuotaManager(prisma);
-      const quotas = await quotaManager.getTenantQuotas(teamId);
+      // const prisma = new PrismaClient();
+      // const quotaManager = createQuotaManager(prisma);
+      // const quotas = await quotaManager.getTenantQuotas(teamId);
       
-      await prisma.$disconnect();
+      // await prisma.$disconnect();
       
-      return {
-        maxBusinesses: quotas.locations.max,
-        maxReviewsPerBusiness: quotas.reviewRateLimit.max,
-        updateFrequencyMinutes: 60, // Default, can be customized per tenant
-        currentBusinessCount,
-      };
+      // return {
+      //   maxBusinesses: quotas.locations.max,
+      //   maxReviewsPerBusiness: quotas.reviewRateLimit.max,
+      //   updateFrequencyMinutes: 60, // Default, can be customized per tenant
+      //   currentBusinessCount,
+      // };
     } catch (error) {
       console.error('Error getting quotas from QuotaManager:', error);
       

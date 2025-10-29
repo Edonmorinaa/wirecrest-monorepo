@@ -1,6 +1,5 @@
 import { ApifyClient } from 'apify-client';
-import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js';
-import { MarketPlatform } from '@prisma/client';
+import { MarketPlatform, BusinessStatus, PriceLevel } from '@prisma/client';
 import { 
   GooglePlaceV1,
   GooglePlaceV1OpeningHours,
@@ -12,21 +11,15 @@ import {
 import { marketIdentifierEvents } from '../events/marketIdentifierEvents';
 import { randomUUID } from 'crypto';
 import { prisma } from '@wirecrest/db';
+import type { Prisma } from '@prisma/client';
 
 export class BusinessProfileCreationService {
-  private supabase: SupabaseClient;
   private apifyClient: ApifyClient;
   private googleApiKey: string;
 
   constructor(apifyToken: string) {
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    this.supabase = createSupabaseClient(supabaseUrl, supabaseKey);
-    
-    console.log('apifyToken', apifyToken);
     this.apifyClient = new ApifyClient({ token: apifyToken });
     this.googleApiKey = process.env.GOOGLE_API_KEY!;
-    console.log('googleApiKey', this.googleApiKey);
     if (!this.googleApiKey) {
       console.warn('[WARN] Google API Key not provided to BusinessProfileCreationService. Google profile creation will likely fail.');
     }
@@ -80,46 +73,50 @@ export class BusinessProfileCreationService {
     try {
       switch (platform) {
         case MarketPlatform.GOOGLE_MAPS:
-          const google = await this.supabase
-            .from('GoogleBusinessProfile')
-            .select('id')
-            .eq('teamId', teamId)
-            .eq('placeId', identifier)
-            .single();
-          return google.data?.id || null;
+          const google = await prisma.googleBusinessProfile.findFirst({
+            where: {
+              teamId,
+              placeId: identifier
+            },
+            select: { id: true }
+          });
+          return google?.id || null;
 
         case MarketPlatform.FACEBOOK:
-          const facebook = await this.supabase
-            .from('FacebookBusinessProfile')
-            .select('id')
-            .eq('teamId', teamId)
-            .eq('facebookUrl', identifier)
-            .single();
-          return facebook.data?.id || null;
+          const facebook = await prisma.facebookBusinessProfile.findFirst({
+            where: {
+              teamId,
+              facebookUrl: identifier
+            },
+            select: { id: true }
+          });
+          return facebook?.id || null;
 
         case MarketPlatform.TRIPADVISOR:
-          const tripadvisor = await this.supabase
-            .from('TripAdvisorBusinessProfile')
-            .select('id')
-            .eq('teamId', teamId)
-            .eq('tripAdvisorUrl', identifier)
-            .single();
-          return tripadvisor.data?.id || null;
+          const tripadvisor = await prisma.tripAdvisorBusinessProfile.findFirst({
+            where: {
+              teamId,
+              tripAdvisorUrl: identifier
+            },
+            select: { id: true }
+          });
+          return tripadvisor?.id || null;
 
         case MarketPlatform.BOOKING:
-          const booking = await this.supabase
-            .from('BookingBusinessProfile')
-            .select('id')
-            .eq('teamId', teamId)
-            .eq('bookingUrl', identifier)
-            .single();
-          return booking.data?.id || null;
+          const booking = await prisma.bookingBusinessProfile.findFirst({
+            where: {
+              teamId,
+              bookingUrl: identifier
+            },
+            select: { id: true }
+          });
+          return booking?.id || null;
 
         default:
           return null;
       }
     } catch (error) {
-      // PGRST116 is "no rows returned" - not an error in this context
+      // If not found, return null
       return null;
     }
   }
@@ -142,12 +139,12 @@ export class BusinessProfileCreationService {
       await prisma.businessCreationTask.updateMany({
         where: {
           teamId,
-          platform: platformType,
+          platform: platformType as any,
           status: { in: ['IN_PROGRESS', 'PENDING'] }
         },
         data: {
-          currentStep: step,
-          status,
+          currentStep: step as any,
+          status: status as any,
           lastActivityAt: new Date(),
           progressPercent,
         }
@@ -155,7 +152,7 @@ export class BusinessProfileCreationService {
       
       // Create status message for realtime updates
       const task = await prisma.businessCreationTask.findFirst({
-        where: { teamId, platform: platformType },
+        where: { teamId, platform: platformType as any },
         orderBy: { createdAt: 'desc' }
       });
       
@@ -163,8 +160,8 @@ export class BusinessProfileCreationService {
         await prisma.businessStatusMessage.create({
           data: {
             businessCreationId: task.id,
-            step,
-            status,
+            step: step as any,
+            status: status as any,
             message,
             messageType: status === 'FAILED' ? 'error' : status === 'COMPLETED' ? 'success' : 'info'
           }
@@ -196,7 +193,7 @@ export class BusinessProfileCreationService {
   async createBusinessProfile(
     teamId: string,
     platform: MarketPlatform,
-    identifier: string // For Google, this is placeId; for Facebook, it's facebookUrl
+    identifier: string
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
       if (platform === MarketPlatform.GOOGLE_MAPS) {
@@ -230,7 +227,6 @@ export class BusinessProfileCreationService {
     teamId: string,
     placeId: string
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
-    console.log('createGoogleBusinessProfileWithPlacesAPI', this.googleApiKey);
     if (!this.googleApiKey) {
       return { success: false, error: 'Google API Key is not configured for Places API call.' };
     }
@@ -248,11 +244,10 @@ export class BusinessProfileCreationService {
       console.log(`[Google Places HTTP API] Checking existing profile for team: ${teamId}`);
       
       // Check if team already has a Google business profile (one-to-one relationship)
-      const { data: existingBusiness } = await this.supabase
-        .from('GoogleBusinessProfile')
-        .select('id, teamId, placeId')
-        .eq('teamId', teamId)
-        .single();
+      const existingBusiness = await prisma.googleBusinessProfile.findUnique({
+        where: { teamId },
+        select: { id: true, placeId: true }
+      });
 
       if (existingBusiness) {
         if (existingBusiness.placeId === placeId) {
@@ -321,16 +316,16 @@ export class BusinessProfileCreationService {
         50
       );
 
-      // Map to new Prisma schema for GoogleBusinessProfile
-      const businessProfileSupabaseData: any = {
-        id: randomUUID(),
+      // Create the business profile with Prisma
+      const businessProfile = await prisma.googleBusinessProfile.create({
+        data: {
         teamId,
         placeId: placeData.id || placeId,
         displayName: placeData.displayName?.text,
         displayNameLanguageCode: placeData.displayName?.languageCode,
         formattedAddress: placeData.formattedAddress,
         shortFormattedAddress: placeData.shortFormattedAddress,
-        plusCode: placeData.plusCode ? JSON.stringify(placeData.plusCode) : null,
+          plusCode: placeData.plusCode ? (placeData.plusCode as unknown as Prisma.InputJsonValue) : null,
         businessStatus: placeData.businessStatus ? this.mapBusinessStatus(placeData.businessStatus) : null,
         types: placeData.types || [],
         primaryType: placeData.primaryType,
@@ -364,369 +359,231 @@ export class BusinessProfileCreationService {
         goodForWatchingSports: placeData.goodForWatchingSports || false,
         liveMusic: placeData.liveMusic || false,
 
-        // JSON fields - store the raw object from Places API if available and structure matches
-        accessibilityOptions: placeData.accessibilityOptions ? JSON.stringify(placeData.accessibilityOptions) : null,
-        parkingOptions: placeData.parkingOptions ? JSON.stringify(placeData.parkingOptions) : null,
-        paymentOptions: placeData.paymentOptions ? JSON.stringify(placeData.paymentOptions) : null
-      };
-      
-      // Remove undefined values to avoid issues with Supabase insert
-      Object.keys(businessProfileSupabaseData).forEach(key => 
-        businessProfileSupabaseData[key] === undefined && delete businessProfileSupabaseData[key]
-      );
+          // JSON fields
+          accessibilityOptions: placeData.accessibilityOptions ? (placeData.accessibilityOptions as unknown as Prisma.InputJsonValue) : null,
+          parkingOptions: placeData.parkingOptions ? (placeData.parkingOptions as unknown as Prisma.InputJsonValue) : null,
+          paymentOptions: placeData.paymentOptions ? (placeData.paymentOptions as unknown as Prisma.InputJsonValue) : null,
 
-      const { data: insertedBusiness, error: insertError } = await this.supabase
-        .from('GoogleBusinessProfile')
-        .insert(businessProfileSupabaseData)
-        .select('id')
-        .single();
+          // Related data - create nested
+          location: placeData.location ? {
+            create: {
+              lat: placeData.location.latitude,
+              lng: placeData.location.longitude
+            }
+          } : undefined,
 
-      if (insertError) {
-        if (insertError.code === '23505') { 
-          console.warn(`[Google Places HTTP API] Duplicate key error, re-checking...`);
-          const { data: reCheckBusiness } = await this.supabase
-            .from('GoogleBusinessProfile')
-            .select('id, teamId')
-            .eq('teamId', teamId)
-            .single();
-          if (reCheckBusiness) return { success: true, businessProfileId: reCheckBusiness.id };
-        }
-        console.error('[Google Places HTTP API] Error inserting Google Business Profile:', insertError.message, insertError.details, insertError.hint);
-        throw new Error(`Failed to save Google business profile: ${insertError.message}`);
-      }
-      const businessProfileId = insertedBusiness.id;
-      console.log(`[Google Places HTTP API] Profile created with ID: ${businessProfileId}`);
+          categories: placeData.types && placeData.types.length > 0 ? {
+            create: placeData.types.map((type: string) => ({
+              name: type
+            }))
+          } : undefined,
 
-      // Create GoogleBusinessMetadata record for timestamp tracking
-      const { error: metadataError } = await this.supabase
-        .from('GoogleBusinessMetadata')
-        .insert({
-          id: randomUUID(),
-          businessProfileId: businessProfileId,
-          updateFrequencyMinutes: 360, // Default 6 hours
-          nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), // 6 hours from now
-          lastUpdateAt: new Date().toISOString(),
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-
-      if (metadataError) {
-        console.warn(`[Google Places HTTP API] Failed to create GoogleBusinessMetadata for ${businessProfileId}:`, metadataError.message);
-      }
-
-      // --- Populate Related Models ---
-      // 1. Location
-      if (placeData.location) {
-        const { latitude, longitude } = placeData.location;
-        const { error: locError } = await this.supabase
-          .from('Location')
-          .insert({ 
-            id: randomUUID(),
-            businessId: businessProfileId, 
-            lat: latitude, 
-            lng: longitude 
-          });
-        if (locError) console.warn(`[Google Places HTTP API] Failed to create Location for ${businessProfileId}:`, locError.message);
-      }
-
-      // 2. Categories (from placeData.types)
-      if (placeData.types && placeData.types.length > 0) {
-        const categoriesToInsert = placeData.types.map((type: string) => ({ 
-          id: randomUUID(),
-          name: type, 
-          businessId: businessProfileId 
-        }));
-        const { error: catError } = await this.supabase.from('Category').insert(categoriesToInsert);
-        if (catError) console.warn(`[Google Places HTTP API] Failed to create Categories for ${businessProfileId}:`, catError.message);
-      }
-
-      // 3. AddressComponents
-      if (placeData.addressComponents && placeData.addressComponents.length > 0) {
-        const addressComponentsToInsert = placeData.addressComponents.map(ac => ({
-          id: randomUUID(),
-          businessProfileId: businessProfileId,
+          addressComponents: placeData.addressComponents && placeData.addressComponents.length > 0 ? {
+            create: placeData.addressComponents.map(ac => ({
           longText: ac.longText,
           shortText: ac.shortText,
           types: ac.types,
           languageCode: ac.languageCode
-        }));
-        const { error: acError } = await this.supabase.from('AddressComponent').insert(addressComponentsToInsert);
-        if (acError) console.warn(`[Google Places HTTP API] Failed to create AddressComponents for ${businessProfileId}:`, acError.message);
-      }
+            }))
+          } : undefined,
 
-      // 4. Photos
-      if (placeData.photos && placeData.photos.length > 0) {
-        const photosToInsert = placeData.photos.map(p => ({
-          id: randomUUID(),
-          businessProfileId: businessProfileId,
+          photos: placeData.photos && placeData.photos.length > 0 ? {
+            create: placeData.photos.slice(0, 20).map(p => ({
           name: p.name,
           widthPx: p.widthPx,
           heightPx: p.heightPx,
-          authorAttributions: p.authorAttributions ? JSON.stringify(p.authorAttributions) : null
-        }));
-        const { error: photoError } = await this.supabase.from('Photo').insert(photosToInsert);
-        if (photoError) console.warn(`[Google Places HTTP API] Failed to create Photos for ${businessProfileId}:`, photoError.message);
-      }
+              authorAttributions: p.authorAttributions ? (p.authorAttributions as unknown as Prisma.InputJsonValue) : null
+            }))
+          } : undefined,
 
-      // 5. OpeningHours (Regular and Current)
-      if (placeData.regularOpeningHours) {
-        const ohData = placeData.regularOpeningHours;
-        const openingHoursId = randomUUID();
-        
-        const { error: ohError } = await this.supabase
-          .from('OpeningHours')
-          .insert({
-            id: openingHoursId,
-            profileRegularOpeningHoursId: businessProfileId,
-            openNow: ohData.openNow,
-            weekdayDescriptions: ohData.weekdayDescriptions || [],
-            secondaryHoursType: ohData.secondaryHoursType
-          });
-        
-        if (ohError) {
-          console.warn(`[Google Places HTTP API] Failed to create OpeningHours for ${businessProfileId}:`, ohError.message);
-            } else {
-          // Create periods
-          if (ohData.periods && ohData.periods.length > 0) {
-            const periodsToInsert = ohData.periods.map(p => ({
-              id: randomUUID(),
-              openingHoursId: openingHoursId,
-              openDay: p.open.day,
-              openHour: p.open.hour,
-              openMinute: p.open.minute,
-              openDate: p.open.date ? new Date(p.open.date.year, p.open.date.month - 1, p.open.date.day) : null,
-              openTruncated: p.open.truncated || false,
-              closeDay: p.close?.day,
-              closeHour: p.close?.hour,
-              closeMinute: p.close?.minute,
-              closeDate: p.close?.date ? new Date(p.close.date.year, p.close.date.month - 1, p.close.date.day) : null,
-              closeTruncated: p.close?.truncated || false
-            }));
-            const { error: periodError } = await this.supabase.from('Period').insert(periodsToInsert);
-            if (periodError) console.warn(`[Google Places HTTP API] Failed to create Periods for OpeningHours ${openingHoursId}:`, periodError.message);
+          metadata: {
+            create: {
+              updateFrequencyMinutes: 360, // Default 6 hours
+              nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+              lastUpdateAt: new Date(),
+              isActive: true
+            }
           }
         }
-      }
-      
-      marketIdentifierEvents.emitBusinessProfileCreated({
-        teamId,
-        platform: MarketPlatform.GOOGLE_MAPS,
-        businessProfileId,
-        identifier: placeId,
-        timestamp: new Date()
       });
 
-      // Update progress: Completed
+      console.log(`[Google Places HTTP API] Profile created with ID: ${businessProfile.id}`);
+
+      // Update progress: Complete
       await this.updateTaskProgress(
         teamId,
         'GOOGLE_MAPS',
         'CREATING_PROFILE',
         'COMPLETED',
-        'Business profile created successfully',
+        'Google business profile created successfully!',
         100
       );
 
-      return { success: true, businessProfileId };
+      // Emit event for business identifier created
+      marketIdentifierEvents.emit('identifierCreated', {
+        teamId,
+        platform: MarketPlatform.GOOGLE_MAPS,
+        identifier: placeId,
+        businessProfileId: businessProfile.id
+      });
 
+      return { success: true, businessProfileId: businessProfile.id };
     } catch (error) {
-      console.error('[Google Places HTTP API] Error in createGoogleBusinessProfileWithPlacesAPI:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error during Google profile creation' };
-    }
-  }
-  
-  private mapBusinessStatus(status?: string): string | null {
-    if (!status) return null;
-    const upperStatus = status.toUpperCase();
-    if (['OPERATIONAL', 'CLOSED_TEMPORARILY', 'CLOSED_PERMANENTLY'].includes(upperStatus)) {
-      return upperStatus;
-    }
-    return null;
-  }
+      console.error('[Google Places HTTP API] Error:', error);
+      
+      await this.updateTaskProgress(
+        teamId,
+        'GOOGLE_MAPS',
+        'CREATING_PROFILE',
+        'FAILED',
+        `Failed to create Google business profile: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        100
+      );
 
-  private mapPriceLevelStrToEnum(priceLevelString?: string): string | null {
-    if (!priceLevelString) return null;
-    switch (priceLevelString) {
-      case 'PRICE_LEVEL_FREE': return 'FREE';
-      case 'PRICE_LEVEL_INEXPENSIVE': return 'INEXPENSIVE';
-      case 'PRICE_LEVEL_MODERATE': return 'MODERATE';
-      case 'PRICE_LEVEL_EXPENSIVE': return 'EXPENSIVE';
-      case 'PRICE_LEVEL_VERY_EXPENSIVE': return 'VERY_EXPENSIVE';
-      default: return null;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   }
 
   /**
-   * Create Facebook Business Profile using Apify actor
+   * Create Facebook Business Profile using Apify
    */
   private async createFacebookBusinessProfileWithApify(
     teamId: string,
     facebookUrl: string
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
-      console.log(`[Facebook Apify] Creating business profile for team: ${teamId}`);
-      
-      // Check if team already has a Facebook business profile (one-to-one relationship)
-      const { data: existingBusiness, error: existingError } = await this.supabase
-        .from('FacebookBusinessProfile')
-        .select('id, teamId, facebookUrl')
-        .eq('teamId', teamId)
-        .single();
+      await this.updateTaskProgress(
+        teamId,
+        'FACEBOOK',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Checking for existing Facebook business profile...',
+        10
+      );
+
+      // Check if team already has a Facebook business profile
+      const existingBusiness = await prisma.facebookBusinessProfile.findUnique({
+        where: { teamId },
+        select: { id: true, facebookUrl: true }
+      });
 
       if (existingBusiness) {
         if (existingBusiness.facebookUrl === facebookUrl) {
-          console.log(`[Facebook Apify] Profile already exists for team ${teamId} with same Facebook URL.`);
           return { success: true, businessProfileId: existingBusiness.id };
         } else {
-          // Team already has a different Facebook business profile
-          return { success: false, error: `Team already has a Facebook business profile for a different page. Each team can only have one Facebook business profile.` };
+          return { success: false, error: `Team already has a Facebook business profile for a different page.` };
         }
       }
 
-      // Use Apify actor to get Facebook page data
-      const actorId = process.env.APIFY_FACEBOOK_PROFILE_ACTOR_ID || '4Hv5RhChiaDk6iwad';
+      await this.updateTaskProgress(
+        teamId,
+        'FACEBOOK',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Fetching business details from Facebook...',
+        25
+      );
+
+      // Use Apify to scrape the Facebook page
+      const actorId = 'dX3d80hsNMilEwjXG'; // Facebook Reviews Scraper
       const input = {
-        startUrls: [{ url: facebookUrl }]
+        startUrls: [{ url: facebookUrl }],
+        maxRequestRetries: 3,
+        resultsLimit: 1 // Just fetch page info
       };
 
-      console.log(`[Facebook Apify] Starting actor run with ID: ${actorId}`);
       const run = await this.apifyClient.actor(actorId).call(input);
-      
-      if (!run) {
-        return { success: false, error: 'Failed to start Apify actor' };
+      if (!run || !run.defaultDatasetId) {
+        throw new Error('Failed to scrape Facebook page data');
       }
 
       const { items } = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
-
       if (!items || items.length === 0) {
-        return { success: false, error: 'No Facebook page data found' };
+        throw new Error('No data returned from Facebook scraper');
       }
 
-      const facebookData = items[0] as any;
-      console.log(`[Facebook Apify] Retrieved data for: ${facebookData.title || facebookData.pageName}`);
+      const pageData = items[0] as any;
 
-      // Validate required fields
-      if (!facebookData.pageId || !facebookData.facebookId) {
-        return { success: false, error: 'Missing required Facebook page identifiers' };
-      }
-
-      // Generate required unique IDs
-      const businessProfileId = randomUUID();
-
-      // Convert Apify data to our business profile format
-      const businessProfileData = {
-        id: businessProfileId,
+      await this.updateTaskProgress(
         teamId,
-        
-        // Required fields (not-nullable)
-        facebookUrl: facebookData.facebookUrl || facebookUrl,
-        pageId: facebookData.pageId,
-        facebookId: facebookData.facebookId,
-        
-        // Core profile data
-        categories: Array.isArray(facebookData.categories) ? facebookData.categories : [],
-        info: Array.isArray(facebookData.info) ? facebookData.info : [],
-        likes: Number(facebookData.likes) || 0,
-        title: facebookData.title || '',
-        pageName: facebookData.pageName || '',
-        pageUrl: facebookData.pageUrl || facebookUrl,
-        followers: Number(facebookData.followers) || 0,
-        
-        // Optional fields
-        messenger: facebookData.messenger || null,
-        priceRange: facebookData.priceRange || null,
-        intro: facebookData.intro || null,
-        websites: Array.isArray(facebookData.websites) ? facebookData.websites : [],
-        phone: facebookData.phone || null,
-        email: facebookData.email || null,
-        profilePictureUrl: facebookData.profilePictureUrl || null,
-        coverPhotoUrl: facebookData.coverPhotoUrl || null,
-        profilePhoto: facebookData.profilePhoto || null,
-        creationDate: facebookData.creation_date || null,
-        adStatus: facebookData.ad_status || null,
-        
-        // Complex objects
-        aboutMe: facebookData.about_me || null,
-        pageAdLibrary: facebookData.pageAdLibrary || null,
-        
-        // Internal tracking
-        metadata: {
-          apifyData: facebookData,
-          dataSource: 'apify',
-          actorId: actorId,
-          scrapedAt: new Date().toISOString()
-        },
-        scrapedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      // Remove undefined values
-      Object.keys(businessProfileData).forEach(key => 
-        businessProfileData[key as keyof typeof businessProfileData] === undefined && 
-        delete businessProfileData[key as keyof typeof businessProfileData]
+        'FACEBOOK',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Saving business profile to database...',
+        50
       );
 
-      const { data: insertedBusiness, error: insertError } = await this.supabase
-        .from('FacebookBusinessProfile')
-        .insert(businessProfileData)
-        .select('id')
-        .single();
-
-      if (insertError) {
-        // Handle duplicate key error
-        if (insertError.code === '23505') {
-          console.log(`[Facebook Apify] Duplicate key error, re-checking existing record...`);
-          
-          // Check for existing record by team
-          const { data: checkBusiness, error: checkError } = await this.supabase
-            .from('FacebookBusinessProfile')
-            .select('id, teamId, facebookUrl')
-            .eq('teamId', teamId)
-            .single();
-          
-          if (checkBusiness) {
-            return { success: true, businessProfileId: checkBusiness.id };
+      // Create Facebook business profile
+      const businessProfile = await prisma.facebookBusinessProfile.create({
+        data: {
+          teamId,
+          facebookUrl: facebookUrl,
+          pageId: pageData.pageId || randomUUID(),
+          facebookId: pageData.facebookId || pageData.pageId || randomUUID(),
+          title: pageData.title || pageData.pageName || 'Unknown',
+          pageName: pageData.pageName || pageData.title || 'Unknown',
+          pageUrl: facebookUrl,
+          categories: pageData.categories || [],
+          info: pageData.info || [],
+          likes: pageData.likes || 0,
+          followers: pageData.followers || 0,
+          messenger: pageData.messenger,
+          priceRange: pageData.priceRange,
+          intro: pageData.intro,
+          websites: pageData.websites || [],
+          phone: pageData.phone,
+          email: pageData.email,
+          profilePictureUrl: pageData.profilePictureUrl,
+          coverPhotoUrl: pageData.coverPhotoUrl,
+          profilePhoto: pageData.profilePhoto,
+          creationDate: pageData.creationDate,
+          adStatus: pageData.adStatus,
+          aboutMe: pageData.aboutMe ? (pageData.aboutMe as unknown as Prisma.InputJsonValue) : null,
+          pageAdLibrary: pageData.pageAdLibrary ? (pageData.pageAdLibrary as unknown as Prisma.InputJsonValue) : null,
+          scrapedAt: new Date(),
+          businessMetadata: {
+            create: {
+              updateFrequencyMinutes: 360,
+              nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+              lastUpdateAt: new Date(),
+              isActive: true
+            }
           }
         }
-
-        console.error('[Facebook Apify] Error creating Facebook business profile:', insertError);
-        throw new Error(`Failed to create Facebook business profile: ${insertError.message}`);
-      }
-
-      console.log(`[Facebook Apify] Successfully created Facebook business profile with ID: ${businessProfileId}`);
-
-      // Create metadata record for update scheduling
-      const { error: metadataError } = await this.supabase
-        .from('FacebookBusinessMetadata')
-        .insert({
-          id: randomUUID(),
-          businessProfileId: businessProfileId,
-          updateFrequencyMinutes: 360, // Default 6 hours
-          nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), // 6 hours from now
-          lastUpdateAt: new Date().toISOString(),
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-
-      if (metadataError) {
-        console.warn(`[Facebook Apify] Failed to create FacebookBusinessMetadata for ${businessProfileId}:`, metadataError.message);
-      }
-
-      // Emit business profile created event
-      marketIdentifierEvents.emitBusinessProfileCreated({
-        teamId,
-        platform: MarketPlatform.FACEBOOK,
-        businessProfileId,
-        identifier: facebookUrl,
-        timestamp: new Date()
       });
 
-      return { success: true, businessProfileId };
+      await this.updateTaskProgress(
+        teamId,
+        'FACEBOOK',
+        'CREATING_PROFILE',
+        'COMPLETED',
+        'Facebook business profile created successfully!',
+        100
+      );
 
+      marketIdentifierEvents.emit('identifierCreated', {
+        teamId,
+        platform: MarketPlatform.FACEBOOK,
+        identifier: facebookUrl,
+        businessProfileId: businessProfile.id
+      });
+
+      return { success: true, businessProfileId: businessProfile.id };
     } catch (error) {
-      console.error('[Facebook Apify] Error creating Facebook business profile:', error);
+      console.error('[Facebook Apify] Error:', error);
+      
+      await this.updateTaskProgress(
+        teamId,
+        'FACEBOOK',
+        'CREATING_PROFILE',
+        'FAILED',
+        `Failed to create Facebook business profile: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        100
+      );
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -735,230 +592,151 @@ export class BusinessProfileCreationService {
   }
 
   /**
-   * Create TripAdvisor Business Profile using Apify actor
+   * Create TripAdvisor Business Profile using Apify
    */
   private async createTripAdvisorBusinessProfileWithApify(
     teamId: string,
     tripAdvisorUrl: string
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
-      console.log(`[TripAdvisor Apify] Creating business profile for team: ${teamId}`);
-      
-      // Check if team already has a TripAdvisor business profile (one-to-one relationship)
-      const { data: existingBusiness, error: existingError } = await this.supabase
-        .from('TripAdvisorBusinessProfile')
-        .select('id, teamId, tripAdvisorUrl')
-        .eq('teamId', teamId)
-        .single();
+      await this.updateTaskProgress(
+        teamId,
+        'TRIPADVISOR',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Checking for existing TripAdvisor business profile...',
+        10
+      );
+
+      // Check if team already has a TripAdvisor business profile
+      const existingBusiness = await prisma.tripAdvisorBusinessProfile.findUnique({
+        where: { teamId },
+        select: { id: true, tripAdvisorUrl: true }
+      });
 
       if (existingBusiness) {
         if (existingBusiness.tripAdvisorUrl === tripAdvisorUrl) {
-          console.log(`[TripAdvisor Apify] Profile already exists for team ${teamId} with same TripAdvisor URL.`);
           return { success: true, businessProfileId: existingBusiness.id };
         } else {
-          // Team already has a different TripAdvisor business profile
-          return { success: false, error: `Team already has a TripAdvisor business profile for a different location. Each team can only have one TripAdvisor business profile.` };
+          return { success: false, error: `Team already has a TripAdvisor business profile for a different location.` };
         }
       }
 
-      // Use Apify actor to get TripAdvisor location data
-      const actorId = process.env.APIFY_TRIPADVISOR_PROFILE_ACTOR_ID || 'dbEyMBriog95Fv8CW';
+      await this.updateTaskProgress(
+        teamId,
+        'TRIPADVISOR',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Fetching business details from TripAdvisor...',
+        25
+      );
+
+      // Use Apify to scrape the TripAdvisor page
+      const actorId = 'Hvp4YfFGyLM635Q2F'; // TripAdvisor Reviews Scraper
       const input = {
-        "currency": "USD",
-        "includeAiReviewsSummary": false,
-        "includeAttractions": true,
-        "includeHotels": true,
-        "includeNearbyResults": false,
-        "includePriceOffers": false,
-        "includeRestaurants": true,
-        "includeTags": true,
-        "includeVacationRentals": true,
-        "language": "en",
-        "maxItemsPerQuery": 1,
-        "startUrls": [
-          {
-            "url": tripAdvisorUrl,
-            "method": "GET"
-          }
-        ]
+        startUrls: [{ url: tripAdvisorUrl }],
+        maxItemsPerQuery: 1,
+        scrapeReviewerInfo: false
       };
 
-      console.log(`[TripAdvisor Apify] Starting actor run with ID: ${actorId}`);
       const run = await this.apifyClient.actor(actorId).call(input);
-      
-      if (!run) {
-        return { success: false, error: 'Failed to start Apify actor' };
+      if (!run || !run.defaultDatasetId) {
+        throw new Error('Failed to scrape TripAdvisor page data');
       }
 
       const { items } = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
-
       if (!items || items.length === 0) {
-        return { success: false, error: 'No TripAdvisor location data found' };
+        throw new Error('No data returned from TripAdvisor scraper');
       }
 
-      const tripAdvisorData = items[0] as any;
-      console.log(`[TripAdvisor Apify] Retrieved data for: ${tripAdvisorData.name || tripAdvisorData.title || 'Unknown Location'}`);
-      console.log(`[TripAdvisor Apify] Full data structure:`, JSON.stringify(tripAdvisorData, null, 2));
+      const pageData = items[0] as any;
 
-      // Extract location ID from different possible fields
-      let locationId = tripAdvisorData.locationId || 
-                      tripAdvisorData.id || 
-                      tripAdvisorData.placeId ||
-                      tripAdvisorData.tripadvisorId;
-
-      // If no direct ID, try to extract from URL
-      if (!locationId && tripAdvisorData.url) {
-        const urlMatch = tripAdvisorData.url.match(/d(\d+)/);
-        if (urlMatch) {
-          locationId = urlMatch[1];
-        }
-      }
-
-      // If still no ID, try to extract from original URL
-      if (!locationId && tripAdvisorUrl) {
-        const urlMatch = tripAdvisorUrl.match(/d(\d+)/);
-        if (urlMatch) {
-          locationId = urlMatch[1];
-        }
-      }
-
-      if (!locationId) {
-        console.error('[TripAdvisor Apify] No location ID found in data:', tripAdvisorData);
-        return { success: false, error: 'Missing required TripAdvisor location ID. Please check the TripAdvisor URL format.' };
-      }
-
-      console.log(`[TripAdvisor Apify] Using location ID: ${locationId}`);
-
-      // Generate required unique IDs
-      const businessProfileId = randomUUID();
-
-      // Convert Apify data to our business profile format
-      const businessProfileData = {
-        id: businessProfileId,
+      await this.updateTaskProgress(
         teamId,
-        
-        // Required fields
-        tripAdvisorUrl: tripAdvisorData.url || tripAdvisorUrl,
-        locationId: locationId,
-        name: tripAdvisorData.name || tripAdvisorData.title || '',
-        type: this.mapTripAdvisorBusinessType(tripAdvisorData.type || tripAdvisorData.category || tripAdvisorData.subcategory),
-        category: tripAdvisorData.category || tripAdvisorData.subcategory || tripAdvisorData.type || '',
-        
-        // Contact information
-        phone: tripAdvisorData.phone || tripAdvisorData.phoneNumber || null,
-        email: tripAdvisorData.email || null,
-        website: tripAdvisorData.website || tripAdvisorData.websiteUrl || null,
-        
-        // Location data
-        locationString: tripAdvisorData.locationString || tripAdvisorData.location || null,
-        address: tripAdvisorData.address || tripAdvisorData.fullAddress || null,
-        latitude: tripAdvisorData.latitude ? parseFloat(tripAdvisorData.latitude) : 
-                 (tripAdvisorData.coordinates?.latitude ? parseFloat(tripAdvisorData.coordinates.latitude) : null),
-        longitude: tripAdvisorData.longitude ? parseFloat(tripAdvisorData.longitude) : 
-                  (tripAdvisorData.coordinates?.longitude ? parseFloat(tripAdvisorData.coordinates.longitude) : null),
-        
-        // Business details
-        description: tripAdvisorData.description || tripAdvisorData.about || null,
-        image: tripAdvisorData.image || tripAdvisorData.thumbnail || tripAdvisorData.photo || null,
-        photoCount: tripAdvisorData.photoCount ? parseInt(tripAdvisorData.photoCount) : 
-                   (tripAdvisorData.photos?.length ? tripAdvisorData.photos.length : null),
-        
-        // Ratings & reviews
-        rating: tripAdvisorData.rating ? parseFloat(tripAdvisorData.rating) : 
-               (tripAdvisorData.averageRating ? parseFloat(tripAdvisorData.averageRating) : null),
-        rawRanking: tripAdvisorData.rawRanking ? parseInt(tripAdvisorData.rawRanking) : null,
-        rankingPosition: tripAdvisorData.rankingPosition ? parseInt(tripAdvisorData.rankingPosition) : 
-                        (tripAdvisorData.ranking ? parseInt(tripAdvisorData.ranking) : null),
-        rankingString: tripAdvisorData.rankingString || tripAdvisorData.rankingText || null,
-        rankingDenominator: tripAdvisorData.rankingDenominator || null,
-        numberOfReviews: tripAdvisorData.numberOfReviews ? parseInt(tripAdvisorData.numberOfReviews) : 
-                        (tripAdvisorData.reviewCount ? parseInt(tripAdvisorData.reviewCount) : 
-                         (tripAdvisorData.reviews ? parseInt(tripAdvisorData.reviews) : null)),
-        
-        // TripAdvisor specific fields
-        hotelClass: tripAdvisorData.hotelClass || null,
-        hotelClassAttribution: tripAdvisorData.hotelClassAttribution || null,
-        priceLevel: tripAdvisorData.priceLevel || null,
-        priceRange: tripAdvisorData.priceRange || null,
-        
-        // Additional data
-        checkInDate: tripAdvisorData.checkInDate || null,
-        checkOutDate: tripAdvisorData.checkOutDate || null,
-        numberOfRooms: tripAdvisorData.numberOfRooms ? parseInt(tripAdvisorData.numberOfRooms) : null,
-        whatsAppRedirectUrl: tripAdvisorData.whatsAppRedirectUrl || null,
-        
-        // Internal tracking
-        scrapedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      // Remove undefined values
-      Object.keys(businessProfileData).forEach(key => 
-        businessProfileData[key as keyof typeof businessProfileData] === undefined && 
-        delete businessProfileData[key as keyof typeof businessProfileData]
+        'TRIPADVISOR',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Saving business profile to database...',
+        50
       );
 
-      const { data: insertedBusiness, error: insertError } = await this.supabase
-        .from('TripAdvisorBusinessProfile')
-        .insert(businessProfileData)
-        .select('id')
-        .single();
+      // Determine business type
+      let businessType: 'HOTEL' | 'RESTAURANT' | 'ATTRACTION' | 'OTHER' = 'OTHER';
+      const category = (pageData.category || '').toLowerCase();
+      if (category.includes('hotel') || category.includes('accommodation')) businessType = 'HOTEL';
+      else if (category.includes('restaurant') || category.includes('dining')) businessType = 'RESTAURANT';
+      else if (category.includes('attraction') || category.includes('activity')) businessType = 'ATTRACTION';
 
-      if (insertError) {
-        // Handle duplicate key error
-        if (insertError.code === '23505') {
-          console.log(`[TripAdvisor Apify] Duplicate key error, re-checking existing record...`);
-          
-          // Check for existing record by team
-          const { data: checkBusiness, error: checkError } = await this.supabase
-            .from('TripAdvisorBusinessProfile')
-            .select('id, teamId, tripAdvisorUrl')
-            .eq('teamId', teamId)
-            .single();
-          
-          if (checkBusiness) {
-            return { success: true, businessProfileId: checkBusiness.id };
+      // Create TripAdvisor business profile
+      const businessProfile = await prisma.tripAdvisorBusinessProfile.create({
+        data: {
+          teamId,
+          tripAdvisorUrl,
+          locationId: pageData.locationId || randomUUID(),
+          name: pageData.name || 'Unknown',
+          type: businessType,
+          category: pageData.category || 'Unknown',
+          phone: pageData.phone,
+          email: pageData.email,
+          website: pageData.website,
+          locationString: pageData.locationString,
+          address: pageData.address,
+          latitude: pageData.latitude,
+          longitude: pageData.longitude,
+          description: pageData.description,
+          image: pageData.image,
+          photoCount: pageData.photoCount,
+          rating: pageData.rating,
+          rawRanking: pageData.rawRanking,
+          rankingPosition: pageData.rankingPosition,
+          rankingString: pageData.rankingString,
+          rankingDenominator: pageData.rankingDenominator,
+          numberOfReviews: pageData.numberOfReviews,
+          hotelClass: pageData.hotelClass,
+          hotelClassAttribution: pageData.hotelClassAttribution,
+          priceLevel: pageData.priceLevel,
+          priceRange: pageData.priceRange,
+          scrapedAt: new Date(),
+          businessMetadata: {
+            create: {
+              updateFrequencyMinutes: 360,
+              nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+              lastUpdateAt: new Date(),
+              isActive: true
+            }
           }
         }
-
-        console.error('[TripAdvisor Apify] Error creating TripAdvisor business profile:', insertError);
-        throw new Error(`Failed to create TripAdvisor business profile: ${insertError.message}`);
-      }
-
-      console.log(`[TripAdvisor Apify] Successfully created TripAdvisor business profile with ID: ${businessProfileId}`);
-
-      // Create metadata record for update scheduling
-      const { error: metadataError } = await this.supabase
-        .from('TripAdvisorBusinessMetadata')
-        .insert({
-          id: randomUUID(),
-          businessProfileId: businessProfileId,
-          updateFrequencyMinutes: 360, // Default 6 hours
-          nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), // 6 hours from now
-          lastUpdateAt: new Date().toISOString(),
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-
-      if (metadataError) {
-        console.warn(`[TripAdvisor Apify] Failed to create TripAdvisorBusinessMetadata for ${businessProfileId}:`, metadataError.message);
-      }
-
-      // Emit business profile created event
-      marketIdentifierEvents.emitBusinessProfileCreated({
-        teamId,
-        platform: MarketPlatform.TRIPADVISOR,
-        businessProfileId,
-        identifier: tripAdvisorUrl,
-        timestamp: new Date()
       });
 
-      return { success: true, businessProfileId };
+      await this.updateTaskProgress(
+        teamId,
+        'TRIPADVISOR',
+        'CREATING_PROFILE',
+        'COMPLETED',
+        'TripAdvisor business profile created successfully!',
+        100
+      );
 
+      marketIdentifierEvents.emit('identifierCreated', {
+        teamId,
+        platform: MarketPlatform.TRIPADVISOR,
+        identifier: tripAdvisorUrl,
+        businessProfileId: businessProfile.id
+      });
+
+      return { success: true, businessProfileId: businessProfile.id };
     } catch (error) {
-      console.error('[TripAdvisor Apify] Error creating TripAdvisor business profile:', error);
+      console.error('[TripAdvisor Apify] Error:', error);
+      
+      await this.updateTaskProgress(
+        teamId,
+        'TRIPADVISOR',
+        'CREATING_PROFILE',
+        'FAILED',
+        `Failed to create TripAdvisor business profile: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        100
+      );
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -967,256 +745,156 @@ export class BusinessProfileCreationService {
   }
 
   /**
-   * Map TripAdvisor business type to our enum
-   */
-  private mapTripAdvisorBusinessType(type?: string): string {
-    if (!type) return 'OTHER';
-    
-    const upperType = type.toUpperCase();
-    const validTypes = ['HOTEL', 'RESTAURANT', 'ATTRACTION', 'VACATION_RENTAL', 'AIRLINE', 'OTHER'];
-    
-    // Map common variations
-    if (upperType.includes('HOTEL') || upperType.includes('ACCOMMODATION') || upperType.includes('LODGING')) return 'HOTEL';
-    if (upperType.includes('RESTAURANT') || upperType.includes('FOOD') || upperType.includes('DINING') || upperType.includes('CAFE') || upperType.includes('BAR')) return 'RESTAURANT';
-    if (upperType.includes('ATTRACTION') || upperType.includes('ACTIVITY') || upperType.includes('TOUR') || upperType.includes('MUSEUM') || upperType.includes('PARK')) return 'ATTRACTION';
-    if (upperType.includes('RENTAL') || upperType.includes('VACATION') || upperType.includes('APARTMENT')) return 'VACATION_RENTAL';
-    if (upperType.includes('AIRLINE') || upperType.includes('FLIGHT') || upperType.includes('AIRPORT')) return 'AIRLINE';
-    
-    // Check if it's already a valid enum value
-    if (validTypes.includes(upperType)) return upperType;
-    
-    return 'OTHER';
-  }
-
-  /**
-   * Create Booking.com Business Profile using Apify actor
+   * Create Booking Business Profile using Apify
    */
   private async createBookingBusinessProfileWithApify(
     teamId: string,
     bookingUrl: string
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
-      console.log(`[Booking.com Apify] Creating business profile for team: ${teamId}`);
-      
-      // Check if team already has a Booking.com business profile (one-to-one relationship)
-      const { data: existingBusiness, error: existingError } = await this.supabase
-        .from('BookingBusinessProfile')
-        .select('id, teamId, bookingUrl')
-        .eq('teamId', teamId)
-        .single();
+      await this.updateTaskProgress(
+        teamId,
+        'BOOKING',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Checking for existing Booking business profile...',
+        10
+      );
+
+      // Check if team already has a Booking business profile
+      const existingBusiness = await prisma.bookingBusinessProfile.findUnique({
+        where: { teamId },
+        select: { id: true, bookingUrl: true }
+      });
 
       if (existingBusiness) {
         if (existingBusiness.bookingUrl === bookingUrl) {
-          console.log(`[Booking.com Apify] Profile already exists for team ${teamId} with same Booking.com URL.`);
           return { success: true, businessProfileId: existingBusiness.id };
         } else {
-          // Team already has a different Booking.com business profile
-          return { success: false, error: `Team already has a Booking.com business profile for a different property. Each team can only have one Booking.com business profile.` };
+          return { success: false, error: `Team already has a Booking business profile for a different property.` };
         }
       }
 
-      // Use Apify actor to get Booking.com property data
-      const actorId = process.env.APIFY_BOOKING_PROFILE_ACTOR_ID || 'oeiQgfg5fsmIJB7Cn';
+      await this.updateTaskProgress(
+        teamId,
+        'BOOKING',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Fetching business details from Booking.com...',
+        25
+      );
+
+      // Use Apify to scrape the Booking page
+      const actorId = 'PbMHke3jW25J6hSOA'; // Booking.com Reviews Scraper
       const input = {
-        "startUrls": [{
-          "url": bookingUrl
-        }],
-        "includeReviews": false,  // We handle reviews separately
-        "includePhotos": true,
-        "includeRooms": true,     // Key feature for reputation dashboard
-        "includeFacilities": true,
-        "maxReviews": 0,          // No reviews in this actor
-        
-        // Language and region settings
-        "language": "en-us",
-        "currency": "USD",
-        
-        // Proxy configuration
-        "proxyConfiguration": {
-          "useApifyProxy": true
-        }
+        startUrls: [{ url: bookingUrl }],
+        maxItems: 1
       };
 
-      console.log(`[Booking.com Apify] Starting actor run with ID: ${actorId}`);
       const run = await this.apifyClient.actor(actorId).call(input);
-      
-      if (!run) {
-        return { success: false, error: 'Failed to start Apify actor' };
+      if (!run || !run.defaultDatasetId) {
+        throw new Error('Failed to scrape Booking.com page data');
       }
 
       const { items } = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
-
       if (!items || items.length === 0) {
-        return { success: false, error: 'No Booking.com property data found' };
+        throw new Error('No data returned from Booking.com scraper');
       }
 
-      const bookingData = items[0] as any;
-      console.log(`[Booking.com Apify] Retrieved data for: ${bookingData.name || bookingData.title || 'Unknown Property'}`);
+      const pageData = items[0] as any;
 
-      // Extract hotel ID from different possible fields
-      let hotelId = bookingData.hotelId || 
-                   bookingData.id || 
-                   bookingData.propertyId ||
-                   bookingData.bookingId;
-
-      // If no direct ID, try to extract from URL
-      if (!hotelId && bookingData.url) {
-        const urlMatch = bookingData.url.match(/hotel\/(.+?)\.html/);
-        if (urlMatch) {
-          hotelId = urlMatch[1];
-        }
-      }
-
-      // If still no ID, try to extract from original URL
-      if (!hotelId && bookingUrl) {
-        const urlMatch = bookingUrl.match(/hotel\/(.+?)\.html/);
-        if (urlMatch) {
-          hotelId = urlMatch[1];
-        }
-      }
-
-      if (!hotelId) {
-        console.warn('[Booking.com Apify] No hotel ID found, proceeding without ID');
-      }
-
-      console.log(`[Booking.com Apify] Using hotel ID: ${hotelId || 'None'}`);
-
-      // Generate required unique IDs
-      const businessProfileId = randomUUID();
-
-      // Convert Apify data to our business profile format
-      const businessProfileData = {
-        id: businessProfileId,
+      await this.updateTaskProgress(
         teamId,
-        
-        // Required fields
-        bookingUrl: bookingUrl, // Always use the original URL for consistency
-        name: bookingData.name || bookingData.title || '',
-        propertyType: this.mapBookingPropertyType(bookingData.propertyType || bookingData.accommodationType || bookingData.type),
-        
-        // Optional fields
-        hotelId: hotelId || null,
-        phone: bookingData.phone || bookingData.phoneNumber || null,
-        email: bookingData.email || null,
-        website: bookingData.website || bookingData.websiteUrl || null,
-        
-        // Location data
-        address: bookingData.address || bookingData.fullAddress || null,
-        city: bookingData.city || null,
-        country: bookingData.country || null,
-        latitude: bookingData.latitude ? parseFloat(bookingData.latitude) : 
-                 (bookingData.coordinates?.latitude ? parseFloat(bookingData.coordinates.latitude) : null),
-        longitude: bookingData.longitude ? parseFloat(bookingData.longitude) : 
-                  (bookingData.coordinates?.longitude ? parseFloat(bookingData.coordinates.longitude) : null),
-        
-        // Property details
-        description: bookingData.description || bookingData.about || null,
-        mainImage: bookingData.mainImage || bookingData.image || bookingData.thumbnail || null,
-        photoCount: Array.isArray(bookingData.images) ? bookingData.images.length : 0,
-        
-        // Ratings & reviews
-        rating: bookingData.rating ? parseFloat(bookingData.rating) : 
-               (bookingData.averageRating ? parseFloat(bookingData.averageRating) : null),
-        numberOfReviews: bookingData.numberOfReviews ? parseInt(bookingData.numberOfReviews) : 
-                        (bookingData.reviewCount ? parseInt(bookingData.reviewCount) : 
-                         (bookingData.reviews ? parseInt(bookingData.reviews) : null)),
-        
-        // Property features
-        stars: bookingData.stars ? parseInt(bookingData.stars) : null,
-        checkInTime: bookingData.checkInTime || null,
-        checkOutTime: bookingData.checkOutTime || null,
-        minAge: bookingData.minAge ? parseInt(bookingData.minAge) : null,
-        maxOccupancy: bookingData.maxOccupancy ? parseInt(bookingData.maxOccupancy) : 
-                     (bookingData.maxGuests ? parseInt(bookingData.maxGuests) : null),
-        
-        // Pricing
-        currency: bookingData.currency || null,
-        priceFrom: bookingData.priceFrom ? parseFloat(bookingData.priceFrom) : null,
-        
-        // Facilities and amenities (using correct schema field names)
-        facilitiesList: Array.isArray(bookingData.facilities) ? bookingData.facilities : [],
-        popularFacilities: Array.isArray(bookingData.popularFacilities) ? bookingData.popularFacilities : 
-                          (Array.isArray(bookingData.amenities) ? bookingData.amenities : []),
-        
-        // Language and accessibility
-        languagesSpoken: Array.isArray(bookingData.languagesSpoken) ? bookingData.languagesSpoken : [],
-        accessibilityFeatures: Array.isArray(bookingData.accessibilityFeatures) ? bookingData.accessibilityFeatures : [],
-        
-        // Sustainability
-        sustainabilityPrograms: Array.isArray(bookingData.sustainabilityPrograms) ? bookingData.sustainabilityPrograms : [],
-        
-        // Internal tracking
-        scrapedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      // Remove undefined values
-      Object.keys(businessProfileData).forEach(key => 
-        businessProfileData[key as keyof typeof businessProfileData] === undefined && 
-        delete businessProfileData[key as keyof typeof businessProfileData]
+        'BOOKING',
+        'CREATING_PROFILE',
+        'IN_PROGRESS',
+        'Saving business profile to database...',
+        50
       );
 
-      const { data: insertedBusiness, error: insertError } = await this.supabase
-        .from('BookingBusinessProfile')
-        .insert(businessProfileData)
-        .select('id')
-        .single();
+      // Determine property type
+      let propertyType: 'HOTEL' | 'APARTMENT' | 'HOSTEL' | 'OTHER' = 'HOTEL';
+      const typeStr = (pageData.propertyType || pageData.type || '').toLowerCase();
+      if (typeStr.includes('apartment')) propertyType = 'APARTMENT';
+      else if (typeStr.includes('hostel')) propertyType = 'HOSTEL';
+      else if (typeStr.includes('hotel')) propertyType = 'HOTEL';
+      else propertyType = 'OTHER';
 
-      if (insertError) {
-        // Handle duplicate key error
-        if (insertError.code === '23505') {
-          console.log(`[Booking.com Apify] Duplicate key error, re-checking existing record...`);
-          
-          // Check for existing record by team
-          const { data: checkBusiness, error: checkError } = await this.supabase
-            .from('BookingBusinessProfile')
-            .select('id, teamId, bookingUrl')
-            .eq('teamId', teamId)
-            .single();
-          
-          if (checkBusiness) {
-            return { success: true, businessProfileId: checkBusiness.id };
+      // Create Booking business profile
+      const businessProfile = await prisma.bookingBusinessProfile.create({
+        data: {
+          teamId,
+          bookingUrl,
+          hotelId: pageData.hotelId || pageData.id,
+          name: pageData.name || 'Unknown',
+          propertyType,
+          phone: pageData.phone,
+          email: pageData.email,
+          website: pageData.website,
+          address: pageData.address,
+          city: pageData.city,
+          country: pageData.country,
+          district: pageData.district,
+          latitude: pageData.latitude,
+          longitude: pageData.longitude,
+          description: pageData.description,
+          mainImage: pageData.mainImage,
+          photoCount: pageData.photoCount,
+          rating: pageData.rating,
+          numberOfReviews: pageData.numberOfReviews,
+          stars: pageData.stars,
+          checkInTime: pageData.checkInTime,
+          checkOutTime: pageData.checkOutTime,
+          minAge: pageData.minAge,
+          maxOccupancy: pageData.maxOccupancy,
+          currency: pageData.currency,
+          priceFrom: pageData.priceFrom,
+          facilitiesList: pageData.facilitiesList || [],
+          popularFacilities: pageData.popularFacilities || [],
+          languagesSpoken: pageData.languagesSpoken || [],
+          accessibilityFeatures: pageData.accessibilityFeatures || [],
+          sustainabilityPrograms: pageData.sustainabilityPrograms || [],
+          scrapedAt: new Date(),
+          businessMetadata: {
+            create: {
+              updateFrequencyMinutes: 360,
+              nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+              lastUpdateAt: new Date(),
+              isActive: true
+            }
           }
         }
-
-        console.error('[Booking.com Apify] Error creating Booking.com business profile:', insertError);
-        throw new Error(`Failed to create Booking.com business profile: ${insertError.message}`);
-      }
-
-      console.log(`[Booking.com Apify] Successfully created Booking.com business profile with ID: ${businessProfileId}`);
-
-      // Create metadata record for update scheduling
-      const { error: metadataError } = await this.supabase
-        .from('BookingBusinessMetadata')
-        .insert({
-          id: randomUUID(),
-          businessProfileId: businessProfileId,
-          updateFrequencyMinutes: 360, // Default 6 hours
-          nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), // 6 hours from now
-          lastUpdateAt: new Date().toISOString(),
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-
-      if (metadataError) {
-        console.warn(`[Booking.com Apify] Failed to create BookingBusinessMetadata for ${businessProfileId}:`, metadataError.message);
-      }
-
-      // Emit business profile created event
-      marketIdentifierEvents.emitBusinessProfileCreated({
-        teamId,
-        platform: MarketPlatform.BOOKING,
-        businessProfileId,
-        identifier: bookingUrl,
-        timestamp: new Date()
       });
 
-      return { success: true, businessProfileId };
+      await this.updateTaskProgress(
+        teamId,
+        'BOOKING',
+        'CREATING_PROFILE',
+        'COMPLETED',
+        'Booking business profile created successfully!',
+        100
+      );
 
+      marketIdentifierEvents.emit('identifierCreated', {
+        teamId,
+        platform: MarketPlatform.BOOKING,
+        identifier: bookingUrl,
+        businessProfileId: businessProfile.id
+      });
+
+      return { success: true, businessProfileId: businessProfile.id };
     } catch (error) {
-      console.error('[Booking.com Apify] Error creating Booking.com business profile:', error);
+      console.error('[Booking Apify] Error:', error);
+      
+      await this.updateTaskProgress(
+        teamId,
+        'BOOKING',
+        'CREATING_PROFILE',
+        'FAILED',
+        `Failed to create Booking business profile: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        100
+      );
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -1224,31 +902,21 @@ export class BusinessProfileCreationService {
     }
   }
 
-  /**
-   * Map Booking.com property type to our enum
-   */
-  private mapBookingPropertyType(type?: string): string {
-    if (!type) return 'HOTEL';
-    
-    const upperType = type.toUpperCase();
-    const validTypes = ['HOTEL', 'APARTMENT', 'HOSTEL', 'GUESTHOUSE', 'BED_AND_BREAKFAST', 'VILLA', 'RESORT', 'OTHER'];
-    
-    // Map common variations
-    if (upperType.includes('HOTEL') || upperType.includes('MOTEL')) return 'HOTEL';
-    if (upperType.includes('APARTMENT') || upperType.includes('FLAT') || upperType.includes('CONDO')) return 'APARTMENT';
-    if (upperType.includes('HOSTEL') || upperType.includes('BACKPACKER')) return 'HOSTEL';
-    if (upperType.includes('GUESTHOUSE') || upperType.includes('GUEST HOUSE') || upperType.includes('PENSION')) return 'GUESTHOUSE';
-    if (upperType.includes('B&B') || upperType.includes('BED AND BREAKFAST') || upperType.includes('BREAKFAST')) return 'BED_AND_BREAKFAST';
-    if (upperType.includes('VILLA') || upperType.includes('HOUSE')) return 'VILLA';
-    if (upperType.includes('RESORT')) return 'RESORT';
-    
-    // Check if it's already a valid enum value
-    if (validTypes.includes(upperType)) return upperType;
-    
-    return 'HOTEL'; // Default to hotel
+  // Helper methods
+  private mapBusinessStatus(status: string): BusinessStatus {
+    const upperStatus = status.toUpperCase();
+    if (upperStatus.includes('CLOSED_PERMANENTLY')) return 'CLOSED_PERMANENTLY';
+    if (upperStatus.includes('CLOSED_TEMPORARILY')) return 'CLOSED_TEMPORARILY';
+    return 'OPERATIONAL';
   }
 
-  async close(): Promise<void> {
-    // Supabase client doesn't need explicit closing
+  private mapPriceLevelStrToEnum(priceLevel: string): PriceLevel {
+    const upperPrice = priceLevel.toUpperCase();
+    if (upperPrice.includes('FREE')) return 'FREE';
+    if (upperPrice.includes('INEXPENSIVE')) return 'INEXPENSIVE';
+    if (upperPrice.includes('MODERATE')) return 'MODERATE';
+    if (upperPrice.includes('EXPENSIVE')) return 'EXPENSIVE';
+    if (upperPrice.includes('VERY_EXPENSIVE')) return 'VERY_EXPENSIVE';
+    return 'MODERATE'; // Default
   }
-} 
+}

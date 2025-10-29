@@ -2,61 +2,49 @@ import { MarketPlatform } from '@prisma/client';
 import { IBusinessService, BusinessProfileResult } from '../interfaces/IBusinessService';
 import { IBusinessRepository } from '../interfaces/IBusinessRepository';
 import { GoogleBusinessProfile } from '@prisma/client';
+import { BusinessProfileCreationService } from '../../services/businessProfileCreationService';
 
 /**
  * Google Business Service
  * Follows Single Responsibility Principle (SRP) - only handles Google business operations
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions, not concretions
+ * 
+ * Note: Currently delegates to legacy BusinessProfileCreationService for profile creation
+ * TODO: Migrate fully to SOLID architecture
  */
 export class GoogleBusinessService implements IBusinessService {
+  private legacyCreationService: BusinessProfileCreationService;
+
   constructor(
     private businessRepository: IBusinessRepository<GoogleBusinessProfile>,
-    private teamService: any // TODO: Define proper interface
-  ) {}
+    private teamService: any, // TODO: Define proper interface
+    apifyToken: string
+  ) {
+    this.legacyCreationService = new BusinessProfileCreationService(apifyToken);
+  }
 
   async createProfile(teamId: string, platform: MarketPlatform, identifier: string): Promise<BusinessProfileResult> {
     try {
-      // Validate team exists
-      const team = await this.teamService.getTeamById(teamId);
-      if (!team) {
+      // Use the legacy service which fully works
+      const result = await this.legacyCreationService.ensureBusinessProfileExists(
+        teamId,
+        platform,
+        identifier
+      );
+
+      if (!result.exists || result.error) {
         return {
           success: false,
-          error: 'Team not found'
+          error: result.error || 'Failed to create business profile'
         };
       }
 
-      // Check if profile already exists
-      const existingProfile = await this.businessRepository.findByPlaceId(identifier);
-      if (existingProfile) {
-        return {
-          success: true,
-          businessId: existingProfile.id,
-          profileData: existingProfile
-        };
-      }
-
-      // Create new profile
-      const profile = await this.businessRepository.create({
-        teamId,
-        placeId: identifier,
-        displayName: '', // Will be populated by actor
-        formattedAddress: '',
-        rating: 0,
-        userRatingCount: 0,
-        types: [],
-        nationalPhoneNumber: '',
-        websiteUri: '',
-        metadata: {
-          isActive: true,
-          updateFrequencyMinutes: 60,
-          nextUpdateAt: new Date(),
-          lastUpdateAt: new Date()
-        }
-      } as any);
-
+      // Fetch the created profile
+      const profile = await this.businessRepository.findById(result.businessProfileId!);
+      
       return {
         success: true,
-        businessId: profile.id,
+        businessId: result.businessProfileId!,
         profileData: profile
       };
     } catch (error) {

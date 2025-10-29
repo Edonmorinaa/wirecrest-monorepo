@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { prisma } from '@wirecrest/db';
 import { NextRequest, NextResponse } from 'next/server';
-import { StripeFeatureLookupKeys } from '@wirecrest/feature-flags';
+import { StripeFeatureLookupKeys } from '@wirecrest/billing';
 
 interface CustomPlanRequest {
   planName: string;

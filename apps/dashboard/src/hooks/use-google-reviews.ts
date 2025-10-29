@@ -2,6 +2,8 @@ import { useParams } from 'next/navigation';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { useTeamSlug } from './use-subdomain';
+import { GoogleReviewWithMetadata } from 'src/actions/types/reviews';
+import { getGoogleReviews, ReviewFilters } from 'src/actions/reviews';
 
 interface UseGoogleReviewsFilters {
   page?: number;
@@ -19,7 +21,7 @@ interface UseGoogleReviewsFilters {
 }
 
 interface GoogleReviewsResponse {
-  reviews: any[];
+  reviews: GoogleReviewWithMetadata[];
   pagination: {
     page: number;
     limit: number;
@@ -31,7 +33,6 @@ interface GoogleReviewsResponse {
   stats: {
     total: number;
     averageRating: number;
-    ratingDistribution: { [key: number]: number };
     withResponse: number;
     unread: number;
   };
@@ -51,24 +52,24 @@ const useGoogleReviews = (
 
   // Build query parameters
   const buildQueryParams = useCallback((filterParams: UseGoogleReviewsFilters) => {
-    const params = new URLSearchParams();
+    const queryParams = new URLSearchParams();
     
-    if (filterParams.page) params.set('page', filterParams.page.toString());
-    if (filterParams.limit) params.set('limit', filterParams.limit.toString());
-    if (filterParams.minRating) params.set('minRating', filterParams.minRating.toString());
-    if (filterParams.maxRating) params.set('maxRating', filterParams.maxRating.toString());
+    if (filterParams.page) queryParams.set('page', filterParams.page.toString());
+    if (filterParams.limit) queryParams.set('limit', filterParams.limit.toString());
+    if (filterParams.minRating) queryParams.set('minRating', filterParams.minRating.toString());
+    if (filterParams.maxRating) queryParams.set('maxRating', filterParams.maxRating.toString());
     if (filterParams.ratings && filterParams.ratings.length > 0) {
-      params.set('ratings', filterParams.ratings.join(','));
+      queryParams.set('ratings', filterParams.ratings.join(','));
     }
-    if (filterParams.hasResponse !== undefined) params.set('hasResponse', filterParams.hasResponse.toString());
-    if (filterParams.sentiment) params.set('sentiment', filterParams.sentiment);
-    if (filterParams.search) params.set('search', filterParams.search);
-    if (filterParams.sortBy) params.set('sortBy', filterParams.sortBy);
-    if (filterParams.sortOrder) params.set('sortOrder', filterParams.sortOrder);
-    if (filterParams.isRead !== undefined && filterParams.isRead !== '') params.set('isRead', filterParams.isRead.toString());
-    if (filterParams.isImportant !== undefined && filterParams.isImportant !== '') params.set('isImportant', filterParams.isImportant.toString());
+    if (filterParams.hasResponse !== undefined) queryParams.set('hasResponse', filterParams.hasResponse.toString());
+      if (filterParams.sentiment) queryParams.set('sentiment', filterParams.sentiment);
+    if (filterParams.search) queryParams.set('search', filterParams.search);
+    if (filterParams.sortBy) queryParams.set('sortBy', filterParams.sortBy);
+    if (filterParams.sortOrder) queryParams.set('sortOrder', filterParams.sortOrder);
+    if (filterParams.isRead !== undefined && filterParams.isRead !== '') queryParams.set('isRead', filterParams.isRead.toString());
+    if (filterParams.isImportant !== undefined && filterParams.isImportant !== '') queryParams.set('isImportant', filterParams.isImportant.toString());
 
-    return params.toString();
+    return queryParams.toString();
   }, []);
 
   // Memoize the query string to prevent unnecessary re-renders
@@ -81,21 +82,8 @@ const useGoogleReviews = (
     setError(null);
 
     try {
-      const queryParams = buildQueryParams(filterParams);
-      const response = await fetch(`/api/teams/${teamSlug}/google/reviews?${queryParams}`, {
-        // Add cache control headers for better performance
-        headers: {
-          'Cache-Control': 'max-age=300', // 5 minutes cache
-        },
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Failed to fetch reviews');
-      }
-
-      const result = await response.json();
-      setData(result.data);
+      const result = await getGoogleReviews(teamSlug as string, filterParams as ReviewFilters);
+      setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching Google reviews:', err);

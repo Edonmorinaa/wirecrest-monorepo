@@ -5,7 +5,7 @@
  */
 
 import { Request, Response } from 'express';
-import { StripeFirstSubscriptionService } from '@wirecrest/billing/server';
+import { StripeFirstSubscriptionService } from '@wirecrest/billing';
 import { SubscriptionOrchestrator } from '../services/subscription/SubscriptionOrchestrator';
 import { BusinessProfileCreationService } from '../services/businessProfileCreationService';
 import { MarketPlatform } from '@prisma/client';

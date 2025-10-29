@@ -3,7 +3,7 @@
 import type { PlatformType, MarketPlatform, BusinessMarketIdentifier } from '@prisma/client';
 
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 
 import env from 'src/lib/env';
 import { RealtimeBroadcaster } from 'src/lib/realtime';
@@ -60,7 +60,7 @@ function marketPlatformToPlatformType(marketPlatform: MarketPlatform): PlatformT
 
 // Superadmin check
 export async function checkSuperAdminStatus() {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.email) {
     return { isSuperAdmin: false };
   }
@@ -1536,7 +1536,7 @@ export async function generateOwnerResponseAction(data: {
   tone?: 'professional' | 'friendly' | 'formal' | 'casual';
   language?: string;
 }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.email) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -1560,7 +1560,7 @@ export async function generateGoogleOwnerResponse(data: {
   reviewData: ReviewData;
   customPrompt?: string;
 }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.email) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -1585,7 +1585,7 @@ export async function generateFacebookOwnerResponse(data: {
   reviewData: ReviewData;
   customPrompt?: string;
 }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.email) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -1602,7 +1602,7 @@ export async function generateTripAdvisorOwnerResponse(data: {
   reviewData: ReviewData;
   customPrompt?: string;
 }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.email) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -1619,7 +1619,7 @@ export async function generateBookingOwnerResponse(data: {
   reviewData: ReviewData;
   customPrompt?: string;
 }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.email) {
     throw new ApiError(401, 'Unauthorized');
   }

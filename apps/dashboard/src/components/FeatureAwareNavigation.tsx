@@ -2,8 +2,6 @@
 
 import React from 'react';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
-import { FeatureGate } from '@/components/feature-gates/FeatureGate';
-import { PlatformFeatureGate } from '@/components/feature-gates/PlatformFeatureGate';
 
 import {
   Box,
@@ -31,8 +29,6 @@ interface NavigationItem {
   label: string;
   icon: React.ReactNode;
   href: string;
-  platform?: string;
-  feature?: string;
   children?: NavigationItem[];
 }
 
@@ -47,42 +43,36 @@ const PLATFORM_ITEMS: NavigationItem[] = [
     label: 'Google Business',
     icon: <GoogleIcon />,
     href: '/dashboard/teams/[slug]/google',
-    platform: 'google'
   },
   {
     id: 'facebook',
     label: 'Facebook',
     icon: <FacebookIcon />,
     href: '/dashboard/teams/[slug]/facebook',
-    platform: 'facebook'
   },
   {
     id: 'tripadvisor',
     label: 'TripAdvisor',
     icon: <FacebookIcon />, // TODO: Add TripAdvisor icon
     href: '/dashboard/teams/[slug]/tripadvisor',
-    platform: 'tripadvisor'
   },
   {
     id: 'booking',
     label: 'Booking.com',
     icon: <FacebookIcon />, // TODO: Add Booking icon
     href: '/dashboard/teams/[slug]/booking',
-    platform: 'booking'
   },
   {
     id: 'instagram',
     label: 'Instagram',
     icon: <InstagramIcon />,
     href: '/dashboard/teams/[slug]/instagram',
-    platform: 'instagram'
   },
   {
     id: 'tiktok',
     label: 'TikTok',
     icon: <YouTubeIcon />,
     href: '/dashboard/teams/[slug]/tiktok',
-    platform: 'tiktok'
   }
 ];
 
@@ -108,15 +98,7 @@ export function FeatureAwareNavigation({ tenantId, currentPath }: FeatureAwareNa
     const hasChildren = item.children && item.children.length > 0;
     const isActive = currentPath?.includes(item.href.replace('/dashboard/teams/[slug]', ''));
 
-    // If it's a platform item, wrap with PlatformFeatureGate
-    if (item.platform) {
       return (
-        <PlatformFeatureGate
-          key={item.id}
-          platform={item.platform}
-          tenantId={tenantId}
-          showUpgradePrompt={false}
-        >
           <ListItem disablePadding>
             <ListItemButton
               href={item.href}
@@ -135,19 +117,9 @@ export function FeatureAwareNavigation({ tenantId, currentPath }: FeatureAwareNa
               />
             </ListItemButton>
           </ListItem>
-        </PlatformFeatureGate>
       );
-    }
 
-    // If it's a feature item, wrap with FeatureGate
-    if (item.feature) {
       return (
-        <FeatureGate
-          key={item.id}
-          feature={item.feature}
-          tenantId={tenantId}
-          showUpgradePrompt={false}
-        >
           <ListItem disablePadding>
             <ListItemButton
               href={item.href}
@@ -175,11 +147,8 @@ export function FeatureAwareNavigation({ tenantId, currentPath }: FeatureAwareNa
               </List>
             </Collapse>
           )}
-        </FeatureGate>
       );
-    }
-
-    // Regular item without feature gates
+        
     return (
       <ListItem key={item.id} disablePadding>
         <ListItemButton

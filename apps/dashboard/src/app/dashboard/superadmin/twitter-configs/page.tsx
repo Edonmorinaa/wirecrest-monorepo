@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { prisma } from '@wirecrest/db';
 import { notFound } from 'next/navigation';
 import { SuperRole } from '@prisma/client';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 import { DashboardContent } from '@/layouts/dashboard';
 import TwitterConfigList from '@/sections/superadmin/TwitterConfigList';
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SuperAdminTwitterConfigsPage() {
-  const session = await getSession();
+  const session = await auth();
 
   if (!session?.user?.id) {
     notFound();

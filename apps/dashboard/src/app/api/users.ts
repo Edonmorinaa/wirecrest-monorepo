@@ -1,5 +1,5 @@
 import { getUser, updateUser } from '@/models/user';
-import { getSession } from "@wirecrest/auth-next";
+import { auth } from "@wirecrest/auth-next";
 import { NextRequest, NextResponse } from 'next/server';
 
 import env from 'src/lib/env';
@@ -11,7 +11,7 @@ import { validateWithSchema, updateAccountSchema } from 'src/lib/zod';
 export async function PUT(request: NextRequest) {
   try {
     const data = validateWithSchema(updateAccountSchema, await request.json());
-    const session = await getSession();
+    const session = await auth();
 
     if (!session?.user?.id) {
       throw new ApiError(401, 'Unauthorized');

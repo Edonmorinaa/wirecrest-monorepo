@@ -3,7 +3,7 @@
 // import jackson from 'src/lib/jackson';
 
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 import { getInvitation, isInvitationExpired } from '@/models/invitation';
 
 import { validateWithSchema, getInvitationSchema } from 'src/lib/zod';
@@ -47,7 +47,7 @@ export async function getInvitationByToken(token: string) {
 
 // Review AI Suggestions
 export async function getReviewAISuggestions(teamSlug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -97,7 +97,7 @@ export async function getReviewAISuggestions(teamSlug: string) {
 
 // Well-known SAML Certificate
 export async function getSAMLCertificate() {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -112,7 +112,7 @@ export async function getSAMLCertificate() {
 
 // Workflow Retry
 export async function retryWorkflow(workflowId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }

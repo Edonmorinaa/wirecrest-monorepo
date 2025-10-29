@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { prisma } from '@wirecrest/db';
 import { notFound } from 'next/navigation';
 import { SuperRole } from '@prisma/client';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 import { DashboardContent } from '@/layouts/dashboard';
 import TwitterConfigManagement from '@/sections/superadmin/TwitterConfigManagement';
 
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function SuperAdminTenantTwitterConfigPage({ params }: Props) {
-  const session = await getSession();
+  const session = await auth();
 
   if (!session?.user?.id) {
     notFound();

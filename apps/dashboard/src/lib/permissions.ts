@@ -1,5 +1,5 @@
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 import { NextApiRequest, NextApiResponse } from 'next';
 
 import { ApiError } from 'src/lib/errors';
@@ -13,7 +13,7 @@ export type { Action, Resource, Permission } from './permissions-client';
  * Throws ApiError if not authorized
  */
 export async function throwIfNotSuperAdminAPI(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getSession(req, res);
+  const session = await auth(req, res);
   if (!session) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -43,7 +43,7 @@ export async function isUserSuperAdmin(
   res: NextApiResponse
 ): Promise<boolean> {
   try {
-    const session = await getSession(req, res);
+    const session = await auth(req, res);
     if (!session?.user?.email) {
       return false;
     }
@@ -59,7 +59,7 @@ export async function isUserSuperAdmin(
  * Server action version of throwIfNotSuperAdmin
  */
 export async function throwIfNotSuperAdmin() {
-  const session = await getSession();
+  const session = await auth();
   
   if (!session?.user?.email) {
     throw new ApiError(401, 'Unauthorized');

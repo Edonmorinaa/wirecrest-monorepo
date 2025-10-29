@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 import { prisma } from '@wirecrest/db';
 import { Role, TeamMember } from '@prisma/client';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 
 import { ApiError } from 'src/lib/errors';
 import { maxLengthPolicies } from 'src/lib/common';
@@ -113,7 +113,7 @@ export const throwIfNotAllowed = (
 
 // Get current user from session
 export const getCurrentUser = async (req: NextApiRequest, res: NextApiResponse) => {
-  const session = await getSession(req, res);
+  const session = await auth();
 
   if (!session) {
     throw new Error('Unauthorized');

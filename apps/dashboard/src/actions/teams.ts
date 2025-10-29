@@ -5,7 +5,7 @@ import type { TeamWithMemberCount } from './types/common';
 
 import { Role } from '@prisma/client';
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 import {
   updateTeamMember,
 } from '@/models/teamMember';
@@ -39,7 +39,7 @@ type TeamMemberWithUser = TeamMember & {
 
 // Team Management Actions
 export async function getTeamsList(): Promise<TeamWithMemberCount[]> {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -49,7 +49,7 @@ export async function getTeamsList(): Promise<TeamWithMemberCount[]> {
 }
 
 export async function createNewTeam(data: { name: string }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -97,7 +97,7 @@ export async function createNewTeam(data: { name: string }) {
 }
 
 export async function getTeamBySlug(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -123,7 +123,7 @@ export async function getTeamBySlug(slug: string) {
 }
 
 export async function updateTeamBySlug(slug: string, data: { name?: string; domain?: string }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -160,7 +160,7 @@ export async function updateTeamBySlug(slug: string, data: { name?: string; doma
 }
 
 export async function deleteTeamBySlug(slug: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -192,7 +192,7 @@ export async function deleteTeamBySlug(slug: string) {
 
 // Team Members Actions
 export async function getTeamMembersList(slug: string): Promise<TeamMemberWithUser[]> {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -219,7 +219,7 @@ export async function getTeamMembersList(slug: string): Promise<TeamMemberWithUs
 }
 
 export async function removeTeamMember(slug: string, memberId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -259,7 +259,7 @@ export async function removeTeamMember(slug: string, memberId: string) {
 }
 
 export async function updateTeamMemberRole(slug: string, memberId: string, role: Role) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -297,7 +297,7 @@ export async function getTeamInvitations(
   slug: string,
   sentViaEmail: boolean = true
 ): Promise<TeamInvitation[]> {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -324,7 +324,7 @@ export async function getTeamInvitations(
 }
 
 export async function createTeamInvitation(slug: string, data: { email?: string; role: Role }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -368,7 +368,7 @@ export async function createTeamInvitation(slug: string, data: { email?: string;
 }
 
 export async function deleteTeamInvitation(slug: string, invitationId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -399,7 +399,7 @@ export async function deleteTeamInvitation(slug: string, invitationId: string) {
 }
 
 export async function resendTeamInvitation(slug: string, invitationId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -448,7 +448,7 @@ type ApiKeySummary = {
 };
 
 export async function getTeamApiKeys(slug: string): Promise<ApiKeySummary[]> {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -475,7 +475,7 @@ export async function getTeamApiKeys(slug: string): Promise<ApiKeySummary[]> {
 }
 
 export async function createTeamApiKey(slug: string, data: { name: string }) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -511,7 +511,7 @@ export async function createTeamApiKey(slug: string, data: { name: string }) {
 }
 
 export async function deleteTeamApiKey(slug: string, apiKeyId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }

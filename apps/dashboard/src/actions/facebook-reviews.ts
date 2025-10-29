@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@wirecrest/db';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 
 import { ApiError } from './lib/errors';
 
@@ -45,7 +45,7 @@ export async function getFacebookReviews(
   teamSlug: string,
   filters: FacebookReviewFilters = {}
 ) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -262,7 +262,7 @@ export async function updateFacebookReviewMetadata(
   reviewId: string,
   data: { isRead?: boolean; isImportant?: boolean }
 ) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }

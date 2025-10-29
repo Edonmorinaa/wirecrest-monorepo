@@ -3,7 +3,6 @@
 import useTeam from '@/hooks/useTeam';
 import { useParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { PlatformFeatureGate } from '@/components/feature-gates/PlatformFeatureGate';
 
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -195,12 +194,6 @@ export function TikTokAnalyticsView() {
   }
 
   return (
-    <PlatformFeatureGate 
-      platform="tiktok" 
-      tenantId={tenantId}
-      showUpgradePrompt
-      upgradeMessage="TikTok features are not available on your current plan. Please upgrade to access TikTok analytics and management."
-    >
       <DashboardContent maxWidth="xl" disablePadding={false} sx={{}} className="">
         <Stack spacing={3}>
         {/* Breadcrumbs */}
@@ -327,6 +320,5 @@ export function TikTokAnalyticsView() {
         </Alert>
       </Snackbar>
     </DashboardContent>
-    </PlatformFeatureGate>
   );
 }

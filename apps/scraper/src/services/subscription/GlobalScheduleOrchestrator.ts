@@ -82,7 +82,7 @@ export class GlobalScheduleOrchestrator {
 
     // Create a new task for this actor
     const actorId = ACTOR_IDS[platform];
-    const taskName = `wirecrest-${platform}-scheduled`;
+    const taskName = `wirecrest-${platform.replace(/_/g, '-')}-scheduled`;
 
     try {
       // Check if task already exists
@@ -250,10 +250,25 @@ export class GlobalScheduleOrchestrator {
           intervalHours
         );
 
-        // Create mapping
+        // Create or update mapping
         const identifierField = this.getIdentifierFieldName(platform);
-        await prisma.businessScheduleMapping.create({
-          data: {
+        const existingMapping = await prisma.businessScheduleMapping.findUnique({
+          where: {
+            businessProfileId_platform: {
+              businessProfileId,
+              platform,
+            },
+          },
+        });
+
+        await prisma.businessScheduleMapping.upsert({
+          where: {
+            businessProfileId_platform: {
+              businessProfileId,
+              platform,
+            },
+          },
+          create: {
             teamId,
             businessProfileId,
             platform,
@@ -262,13 +277,21 @@ export class GlobalScheduleOrchestrator {
             [identifierField]: identifier,
             isActive: true,
           },
+          update: {
+            scheduleId: schedule.id,
+            intervalHours,
+            [identifierField]: identifier,
+            isActive: true,
+          },
         });
 
-        // Update schedule business count
-        await prisma.apifyGlobalSchedule.update({
-          where: { id: schedule.id },
-          data: { businessCount: { increment: 1 } },
-        });
+        // Update schedule business count (only increment if this is a new business)
+        if (!existingMapping || existingMapping.scheduleId !== schedule.id) {
+          await prisma.apifyGlobalSchedule.update({
+            where: { id: schedule.id },
+            data: { businessCount: { increment: 1 } },
+          });
+        }
 
         // Rebuild schedule input in Apify
         await this.updateScheduleInput(schedule.id);
@@ -516,10 +539,10 @@ export class GlobalScheduleOrchestrator {
             },
           };
         } else {
-          // For actor-based schedules, use 'runInput' field
+          // For actor-based schedules, use 'input' field
           return {
             ...action,
-            runInput: {
+            input: {
               ...input,
               webhooks: webhookConfig,
             },
@@ -626,11 +649,11 @@ export class GlobalScheduleOrchestrator {
       : {
           type: 'RUN_ACTOR',
           actorId,
-          runInput: {
+          input: {
             ...initialInput,
             webhooks: webhookConfig,
           },
-          runOptions: {
+          options: {
             build: 'latest',
             timeoutSecs: 3600,
             memoryMbytes: 4096,

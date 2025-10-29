@@ -8,7 +8,7 @@
 import { prisma } from '@wirecrest/db';
 import { getTeam } from '@/models/team';
 import { throwIfNotAllowed } from '@/models/user';
-import { getSession } from '@wirecrest/auth-next';
+import { auth } from '@wirecrest/auth-next';
 
 import env from 'src/lib/env';
 
@@ -18,7 +18,7 @@ import { ApiError } from './lib/errors';
 
 // SSO Connection Management Actions
 export async function getSSOConnections(slug: string, clientId?: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -68,7 +68,7 @@ export async function getSSOConnections(slug: string, clientId?: string) {
 }
 
 export async function createSSOConnection(slug: string, connectionData: any) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -120,7 +120,7 @@ export async function createSSOConnection(slug: string, connectionData: any) {
 }
 
 export async function updateSSOConnection(slug: string, clientId: string, connectionData: any) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
@@ -176,7 +176,7 @@ export async function updateSSOConnection(slug: string, clientId: string, connec
 }
 
 export async function deleteSSOConnection(slug: string, clientId: string) {
-  const session = await getSession();
+  const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
   }
