@@ -72,7 +72,7 @@ export class TripAdvisorOverviewService {
     this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
-  async processAndUpdateOverview(locationId: string, reviews: TripAdvisorReview[]): Promise<void> {
+  // async processAndUpdateOverview(locationId: string, reviews: TripAdvisorReview[]): Promise<void> {
   //   try {
   //     console.log(`🔄 Processing TripAdvisor overview for locationId: ${locationId} with ${reviews.length} reviews`);
 
@@ -243,7 +243,7 @@ export class TripAdvisorOverviewService {
   //     console.error(`❌ Error processing TripAdvisor overview for locationId ${locationId}:`, error);
   //     throw error;
   //   }
-  }
+  // }
 
   private calculateAverageRating(reviews: EnrichedTripAdvisorReview[]): number {
     if (reviews.length === 0) return 0;
