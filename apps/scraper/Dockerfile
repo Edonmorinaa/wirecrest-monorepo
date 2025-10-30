@@ -13,11 +13,8 @@ RUN yarn config set nodeLinker node-modules
 FROM base AS deps
 COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
-COPY packages/core/package.json ./packages/core/package.json
-COPY packages/db/package.json ./packages/db/package.json
-COPY packages/auth/package.json ./packages/auth/package.json
-COPY packages/billing/package.json ./packages/billing/package.json
-COPY packages/notifications/package.json ./packages/notifications/package.json
+# Copy workspace manifest to allow Yarn to resolve workspaces
+COPY packages ./packages
 COPY apps/scraper/package.json ./apps/scraper/package.json
 RUN yarn install --check-cache
 
@@ -30,7 +27,6 @@ COPY packages ./packages
 COPY apps ./apps
 COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
-COPY tsconfig.json ./
 
 # Generate Prisma client first
 WORKDIR /app/packages/db

@@ -13,8 +13,8 @@ RUN yarn config set nodeLinker node-modules
 FROM base AS deps
 COPY package.json yarn.lock turbo.json ./
 COPY .yarnrc.yml ./
-COPY packages/auth/package.json ./packages/auth/package.json
-COPY packages/db/package.json ./packages/db/package.json
+# Copy workspace packages for Yarn to resolve dependencies
+COPY packages ./packages
 COPY apps/auth-service/package.json ./apps/auth-service/package.json
 RUN yarn install --check-cache
 
