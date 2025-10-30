@@ -2,12 +2,14 @@
   "name": "@wirecrest/auth-core",
   "version": "1.0.0",
   "description": "Server-only authentication utilities and session management for Wirecrest applications",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist-cjs/index.js"
     }
   },
   "dependencies": {
@@ -24,7 +26,8 @@
   },
   "scripts": {
     "generate": "echo 'no-op'",
-    "build": "tsc --project tsconfig.json",
+    "build": "tsc --project tsconfig.json && yarn build:cjs",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node -e \"const { writeFileSync }=require('fs');writeFileSync('dist-cjs/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
     "dev": "echo 'No dev step required for auth package'",
     "lint": "echo 'No lint step required for auth package'",
     "clean": "rm -rf dist",

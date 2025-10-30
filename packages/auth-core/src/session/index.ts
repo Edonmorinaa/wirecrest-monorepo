@@ -8,7 +8,15 @@
 
 import { prisma } from '@wirecrest/db';
 import { SuperRole } from '@prisma/client';
-import { jwtVerify } from 'jose';
+// Use dynamic import to support CJS consumers (jose is ESM-only)
+type JwtVerifyFn = (token: string | Uint8Array, key: unknown) => Promise<{ payload: any }>;
+let jwtVerifyLoader: Promise<JwtVerifyFn> | null = null;
+async function getJwtVerify(): Promise<JwtVerifyFn> {
+  if (!jwtVerifyLoader) {
+    jwtVerifyLoader = import('jose').then((m: any) => m.jwtVerify as JwtVerifyFn);
+  }
+  return jwtVerifyLoader;
+}
 
 export interface SessionUser {
   id: string;
@@ -86,6 +94,7 @@ export async function getSession(token?: string): Promise<Session | null> {
   try {
     const encoder = new TextEncoder();
     const key = encoder.encode(secret);
+    const jwtVerify = await getJwtVerify();
     const result = await jwtVerify(token, key);
     payload = result.payload as JWTPayload;
     console.debug("[getSession] JWT verified. Payload:", payload);
@@ -179,6 +188,7 @@ export async function verifyJWTSignature(token: string, secret: string) {
   try {
     const encoder = new TextEncoder();
     const key = encoder.encode(secret);
+    const jwtVerify = await getJwtVerify();
     await jwtVerify(token, key);
     return true;
   } catch (error) {
