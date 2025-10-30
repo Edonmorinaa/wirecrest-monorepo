@@ -73,176 +73,176 @@ export class TripAdvisorOverviewService {
   }
 
   async processAndUpdateOverview(locationId: string, reviews: TripAdvisorReview[]): Promise<void> {
-    try {
-      console.log(`🔄 Processing TripAdvisor overview for locationId: ${locationId} with ${reviews.length} reviews`);
+  //   try {
+  //     console.log(`🔄 Processing TripAdvisor overview for locationId: ${locationId} with ${reviews.length} reviews`);
 
-      // Get business profile
-      const { data: businessProfile, error: businessError } = await this.supabase
-        .from('TripAdvisorBusinessProfile')
-        .select('id, teamId, name')
-        .eq('locationId', locationId)
-        .single();
+  //     // Get business profile
+  //     const { data: businessProfile, error: businessError } = await this.supabase
+  //       .from('TripAdvisorBusinessProfile')
+  //       .select('id, teamId, name')
+  //       .eq('locationId', locationId)
+  //       .single();
 
-      if (businessError || !businessProfile) {
-        console.error(`❌ Business profile not found for locationId: ${locationId}`, businessError);
-        return;
-      }
+  //     if (businessError || !businessProfile) {
+  //       console.error(`❌ Business profile not found for locationId: ${locationId}`, businessError);
+  //       return;
+  //     }
 
-      // Fetch reviews with related data using joins
-      const { data: reviewsWithData, error: reviewsError } = await this.supabase
-        .from('TripAdvisorReview')
-        .select(`
-          *,
-          TripAdvisorReviewSubRating(
-            service,
-            food,
-            value,
-            atmosphere,
-            cleanliness,
-            location,
-            rooms,
-            sleepQuality
-          ),
-          TripAdvisorReviewPhoto(
-            id,
-            url
-          ),
-          ReviewMetadata(
-            sentiment,
-            keywords,
-            emotional
-          )
-        `)
-        .eq('businessProfileId', businessProfile.id);
+  //     // Fetch reviews with related data using joins
+  //     const { data: reviewsWithData, error: reviewsError } = await this.supabase
+  //       .from('TripAdvisorReview')
+  //       .select(`
+  //         *,
+  //         TripAdvisorReviewSubRating(
+  //           service,
+  //           food,
+  //           value,
+  //           atmosphere,
+  //           cleanliness,
+  //           location,
+  //           rooms,
+  //           sleepQuality
+  //         ),
+  //         TripAdvisorReviewPhoto(
+  //           id,
+  //           url
+  //         ),
+  //         ReviewMetadata(
+  //           sentiment,
+  //           keywords,
+  //           emotional
+  //         )
+  //       `)
+  //       .eq('businessProfileId', businessProfile.id);
 
-      if (reviewsError) {
-        console.error(`❌ Error fetching reviews with data:`, reviewsError);
-        return;
-      }
+  //     if (reviewsError) {
+  //       console.error(`❌ Error fetching reviews with data:`, reviewsError);
+  //       return;
+  //     }
 
-      // Transform the data to include sub-ratings and photo counts
-      const enrichedReviews: EnrichedTripAdvisorReview[] = (reviewsWithData || []).map(review => {
-        // Extract sub-ratings from the joined table
-        let subRatings = null;
-        if (review.TripAdvisorReviewSubRating && review.TripAdvisorReviewSubRating.length > 0) {
-          const subRating = review.TripAdvisorReviewSubRating[0];
-          subRatings = {
-            service: subRating.service,
-            food: subRating.food,
-            value: subRating.value,
-            atmosphere: subRating.atmosphere,
-            cleanliness: subRating.cleanliness,
-            location: subRating.location,
-            rooms: subRating.rooms,
-            sleepQuality: subRating.sleepQuality
-          };
-        }
+  //     // Transform the data to include sub-ratings and photo counts
+  //     const enrichedReviews: EnrichedTripAdvisorReview[] = (reviewsWithData || []).map(review => {
+  //       // Extract sub-ratings from the joined table
+  //       let subRatings = null;
+  //       if (review.TripAdvisorReviewSubRating && review.TripAdvisorReviewSubRating.length > 0) {
+  //         const subRating = review.TripAdvisorReviewSubRating[0];
+  //         subRatings = {
+  //           service: subRating.service,
+  //           food: subRating.food,
+  //           value: subRating.value,
+  //           atmosphere: subRating.atmosphere,
+  //           cleanliness: subRating.cleanliness,
+  //           location: subRating.location,
+  //           rooms: subRating.rooms,
+  //           sleepQuality: subRating.sleepQuality
+  //         };
+  //       }
 
-        // Extract review metadata
-        let reviewMetadata = null;
-        if (review.ReviewMetadata) {
-          if (Array.isArray(review.ReviewMetadata)) {
-            reviewMetadata = review.ReviewMetadata.length > 0 ? review.ReviewMetadata[0] : null;
-          } else {
-            reviewMetadata = review.ReviewMetadata;
-          }
-        }
+  //       // Extract review metadata
+  //       let reviewMetadata = null;
+  //       if (review.ReviewMetadata) {
+  //         if (Array.isArray(review.ReviewMetadata)) {
+  //           reviewMetadata = review.ReviewMetadata.length > 0 ? review.ReviewMetadata[0] : null;
+  //         } else {
+  //           reviewMetadata = review.ReviewMetadata;
+  //         }
+  //       }
 
-        // Count photos from the joined table
-        const photoCount = Array.isArray(review.TripAdvisorReviewPhoto) ? review.TripAdvisorReviewPhoto.length : 0;
+  //       // Count photos from the joined table
+  //       const photoCount = Array.isArray(review.TripAdvisorReviewPhoto) ? review.TripAdvisorReviewPhoto.length : 0;
 
-        return {
-          ...review,
-          subRatings,
-          photoCount,
-          reviewMetadata
-        };
-      });
+  //       return {
+  //         ...review,
+  //         subRatings,
+  //         photoCount,
+  //         reviewMetadata
+  //       };
+  //     });
 
-      // Calculate overview metrics using the enriched data
-      const averageRating = this.calculateAverageRating(enrichedReviews);
-      const totalReviews = enrichedReviews.length;
-      const responseMetrics = this.calculateResponseMetrics(enrichedReviews);
-      const ratingDistribution = this.generateRatingDistribution(enrichedReviews);
-      const sentimentAnalysis = this.aggregateSentimentAnalysis(enrichedReviews);
-      const topKeywords = this.aggregateKeywords(enrichedReviews);
-      const subRatingAnalysis = this.calculateSubRatingAnalysis(enrichedReviews);
-      const tripTypeAnalysis = this.calculateTripTypeAnalysis(enrichedReviews);
-      const helpfulVotesMetrics = this.calculateHelpfulVotesMetrics(enrichedReviews);
-      const recentReviews = this.getRecentReviews(enrichedReviews);
+  //     // Calculate overview metrics using the enriched data
+  //     const averageRating = this.calculateAverageRating(enrichedReviews);
+  //     const totalReviews = enrichedReviews.length;
+  //     const responseMetrics = this.calculateResponseMetrics(enrichedReviews);
+  //     const ratingDistribution = this.generateRatingDistribution(enrichedReviews);
+  //     const sentimentAnalysis = this.aggregateSentimentAnalysis(enrichedReviews);
+  //     const topKeywords = this.aggregateKeywords(enrichedReviews);
+  //     const subRatingAnalysis = this.calculateSubRatingAnalysis(enrichedReviews);
+  //     const tripTypeAnalysis = this.calculateTripTypeAnalysis(enrichedReviews);
+  //     const helpfulVotesMetrics = this.calculateHelpfulVotesMetrics(enrichedReviews);
+  //     const recentReviews = this.getRecentReviews(enrichedReviews);
 
-      // Create or update overview
-      const overviewData = {
-        id: randomUUID(),
-        businessProfileId: businessProfile.id,
-        averageRating: averageRating,
-        totalReviews: totalReviews,
-        oneStarCount: ratingDistribution['1']?.value || 0,
-        twoStarCount: ratingDistribution['2']?.value || 0,
-        threeStarCount: ratingDistribution['3']?.value || 0,
-        fourStarCount: ratingDistribution['4']?.value || 0,
-        fiveStarCount: ratingDistribution['5']?.value || 0,
+  //     // Create or update overview
+  //     const overviewData = {
+  //       id: randomUUID(),
+  //       businessProfileId: businessProfile.id,
+  //       averageRating: averageRating,
+  //       totalReviews: totalReviews,
+  //       oneStarCount: ratingDistribution['1']?.value || 0,
+  //       twoStarCount: ratingDistribution['2']?.value || 0,
+  //       threeStarCount: ratingDistribution['3']?.value || 0,
+  //       fourStarCount: ratingDistribution['4']?.value || 0,
+  //       fiveStarCount: ratingDistribution['5']?.value || 0,
         
-        // Sub-rating averages
-        averageServiceRating: subRatingAnalysis.service.average || null,
-        averageFoodRating: subRatingAnalysis.food.average || null,
-        averageValueRating: subRatingAnalysis.value.average || null,
-        averageAtmosphereRating: subRatingAnalysis.atmosphere.average || null,
-        averageCleanlinessRating: subRatingAnalysis.cleanliness.average || null,
-        averageLocationRating: subRatingAnalysis.location.average || null,
-        averageRoomsRating: subRatingAnalysis.rooms.average || null,
-        averageSleepQualityRating: subRatingAnalysis.sleep_quality.average || null,
+  //       // Sub-rating averages
+  //       averageServiceRating: subRatingAnalysis.service.average || null,
+  //       averageFoodRating: subRatingAnalysis.food.average || null,
+  //       averageValueRating: subRatingAnalysis.value.average || null,
+  //       averageAtmosphereRating: subRatingAnalysis.atmosphere.average || null,
+  //       averageCleanlinessRating: subRatingAnalysis.cleanliness.average || null,
+  //       averageLocationRating: subRatingAnalysis.location.average || null,
+  //       averageRoomsRating: subRatingAnalysis.rooms.average || null,
+  //       averageSleepQualityRating: subRatingAnalysis.sleep_quality.average || null,
         
-        // Trip type analysis
-        familyReviews: tripTypeAnalysis.FAMILY,
-        couplesReviews: tripTypeAnalysis.COUPLES,
-        soloReviews: tripTypeAnalysis.SOLO,
-        businessReviews: tripTypeAnalysis.BUSINESS,
-        friendsReviews: tripTypeAnalysis.FRIENDS,
+  //       // Trip type analysis
+  //       familyReviews: tripTypeAnalysis.FAMILY,
+  //       couplesReviews: tripTypeAnalysis.COUPLES,
+  //       soloReviews: tripTypeAnalysis.SOLO,
+  //       businessReviews: tripTypeAnalysis.BUSINESS,
+  //       friendsReviews: tripTypeAnalysis.FRIENDS,
         
-        // Response metrics
-        responseRate: responseMetrics.responseRate,
-        averageResponseTime: responseMetrics.averageResponseTime,
+  //       // Response metrics
+  //       responseRate: responseMetrics.responseRate,
+  //       averageResponseTime: responseMetrics.averageResponseTime,
         
-        // TripAdvisor specific metrics
-        helpfulVotesTotal: helpfulVotesMetrics.total,
-        averageHelpfulVotes: helpfulVotesMetrics.average,
+  //       // TripAdvisor specific metrics
+  //       helpfulVotesTotal: helpfulVotesMetrics.total,
+  //       averageHelpfulVotes: helpfulVotesMetrics.average,
         
-        lastUpdated: new Date()
-      };
+  //       lastUpdated: new Date()
+  //     };
 
-      // Upsert overview
-      const { data: overview, error: overviewError } = await this.supabase
-        .from('TripAdvisorOverview')
-        .upsert(overviewData, { 
-          onConflict: 'businessProfileId',
-          ignoreDuplicates: false 
-        })
-        .select('id')
-        .single();
+  //     // Upsert overview
+  //     const { data: overview, error: overviewError } = await this.supabase
+  //       .from('TripAdvisorOverview')
+  //       .upsert(overviewData, { 
+  //         onConflict: 'businessProfileId',
+  //         ignoreDuplicates: false 
+  //       })
+  //       .select('id')
+  //       .single();
 
-      if (overviewError) {
-        console.error(`❌ Failed to upsert TripAdvisor overview:`, overviewError);
-        return;
-      }
+  //     if (overviewError) {
+  //       console.error(`❌ Failed to upsert TripAdvisor overview:`, overviewError);
+  //       return;
+  //     }
 
-      console.log(`✅ TripAdvisor overview updated for business: ${businessProfile.name}`);
+  //     console.log(`✅ TripAdvisor overview updated for business: ${businessProfile.name}`);
 
-      // Update related tables with separate records instead of JSON
-      await Promise.all([
-        this.updateSentimentAnalysis(overview.id, sentimentAnalysis),
-        this.updateTopKeywords(overview.id, topKeywords),
-        this.updateRecentReviews(overview.id, recentReviews),
-        this.updateRatingDistribution(businessProfile.id, overview.id, enrichedReviews, tripTypeAnalysis, subRatingAnalysis),
-        this.updatePeriodicalMetrics(overview.id, enrichedReviews)
-      ]);
+  //     // Update related tables with separate records instead of JSON
+  //     await Promise.all([
+  //       this.updateSentimentAnalysis(overview.id, sentimentAnalysis),
+  //       this.updateTopKeywords(overview.id, topKeywords),
+  //       this.updateRecentReviews(overview.id, recentReviews),
+  //       this.updateRatingDistribution(businessProfile.id, overview.id, enrichedReviews, tripTypeAnalysis, subRatingAnalysis),
+  //       this.updatePeriodicalMetrics(overview.id, enrichedReviews)
+  //     ]);
 
-      console.log(`🎯 TripAdvisor overview processing completed for locationId: ${locationId}`);
+  //     console.log(`🎯 TripAdvisor overview processing completed for locationId: ${locationId}`);
 
-    } catch (error) {
-      console.error(`❌ Error processing TripAdvisor overview for locationId ${locationId}:`, error);
-      throw error;
-    }
+  //   } catch (error) {
+  //     console.error(`❌ Error processing TripAdvisor overview for locationId ${locationId}:`, error);
+  //     throw error;
+  //   }
   }
 
   private calculateAverageRating(reviews: EnrichedTripAdvisorReview[]): number {

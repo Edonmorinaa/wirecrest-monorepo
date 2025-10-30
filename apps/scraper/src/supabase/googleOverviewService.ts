@@ -33,114 +33,114 @@ export class GoogleOverviewService {
   }
 
   async processAndUpdateOverview(placeId: string, reviews: GoogleReviewWithMeta[]): Promise<void> {
-    try {
-      // First get the business profile ID using placeId
-      const businessData = await prisma.googleBusinessProfile.findFirst({
-        where: { placeId },
-        select: { id: true }
-      });
+    // try {
+    //   // First get the business profile ID using placeId
+    //   const businessData = await prisma.googleBusinessProfile.findFirst({
+    //     where: { placeId },
+    //     select: { id: true }
+    //   });
 
-      if (!businessData) {
-        throw new Error(`Business with placeId ${placeId} not found`);
-      }
+    //   if (!businessData) {
+    //     throw new Error(`Business with placeId ${placeId} not found`);
+    //   }
 
-      const businessId = businessData.id;
+    //   const businessId = businessData.id;
 
-      // Calculate average rating
-      const averageRating = reviews.reduce((sum, review) => sum + (review.stars || 0), 0) / reviews.length;
+    //   // Calculate average rating
+    //   const averageRating = reviews.reduce((sum, review) => sum + (review.stars || 0), 0) / reviews.length;
 
-      // Calculate response metrics
-      const reviewsWithResponse = reviews.filter(review => review.responseFromOwnerText);
-      const responseRate = (reviewsWithResponse.length / reviews.length) * 100;
+    //   // Calculate response metrics
+    //   const reviewsWithResponse = reviews.filter(review => review.responseFromOwnerText);
+    //   const responseRate = (reviewsWithResponse.length / reviews.length) * 100;
 
-      // Calculate average response time in minutes
-      const responseTimes = reviewsWithResponse
-        .map(review => {
-          if (review.responseFromOwnerDate && review.publishedAtDate) {
-            return (new Date(review.responseFromOwnerDate).getTime() - new Date(review.publishedAtDate).getTime()) / (1000 * 60); // Convert to minutes
-          }
-          return null;
-        })
-        .filter(time => time !== null) as number[];
+    //   // Calculate average response time in minutes
+    //   const responseTimes = reviewsWithResponse
+    //     .map(review => {
+    //       if (review.responseFromOwnerDate && review.publishedAtDate) {
+    //         return (new Date(review.responseFromOwnerDate).getTime() - new Date(review.publishedAtDate).getTime()) / (1000 * 60); // Convert to minutes
+    //       }
+    //       return null;
+    //     })
+    //     .filter(time => time !== null) as number[];
 
-      const averageResponseTime = responseTimes.length > 0
-        ? Math.round(responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length)
-        : 0;
+    //   const averageResponseTime = responseTimes.length > 0
+    //     ? Math.round(responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length)
+    //     : 0;
 
-      // Calculate rating distribution with value and percentageValue
-      const ratingDistribution: { [key: string]: { value: number; percentageValue: number } } = {};
-      const totalReviews = reviews.length;
+    //   // Calculate rating distribution with value and percentageValue
+    //   const ratingDistribution: { [key: string]: { value: number; percentageValue: number } } = {};
+    //   const totalReviews = reviews.length;
 
-      for (let i = 1; i <= 5; i++) {
-        const count = reviews.filter(r => r.stars === i).length;
-        ratingDistribution[i.toString()] = {
-          value: count,
-          percentageValue: Number(((count / totalReviews) * 100).toFixed(1))
-        };
-      }
+    //   for (let i = 1; i <= 5; i++) {
+    //     const count = reviews.filter(r => r.stars === i).length;
+    //     ratingDistribution[i.toString()] = {
+    //       value: count,
+    //       percentageValue: Number(((count / totalReviews) * 100).toFixed(1))
+    //     };
+    //   }
 
-      // Calculate sentiment analysis
-      const sentimentAnalysis = {
-        positive: reviews.filter(r => r.reviewMetadata?.emotional === 'positive').length,
-        neutral: reviews.filter(r => r.reviewMetadata?.emotional === 'neutral').length,
-        negative: reviews.filter(r => r.reviewMetadata?.emotional === 'negative').length
-      };
+    //   // Calculate sentiment analysis
+    //   const sentimentAnalysis = {
+    //     positive: reviews.filter(r => r.reviewMetadata?.emotional === 'positive').length,
+    //     neutral: reviews.filter(r => r.reviewMetadata?.emotional === 'neutral').length,
+    //     negative: reviews.filter(r => r.reviewMetadata?.emotional === 'negative').length
+    //   };
 
-      // Calculate top keywords with counts
-      const keywordCounts: { [key: string]: number } = {};
-      reviews.forEach(review => {
-        review.reviewMetadata?.keywords?.forEach(keyword => {
-          keywordCounts[keyword] = (keywordCounts[keyword] || 0) + 1;
-        });
-      });
+    //   // Calculate top keywords with counts
+    //   const keywordCounts: { [key: string]: number } = {};
+    //   reviews.forEach(review => {
+    //     review.reviewMetadata?.keywords?.forEach(keyword => {
+    //       keywordCounts[keyword] = (keywordCounts[keyword] || 0) + 1;
+    //     });
+    //   });
 
-      const topKeywords = Object.entries(keywordCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([key, value]) => ({ key, value }));
+    //   const topKeywords = Object.entries(keywordCounts)
+    //     .sort((a, b) => b[1] - a[1])
+    //     .slice(0, 10)
+    //     .map(([key, value]) => ({ key, value }));
 
-      // Get recent reviews with all details
-      const recentReviews = reviews
-        .sort((a, b) => new Date(b.publishedAtDate).getTime() - new Date(a.publishedAtDate).getTime())
-        .slice(0, 5)
-        .map(review => ({
-          id: review.id,
-          rating: review.stars,
-          text: review.text,
-          author: review.name,
-          date: review.publishedAtDate,
-          response: review.responseFromOwnerText,
-          sentiment: review.reviewMetadata?.sentiment,
-          emotional: review.reviewMetadata?.emotional,
-          // topics not present in current metadata type
-          topics: undefined,
-          keywords: review.reviewMetadata?.keywords
-        }));
+    //   // Get recent reviews with all details
+    //   const recentReviews = reviews
+    //     .sort((a, b) => new Date(b.publishedAtDate).getTime() - new Date(a.publishedAtDate).getTime())
+    //     .slice(0, 5)
+    //     .map(review => ({
+    //       id: review.id,
+    //       rating: review.stars,
+    //       text: review.text,
+    //       author: review.name,
+    //       date: review.publishedAtDate,
+    //       response: review.responseFromOwnerText,
+    //       sentiment: review.reviewMetadata?.sentiment,
+    //       emotional: review.reviewMetadata?.emotional,
+    //       // topics not present in current metadata type
+    //       topics: undefined,
+    //       keywords: review.reviewMetadata?.keywords
+    //     }));
 
-      // Align with current GoogleOverview schema
-      const currentOverallRating = Number(averageRating.toFixed(2));
-      const currentTotalReviews = totalReviews;
-      const lastRefreshedAt = new Date();
+    //   // Align with current GoogleOverview schema
+    //   const currentOverallRating = Number(averageRating.toFixed(2));
+    //   const currentTotalReviews = totalReviews;
+    //   const lastRefreshedAt = new Date();
 
-      await prisma.googleOverview.upsert({
-        where: { businessProfileId: businessId },
-        create: {
-          businessProfileId: businessId,
-          currentOverallRating,
-          currentTotalReviews,
-          lastRefreshedAt,
-        },
-        update: {
-          currentOverallRating,
-          currentTotalReviews,
-          lastRefreshedAt,
-        },
-      });
+    //   await prisma.googleOverview.upsert({
+    //     where: { businessProfileId: businessId },
+    //     create: {
+    //       businessProfile: { connect: { id: businessId } },
+    //       currentOverallRating,
+    //       currentTotalReviews,
+    //       lastRefreshedAt,
+    //     },
+    //     update: {
+    //       currentOverallRating,
+    //       currentTotalReviews,
+    //       lastRefreshedAt,
+    //     },
+    //   });
 
-    } catch (error) {
-      console.error('Error processing Google overview:', error);
-      throw error;
-    }
+    // } catch (error) {
+    //   console.error('Error processing Google overview:', error);
+    //   throw error;
+    // }
   }
 
   private calculateAverageRating(reviews: GoogleReview[]): number {
