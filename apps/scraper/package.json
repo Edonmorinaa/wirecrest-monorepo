@@ -37,7 +37,6 @@
   },
   "dependencies": {
     "@nlpjs/sentiment": "^5.0.0-alpha.5",
-    "@supabase/supabase-js": "^2.45.4",
     "@types/pg": "^8.15.2",
     "@wirecrest/auth-core": "workspace:^",
     "@wirecrest/billing": "workspace:^",

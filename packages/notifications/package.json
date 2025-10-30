@@ -22,7 +22,6 @@
     "find-team": "tsx scripts/find-team.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
     "@wirecrest/db": "workspace:*",
     "web-push": "^3.6.7"
   },
