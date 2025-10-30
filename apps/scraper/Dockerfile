@@ -36,7 +36,7 @@ RUN npx prisma generate
 
 # Build only scraper and its dependencies using Turbo
 WORKDIR /app
-RUN npx turbo run build --filter=@wirecrestscraper
+RUN npx turbo run build --filter=@wirecrest/scraper
 
 # ==============================
 # Production stage
