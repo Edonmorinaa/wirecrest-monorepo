@@ -152,8 +152,9 @@ export class ReviewDataProcessor {
       where: whereClause,
       select: { id: true, placeId: true, lastReviewDate: true, teamId: true },
     });
-
-    const profileMap = new Map(businessProfiles.map((p) => [p.placeId, p]));
+    const profileMap = new Map<string, { id: string; placeId: string | null; lastReviewDate: Date | null; teamId: string }>(
+      businessProfiles.map((p) => [p.placeId || '', p])
+    );
     
     let reviewsNew = 0;
     let reviewsDuplicate = 0;
@@ -161,7 +162,7 @@ export class ReviewDataProcessor {
 
     // Process reviews for each place
     for (const placeId of uniquePlaceIds) {
-      const profile = profileMap.get(placeId);
+      const profile = profileMap.get(placeId) as { id: string; placeId: string | null; lastReviewDate: Date | null; teamId: string } | undefined;
       if (!profile) {
         console.log(`⚠️  No profile found for placeId ${placeId}, skipping...`);
         continue;
@@ -445,8 +446,9 @@ export class ReviewDataProcessor {
       where: whereClause,
       select: { id: true, facebookUrl: true, lastReviewDate: true, teamId: true },
     });
-
-    const profileMap = new Map(businessProfiles.map((p) => [p.facebookUrl, p]));
+    const profileMap = new Map<string, { id: string; facebookUrl: string | null; lastReviewDate: Date | null; teamId: string }>(
+      businessProfiles.map((p) => [p.facebookUrl || '', p])
+    );
     
     let reviewsNew = 0;
     let reviewsDuplicate = 0;
@@ -454,7 +456,7 @@ export class ReviewDataProcessor {
 
     // Process reviews for each page
     for (const facebookUrl of uniqueUrls) {
-      const profile = profileMap.get(facebookUrl);
+      const profile = profileMap.get(facebookUrl) as { id: string; facebookUrl: string | null; lastReviewDate: Date | null; teamId: string } | undefined;
       if (!profile) {
         console.log(`⚠️  No profile found for URL ${facebookUrl}, skipping...`);
         continue;

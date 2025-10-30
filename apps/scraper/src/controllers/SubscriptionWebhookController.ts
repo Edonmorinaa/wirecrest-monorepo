@@ -19,24 +19,23 @@ export class SubscriptionWebhookController {
    */
   async handleSubscriptionCreated(req: Request, res: Response): Promise<void> {
     try {
-      const { teamId, subscriptionId } = req.body;
+      const { teamId } = req.body;
 
-      if (!teamId || !subscriptionId) {
+      if (!teamId) {
         res.status(400).json({
-          error: 'Missing required fields: teamId, subscriptionId',
+          error: 'Missing required fields: teamId',
         });
         return;
       }
 
-      console.log(`📋 Creating schedules for team ${teamId}, subscription ${subscriptionId}`);
+      console.log(`📋 Creating schedules for team ${teamId}`);
 
-      await this.orchestrator.handleNewSubscription(teamId, subscriptionId);
+      await this.orchestrator.handleNewSubscription(teamId);
 
       res.json({
         success: true,
         message: 'Schedules created successfully',
-        teamId,
-        subscriptionId,
+        teamId
       });
     } catch (error: any) {
       console.error('Error handling subscription created:', error);
@@ -52,24 +51,23 @@ export class SubscriptionWebhookController {
    */
   async handleSubscriptionUpdated(req: Request, res: Response): Promise<void> {
     try {
-      const { teamId, subscriptionId } = req.body;
+      const { teamId } = req.body;
 
-      if (!teamId || !subscriptionId) {
+      if (!teamId) {
         res.status(400).json({
-          error: 'Missing required fields: teamId, subscriptionId',
+          error: 'Missing required fields: teamId',
         });
         return;
       }
 
-      console.log(`🔄 Updating schedules for team ${teamId}, subscription ${subscriptionId}`);
+      console.log(`🔄 Updating schedules for team ${teamId}`);
 
-      await this.orchestrator.handleSubscriptionUpdate(teamId, subscriptionId);
+      await this.orchestrator.handleSubscriptionUpdate(teamId);
 
       res.json({
         success: true,
         message: 'Schedules updated successfully',
-        teamId,
-        subscriptionId,
+        teamId
       });
     } catch (error: any) {
       console.error('Error handling subscription updated:', error);
@@ -129,14 +127,12 @@ export class SubscriptionWebhookController {
       console.log(`➕ Adding business ${identifier} for team ${teamId} on ${platform}`);
 
       // Sync schedules to include new identifier
-      await this.orchestrator.syncTeamSchedules(teamId);
+      await this.orchestrator.handlePlatformAdded(teamId, platform, identifier);
 
       res.json({
         success: true,
         message: 'Schedule updated with new location',
-        teamId,
-        platform,
-        identifier,
+        teamId
       });
     } catch (error: any) {
       console.error('Error handling business added:', error);
@@ -164,21 +160,20 @@ export class SubscriptionWebhookController {
       console.log(`➖ Removing business ${identifier} for team ${teamId} on ${platform}`);
 
       // Sync schedules to remove identifier
-      await this.orchestrator.syncTeamSchedules(teamId);
+      const result = await this.orchestrator.handlePlatformRemoved(teamId, platform, identifier);
 
-      res.json({
-        success: true,
-        message: 'Schedule updated - location removed',
-        teamId,
-        platform,
-        identifier,
-      });
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Schedule updated - location removed',
+          teamId
+        });
+      } else {
+        res.status(500).json(result);
+      }
     } catch (error: any) {
       console.error('Error handling business removed:', error);
-      res.status(500).json({
-        error: error.message || 'Failed to update schedule',
-      });
+      res.status(500).json(error);
     }
   }
 }
-

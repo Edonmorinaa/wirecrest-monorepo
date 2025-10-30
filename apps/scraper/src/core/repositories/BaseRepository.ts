@@ -6,11 +6,11 @@ import { IRepository } from '../interfaces/IRepository';
  * Follows Single Responsibility Principle (SRP)
  */
 export abstract class BaseRepository<T, K> implements IRepository<T, K> {
-  protected abstract model: any;
-
+  protected abstract model: typeof prisma;
+  
   async findById(id: K): Promise<T | null> {
     return await this.model.findUnique({
-      where: { id }
+      where: { id },
     });
   }
 
@@ -20,20 +20,20 @@ export abstract class BaseRepository<T, K> implements IRepository<T, K> {
 
   async create(entity: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
     return await this.model.create({
-      data: entity
+      data: entity,
     });
   }
 
   async update(id: K, entity: Partial<T>): Promise<T> {
     return await this.model.update({
       where: { id },
-      data: entity
+      data: entity,
     });
   }
 
   async delete(id: K): Promise<void> {
     await this.model.delete({
-      where: { id }
+      where: { id },
     });
   }
 

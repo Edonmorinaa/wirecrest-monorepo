@@ -1,6 +1,4 @@
 import { MarketPlatform } from '@prisma/client';
-import { BaseRepository } from './BaseRepository';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
 
 /**
  * TikTok Review Repository (for snapshots)
@@ -8,12 +6,35 @@ import { IReviewRepository } from '../interfaces/IReviewRepository';
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-export class TikTokReviewRepository extends BaseRepository implements IReviewRepository {
+export interface TikTokSnapshot {
+  id: string;
+  teamId: string;
+  platform: MarketPlatform;
+  snapshotDate: Date;
+  followerCount: number;
+  videoCount: number;
+  totalLikes: number;
+  totalComments: number;
+  totalViews: number;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export type CreateTikTokSnapshotInput = Omit<
+  TikTokSnapshot,
+  'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'platform'
+>;
+
+export type UpdateTikTokSnapshotInput = Partial<
+  Omit<TikTokSnapshot, 'id' | 'teamId' | 'platform' | 'createdAt'>
+>;
+
+export class TikTokReviewRepository {
   
   /**
    * Get snapshots by team ID and platform
    */
-  async getByTeamId(teamId: string, platform: MarketPlatform): Promise<any[]> {
+  async getByTeamId(teamId: string, platform: MarketPlatform): Promise<TikTokSnapshot[]> {
     try {
       console.log(`[TikTokReviewRepository] Getting snapshots for team ${teamId}`);
       
@@ -59,16 +80,21 @@ export class TikTokReviewRepository extends BaseRepository implements IReviewRep
   /**
    * Create snapshot
    */
-  async create(teamId: string, platform: MarketPlatform, data: any): Promise<any> {
+  async create(teamId: string, platform: MarketPlatform, data: CreateTikTokSnapshotInput): Promise<TikTokSnapshot> {
     try {
       console.log(`[TikTokReviewRepository] Creating snapshot for team ${teamId}`);
       
       // This would typically insert into the database
-      const snapshot = {
+      const snapshot: TikTokSnapshot = {
         id: `tiktok-snapshot-${teamId}-${Date.now()}`,
         teamId,
         platform,
-        ...data,
+        snapshotDate: data.snapshotDate,
+        followerCount: data.followerCount,
+        videoCount: data.videoCount,
+        totalLikes: data.totalLikes,
+        totalComments: data.totalComments,
+        totalViews: data.totalViews,
         createdAt: new Date()
       };
 
@@ -83,14 +109,22 @@ export class TikTokReviewRepository extends BaseRepository implements IReviewRep
   /**
    * Update snapshot
    */
-  async update(snapshotId: string, data: any): Promise<any> {
+  async update(snapshotId: string, data: UpdateTikTokSnapshotInput): Promise<TikTokSnapshot> {
     try {
       console.log(`[TikTokReviewRepository] Updating snapshot ${snapshotId}`);
       
       // This would typically update the database
-      const snapshot = {
+      const snapshot: TikTokSnapshot = {
         id: snapshotId,
-        ...data,
+        teamId: 'mock-team',
+        platform: MarketPlatform.GOOGLE_MAPS,
+        snapshotDate: data.snapshotDate ?? new Date(),
+        followerCount: data.followerCount ?? 0,
+        videoCount: data.videoCount ?? 0,
+        totalLikes: data.totalLikes ?? 0,
+        totalComments: data.totalComments ?? 0,
+        totalViews: data.totalViews ?? 0,
+        createdAt: new Date(),
         updatedAt: new Date()
       };
 

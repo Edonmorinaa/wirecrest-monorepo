@@ -6,6 +6,7 @@
 # Operating System Files
 # =============================================================================
 
+apps/**/.open-next
 .turbo/
 # macOS
 .DS_Store

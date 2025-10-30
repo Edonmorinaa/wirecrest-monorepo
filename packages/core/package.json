@@ -11,6 +11,7 @@
   },
   "license": "MIT",
   "scripts": {
+    "generate": "echo 'no-op'",
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint \"src/**/*.ts*\"",

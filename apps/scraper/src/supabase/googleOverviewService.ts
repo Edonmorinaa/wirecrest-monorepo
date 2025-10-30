@@ -19,12 +19,20 @@ interface KeywordCount {
   value: number;
 }
 
+type GoogleReviewWithMeta = GoogleReview & {
+  reviewMetadata?: {
+    emotional?: string | null;
+    keywords?: string[] | null;
+    sentiment?: number | null;
+  } | null;
+};
+
 export class GoogleOverviewService {
   constructor() {
     // No initialization needed for Prisma
   }
 
-  async processAndUpdateOverview(placeId: string, reviews: GoogleReview[]): Promise<void> {
+  async processAndUpdateOverview(placeId: string, reviews: GoogleReviewWithMeta[]): Promise<void> {
     try {
       // First get the business profile ID using placeId
       const businessData = await prisma.googleBusinessProfile.findFirst({
@@ -104,7 +112,8 @@ export class GoogleOverviewService {
           response: review.responseFromOwnerText,
           sentiment: review.reviewMetadata?.sentiment,
           emotional: review.reviewMetadata?.emotional,
-          topics: review.reviewMetadata?.topics,
+          // topics not present in current metadata type
+          topics: undefined,
           keywords: review.reviewMetadata?.keywords
         }));
 
@@ -218,7 +227,7 @@ export class GoogleOverviewService {
     return distribution;
   }
 
-  private aggregateSentimentAnalysis(reviews: GoogleReview[]): SentimentAnalysis {
+  private aggregateSentimentAnalysis(reviews: GoogleReviewWithMeta[]): SentimentAnalysis {
     const sentimentCounts = {
       positive: 0,
       neutral: 0,
@@ -249,7 +258,7 @@ export class GoogleOverviewService {
     return sentimentCounts;
   }
 
-  private aggregateKeywords(reviews: GoogleReview[]): KeywordCount[] {
+  private aggregateKeywords(reviews: GoogleReviewWithMeta[]): KeywordCount[] {
     const keywordCounts: { [key: string]: number } = {};
     
     reviews.forEach(review => {
@@ -268,7 +277,7 @@ export class GoogleOverviewService {
       .map(([key, value]) => ({ key, value }));
   }
 
-  private getRecentReviews(reviews: GoogleReview[]): any[] {
+  private getRecentReviews(reviews: GoogleReviewWithMeta[]): any[] {
     return reviews
       .sort((a, b) => new Date(b.publishedAtDate).getTime() - new Date(a.publishedAtDate).getTime())
       .slice(0, 10) // Get top 10 most recent

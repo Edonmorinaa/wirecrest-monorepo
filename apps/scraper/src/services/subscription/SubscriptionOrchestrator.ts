@@ -410,6 +410,43 @@ export class SubscriptionOrchestrator {
     }
   }
 
+  async handlePlatformRemoved(
+    teamId: string,
+    platform: Platform,
+    identifier: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      console.log(`🚫 Handling platform removal for team ${teamId}, platform: ${platform}, identifier: ${identifier}`);
+
+      // Remove business from schedule
+      const result = await this.globalOrchestrator.removeBusinessFromSchedule(
+        identifier,
+        platform as Platform
+      );
+
+      if (result.success) {
+        return {
+          success: true,
+          message: 'Platform removed successfully',
+        };
+      } else {
+        console.error(`  ✗ Failed to remove business ${identifier}: ${result.message}`);
+        return {
+          success: false,
+          message: `Failed to remove business: ${result.message}`,
+        };
+      }
+    } catch (error: any) {
+      console.error('Error handling platform removal:', error);
+      return {
+        success: false,
+        message: `Failed to remove business: ${error.message}`,
+      };
+    }
+  }
   /**
    * Get business profile ID from identifier
    * Helper method to look up the business profile ID for a given identifier

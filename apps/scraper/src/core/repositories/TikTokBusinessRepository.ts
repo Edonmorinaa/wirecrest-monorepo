@@ -1,6 +1,4 @@
 import { MarketPlatform } from '@prisma/client';
-import { BaseRepository } from './BaseRepository';
-import { IBusinessRepository } from '../interfaces/IBusinessRepository';
 
 /**
  * TikTok Business Repository
@@ -8,12 +6,29 @@ import { IBusinessRepository } from '../interfaces/IBusinessRepository';
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-export class TikTokBusinessRepository extends BaseRepository implements IBusinessRepository {
+export interface TikTokBusinessProfile {
+  id: string;
+  teamId: string;
+  platform: MarketPlatform;
+  username: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CreateTikTokBusinessInput = {
+  username: string;
+  isActive?: boolean;
+};
+
+export type UpdateTikTokBusinessInput = Partial<Pick<TikTokBusinessProfile, 'username' | 'isActive'>>;
+
+export class TikTokBusinessRepository {
   
   /**
    * Get business profile by team ID and platform
    */
-  async getByTeamId(teamId: string, platform: MarketPlatform): Promise<any> {
+  async getByTeamId(teamId: string, platform: MarketPlatform): Promise<TikTokBusinessProfile> {
     try {
       console.log(`[TikTokBusinessRepository] Getting business profile for team ${teamId}`);
       
@@ -38,16 +53,17 @@ export class TikTokBusinessRepository extends BaseRepository implements IBusines
   /**
    * Create business profile
    */
-  async create(teamId: string, platform: MarketPlatform, data: any): Promise<any> {
+  async create(teamId: string, platform: MarketPlatform, data: CreateTikTokBusinessInput): Promise<TikTokBusinessProfile> {
     try {
       console.log(`[TikTokBusinessRepository] Creating business profile for team ${teamId}`);
       
       // This would typically insert into the database
-      const businessProfile = {
+      const businessProfile: TikTokBusinessProfile = {
         id: `tiktok-business-${teamId}-${Date.now()}`,
         teamId,
         platform,
-        ...data,
+        username: data.username,
+        isActive: data.isActive ?? true,
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -63,16 +79,18 @@ export class TikTokBusinessRepository extends BaseRepository implements IBusines
   /**
    * Update business profile
    */
-  async update(teamId: string, platform: MarketPlatform, data: any): Promise<any> {
+  async update(teamId: string, platform: MarketPlatform, data: UpdateTikTokBusinessInput): Promise<TikTokBusinessProfile> {
     try {
       console.log(`[TikTokBusinessRepository] Updating business profile for team ${teamId}`);
       
       // This would typically update the database
-      const businessProfile = {
+      const businessProfile: TikTokBusinessProfile = {
         id: `tiktok-business-${teamId}`,
         teamId,
         platform,
-        ...data,
+        username: data.username ?? 'mock-username',
+        isActive: data.isActive ?? true,
+        createdAt: new Date(),
         updatedAt: new Date()
       };
 

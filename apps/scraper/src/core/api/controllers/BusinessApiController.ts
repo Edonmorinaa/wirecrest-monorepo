@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { BaseApiController } from './BaseApiController';
 import { IBusinessApiController } from '../interfaces/IApiController';
-import { BusinessProfileRequest, BusinessProfileResponse } from '../dto/ApiRequest';
+import { BusinessProfileRequest } from '../dto/ApiRequest';
 import { BusinessProfileResponse as BusinessProfileResponseDto } from '../dto/ApiResponse';
 import { MarketPlatform } from '@prisma/client';
 import { IDependencyContainer } from '../../interfaces/IDependencyContainer';

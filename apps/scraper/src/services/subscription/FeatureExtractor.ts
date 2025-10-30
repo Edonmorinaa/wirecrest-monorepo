@@ -20,7 +20,9 @@ let featureChecker: FeatureChecker | null = null;
 
 function getFeatureChecker(): FeatureChecker {
   if (!featureChecker) {
-    const productFeaturesService = new ProductFeaturesService();
+    const productFeaturesService = new ProductFeaturesService({
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY!,
+    });
     featureChecker = new FeatureChecker(productFeaturesService);
   }
   return featureChecker;

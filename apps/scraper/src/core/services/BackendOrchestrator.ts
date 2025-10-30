@@ -7,7 +7,7 @@ import { IAnalyticsService } from '../interfaces/IAnalyticsService';
 import { ITaskTracker, TaskStep, TaskStatus } from '../interfaces/ITaskTracker';
 import { SERVICE_TOKENS } from '../interfaces/IDependencyContainer';
 import { logger } from '../../utils/logger';
-import { FeatureFlagService } from '../../services/FeatureFlagService';
+import { FeatureExtractor } from '../../services/subscription/FeatureExtractor';
 /**
  * Backend Orchestrator
  * Follows Single Responsibility Principle (SRP) - orchestrates the entire data flow
@@ -18,12 +18,12 @@ export class BackendOrchestrator {
   private container: IDependencyContainer;
   private apifyService: IApifyService;
   private taskTracker: ITaskTracker;
-  private featureFlagService: FeatureFlagService;
+  private featureExtractor: FeatureExtractor;
 
-  constructor(container: IDependencyContainer, apifyService: IApifyService, featureFlagService: FeatureFlagService) {
+  constructor(container: IDependencyContainer, apifyService: IApifyService, featureExtractor: FeatureExtractor) {
     this.container = container;
     this.apifyService = apifyService;
-    this.featureFlagService = featureFlagService;
+    this.featureExtractor = featureExtractor;
     this.taskTracker = container.getService<ITaskTracker>(SERVICE_TOKENS.TASK_TRACKER_SERVICE);
   }
 
@@ -53,7 +53,8 @@ export class BackendOrchestrator {
       logger.info(`[BackendOrchestrator] Starting complete data flow for team ${teamId}, platform ${platform}, identifier ${identifier}`);
 
       // Check feature flags before processing
-      const platformEnabled = await this.featureFlagService.isPlatformEnabled(teamId, platform.toLowerCase());
+      const platformKey = this.mapPlatformToKey(platform);
+      const platformEnabled = await this.featureExtractor.isPlatformEnabled(teamId, platformKey);
       if (!platformEnabled) {
         logger.warn(`[BackendOrchestrator] Platform ${platform} is not enabled for team ${teamId}`);
         return {
@@ -62,8 +63,8 @@ export class BackendOrchestrator {
         };
       }
 
-      // Get scrape interval from feature flags
-      const scrapeInterval = await this.featureFlagService.getScrapeInterval(teamId);
+      // Get scrape interval from features/config (for logging/visibility)
+      const scrapeInterval = await this.featureExtractor.getIntervalForTeamPlatform(teamId, platformKey, 'reviews');
       logger.info(`[BackendOrchestrator] Scrape interval for team ${teamId}: ${scrapeInterval} hours`);
 
       // Step 1: Create or get business profile
@@ -411,6 +412,21 @@ export class BackendOrchestrator {
   private getAnalyticsService(platform: MarketPlatform): IAnalyticsService {
     const serviceToken = this.getAnalyticsServiceToken(platform);
     return this.container.getService<IAnalyticsService>(serviceToken);
+  }
+
+  private mapPlatformToKey(platform: MarketPlatform): 'google_reviews' | 'facebook' | 'tripadvisor' | 'booking' {
+    switch (platform) {
+      case MarketPlatform.GOOGLE_MAPS:
+        return 'google_reviews';
+      case MarketPlatform.FACEBOOK:
+        return 'facebook';
+      case MarketPlatform.TRIPADVISOR:
+        return 'tripadvisor';
+      case MarketPlatform.BOOKING:
+        return 'booking';
+      default:
+        return 'google_reviews';
+    }
   }
 
   private getBusinessServiceToken(platform: MarketPlatform): string {

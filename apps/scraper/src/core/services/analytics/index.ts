@@ -4,10 +4,11 @@
  */
 
 export * from './PeriodCalculator';
-export * from './HistogramBuilder';
+export { HistogramBuilder } from './HistogramBuilder';
+export type { RatingDistribution } from './HistogramBuilder';
 export * from './KeywordExtractor';
 export * from './ResponseAnalyzer';
 export * from './FacebookMetricsCalculator';
 export * from './TripAdvisorMetricsCalculator';
-export * from './BookingMetricsCalculator';
+export { BookingMetricsCalculator } from './BookingMetricsCalculator';
 

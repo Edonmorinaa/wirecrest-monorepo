@@ -1,6 +1,5 @@
 import { MarketPlatform } from '@prisma/client';
 import { IBusinessService, BusinessProfileResult } from '../interfaces/IBusinessService';
-import { IBusinessRepository } from '../interfaces/IBusinessRepository';
 import { TikTokDataService } from '../../services/tiktokDataService';
 
 /**
@@ -9,13 +8,19 @@ import { TikTokDataService } from '../../services/tiktokDataService';
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-export class TikTokBusinessService implements IBusinessService {
-  private tiktokDataService: TikTokDataService;
+export interface ITikTokBusinessRepository {
+  getByTeamId(teamId: string, platform: MarketPlatform): Promise<{ id: string } | null>;
+  create(teamId: string, platform: MarketPlatform, data: { username: string; isActive?: boolean }): Promise<{ id: string }>;
+  update(teamId: string, platform: MarketPlatform, data: { username?: string; isActive?: boolean }): Promise<{ id: string }>;
+  delete(teamId: string, platform: MarketPlatform): Promise<boolean>;
+}
 
-  constructor(
-    private businessRepository: IBusinessRepository,
-    private teamService?: any // TODO: Inject proper team service
-  ) {
+export class TikTokBusinessService {
+  private tiktokDataService: TikTokDataService;
+  private businessRepository: ITikTokBusinessRepository;
+
+  constructor(businessRepository: ITikTokBusinessRepository) {
+    this.businessRepository = businessRepository;
     const lamatokAccessKey = process.env.LAMATOK_ACCESS_KEY;
     if (!lamatokAccessKey) {
       throw new Error('LAMATOK_ACCESS_KEY environment variable is required');
@@ -102,7 +107,7 @@ export class TikTokBusinessService implements IBusinessService {
   async updateProfile(
     teamId: string,
     platform: MarketPlatform,
-    profileData: any
+    profileData: { username?: string; isActive?: boolean }
   ): Promise<BusinessProfileResult> {
     try {
       console.log(`[TikTokBusinessService] Updating profile for team ${teamId}`);

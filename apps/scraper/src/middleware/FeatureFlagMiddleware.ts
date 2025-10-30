@@ -1,7 +1,7 @@
 // apps/scraper/src/middleware/FeatureFlagMiddleware.ts
 
 import { Request, Response, NextFunction } from 'express';
-import { SubscriptionFeaturesService } from '@wirecrest/billing';
+import { getGlobalFeatureChecker, StripeFeatureLookupKeys } from '@wirecrest/billing/server';
 import { logger } from '../utils/logger';
 
 /**
@@ -9,11 +9,9 @@ import { logger } from '../utils/logger';
  * Uses @wirecrest/billing directly for feature checks
  */
 export class FeatureFlagMiddleware {
-  private subscriptionService: SubscriptionFeaturesService;
+  private featureChecker = getGlobalFeatureChecker();
 
-  constructor() {
-    this.subscriptionService = new SubscriptionFeaturesService();
-  }
+  constructor() {}
 
   /**
    * Middleware to check if a specific feature is enabled
@@ -32,7 +30,8 @@ export class FeatureFlagMiddleware {
           });
         }
 
-        const isEnabled = await this.subscriptionService.hasFeature(teamId, feature);
+        const features = await this.featureChecker.getTeamFeatures(teamId);
+        const isEnabled = features.has(feature as any);
         
         if (!isEnabled) {
           logger.warn(`Feature ${feature} is not enabled for team ${teamId}`);
@@ -74,10 +73,10 @@ export class FeatureFlagMiddleware {
 
         // Map platform names to billing feature names
         const platformFeatureMap: Record<string, string> = {
-          google: 'google_reviews',
-          facebook: 'facebook_reviews',
-          tripadvisor: 'tripadvisor_reviews',
-          booking: 'booking_reviews',
+          google: StripeFeatureLookupKeys.GOOGLE_REVIEWS,
+          facebook: StripeFeatureLookupKeys.FACEBOOK_REVIEWS,
+          tripadvisor: StripeFeatureLookupKeys.TRIPADVISOR_REVIEWS,
+          booking: StripeFeatureLookupKeys.BOOKING_REVIEWS,
           instagram: 'instagram_analytics',
           tiktok: 'tiktok_analytics'
         };
@@ -90,7 +89,8 @@ export class FeatureFlagMiddleware {
           });
         }
 
-        const isEnabled = await this.subscriptionService.hasFeature(teamId, featureName);
+        const features = await this.featureChecker.getTeamFeatures(teamId);
+        const isEnabled = features.has(featureName as any);
         
         if (!isEnabled) {
           logger.warn(`Platform ${platform} is not enabled for team ${teamId}`);

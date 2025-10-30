@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev -p 3032 --turbopack",
     "start": "next start -p 3032",
-    "build": "prisma generate --schema=../../packages/db/prisma/schema.prisma && next build",
+    "prebuild": "prisma generate --schema=../../packages/db/prisma/schema.prisma",
+    "build": "OPENNEXT_DISABLE_MONOREPO=1 open-next build",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
@@ -59,6 +60,7 @@
     "@mui/x-data-grid": "^8.13.1",
     "@mui/x-date-pickers": "^8.12.0",
     "@mui/x-tree-view": "^8.13.1",
+    "@opennextjs/cloudflare": "^1.11.0",
     "@prisma/client": "^6.14.0",
     "@react-email/components": "^0.5.0",
     "@react-pdf/renderer": "^4.3.0",
@@ -158,6 +160,7 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "globals": "^16.3.0",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "wrangler": "^4.45.2"
   }
 }

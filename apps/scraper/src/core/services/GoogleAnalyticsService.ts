@@ -153,7 +153,7 @@ export class GoogleAnalyticsService implements IAnalyticsService {
       const periods = PeriodCalculator.getAllPeriods();
       
       for (const periodKey of periods) {
-        const periodReviews = PeriodCalculator.filterByPeriod(allReviews, periodKey);
+        const periodReviews = PeriodCalculator.filterByPeriod<typeof allReviews[number]>(allReviews, periodKey);
         const periodMetrics = this.calculateMetricsForPeriod(periodReviews);
         const period = PERIOD_DEFINITIONS[periodKey];
 
@@ -206,7 +206,20 @@ export class GoogleAnalyticsService implements IAnalyticsService {
   /**
    * Calculate metrics for a specific period
    */
-  private calculateMetricsForPeriod(reviews: ReviewWithMetadata[]): PeriodMetrics {
+  private calculateMetricsForPeriod<T extends {
+    rating?: number | null;
+    stars?: number | null;
+    publishedAtDate: Date | string;
+    reviewMetadata?: {
+      emotional?: string | null;
+      keywords?: string[] | null;
+      reply?: string | null;
+      replyDate?: Date | null;
+      sentiment?: number | null;
+    } | null;
+    responseFromOwnerText?: string | null;
+    responseFromOwnerDate?: Date | null;
+  }>(reviews: T[]): PeriodMetrics {
     const reviewCount = reviews.length;
 
     if (reviewCount === 0) {

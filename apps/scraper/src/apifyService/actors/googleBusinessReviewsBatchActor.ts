@@ -7,7 +7,7 @@ import { ApifyClient } from 'apify-client';
 import { GoogleReviewAnalyticsService } from '../../services/googleReviewAnalyticsService';
 
 export interface GoogleBusinessBatchJobPayload {
-  platform: MarketPlatform.GOOGLE_MAPS;
+  platform: "GOOGLE_MAPS";
   businesses: Array<{
     teamId: string;
     placeId: string;
@@ -20,7 +20,7 @@ export interface GoogleBusinessBatchJobPayload {
 export class GoogleBusinessReviewsBatchActor extends Actor {
   constructor() {
     // Use higher memory for batch processing (8GB)
-    super('Xb8osYTtOjlsgI6k9', 8192, MarketPlatform.GOOGLE_MAPS);
+    super('Xb8osYTtOjlsgI6k9', 8192, "GOOGLE_MAPS");
   }
 
   /**

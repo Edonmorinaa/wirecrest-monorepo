@@ -1,0 +1,16 @@
+{
+    "$schema": "./node_modules/wrangler/config-schema.json",
+    "main": ".open-next/worker.js",
+    "name": "wirecrest-dashboard",
+    "compatibility_date": "2025-03-25",
+    "compatibility_flags": [
+      "nodejs_compat"
+    ],
+    "assets": {
+      "directory": ".open-next/assets",
+      "binding": "ASSETS"
+    },
+    "build": {
+      "command": "OPENNEXT_DISABLE_MONOREPO=1 npm run build"
+    }
+  }

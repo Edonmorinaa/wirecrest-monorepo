@@ -10,6 +10,7 @@
     }
   },
   "scripts": {
+    "generate": "echo 'no-op'",
     "build": "tsc --skipLibCheck",
     "postbuild": "bash scripts/validate-build.sh 2>/dev/null || echo 'Build validation skipped'",
     "start": "node dist/server.js",

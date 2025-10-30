@@ -1,13 +1,12 @@
 import { ApifyClient } from 'apify-client';
 import { Actor, ReviewActorJobData } from './actor';
-import { MarketPlatform } from '@prisma/client';
 import { logger } from '../../utils/logger';
 import { BookingReviewAnalyticsService } from '../../services/bookingReviewAnalyticsService';
 import { createClient } from '@supabase/supabase-js';
 
 export class BookingBusinessReviewsActor extends Actor {
     constructor() {
-        super('PbMHke3jW25J6hSOA', 1024, MarketPlatform.BOOKING);
+        super('PbMHke3jW25J6hSOA', 1024, "BOOKING");
     }
 
     /**
@@ -150,7 +149,7 @@ export async function handleBookingBusinessReviews(
     data: ReviewActorJobData
 ): Promise<boolean> {
     // Validate that this is a Booking.com job
-    if (data.platform !== MarketPlatform.BOOKING || !data.bookingUrl) {
+    if (data.platform !== "BOOKING" || !data.bookingUrl) {
         logger.error(`Invalid job data for Booking.com actor: platform=${data.platform}, hasBookingUrl=${!!data.bookingUrl}`);
         return false;
     }

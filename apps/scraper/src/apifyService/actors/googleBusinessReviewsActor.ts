@@ -22,7 +22,7 @@ export class GoogleBusinessReviewsActor extends Actor {
 
 // This would be part of your ActorManager or job definition system
 export interface GoogleBusinessReviewsActorJobPayload {
-  platform: MarketPlatform.GOOGLE_MAPS;
+  platform: "GOOGLE_MAPS";
   teamId: string;      // Needed for context, though placeId is primary for Google
   placeId: string;
   businessProfileId?: string; // Optional: if already known, saves a lookup

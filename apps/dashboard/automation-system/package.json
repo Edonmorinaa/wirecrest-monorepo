@@ -5,6 +5,7 @@
   "type": "module",
   "main": "automation-flow.js",
   "scripts": {
+    "generate": "echo 'no-op'",
     "start": "node automation-flow.js",
     "telegram": "node telegram-bot-enhanced.js",
     "dev": "nodemon automation-flow.js"

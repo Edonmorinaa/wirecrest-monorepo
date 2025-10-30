@@ -7,7 +7,6 @@ import {
   InstagramDailySnapshot,
   InstagramMediaSnapshot,
   InstagramCommentSnapshot,
-  InstagramAnalytics,
   CreateInstagramProfileRequest,
   TakeSnapshotRequest,
   HikerAPIUserResponse,
@@ -235,19 +234,9 @@ export class EnhancedInstagramDataService {
         storyViews: 0, // Would need separate API call
         storyReplies: 0, // Would need separate API call
         
-        // Calculated metrics
-        engagementRate,
-        avgLikesPerPost,
-        avgCommentsPerPost,
-        commentsRatio,
-        followersRatio,
+        // Calculated metrics (derived, not stored on snapshot model)
         
-        // Growth metrics
-        followersGrowth,
-        followingGrowth,
-        mediaGrowth,
-        weeklyFollowersGrowth,
-        monthlyFollowersGrowth,
+        // Growth metrics (derived, not stored on snapshot model)
         
         hasErrors: false
       };
@@ -271,7 +260,8 @@ export class EnhancedInstagramDataService {
       );
 
       // Create analytics record
-      const analyticsRecord: Partial<InstagramAnalytics> = {
+      type InstagramAnalyticsRow = InstagramAnalyticsData & { id: string; businessProfileId: string; date: Date; period: string; calculatedAt: Date };
+      const analyticsRecord: Partial<InstagramAnalyticsRow> = {
         businessProfileId,
         date: today,
         period: 'DAILY',
@@ -379,22 +369,30 @@ export class EnhancedInstagramDataService {
 
     // Calculate engagement metrics
     const recentSnapshots = historicalSnapshots.slice(0, 7); // Last 7 days
-    const avgEngagementRate = recentSnapshots.length > 0 
-      ? recentSnapshots.reduce((sum, s) => sum + (s.engagementRate || 0), 0) / recentSnapshots.length 
+      const avgEngagementRate = recentSnapshots.length > 0 
+      ? recentSnapshots.reduce((sum, s) => {
+          const engagement = (s.totalLikes + s.totalComments + s.totalSaves + s.totalShares);
+          const followers = Math.max(1, s.followersCount);
+          return sum + (engagement / followers) * 100;
+        }, 0) / recentSnapshots.length 
       : 0;
     
-    const weeklyEngagementRate = recentSnapshots.reduce((sum, s) => sum + (s.engagementRate || 0), 0);
+    const weeklyEngagementRate = recentSnapshots.reduce((sum, s) => {
+      const engagement = (s.totalLikes + s.totalComments + s.totalSaves + s.totalShares);
+      const followers = Math.max(1, s.followersCount);
+      return sum + (engagement / followers) * 100;
+    }, 0);
     
     const avgLikes = recentSnapshots.length > 0 
-      ? recentSnapshots.reduce((sum, s) => sum + (s.avgLikesPerPost || 0), 0) / recentSnapshots.length 
+      ? recentSnapshots.reduce((sum, s) => sum + (s.newPosts > 0 ? s.totalLikes / s.newPosts : 0), 0) / recentSnapshots.length 
       : 0;
     
     const avgComments = recentSnapshots.length > 0 
-      ? recentSnapshots.reduce((sum, s) => sum + (s.avgCommentsPerPost || 0), 0) / recentSnapshots.length 
+      ? recentSnapshots.reduce((sum, s) => sum + (s.newPosts > 0 ? s.totalComments / s.newPosts : 0), 0) / recentSnapshots.length 
       : 0;
     
     const commentsRatio = recentSnapshots.length > 0 
-      ? recentSnapshots.reduce((sum, s) => sum + (s.commentsRatio || 0), 0) / recentSnapshots.length 
+      ? recentSnapshots.reduce((sum, s) => sum + (s.totalLikes > 0 ? (s.totalComments / s.totalLikes) * 100 : 0), 0) / recentSnapshots.length 
       : 0;
     
     const weeklyPosts = recentSnapshots.reduce((sum, s) => sum + (s.newPosts || 0), 0);
@@ -508,12 +506,12 @@ export class EnhancedInstagramDataService {
       const overview = {
         followersGrowthRate90d: analytics?.[analytics.length - 1]?.followersGrowthRate90d || 0,
         weeklyFollowers: snapshots.reduce((sum, s) => sum + (s.weeklyFollowersGrowth || 0), 0),
-        engagementRate: latestSnapshot.engagementRate || 0,
-        avgLikes: latestSnapshot.avgLikesPerPost || 0,
-        avgComments: latestSnapshot.avgCommentsPerPost || 0,
+        engagementRate: latestSnapshot.followersCount > 0 ? ((latestSnapshot.totalLikes + latestSnapshot.totalComments + latestSnapshot.totalSaves + latestSnapshot.totalShares) / latestSnapshot.followersCount) * 100 : 0,
+        avgLikes: latestSnapshot.newPosts > 0 ? latestSnapshot.totalLikes / latestSnapshot.newPosts : 0,
+        avgComments: latestSnapshot.newPosts > 0 ? latestSnapshot.totalComments / latestSnapshot.newPosts : 0,
         weeklyPosts: snapshots.reduce((sum, s) => sum + (s.newPosts || 0), 0),
-        followersRatio: latestSnapshot.followersRatio || 0,
-        commentsRatio: latestSnapshot.commentsRatio || 0,
+        followersRatio: latestSnapshot.followingCount > 0 ? latestSnapshot.followersCount / latestSnapshot.followingCount : 0,
+        commentsRatio: latestSnapshot.totalLikes > 0 ? (latestSnapshot.totalComments / latestSnapshot.totalLikes) * 100 : 0,
         followersChart: snapshots.map(s => ({
           date: s.snapshotDate,
           value: s.followersCount
@@ -566,25 +564,32 @@ export class EnhancedInstagramDataService {
         }))
       };
 
+      const weeklyEngagementRate =
+  snapshots.reduce((sum, s) => {
+    const engagement = (s.totalLikes + s.totalComments + s.totalSaves + s.totalShares);
+    const followers = Math.max(1, s.followersCount);
+    return sum + (engagement / followers) * 100;
+  }, 0);
+
       // Calculate engagement metrics
       const engagement = {
-        engagementRate: latestSnapshot.engagementRate || 0,
-        avgLikes: latestSnapshot.avgLikesPerPost || 0,
-        weeklyEngagementRate: analytics?.[analytics.length - 1]?.weeklyEngagementRate || 0,
+        engagementRate: latestSnapshot.followersCount > 0 ? ((latestSnapshot.totalLikes + latestSnapshot.totalComments + latestSnapshot.totalSaves + latestSnapshot.totalShares) / latestSnapshot.followersCount) * 100 : 0,
+        avgLikes: latestSnapshot.newPosts > 0 ? latestSnapshot.totalLikes / latestSnapshot.newPosts : 0,
+        weeklyEngagementRate: weeklyEngagementRate,
         weeklyPosts: snapshots.reduce((sum, s) => sum + (s.newPosts || 0), 0),
-        avgComments: latestSnapshot.avgCommentsPerPost || 0,
-        commentsRatio: latestSnapshot.commentsRatio || 0,
+        avgComments: latestSnapshot.newPosts > 0 ? latestSnapshot.totalComments / latestSnapshot.newPosts : 0,
+        commentsRatio: latestSnapshot.totalLikes > 0 ? (latestSnapshot.totalComments / latestSnapshot.totalLikes) * 100 : 0,
         engagementRateChart: snapshots.map(s => ({
           date: s.snapshotDate,
-          value: s.engagementRate || 0
+          value: s.followersCount > 0 ? ((s.totalLikes + s.totalComments + s.totalSaves + s.totalShares) / s.followersCount) * 100 : 0
         })),
         avgLikesChart: snapshots.map(s => ({
           date: s.snapshotDate,
-          value: s.avgLikesPerPost || 0
+          value: s.newPosts > 0 ? s.totalLikes / s.newPosts : 0
         })),
         weeklyEngagementRateChart: snapshots.map(s => ({
           date: s.snapshotDate,
-          value: s.engagementRate || 0
+          value: s.followersCount > 0 ? ((s.totalLikes + s.totalComments + s.totalSaves + s.totalShares) / s.followersCount) * 100 : 0
         })),
         weeklyPostsChart: snapshots.map(s => ({
           date: s.snapshotDate,
@@ -592,11 +597,11 @@ export class EnhancedInstagramDataService {
         })),
         avgCommentsChart: snapshots.map(s => ({
           date: s.snapshotDate,
-          value: s.avgCommentsPerPost || 0
+          value: s.newPosts > 0 ? s.totalComments / s.newPosts : 0
         })),
         commentsRatioChart: snapshots.map(s => ({
           date: s.snapshotDate,
-          value: s.commentsRatio || 0
+          value: s.totalLikes > 0 ? (s.totalComments / s.totalLikes) * 100 : 0
         }))
       };
 
@@ -610,8 +615,11 @@ export class EnhancedInstagramDataService {
           followingCount: snapshot.followingCount,
           mediaCount: snapshot.mediaCount,
           mediaDelta: previousSnapshot ? snapshot.mediaCount - previousSnapshot.mediaCount : 0,
-          engagementRate: snapshot.engagementRate || 0,
-          engagementDelta: previousSnapshot ? (snapshot.engagementRate || 0) - (previousSnapshot.engagementRate || 0) : 0
+          engagementRate: snapshot.followersCount > 0 ? ((snapshot.totalLikes + snapshot.totalComments + snapshot.totalSaves + snapshot.totalShares) / snapshot.followersCount) * 100 : 0,
+          engagementDelta: previousSnapshot ? (
+            (snapshot.followersCount > 0 ? ((snapshot.totalLikes + snapshot.totalComments + snapshot.totalSaves + snapshot.totalShares) / snapshot.followersCount) * 100 : 0) -
+            (previousSnapshot.followersCount > 0 ? ((previousSnapshot.totalLikes + previousSnapshot.totalComments + previousSnapshot.totalSaves + previousSnapshot.totalShares) / previousSnapshot.followersCount) * 100 : 0)
+          ) : 0
         };
       });
 

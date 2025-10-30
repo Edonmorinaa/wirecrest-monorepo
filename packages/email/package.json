@@ -27,6 +27,7 @@
     "react-dom": "^18.0.0"
   },
   "scripts": {
+    "generate": "echo 'no-op'",
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint \"src/**/*.ts*\"",

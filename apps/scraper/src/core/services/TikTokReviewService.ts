@@ -1,6 +1,5 @@
 import { MarketPlatform } from '@prisma/client';
-import { IReviewService, ReviewResult } from '../interfaces/IReviewService';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
+import { ReviewResult } from '../interfaces/IReviewService';
 import { TikTokDataService } from '../../services/tiktokDataService';
 
 /**
@@ -9,10 +8,19 @@ import { TikTokDataService } from '../../services/tiktokDataService';
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-export class TikTokReviewService implements IReviewService<any> {
-  private tiktokDataService: TikTokDataService;
+import type { TikTokSnapshot } from '../repositories/TikTokReviewRepository';
 
-  constructor(private reviewRepository: IReviewRepository) {
+export interface ITikTokReviewRepository {
+  getByTeamId(teamId: string, platform: MarketPlatform): Promise<TikTokSnapshot[]>;
+  getCount(businessId: string): Promise<number>;
+}
+
+export class TikTokReviewService {
+  private tiktokDataService: TikTokDataService;
+  private reviewRepository: ITikTokReviewRepository;
+
+  constructor(reviewRepository: ITikTokReviewRepository) {
+    this.reviewRepository = reviewRepository;
     const lamatokAccessKey = process.env.LAMATOK_ACCESS_KEY;
     if (!lamatokAccessKey) {
       throw new Error('LAMATOK_ACCESS_KEY environment variable is required');
@@ -31,11 +39,22 @@ export class TikTokReviewService implements IReviewService<any> {
     try {
       console.log(`[TikTokReviewService] Triggering snapshot for team ${teamId}, username: ${identifier}`);
 
+      // Ensure business profile exists and get ID
+      let businessProfileId: string | null = null;
+      const profileResult = await this.tiktokDataService.getBusinessProfileByTeamId(teamId);
+      if (profileResult.success && profileResult.profile?.id) {
+        businessProfileId = profileResult.profile.id;
+      } else {
+        const createResult = await this.tiktokDataService.createBusinessProfile(teamId, identifier);
+        if (!createResult.success || !createResult.businessProfileId) {
+          return { success: false, error: createResult.error || 'Failed to prepare TikTok profile' };
+        }
+        businessProfileId = createResult.businessProfileId;
+      }
+
       // Take snapshot using TikTokDataService
-      const result = await this.tiktokDataService.takeSnapshot({
-        teamId,
-        tiktokUsername: identifier,
-        forceRefresh: true
+      const result = await this.tiktokDataService.takeDailySnapshot(businessProfileId!, {
+        snapshotType: 'MANUAL',
       });
       
       if (!result.success) {
@@ -47,9 +66,8 @@ export class TikTokReviewService implements IReviewService<any> {
 
       return {
         success: true,
-        jobId: result.snapshotId || 'unknown',
-        reviewsCount: result.snapshotsProcessed || 0,
-        message: result.message || 'TikTok snapshot completed successfully'
+        reviewsCount: 0,
+        message: 'TikTok snapshot completed successfully',
       };
 
     } catch (error) {
@@ -64,7 +82,7 @@ export class TikTokReviewService implements IReviewService<any> {
   /**
    * Get TikTok snapshots
    */
-  async getReviews(teamId: string, platform: MarketPlatform): Promise<any[]> {
+  async getReviews(teamId: string, platform: MarketPlatform): Promise<TikTokSnapshot[]> {
     try {
       console.log(`[TikTokReviewService] Getting snapshots for team ${teamId}`);
 
