@@ -3,7 +3,7 @@
 # ==============================
 FROM node:18-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache libc6-compat bash
+RUN apk add --no-cache libc6-compat bash openssl curl
 RUN corepack enable
 RUN yarn config set nodeLinker node-modules
 
@@ -47,7 +47,7 @@ RUN npx turbo run build --filter=scraper
 # ==============================
 FROM node:18-alpine AS runner
 WORKDIR /app
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 scraperservice
+RUN apk add --no-cache curl && addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 scraperservice
 
 # Create directory for model files if needed
 RUN mkdir -p /app/models
@@ -61,12 +61,12 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 
 USER scraperservice
-EXPOSE 3000
+EXPOSE 8080
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', res => process.exit(res.statusCode === 200 ? 0 : 1))"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -fsS "http://localhost:${PORT}/health" || exit 1
 
 CMD ["node", "dist/server.js"]

@@ -3,7 +3,7 @@
 # ==============================
 FROM node:18-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache libc6-compat bash
+RUN apk add --no-cache libc6-compat bash openssl curl
 RUN corepack enable
 RUN yarn config set nodeLinker node-modules
 
@@ -30,6 +30,8 @@ COPY .yarnrc.yml ./
 
 # Generate Prisma client first
 WORKDIR /app/packages/db
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL:-"postgresql://placeholder:placeholder@placeholder:5432/placeholder"}
 RUN npx prisma generate
 
 # Build only auth-service and its dependencies using Turbo
@@ -41,7 +43,7 @@ RUN npx turbo run build --filter=auth-service
 # ==============================
 FROM node:18-alpine AS runner
 WORKDIR /app
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 authservice
+RUN apk add --no-cache curl && addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 authservice
 
 # Copy built app and runtime deps
 COPY --from=builder /app/apps/auth-service/dist ./dist
@@ -56,7 +58,7 @@ ENV NODE_ENV=production
 EXPOSE 8080
 
 # Health check (uses dynamic $PORT)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider "http://localhost:${PORT:-8080}/health" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -fsS "http://localhost:${PORT:-8080}/health" || exit 1
 
 CMD ["node", "dist/index.js"]
