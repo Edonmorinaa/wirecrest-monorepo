@@ -1,11 +1,9 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { 
-  MarketPlatform,
-  GoogleBusinessProfile,
-  FacebookBusinessProfile,
-  GoogleReview,
-  FacebookReview
-} from '../supabase/models';
+/**
+ * LEGACY FILE - For reference only
+ * Supabase has been removed. This service is deprecated.
+ */
+
+import { MarketPlatform } from '@wirecrest/db';
 import { BusinessProfileCreationService } from './businessProfileCreationService';
 // Local interface for actor manager to avoid missing import
 interface ActorManager {
@@ -185,7 +183,7 @@ export interface BookingReviewData {
 }
 
 export class SimpleBusinessService {
-  private supabase: SupabaseClient;
+  private supabase: any; // LEGACY: Supabase removed
   private businessProfileCreationService: BusinessProfileCreationService;
   private actorManager: ActorManager;
   private teamService: TeamService;

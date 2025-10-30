@@ -1,9 +1,9 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { BaseApiController } from './BaseApiController';
-import { ITaskTracker, TaskStatus, TaskStep } from '../../interfaces/ITaskTracker';
-import { IDependencyContainer } from '../../interfaces/IDependencyContainer';
+import type { ITaskTracker, TaskStatus, TaskStep } from '../../interfaces/ITaskTracker';
+import type { IDependencyContainer } from '../../interfaces/IDependencyContainer';
 import { MarketPlatform } from '@prisma/client';
-import { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
+import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
 
 /**
  * Task API Controller

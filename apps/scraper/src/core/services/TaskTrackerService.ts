@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { MarketPlatform } from '@prisma/client';
-import { ITaskTracker, Task, TaskMessage, TaskProgressUpdate, TaskStatus, TaskStep } from '../interfaces/ITaskTracker';
-import { IDependencyContainer } from '../interfaces/IDependencyContainer';
+import type { ITaskTracker, Task, TaskMessage, TaskProgressUpdate, TaskStatus, TaskStep } from '../interfaces/ITaskTracker';
+import type { IDependencyContainer } from '../interfaces/IDependencyContainer';
 
 /**
  * Task Tracker Service

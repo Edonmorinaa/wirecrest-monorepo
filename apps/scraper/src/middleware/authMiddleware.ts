@@ -3,9 +3,9 @@
  * Extracts JWT token from cookies or Authorization header and validates it
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 // import { getSession, requireAuth, requireAdmin } from '@wirecrest/auth-core';
-import { getSession, requireAuth, requireAdmin } from '@wirecrest/auth-core';
+import type { getSession, requireAuth, requireAdmin } from '@wirecrest/auth-core';
 import { SuperRole } from '@prisma/client';
 
 /**

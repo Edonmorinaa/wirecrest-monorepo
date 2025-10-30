@@ -1,7 +1,8 @@
 import { prisma } from '@wirecrest/db';
-import { GoogleBusinessProfile, MarketPlatform } from '@prisma/client';
+import type { GoogleBusinessProfile } from '@prisma/client';
+import { MarketPlatform } from '@wirecrest/db';
 import { BaseRepository } from './BaseRepository';
-import { IBusinessRepository } from '../interfaces/IBusinessRepository';
+import type { IBusinessRepository } from '../interfaces/IBusinessRepository';
 
 /**
  * Google Business Repository

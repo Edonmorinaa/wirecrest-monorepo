@@ -1,3 +1,10 @@
+import type { SubscriptionStatus } from "@wirecrest/db";
+import type { MarketPlatform } from "@wirecrest/db";
+import type { SubscriptionPlan } from "@wirecrest/billing";
+import type { TripAdvisorBusinessType } from "@wirecrest/db";
+import type { TripAdvisorRankingTrend } from "@wirecrest/db";
+import type { BookingGuestType, BookingPropertyType } from "@wirecrest/db";
+
 export interface GoogleBusinessProfile {
   id: string;
   teamId: string;
@@ -481,45 +488,9 @@ export interface TeamWithSubscription extends Team {
   isActive: boolean;
 }
 
-export enum SubscriptionPlan {
-  FREE = "FREE",
-  BASIC = "BASIC", 
-  PREMIUM = "PREMIUM",
-  ENTERPRISE = "ENTERPRISE"
-}
 
-export enum SubscriptionStatus {
-  ACTIVE = "ACTIVE",
-  INACTIVE = "INACTIVE",
-  SUSPENDED = "SUSPENDED",
-  CANCELLED = "CANCELLED"
-}
-
-export enum MarketPlatform {
-  GOOGLE_MAPS = "GOOGLE_MAPS",
-  FACEBOOK = "FACEBOOK",
-  YELP = "YELP",
-  TRIPADVISOR = "TRIPADVISOR",
-  BOOKING = "BOOKING",
-  INSTAGRAM = "INSTAGRAM",
-  TIKTOK = "TIKTOK"
-}
-
-export enum AdditionalInfoCategory {
-  SERVICE_OPTIONS = "SERVICE_OPTIONS",
-  HIGHLIGHTS = "HIGHLIGHTS",
-  POPULAR_FOR = "POPULAR_FOR",
-  ACCESSIBILITY = "ACCESSIBILITY",
-  OFFERINGS = "OFFERINGS",
-  DINING_OPTIONS = "DINING_OPTIONS",
-  ATMOSPHERE = "ATMOSPHERE",
-  CROWD = "CROWD",
-  PLANNING = "PLANNING",
-  PAYMENTS = "PAYMENTS",
-  CHILDREN = "CHILDREN",
-  PARKING = "PARKING"
-}
-
+// LEGACY: Function commented out - depends on enum above
+/*
 // Helper function to get subscription defaults
 export function getSubscriptionDefaults(plan: SubscriptionPlan = SubscriptionPlan.FREE): {
   maxBusinesses: number;
@@ -555,6 +526,7 @@ export function getSubscriptionDefaults(plan: SubscriptionPlan = SubscriptionPla
       return getSubscriptionDefaults(SubscriptionPlan.FREE);
   }
 }
+*/
 
 // Google Places API v1 Types
 export interface GooglePlaceV1OpeningHoursPeriodPoint {
@@ -781,7 +753,7 @@ export interface AdditionalInfoItem {
   id: string;
   name: string;
   value: boolean;
-  category: AdditionalInfoCategory;
+  category: string; // Previously AdditionalInfoCategory enum
   additionalInfoId?: string;
 }
 
@@ -799,27 +771,7 @@ export interface Answer {
   qaId?: string;
 }
 
-// TripAdvisor Enums
-export enum TripAdvisorBusinessType {
-  HOTEL = 'HOTEL',
-  RESTAURANT = 'RESTAURANT',
-  ATTRACTION = 'ATTRACTION',
-  OTHER = 'OTHER'
-}
-
-export enum TripAdvisorRankingTrend {
-  IMPROVING = 'IMPROVING',
-  DECLINING = 'DECLINING',
-  STABLE = 'STABLE'
-}
-
-export enum TripAdvisorTripType {
-  FAMILY = 'FAMILY',
-  COUPLES = 'COUPLES',
-  SOLO = 'SOLO',
-  BUSINESS = 'BUSINESS',
-  NONE = 'NONE',
-}
+// LEGACY: TripAdvisor enums commented out - use @prisma/client exports instead
 
 // Supporting table interfaces
 export interface TripAdvisorBusinessSubcategory {
@@ -1389,33 +1341,7 @@ export interface TripAdvisorReviewWithMetadata {
 // BOOKING.COM DATA MODELS
 // ============================================================================
 
-export enum BookingPropertyType {
-  HOTEL = 'HOTEL',
-  APARTMENT = 'APARTMENT',
-  HOSTEL = 'HOSTEL',
-  GUEST_HOUSE = 'GUEST_HOUSE',
-  HOMESTAY = 'HOMESTAY',
-  BED_AND_BREAKFAST = 'BED_AND_BREAKFAST',
-  HOLIDAY_HOME = 'HOLIDAY_HOME',
-  BOAT = 'BOAT',
-  VILLA = 'VILLA',
-  MOTEL = 'MOTEL',
-  RESORT = 'RESORT',
-  HOLIDAY_PARK = 'HOLIDAY_PARK',
-  CAMPSITE = 'CAMPSITE',
-  LUXURY_TENT = 'LUXURY_TENT',
-  OTHER = 'OTHER'
-}
-
-export enum BookingGuestType {
-  SOLO = 'SOLO',
-  COUPLE = 'COUPLE',
-  FAMILY_WITH_YOUNG_CHILDREN = 'FAMILY_WITH_YOUNG_CHILDREN',
-  FAMILY_WITH_OLDER_CHILDREN = 'FAMILY_WITH_OLDER_CHILDREN',
-  GROUP_OF_FRIENDS = 'GROUP_OF_FRIENDS',
-  BUSINESS = 'BUSINESS',
-  OTHER = 'OTHER'
-}
+// LEGACY: Booking enums commented out - use @prisma/client exports instead
 
 export interface BookingBusinessProfile {
   id: string;

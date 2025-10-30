@@ -1,6 +1,6 @@
 import { ApifyClient } from 'apify-client';
 import { MarketPlatform } from '@prisma/client';
-import { IApifyActor, IApifyJobResult } from '../../../interfaces/IApifyService';
+import type { IApifyActor, IApifyJobResult } from '../../../interfaces/IApifyService';
 import { logger } from '../../../../utils/logger';
 
 /**

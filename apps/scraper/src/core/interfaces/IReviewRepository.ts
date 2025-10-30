@@ -1,4 +1,4 @@
-import { GoogleReviewWithMetadata, FacebookReviewWithMetadata, TripAdvisorReviewWithMetadata, BookingReviewWithMetadata } from '../../types/extended-types';
+import type { GoogleReviewWithMetadata, FacebookReviewWithMetadata, TripAdvisorReviewWithMetadata, BookingReviewWithMetadata } from '../../types/extended-types';
 
 /**
  * Review repository interface

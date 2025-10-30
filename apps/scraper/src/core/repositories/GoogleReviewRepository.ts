@@ -1,8 +1,8 @@
 import { prisma } from '@wirecrest/db';
-import { GoogleReview } from '@prisma/client';
-import { GoogleReviewWithMetadata } from '../../types/extended-types';
+import type { GoogleReview } from '@prisma/client';
+import type { GoogleReviewWithMetadata } from '../../types/extended-types';
 import { BaseRepository } from './BaseRepository';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
 
 /**
  * Google Review Repository

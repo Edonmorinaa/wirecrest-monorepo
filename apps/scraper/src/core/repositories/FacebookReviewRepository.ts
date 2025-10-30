@@ -1,8 +1,8 @@
 import { prisma } from '@wirecrest/db';
-import { FacebookReview } from '@prisma/client';
-import { FacebookReviewWithMetadata } from '../../types/extended-types';
+import type { FacebookReview } from '@prisma/client';
+import type { FacebookReviewWithMetadata } from '../../types/extended-types';
 import { BaseRepository } from './BaseRepository';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
 
 /**
  * Facebook Review Repository

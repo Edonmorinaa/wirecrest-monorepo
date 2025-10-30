@@ -1,6 +1,6 @@
 import { MarketPlatform } from '@prisma/client';
-import { IBusinessService, BusinessProfileResult } from '../interfaces/IBusinessService';
-import { TikTokDataService } from '../../services/tiktokDataService';
+import type { IBusinessService, BusinessProfileResult } from '../interfaces/IBusinessService';
+import type { TikTokDataService } from '../../services/tiktokDataService';
 
 /**
  * TikTok Business Service

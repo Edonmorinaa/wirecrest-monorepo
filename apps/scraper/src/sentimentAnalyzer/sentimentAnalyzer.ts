@@ -1,6 +1,6 @@
 // @ts-ignore
 import { NlpManager } from 'node-nlp';
-import { trainingData, TrainingUtterance } from "./sentimentTrainingData";
+import type { trainingData, TrainingUtterance } from "./sentimentTrainingData";
 
 /**
  * SentimentAnalyzer class to initialize, train, and analyze text sentiment

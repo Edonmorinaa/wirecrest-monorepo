@@ -1,8 +1,8 @@
 import { prisma } from '@wirecrest/db';
-import { TripAdvisorReview } from '@prisma/client';
-import { TripAdvisorReviewWithMetadata } from '../../types/extended-types';
+import type{ TripAdvisorReview } from '@prisma/client';
+import type { TripAdvisorReviewWithMetadata } from '../../types/extended-types';
 import { BaseRepository } from './BaseRepository';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
 
 /**
  * TripAdvisor Review Repository

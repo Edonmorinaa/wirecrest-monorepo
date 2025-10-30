@@ -1,5 +1,9 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { 
+/**
+ * Facebook Review Analytics Service - Prisma Implementation
+ */
+
+import { prisma } from '@wirecrest/db';
+import type { 
   FacebookReviewWithMetadata,
   ReviewMetadata
 } from '../types/facebook';
@@ -56,12 +60,8 @@ const PERIOD_DEFINITIONS: Record<number, { days: number | null; label: string }>
 type PeriodKeys = keyof typeof PERIOD_DEFINITIONS;
 
 export class FacebookReviewAnalyticsService {
-  private supabase: SupabaseClient;
-
   constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    // No initialization needed with Prisma - it's a singleton
   }
 
   /**
@@ -69,90 +69,66 @@ export class FacebookReviewAnalyticsService {
    * This should be called after new reviews are fetched or on a scheduled basis.
    */
   async processReviewsAndUpdateDashboard(businessProfileId: string): Promise<void> {
-    console.log(`[Facebook Analytics] Starting PERIODICAL review processing for businessProfileId: ${businessProfileId} (Normalized Approach)`);
+    console.log(`[Facebook Analytics] Starting PERIODICAL review processing for businessProfileId: ${businessProfileId} (Prisma Implementation)`);
     try {
-      const { data: businessProfile, error: profileError } = await this.supabase
-        .from('FacebookBusinessProfile')
-        .select(`
-          id, 
-          teamId, 
-          title, 
-          facebookUrl, 
-          pageName
-        `)
-        .eq('id', businessProfileId)
-        .single();
+      const businessProfile = await prisma.facebookBusinessProfile.findUnique({
+        where: { id: businessProfileId },
+        select: {
+          id: true,
+          teamId: true,
+          title: true,
+          facebookUrl: true,
+          pageName: true
+        }
+      });
 
-      if (profileError || !businessProfile) {
-        console.error(`[Facebook Analytics] Error fetching business profile ${businessProfileId}:`, profileError);
+      if (!businessProfile) {
+        console.error(`[Facebook Analytics] Facebook business profile ${businessProfileId} not found`);
         throw new Error(`Facebook business profile ${businessProfileId} not found.`);
       }
       console.log(`[Facebook Analytics] Processing for "${businessProfile.title || businessProfile.pageName}" (Team: ${businessProfile.teamId})`);
 
-      // First, let's check if any reviews exist at all
-      const { count: reviewCount, error: countError } = await this.supabase
-        .from('FacebookReview')
-        .select('*', { count: 'exact', head: true })
-        .eq('businessProfileId', businessProfileId);
+      // Count reviews
+      const reviewCount = await prisma.facebookReview.count({
+        where: { businessProfileId }
+      });
 
-      if (countError) {
-        console.error(`[Facebook Analytics] Error counting reviews:`, countError);
-      } else {
-        console.log(`[Facebook Analytics] Found ${reviewCount} total FacebookReview records for businessProfileId: ${businessProfileId}`);
-      }
+      console.log(`[Facebook Analytics] Found ${reviewCount} total FacebookReview records for businessProfileId: ${businessProfileId}`);
 
-      // Now fetch reviews with metadata using the correct foreign key relationship
-      const { data: allReviewsData, error: reviewsError } = await this.supabase
-        .from('FacebookReview')
-        .select(`
-          isRecommended, 
-          date,
-          likesCount,
-          commentsCount,
-          tags,
-          reviewMetadataId,
-          ReviewMetadata:reviewMetadataId(
-            emotional, 
-            keywords, 
-            reply, 
-            replyDate, 
-            date,
-            sentiment,
-            photoCount
-          )
-        `)
-        .eq('businessProfileId', businessProfileId)
-        .order('date', { ascending: false });
-
-      if (reviewsError) {
-        console.error(`[Facebook Analytics] Error fetching reviews for ${businessProfileId}:`, reviewsError);
-        console.error(`[Facebook Analytics] Error code: ${reviewsError.code}`);
-        console.error(`[Facebook Analytics] Error message: ${reviewsError.message}`);
-        console.error(`[Facebook Analytics] Error details:`, reviewsError.details);
-        
-        // Try a simpler query without the join to see if reviews exist
-        const { data: simpleReviews, error: simpleError } = await this.supabase
-          .from('FacebookReview')
-          .select('id, isRecommended, date, likesCount, commentsCount, tags, reviewMetadataId')
-          .eq('businessProfileId', businessProfileId)
-          .limit(5);
-        
-        if (simpleError) {
-          console.error(`[Facebook Analytics] Even simple review query failed:`, simpleError);
-        } else {
-          console.log(`[Facebook Analytics] Simple query found ${simpleReviews?.length || 0} reviews:`, simpleReviews);
-          
-          // If simple query works but join fails, fall back to separate queries
-          if (simpleReviews && simpleReviews.length > 0) {
-            console.log(`[Facebook Analytics] Falling back to simplified metadata fetching approach`);
-            return await this.processReviewsWithSimplifiedApproach(businessProfileId, businessProfile);
+      // Fetch reviews with metadata using Prisma
+      const allReviewsData = await prisma.facebookReview.findMany({
+        where: { businessProfileId },
+        select: {
+          isRecommended: true,
+          date: true,
+          likesCount: true,
+          commentsCount: true,
+          tags: true,
+          reviewMetadataId: true,
+          reviewMetadata: {
+            select: {
+              emotional: true,
+              keywords: true,
+              reply: true,
+              replyDate: true,
+              date: true,
+              sentiment: true,
+              photoCount: true
+            }
           }
-        }
-        
-        throw new Error(`Could not fetch Facebook reviews.`);
+        },
+        orderBy: { date: 'desc' }
+      });
+
+      if (!allReviewsData || allReviewsData.length === 0) {
+        console.log(`[Facebook Analytics] No reviews found for businessProfileId: ${businessProfileId}`);
+        // Still create empty analytics
+        const allReviews: FacebookReviewWithMetadata[] = [];
+        await this.calculateAndSaveAllPeriodMetrics(businessProfile.id, businessProfile.teamId, allReviews);
+        return;
       }
 
-      console.log(`[Facebook Analytics] Fetched ${allReviewsData?.length || 0} reviews with metadata for businessProfileId: ${businessProfileId}`);
+      console.log(`[Facebook Analytics] Fetched ${allReviewsData.length} reviews for processing`);
 
       // If we get no reviews from the join query but the count shows reviews exist, 
       // there's likely a ReviewMetadata linking issue
@@ -162,28 +138,16 @@ export class FacebookReviewAnalyticsService {
         return await this.processReviewsWithSimplifiedApproach(businessProfileId, businessProfile);
       }
 
-      // Map the Supabase response to our expected interface structure
-      // Handle both array and single object cases for ReviewMetadata
+      // Map the Prisma response to our expected interface structure
       const allReviews: FacebookReviewWithMetadata[] = (allReviewsData || []).map(review => {
-        let reviewMetadata = null;
-        
-        if (review.ReviewMetadata) {
-          // Handle both array and single object cases
-          if (Array.isArray(review.ReviewMetadata)) {
-            reviewMetadata = review.ReviewMetadata.length > 0 ? review.ReviewMetadata[0] : null;
-          } else {
-            reviewMetadata = review.ReviewMetadata;
-          }
-        }
-        
         return {
           isRecommended: review.isRecommended,
           date: review.date,
           likesCount: review.likesCount,
           commentsCount: review.commentsCount,
-          tags: review.tags,
-          photoCount: reviewMetadata?.photoCount || 0,
-          reviewMetadata
+          tags: review.tags || [],
+          photoCount: review.reviewMetadata?.photoCount || 0,
+          reviewMetadata: review.reviewMetadata || null
         };
       });
       

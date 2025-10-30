@@ -1,12 +1,12 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { BaseApiController } from './BaseApiController';
-import { IReviewApiController } from '../interfaces/IApiController';
-import { ReviewRequest } from '../dto/ApiRequest';
-import { ReviewResponse } from '../dto/ApiResponse';
-import { MarketPlatform } from '@prisma/client';
-import { IDependencyContainer } from '../../interfaces/IDependencyContainer';
-import { IReviewService } from '../../interfaces/IReviewService';
-import { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
+import type { IReviewApiController } from '../interfaces/IApiController';
+import type { ReviewRequest } from '../dto/ApiRequest';
+import type { ReviewResponse } from '../dto/ApiResponse';
+import type { MarketPlatform } from '@prisma/client';
+import type { IDependencyContainer } from '../../interfaces/IDependencyContainer';
+import type { IReviewService } from '../../interfaces/IReviewService';
+import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
 
 /**
  * Review API Controller

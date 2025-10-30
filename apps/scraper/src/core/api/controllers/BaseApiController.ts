@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
-import { IApiController } from '../interfaces/IApiController';
-import { BaseApiResponse, ErrorResponse } from '../dto/ApiResponse';
-import { MarketPlatform } from '@prisma/client';
+import type { Request, Response } from 'express';
+import type { IApiController } from '../interfaces/IApiController';
+import type { BaseApiResponse, ErrorResponse } from '../dto/ApiResponse';
+import type { MarketPlatform } from '@prisma/client';
 
 /**
  * Base API Controller

@@ -1,7 +1,7 @@
 import { prisma } from '@wirecrest/db';
-import { FacebookBusinessProfile, MarketPlatform } from '@prisma/client';
+import type { FacebookBusinessProfile, MarketPlatform } from '@prisma/client';
 import { BaseRepository } from './BaseRepository';
-import { IBusinessRepository } from '../interfaces/IBusinessRepository';
+import type { IBusinessRepository } from '../interfaces/IBusinessRepository';
 
 /**
  * Facebook Business Repository

@@ -1,7 +1,8 @@
 import { prisma } from '@wirecrest/db';
-import { TripAdvisorBusinessProfile, MarketPlatform } from '@prisma/client';
+import { MarketPlatform } from '@wirecrest/db';
+import type { TripAdvisorBusinessProfile } from '@prisma/client';
 import { BaseRepository } from './BaseRepository';
-import { IBusinessRepository } from '../interfaces/IBusinessRepository';
+import type { IBusinessRepository } from '../interfaces/IBusinessRepository';
 
 /**
  * TripAdvisor Business Repository

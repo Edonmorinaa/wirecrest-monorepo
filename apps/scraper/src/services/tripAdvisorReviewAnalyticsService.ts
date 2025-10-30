@@ -1,4 +1,8 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+/**
+ * TripAdvisor Review Analytics Service - Prisma Implementation
+ */
+
+import { prisma } from '@wirecrest/db';
 import { randomUUID } from 'crypto';
 
 interface TripAdvisorReviewWithMetadata {
@@ -104,97 +108,90 @@ const PERIOD_DEFINITIONS: Record<number, { days: number | null; label: string }>
 type PeriodKeys = keyof typeof PERIOD_DEFINITIONS;
 
 export class TripAdvisorReviewAnalyticsService {
-  private supabase: SupabaseClient;
-
   constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    // No initialization needed with Prisma - it's a singleton
   }
 
   /**
    * Processes all reviews for a given TripAdvisor business profile and updates its dashboard.
    */
   async processReviewsAndUpdateDashboard(businessProfileId: string): Promise<void> {
-    console.log(`[TripAdvisor Analytics] Starting review processing for businessProfileId: ${businessProfileId}`);
+    console.log(`[TripAdvisor Analytics] Starting review processing for businessProfileId: ${businessProfileId} (Prisma Implementation)`);
     
     try {
-      const { data: businessProfile, error: profileError } = await this.supabase
-        .from('TripAdvisorBusinessProfile')
-        .select('id, teamId, name, tripAdvisorUrl, locationId, type')
-        .eq('id', businessProfileId)
-        .single();
+      const businessProfile = await prisma.tripAdvisorBusinessProfile.findUnique({
+        where: { id: businessProfileId },
+        select: {
+          id: true,
+          teamId: true,
+          name: true,
+          tripAdvisorUrl: true,
+          locationId: true,
+          type: true
+        }
+      });
 
-      if (profileError || !businessProfile) {
-        console.error(`[TripAdvisor Analytics] Error fetching business profile ${businessProfileId}:`, profileError);
+      if (!businessProfile) {
+        console.error(`[TripAdvisor Analytics] TripAdvisor business profile ${businessProfileId} not found`);
         throw new Error(`TripAdvisor business profile ${businessProfileId} not found.`);
       }
 
       console.log(`[TripAdvisor Analytics] Processing for "${businessProfile.name}" (Team: ${businessProfile.teamId})`);
 
-      // Fetch reviews with metadata and related data using joins
-      const { data: allReviewsData, error: reviewsError } = await this.supabase
-        .from('TripAdvisorReview')
-        .select(`
-          rating,
-          publishedDate,
-          visitDate,
-          helpfulVotes,
-          tripType,
-          roomTip,
-          hasOwnerResponse,
-          responseFromOwnerDate,
-          reviewMetadataId,
-          ReviewMetadata:reviewMetadataId(
-            emotional, 
-            keywords, 
-            reply, 
-            replyDate, 
-            date,
-            sentiment,
-            photoCount
-          ),
-          TripAdvisorReviewSubRating(
-            service,
-            food,
-            value,
-            atmosphere,
-            cleanliness,
-            location,
-            rooms,
-            sleepQuality
-          ),
-          TripAdvisorReviewPhoto(
-            id,
-            url
-          )
-        `)
-        .eq('businessProfileId', businessProfileId)
-        .order('publishedDate', { ascending: false });
-
-      if (reviewsError) {
-        console.error(`[TripAdvisor Analytics] Error fetching reviews:`, reviewsError);
-        throw new Error(`Could not fetch TripAdvisor reviews.`);
-      }
+      // Fetch reviews with metadata and subratings using Prisma
+      const allReviewsData = await prisma.tripAdvisorReview.findMany({
+        where: { businessProfileId },
+        select: {
+          rating: true,
+          publishedDate: true,
+          visitDate: true,
+          helpfulVotes: true,
+          tripType: true,
+          roomTip: true,
+          hasOwnerResponse: true,
+          responseFromOwnerDate: true,
+          reviewMetadataId: true,
+          reviewMetadata: {
+            select: {
+              emotional: true,
+              keywords: true,
+              reply: true,
+              replyDate: true,
+              date: true,
+              sentiment: true,
+              photoCount: true
+            }
+          },
+          subRatings: {
+            select: {
+              service: true,
+              food: true,
+              value: true,
+              atmosphere: true,
+              cleanliness: true,
+              location: true,
+              rooms: true,
+              sleepQuality: true
+            }
+          },
+          photos: {
+            select: {
+              id: true,
+              url: true
+            }
+          }
+        },
+        orderBy: { publishedDate: 'desc' }
+      });
 
       console.log(`[TripAdvisor Analytics] Fetched ${allReviewsData?.length || 0} reviews`);
 
-      // Map the Supabase response to our expected interface structure
+      // Map the Prisma response to our expected interface structure
       const allReviews: TripAdvisorReviewWithMetadata[] = (allReviewsData || []).map(review => {
-        let reviewMetadata = null;
-        
-        if (review.ReviewMetadata) {
-          if (Array.isArray(review.ReviewMetadata)) {
-            reviewMetadata = review.ReviewMetadata.length > 0 ? review.ReviewMetadata[0] : null;
-          } else {
-            reviewMetadata = review.ReviewMetadata;
-          }
-        }
-
-        // Extract sub-ratings from the joined table
+        // Extract sub-ratings - Prisma returns an array but we expect a single object
         let subRatings = null;
-        if (review.TripAdvisorReviewSubRating && review.TripAdvisorReviewSubRating.length > 0) {
-          const subRating = review.TripAdvisorReviewSubRating[0];
+        if (review.subRatings && review.subRatings.length > 0) {
+          const subRating = review.subRatings[0];
           subRatings = {
             service: subRating.service,
             food: subRating.food,
@@ -207,8 +204,8 @@ export class TripAdvisorReviewAnalyticsService {
           };
         }
 
-        // Count photos from the joined table
-        const photoCount = Array.isArray(review.TripAdvisorReviewPhoto) ? review.TripAdvisorReviewPhoto.length : 0;
+        // Count photos from Prisma relation
+        const photoCount = review.photos?.length || 0;
         
         return {
           rating: review.rating,
@@ -221,7 +218,7 @@ export class TripAdvisorReviewAnalyticsService {
           hasOwnerResponse: review.hasOwnerResponse,
           responseFromOwnerDate: review.responseFromOwnerDate,
           photoCount: photoCount,
-          reviewMetadata
+          reviewMetadata: review.reviewMetadata || null
         };
       });
 

@@ -1,13 +1,13 @@
-import { IAnalyticsService, AnalyticsResult, AnalyticsData } from '../interfaces/IAnalyticsService';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
-import { ISentimentAnalyzer } from '../interfaces/ISentimentAnalyzer';
-import { GoogleReviewWithMetadata } from '../../types/extended-types';
+import type { IAnalyticsService, AnalyticsResult, AnalyticsData } from '../interfaces/IAnalyticsService';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { ISentimentAnalyzer } from '../interfaces/ISentimentAnalyzer';
+import type { GoogleReviewWithMetadata } from '../../types/extended-types.js';
 import { prisma } from '@wirecrest/db';
 import type { Prisma } from '@prisma/client';
-import { PeriodCalculator, PeriodKey, PERIOD_DEFINITIONS } from './analytics/PeriodCalculator';
-import { HistogramBuilder, RatingDistribution } from './analytics/HistogramBuilder';
-import { KeywordExtractor, KeywordFrequency } from './analytics/KeywordExtractor';
-import { ResponseAnalyzer } from './analytics/ResponseAnalyzer';
+import type { PeriodCalculator, PeriodKey, PERIOD_DEFINITIONS } from './analytics/PeriodCalculator';
+import type { HistogramBuilder, RatingDistribution } from './analytics/HistogramBuilder';
+import type { KeywordExtractor, KeywordFrequency } from './analytics/KeywordExtractor';
+import type { ResponseAnalyzer } from './analytics/ResponseAnalyzer';
 
 /**
  * Google Analytics Service

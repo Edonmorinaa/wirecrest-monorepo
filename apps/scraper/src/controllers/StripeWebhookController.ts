@@ -3,7 +3,7 @@
  * Handles Stripe subscription lifecycle events
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { SubscriptionOrchestrator } from '../services/subscription/SubscriptionOrchestrator';
 import { StripeService } from '@wirecrest/billing/server';

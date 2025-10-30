@@ -1,4 +1,4 @@
-import { IDependencyContainer, SERVICE_TOKENS } from '../interfaces/IDependencyContainer';
+import type { IDependencyContainer, SERVICE_TOKENS } from '../interfaces/IDependencyContainer';
 
 /**
  * Simple Dependency Injection Container

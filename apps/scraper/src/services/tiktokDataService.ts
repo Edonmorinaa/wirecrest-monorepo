@@ -1,8 +1,12 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+/**
+ * LEGACY FILE - For reference only
+ * Supabase has been removed. This service is deprecated.
+ */
+
 import { randomUUID } from 'crypto';
 import { DatabaseService } from '../supabase/database';
 import { SentimentAnalyzer } from '../sentimentAnalyzer/sentimentAnalyzer';
-import {
+import type {
   TikTokBusinessProfile,
   TikTokDailySnapshot,
   TikTokSnapshotSchedule,

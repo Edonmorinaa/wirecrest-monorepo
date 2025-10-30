@@ -5,7 +5,7 @@
  * SECURITY: These endpoints should be protected by admin authentication!
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { prisma } from '@wirecrest/db';
 import { SubscriptionOrchestrator } from '../services/subscription/SubscriptionOrchestrator';
 import { ApifyScheduleService } from '../services/apify/ApifyScheduleService';

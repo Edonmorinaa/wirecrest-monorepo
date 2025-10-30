@@ -1,4 +1,4 @@
-import { IRepository } from '../interfaces/IRepository';
+import type { IRepository } from '../interfaces/IRepository';
 
 /**
  * Base repository implementation using Prisma

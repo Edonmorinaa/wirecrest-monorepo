@@ -1,6 +1,6 @@
-import { TripAdvisorReviewWithMetadata } from '../../types/extended-types';
-import { IReviewService, ReviewResult } from '../interfaces/IReviewService';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { TripAdvisorReviewWithMetadata } from '../../types/extended-types';
+import type { IReviewService, ReviewResult } from '../interfaces/IReviewService';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
 import { randomUUID } from 'crypto';
 
 /**

@@ -1,12 +1,12 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { BaseApiController } from './BaseApiController';
-import { IBusinessApiController } from '../interfaces/IApiController';
-import { BusinessProfileRequest } from '../dto/ApiRequest';
-import { BusinessProfileResponse as BusinessProfileResponseDto } from '../dto/ApiResponse';
+import type { IBusinessApiController } from '../interfaces/IApiController';
+import type { BusinessProfileRequest } from '../dto/ApiRequest';
+import type { BusinessProfileResponse as BusinessProfileResponseDto } from '../dto/ApiResponse';
 import { MarketPlatform } from '@prisma/client';
-import { IDependencyContainer } from '../../interfaces/IDependencyContainer';
-import { IBusinessService } from '../../interfaces/IBusinessService';
-import { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
+import type { IDependencyContainer } from '../../interfaces/IDependencyContainer';
+import type { IBusinessService } from '../../interfaces/IBusinessService';
+import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
 
 /**
  * Business API Controller

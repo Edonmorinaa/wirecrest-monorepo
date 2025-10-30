@@ -1,6 +1,6 @@
 import { MarketPlatform } from '@prisma/client';
-import { ReviewResult } from '../interfaces/IReviewService';
-import { TikTokDataService } from '../../services/tiktokDataService';
+import type { ReviewResult } from '../interfaces/IReviewService';
+import type { TikTokDataService } from '../../services/tiktokDataService';
 
 /**
  * TikTok Review Service (for snapshots)

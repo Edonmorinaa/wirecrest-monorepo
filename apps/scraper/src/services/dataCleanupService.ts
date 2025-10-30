@@ -1,9 +1,13 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+/**
+ * LEGACY FILE - For reference only
+ * Supabase has been removed. This service is deprecated.
+ */
+
 import { MarketPlatform } from '@prisma/client';
 import { marketIdentifierEvents } from '../events/marketIdentifierEvents';
 
 export class DataCleanupService {
-  private supabase: SupabaseClient;
+  private supabase: any; // LEGACY: Supabase removed
 
   constructor() {
     // Initialize Supabase client

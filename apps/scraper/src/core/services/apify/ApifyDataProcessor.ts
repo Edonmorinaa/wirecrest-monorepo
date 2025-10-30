@@ -1,5 +1,5 @@
 import { MarketPlatform } from '@prisma/client';
-import { IApifyDataProcessor } from '../../interfaces/IApifyService';
+import type { IApifyDataProcessor } from '../../interfaces/IApifyService';
 import { logger } from '../../../utils/logger';
 
 /**

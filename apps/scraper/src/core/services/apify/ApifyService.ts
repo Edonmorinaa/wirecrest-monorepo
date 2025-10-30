@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { MarketPlatform } from '@prisma/client';
-import { 
+import type { 
   IApifyService, 
   IApifyJob, 
   IApifyJobResult, 
@@ -14,9 +14,9 @@ import { FacebookApifyActor } from './actors/FacebookApifyActor';
 import { TripAdvisorApifyActor } from './actors/TripAdvisorApifyActor';
 import { BookingApifyActor } from './actors/BookingApifyActor';
 import { ApifyDataProcessor } from './ApifyDataProcessor';
-import { IDependencyContainer } from '../../interfaces/IDependencyContainer';
-import { IBusinessService } from '../../interfaces/IBusinessService';
-import { IReviewService } from '../../interfaces/IReviewService';
+import type { IDependencyContainer } from '../../interfaces/IDependencyContainer';
+import type { IBusinessService } from '../../interfaces/IBusinessService';
+import type { IReviewService } from '../../interfaces/IReviewService';
 import { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
 import { logger } from '../../../utils/logger';
 

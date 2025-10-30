@@ -1,15 +1,9 @@
 import { ApifyClient } from 'apify-client';
 import { Actor, ActorJob, ReviewActorJobData } from './actor';
 import { DatabaseService } from '../../supabase/database';
-import { 
-    FacebookReview, 
-    FacebookReviewPhoto, 
-    FacebookReviewComment, 
-    ReviewMetadata, 
-    MarketPlatform 
-} from '../../supabase/models';
+import { MarketPlatform } from '@wirecrest/db';
 import { FacebookReviewAnalyticsService } from '../../services/facebookReviewAnalyticsService';
-import { createClient } from '@supabase/supabase-js';
+import { prisma } from '@wirecrest/db';
 import { reviewAnalysisService } from '../../services/analysis/ReviewAnalysisService';
 
 export class FacebookBusinessReviewsActor extends Actor {

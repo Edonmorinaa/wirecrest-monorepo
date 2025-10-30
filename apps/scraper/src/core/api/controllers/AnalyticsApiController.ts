@@ -1,12 +1,12 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { BaseApiController } from './BaseApiController';
-import { IAnalyticsApiController } from '../interfaces/IApiController';
-import { AnalyticsRequest } from '../dto/ApiRequest';
-import { AnalyticsResponse } from '../dto/ApiResponse';
+import type { IAnalyticsApiController } from '../interfaces/IApiController';
+import type { AnalyticsRequest } from '../dto/ApiRequest';
+import type { AnalyticsResponse } from '../dto/ApiResponse';
 import { MarketPlatform } from '@prisma/client';
-import { IDependencyContainer } from '../../interfaces/IDependencyContainer';
-import { IAnalyticsService } from '../../interfaces/IAnalyticsService';
-import { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
+import type { IDependencyContainer } from '../../interfaces/IDependencyContainer';
+import type { IAnalyticsService } from '../../interfaces/IAnalyticsService';
+import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
 
 /**
  * Analytics API Controller

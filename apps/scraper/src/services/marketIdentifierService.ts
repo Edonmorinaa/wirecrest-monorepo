@@ -1,4 +1,8 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+/**
+ * Market Identifier Service - Prisma Implementation
+ */
+
+import { prisma } from '@wirecrest/db';
 import { MarketPlatform } from '@prisma/client';
 import { marketIdentifierEvents, MarketIdentifierChangeEvent } from '../events/marketIdentifierEvents';
 
@@ -12,27 +16,8 @@ export interface MarketIdentifier {
 }
 
 export class MarketIdentifierService {
-  private supabase: SupabaseClient;
-
   constructor() {
-    // Initialize Supabase client
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-    console.log(`🔧 MarketIdentifierService constructor - Environment check:`, {
-      hasSupabaseUrl: !!supabaseUrl,
-      hasSupabaseKey: !!supabaseKey,
-      supabaseUrlPreview: supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'undefined'
-    });
-
-    if (!supabaseUrl || !supabaseKey) {
-      const error = new Error('Missing required Supabase environment variables for MarketIdentifierService');
-      console.error('❌ MarketIdentifierService initialization failed:', error);
-      throw error;
-    }
-
-    this.supabase = createClient(supabaseUrl, supabaseKey);
-    console.log(`✅ MarketIdentifierService Supabase client initialized successfully`);
+    console.log(`✅ MarketIdentifierService initialized with Prisma`);
   }
 
   /**
@@ -53,24 +38,20 @@ export class MarketIdentifierService {
         forceUpdate
       });
 
-      // Get existing identifier
+      // Get existing identifier using Prisma
       console.log(`📋 Checking for existing market identifier...`);
-      const { data: existingIdentifier, error: fetchError } = await this.supabase
-        .from('BusinessMarketIdentifier')
-        .select('*')
-        .eq('teamId', teamId)
-        .eq('platform', platform)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('❌ Error fetching existing market identifier:', fetchError);
-        throw new Error(`Failed to fetch existing market identifier: ${fetchError.message}`);
-      }
+      const existingIdentifier = await prisma.businessMarketIdentifier.findUnique({
+        where: {
+          teamId_platform: {
+            teamId,
+            platform
+          }
+        }
+      });
 
       console.log(`📊 Existing identifier check result:`, {
         found: !!existingIdentifier,
-        existing: existingIdentifier,
-        fetchError: fetchError?.code
+        existing: existingIdentifier
       });
 
       // Check if identifier actually changed (unless forced)
@@ -95,27 +76,25 @@ export class MarketIdentifierService {
 
       // Update or create the identifier
       console.log(`🔄 Upserting market identifier...`);
-      const upsertData = {
-        teamId,
-        platform,
-        identifier: newIdentifier,
-        updatedAt: new Date().toISOString()
-      };
+      console.log(`📤 Upserting market identifier using Prisma`);
       
-      console.log(`📤 Upsert data:`, upsertData);
-      
-      const { data: upsertedData, error: upsertError } = await this.supabase
-        .from('BusinessMarketIdentifier')
-        .upsert(upsertData, {
-          onConflict: 'teamId,platform'
-        })
-        .select()
-        .single();
-
-      if (upsertError) {
-        console.error('❌ Error upserting market identifier:', upsertError);
-        throw new Error(`Failed to update market identifier: ${upsertError.message}`);
-      }
+      const upsertedData = await prisma.businessMarketIdentifier.upsert({
+        where: {
+          teamId_platform: {
+            teamId,
+            platform
+          }
+        },
+        update: {
+          identifier: newIdentifier,
+          updatedAt: new Date()
+        },
+        create: {
+          teamId,
+          platform,
+          identifier: newIdentifier
+        }
+      });
 
       console.log(`✅ Market identifier upserted successfully:`, upsertedData);
 
@@ -151,27 +130,16 @@ export class MarketIdentifierService {
    */
   async getMarketIdentifier(teamId: string, platform: MarketPlatform): Promise<MarketIdentifier | null> {
     try {
-      const { data, error } = await this.supabase
-        .from('BusinessMarketIdentifier')
-        .select('*')
-        .eq('teamId', teamId)
-        .eq('platform', platform)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No rows returned
-          return null;
+      const data = await prisma.businessMarketIdentifier.findUnique({
+        where: {
+          teamId_platform: {
+            teamId,
+            platform
+          }
         }
-        console.error('Error getting market identifier:', error);
-        return null;
-      }
+      });
 
-      return data ? {
-        ...data,
-        createdAt: new Date(data.createdAt),
-        updatedAt: new Date(data.updatedAt)
-      } : null;
+      return data || null;
     } catch (error) {
       console.error('Error getting market identifier:', error);
       return null;
@@ -183,23 +151,15 @@ export class MarketIdentifierService {
    */
   async getTeamMarketIdentifiers(teamId: string): Promise<MarketIdentifier[]> {
     try {
-      const { data, error } = await this.supabase
-        .from('BusinessMarketIdentifier')
-        .select('*')
-        .eq('teamId', teamId)
-        .order('platform', { ascending: true })
-        .order('updatedAt', { ascending: false });
+      const data = await prisma.businessMarketIdentifier.findMany({
+        where: { teamId },
+        orderBy: [
+          { platform: 'asc' },
+          { updatedAt: 'desc' }
+        ]
+      });
 
-      if (error) {
-        console.error('Error getting team market identifiers:', error);
-        return [];
-      }
-
-      return data?.map(item => ({
-        ...item,
-        createdAt: new Date(item.createdAt),
-        updatedAt: new Date(item.updatedAt)
-      })) || [];
+      return data || [];
     } catch (error) {
       console.error('Error getting team market identifiers:', error);
       return [];
@@ -212,37 +172,28 @@ export class MarketIdentifierService {
   async deleteMarketIdentifier(teamId: string, platform: MarketPlatform): Promise<boolean> {
     try {
       // Get existing identifier before deletion
-      const { data: existingIdentifier, error: fetchError } = await this.supabase
-        .from('BusinessMarketIdentifier')
-        .select('*')
-        .eq('teamId', teamId)
-        .eq('platform', platform)
-        .single();
-
-      if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          // No rows found
-          return false;
+      const existingIdentifier = await prisma.businessMarketIdentifier.findUnique({
+        where: {
+          teamId_platform: {
+            teamId,
+            platform
+          }
         }
-        console.error('Error fetching market identifier for deletion:', fetchError);
-        return false;
-      }
+      });
 
       if (!existingIdentifier) {
         return false;
       }
 
-      // Delete the identifier
-      const { error: deleteError } = await this.supabase
-        .from('BusinessMarketIdentifier')
-        .delete()
-        .eq('teamId', teamId)
-        .eq('platform', platform);
-
-      if (deleteError) {
-        console.error('Error deleting market identifier:', deleteError);
-        throw new Error(`Failed to delete market identifier: ${deleteError.message}`);
-      }
+      // Delete the identifier using Prisma
+      await prisma.businessMarketIdentifier.delete({
+        where: {
+          teamId_platform: {
+            teamId,
+            platform
+          }
+        }
+      });
 
       // Emit cleanup event (this will trigger data cleanup)
       marketIdentifierEvents.emitDataCleanup({

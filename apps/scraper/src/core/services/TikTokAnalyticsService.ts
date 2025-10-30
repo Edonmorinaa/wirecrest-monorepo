@@ -1,5 +1,5 @@
-import { AnalyticsResult } from '../interfaces/IAnalyticsService';
-import { TikTokDataService } from '../../services/tiktokDataService';
+import type { AnalyticsResult } from '../interfaces/IAnalyticsService';
+import type { TikTokDataService } from '../../services/tiktokDataService';
 
 /**
  * TikTok Analytics Service

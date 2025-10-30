@@ -1,6 +1,6 @@
-import { GoogleReviewWithMetadata } from '../../types/extended-types';
-import { IReviewService, ReviewResult } from '../interfaces/IReviewService';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { GoogleReviewWithMetadata } from '../../types/extended-types';
+import type { IReviewService, ReviewResult } from '../interfaces/IReviewService';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
 import { randomUUID } from 'crypto';
 
 /**

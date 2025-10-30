@@ -1,16 +1,9 @@
 import { ApifyClient } from 'apify-client';
 import { Actor, ActorJob, ReviewActorJobData } from './actor';
 import { DatabaseService } from '../../supabase/database';
-import { 
-    TripAdvisorReview, 
-    TripAdvisorReviewPhoto, 
-    TripAdvisorReviewSubRating,
-    TripAdvisorTripType,
-    ReviewMetadata, 
-    MarketPlatform 
-} from '../../supabase/models';
+import { MarketPlatform, TripAdvisorTripType } from '@wirecrest/db';
 import { TripAdvisorReviewAnalyticsService } from '../../services/tripAdvisorReviewAnalyticsService';
-import { createClient } from '@supabase/supabase-js';
+import { prisma } from '@wirecrest/db';
 import { randomUUID } from 'crypto';
 import { reviewAnalysisService } from '../../services/analysis/ReviewAnalysisService';
 

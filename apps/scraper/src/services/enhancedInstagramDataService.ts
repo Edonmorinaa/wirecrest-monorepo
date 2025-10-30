@@ -1,4 +1,8 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+/**
+ * LEGACY FILE - For reference only
+ * Supabase has been removed. This service is deprecated.
+ */
+
 import { DatabaseService } from '../supabase/database';
 import { SentimentAnalyzer } from '../sentimentAnalyzer/sentimentAnalyzer';
 import { v4 as uuidv4 } from 'uuid';
@@ -50,7 +54,7 @@ interface InstagramAnalyticsData {
 }
 
 export class EnhancedInstagramDataService {
-  private supabase: SupabaseClient;
+  private supabase: any; // LEGACY: Supabase removed
   private database: DatabaseService;
   private sentimentAnalyzer: SentimentAnalyzer;
   private hikerConfig: HikerAPIConfig;

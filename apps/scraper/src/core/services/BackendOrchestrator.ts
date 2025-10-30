@@ -1,10 +1,10 @@
 import { MarketPlatform } from '@prisma/client';
-import { IDependencyContainer } from '../interfaces/IDependencyContainer';
-import { IApifyService, ApifyJobPriority, ApifyJobStatus } from '../interfaces/IApifyService';
-import { IBusinessService } from '../interfaces/IBusinessService';
-import { IReviewService } from '../interfaces/IReviewService';
-import { IAnalyticsService } from '../interfaces/IAnalyticsService';
-import { ITaskTracker, TaskStep, TaskStatus } from '../interfaces/ITaskTracker';
+import type { IDependencyContainer } from '../interfaces/IDependencyContainer';
+import type { IApifyService, ApifyJobPriority, ApifyJobStatus } from '../interfaces/IApifyService';
+import type { IBusinessService } from '../interfaces/IBusinessService';
+import type { IReviewService } from '../interfaces/IReviewService';
+import type { IAnalyticsService } from '../interfaces/IAnalyticsService';
+import type { ITaskTracker, TaskStep, TaskStatus } from '../interfaces/ITaskTracker';
 import { SERVICE_TOKENS } from '../interfaces/IDependencyContainer';
 import { logger } from '../../utils/logger';
 import { FeatureExtractor } from '../../services/subscription/FeatureExtractor';

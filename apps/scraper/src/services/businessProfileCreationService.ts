@@ -1,13 +1,18 @@
+/**
+ * LEGACY FILE - For reference only
+ * Contains legacy business profile creation logic
+ */
+
 import { ApifyClient } from 'apify-client';
 import { MarketPlatform, BusinessStatus, PriceLevel } from '@prisma/client';
-import { 
+import type { 
   GooglePlaceV1,
   GooglePlaceV1OpeningHours,
   GooglePlaceV1OpeningHoursPeriod,
   GooglePlaceV1OpeningHoursPeriodPoint,
   GooglePlaceV1Photo,
   GooglePlaceV1AddressComponent
-} from '../supabase/models';
+} from '../supabase/models.js';
 import { marketIdentifierEvents } from '../events/marketIdentifierEvents';
 import { randomUUID } from 'crypto';
 import { prisma } from '@wirecrest/db';

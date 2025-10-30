@@ -1,6 +1,6 @@
-import { FacebookReviewWithMetadata } from '../../types/extended-types';
-import { IReviewService, ReviewResult } from '../interfaces/IReviewService';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { FacebookReviewWithMetadata } from '../../types/extended-types.js';
+import type { IReviewService, ReviewResult } from '../interfaces/IReviewService';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
 import { randomUUID } from 'crypto';
 
 /**

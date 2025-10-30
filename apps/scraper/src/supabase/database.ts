@@ -1,4 +1,4 @@
-import { 
+import type { 
   GoogleBusinessProfile, 
   GoogleReview, 
   ReviewMetadata, 
@@ -10,14 +10,14 @@ import {
   BookingBusinessProfile,
   BookingReview,
   InstagramBusinessProfile,
-  TikTokBusinessProfile,
-  MarketPlatform
+  TikTokBusinessProfile
 } from '@prisma/client';
+import { MarketPlatform } from '@wirecrest/db';
 import { prisma } from '@wirecrest/db';
 import { TeamService } from './teamService';
 import { randomUUID } from 'crypto';
 import { logger } from '../utils/logger';
-import { 
+import type { 
   GoogleReviewWithMetadata,
   FacebookReviewWithMetadata,
   TripAdvisorReviewWithMetadata,

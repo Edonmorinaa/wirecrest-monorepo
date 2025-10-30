@@ -1,4 +1,8 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+/**
+ * Booking Review Analytics Service - Prisma Implementation
+ */
+
+import { prisma } from '@wirecrest/db';
 import { randomUUID } from 'crypto';
 import { logger } from '../utils/logger';
 import { MarketPlatform } from '@prisma/client';
@@ -244,9 +248,7 @@ export class BookingReviewAnalyticsService {
     this.sentimentAnalyzer = new SentimentAnalyzer(['en']);
   }
 
-  private get supabase(): SupabaseClient {
-    return (this.databaseService as any).supabase;
-  }
+  // Removed: Supabase client no longer needed - using Prisma
 
   /**
    * Main method to process all reviews for a business and update dashboard analytics
@@ -256,20 +258,14 @@ export class BookingReviewAnalyticsService {
     try {
       logger.info(`📊 Starting Booking.com analytics processing for business: ${businessProfileId}`);
 
-      // Fetch all reviews with metadata for this business including all sub-rating fields
-      const { data: allReviewsData, error: reviewsError } = await this.supabase
-        .from('BookingReview')
-        .select(`
-          *,
-          reviewMetadata:ReviewMetadata(*)
-        `)
-        .eq('businessProfileId', businessProfileId)
-        .order('publishedDate', { ascending: false });
-
-      if (reviewsError) {
-        logger.error(`❌ Error fetching Booking.com reviews:`, reviewsError);
-        throw new Error(`Could not fetch Booking.com reviews: ${reviewsError.message}`);
-      }
+      // Fetch all reviews with metadata for this business using Prisma
+      const allReviewsData = await prisma.bookingReview.findMany({
+        where: { businessProfileId },
+        include: {
+          reviewMetadata: true
+        },
+        orderBy: { publishedDate: 'desc' }
+      });
 
       if (!allReviewsData || allReviewsData.length === 0) {
         logger.info(`📭 No reviews found for business: ${businessProfileId}`);
@@ -278,17 +274,9 @@ export class BookingReviewAnalyticsService {
 
       logger.info(`📋 Processing ${allReviewsData.length} Booking.com reviews for analytics`);
 
-      // Map to expected interface, ensuring all fields are properly included
+      // Map Prisma response to expected interface
       const allReviews: BookingReviewWithMetadata[] = allReviewsData.map(review => {
-        let reviewMetadata = null;
-        
-        if (review.reviewMetadata) {
-          if (Array.isArray(review.reviewMetadata)) {
-            reviewMetadata = review.reviewMetadata.length > 0 ? review.reviewMetadata[0] : null;
-          } else {
-            reviewMetadata = review.reviewMetadata;
-          }
-        }
+        const reviewMetadata = review.reviewMetadata || null;
         
         // Debug: Log sample review data to see what fields are available
         if (allReviewsData.indexOf(review) === 0) {
@@ -340,12 +328,11 @@ export class BookingReviewAnalyticsService {
       // Calculate all-time metrics
       const allTimeMetrics = this.calculateMetricsForPeriod(allReviews);
 
-      // Check if overview already exists
-      const { data: existingOverview, error: overviewCheckError } = await this.supabase
-        .from('BookingOverview')
-        .select('id')
-        .eq('businessProfileId', businessProfileId)
-        .single();
+      // Check if overview already exists using Prisma
+      const existingOverview = await prisma.bookingOverview.findUnique({
+        where: { businessProfileId },
+        select: { id: true }
+      });
 
       // Update or create BookingOverview record
       const overviewData = {
@@ -382,25 +369,17 @@ export class BookingReviewAnalyticsService {
         lastUpdated: currentDate
       };
 
-      const { error: overviewError } = await this.supabase
-        .from('BookingOverview')
-        .upsert(overviewData, { onConflict: 'businessProfileId' });
+      // Upsert BookingOverview using Prisma
+      const overviewRecord = await prisma.bookingOverview.upsert({
+        where: { businessProfileId },
+        update: overviewData,
+        create: overviewData,
+        select: { id: true }
+      });
 
-      if (overviewError) {
-        logger.error(`❌ Error upserting BookingOverview:`, overviewError);
-        throw new Error(`Failed to upsert BookingOverview: ${overviewError.message}`);
-      }
-
-      // Get the overview ID for related tables
-      const { data: overviewRecord, error: overviewFetchError } = await this.supabase
-        .from('BookingOverview')
-        .select('id')
-        .eq('businessProfileId', businessProfileId)
-        .single();
-
-      if (overviewFetchError || !overviewRecord) {
-        logger.error(`❌ Error fetching BookingOverview record:`, overviewFetchError);
-        throw new Error(`Could not fetch BookingOverview record`);
+      if (!overviewRecord) {
+        logger.error(`❌ Error upserting BookingOverview`);
+        throw new Error(`Could not upsert BookingOverview record`);
       }
 
       // Create periodical metrics for different time periods
@@ -444,15 +423,19 @@ export class BookingReviewAnalyticsService {
         return true;
       }
 
-      // Get business profile
-      const { data: businessProfile, error: profileError } = await this.supabase
-        .from('BookingBusinessProfile')
-        .select('id, teamId')
-        .eq('teamId', teamId)
-        .eq('bookingUrl', bookingUrl)
-        .single();
+      // Get business profile using Prisma
+      const businessProfile = await prisma.bookingBusinessProfile.findFirst({
+        where: {
+          teamId,
+          bookingUrl,
+        },
+        select: {
+          id: true,
+          teamId: true,
+        }
+      });
 
-      if (profileError || !businessProfile) {
+      if (!businessProfile) {
         logger.error(`❌ Business profile not found for team ${teamId} and URL ${bookingUrl}`);
         return false;
       }
@@ -538,13 +521,16 @@ export class BookingReviewAnalyticsService {
       // Parse rating (can be string or number)
       const rating = typeof reviewData.rating === 'string' ? parseFloat(reviewData.rating) : (reviewData.rating || reviewData.review_score || reviewData.score || 0);
 
-      // Check if review metadata already exists
-      const { data: existingMetadata, error: metadataCheckError } = await this.supabase
-        .from('ReviewMetadata')
-        .select('id')
-        .eq('externalId', externalId)
-        .eq('source', MarketPlatform.BOOKING)
-        .single();
+      // Check if review metadata already exists using Prisma
+      const existingMetadata = await prisma.reviewMetadata.findUnique({
+        where: {
+          externalId_source: {
+            externalId,
+            source: MarketPlatform.BOOKING
+          }
+        },
+        select: { id: true }
+      });
 
       let reviewMetadataId = '';
 
@@ -568,14 +554,10 @@ export class BookingReviewAnalyticsService {
           updatedAt: new Date()
         };
 
-        const { error: updateError } = await this.supabase
-          .from('ReviewMetadata')
-          .update(updatedMetadata)
-          .eq('id', reviewMetadataId);
-
-        if (updateError) {
-          throw updateError;
-        }
+        await prisma.reviewMetadata.update({
+          where: { id: reviewMetadataId },
+          data: updatedMetadata
+        });
       } else {
         // Create new metadata
         reviewMetadataId = randomUUID();
@@ -612,21 +594,16 @@ export class BookingReviewAnalyticsService {
           updatedAt: new Date()
         };
 
-        const { error: metadataError } = await this.supabase
-          .from('ReviewMetadata')
-          .insert(reviewMetadata);
-
-        if (metadataError) {
-          throw metadataError;
-        }
+        await prisma.reviewMetadata.create({
+          data: reviewMetadata
+        });
       }
 
-      // Check if booking review already exists
-      const { data: existingBookingReview, error: bookingCheckError } = await this.supabase
-        .from('BookingReview')
-        .select('id, createdAt')
-        .eq('reviewMetadataId', reviewMetadataId)
-        .single();
+      // Check if booking review already exists using Prisma
+      const existingBookingReview = await prisma.bookingReview.findUnique({
+        where: { reviewMetadataId },
+        select: { id: true, createdAt: true }
+      });
 
       // Upsert booking-specific review - always override existing reviews
       const bookingReview = {
@@ -677,16 +654,12 @@ export class BookingReviewAnalyticsService {
         guestType: bookingReview.guestType
       });
 
-      const { error: reviewError } = await this.supabase
-        .from('BookingReview')
-        .upsert(bookingReview, { 
-          onConflict: 'reviewMetadataId',
-          ignoreDuplicates: false  // Force override existing records
-        });
-
-      if (reviewError) {
-        throw reviewError;
-      }
+      // Upsert booking review using Prisma
+      await prisma.bookingReview.upsert({
+        where: { reviewMetadataId },
+        update: bookingReview,
+        create: bookingReview
+      });
 
       return true;
 
@@ -1107,22 +1080,26 @@ export class BookingReviewAnalyticsService {
     if (periodicalMetricsToUpsert.length > 0) {
       console.log(`[Booking Analytics] Sample metric data:`, JSON.stringify(periodicalMetricsToUpsert[0], null, 2));
       
-      const { error: upsertMetricsError } = await this.supabase
-        .from('BookingPeriodicalMetric')
-        .upsert(periodicalMetricsToUpsert, { 
-          onConflict: 'bookingOverviewId,periodKey',
-          ignoreDuplicates: false
-        });
+      // Upsert periodical metrics using Prisma transaction
+      await prisma.$transaction(
+        periodicalMetricsToUpsert.map(metric => 
+          prisma.bookingPeriodicalMetric.upsert({
+            where: {
+              bookingOverviewId_periodKey: {
+                bookingOverviewId: metric.bookingOverviewId,
+                periodKey: metric.periodKey
+              }
+            },
+            update: metric,
+            create: metric
+          })
+        )
+      );
 
-      if (upsertMetricsError) {
-        console.error(`[Booking Analytics] Error upserting BookingPeriodicalMetric records:`, upsertMetricsError);
-        throw new Error(`Failed to upsert Booking.com periodical metrics: ${upsertMetricsError.message}`);
-      } else {
-        console.log(`[Booking Analytics] Successfully upserted ${periodicalMetricsToUpsert.length} periodical metrics`);
-        
-        // Create keywords for each periodical metric
-        await this.updatePeriodicalMetricKeywords(overviewId, periodicalMetricsToUpsert, allReviews);
-      }
+      console.log(`[Booking Analytics] Successfully upserted ${periodicalMetricsToUpsert.length} periodical metrics`);
+      
+      // Create keywords for each periodical metric
+      await this.updatePeriodicalMetricKeywords(overviewId, periodicalMetricsToUpsert, allReviews);
     } else {
       console.warn(`[Booking Analytics] No periodical metrics to upsert`);
     }
@@ -1170,12 +1147,12 @@ export class BookingReviewAnalyticsService {
           count: kw.count
         }));
 
-        const { error: keywordError } = await this.supabase
-          .from('BookingPeriodicalKeyword')
-          .insert(keywordData);
-
-        if (keywordError) {
-          console.error(`[Booking Analytics] Error creating periodical keywords:`, keywordError);
+        try {
+          await prisma.bookingPeriodicalKeyword.createMany({
+            data: keywordData
+          });
+        } catch (error) {
+          console.error(`[Booking Analytics] Error creating periodical keywords:`, error);
         }
       }
     }
@@ -1246,11 +1223,13 @@ export class BookingReviewAnalyticsService {
       lastUpdated: now
     };
 
-    const { error } = await this.supabase
-      .from('BookingRatingDistribution')
-      .upsert(ratingDistributionData, { onConflict: 'bookingOverviewId' });
-
-    if (error) {
+    try {
+      await prisma.bookingRatingDistribution.upsert({
+        where: { bookingOverviewId: overviewId },
+        update: ratingDistributionData,
+        create: ratingDistributionData
+      });
+    } catch (error) {
       console.error(`[Booking Analytics] Error updating rating distribution:`, error);
     }
   }
@@ -1275,11 +1254,13 @@ export class BookingReviewAnalyticsService {
       updatedAt: new Date()
     };
 
-    const { error } = await this.supabase
-      .from('BookingSentimentAnalysis')
-      .upsert(sentimentData, { onConflict: 'bookingOverviewId' });
-
-    if (error) {
+    try {
+      await prisma.bookingSentimentAnalysis.upsert({
+        where: { bookingOverviewId: overviewId },
+        update: sentimentData,
+        create: sentimentData
+      });
+    } catch (error) {
       console.error(`[Booking Analytics] Error updating sentiment analysis:`, error);
     }
   }
@@ -1289,11 +1270,10 @@ export class BookingReviewAnalyticsService {
     
     const topKeywords = this.extractTopKeywords(allReviews, 20);
 
-    // Delete existing keywords
-    await this.supabase
-      .from('BookingTopKeyword')
-      .delete()
-      .eq('bookingOverviewId', overviewId);
+    // Delete existing keywords and insert new ones using Prisma
+    await prisma.bookingTopKeyword.deleteMany({
+      where: { bookingOverviewId: overviewId }
+    });
 
     if (topKeywords.length > 0) {
       const keywordData = topKeywords.map((kw, index) => ({
@@ -1305,11 +1285,11 @@ export class BookingReviewAnalyticsService {
         updatedAt: new Date()
       }));
 
-      const { error } = await this.supabase
-        .from('BookingTopKeyword')
-        .insert(keywordData);
-
-      if (error) {
+      try {
+        await prisma.bookingTopKeyword.createMany({
+          data: keywordData
+        });
+      } catch (error) {
         console.error(`[Booking Analytics] Error updating top keywords:`, error);
       }
     }
@@ -1318,11 +1298,10 @@ export class BookingReviewAnalyticsService {
   private async updateRecentReviews(overviewId: string, recentReviews: BookingReviewWithMetadata[]): Promise<void> {
     console.log(`[Booking Analytics] Updating recent reviews for overview ${overviewId}`);
     
-    // Delete existing recent reviews
-    await this.supabase
-      .from('BookingRecentReview')
-      .delete()
-      .eq('bookingOverviewId', overviewId);
+    // Delete existing recent reviews and insert new ones using Prisma
+    await prisma.bookingRecentReview.deleteMany({
+      where: { bookingOverviewId: overviewId }
+    });
 
     if (recentReviews.length > 0) {
       const recentReviewData = recentReviews.map((review, index) => ({
@@ -1338,11 +1317,11 @@ export class BookingReviewAnalyticsService {
         updatedAt: new Date()
       }));
 
-      const { error } = await this.supabase
-        .from('BookingRecentReview')
-        .insert(recentReviewData);
-
-      if (error) {
+      try {
+        await prisma.bookingRecentReview.createMany({
+          data: recentReviewData
+        });
+      } catch (error) {
         console.error(`[Booking Analytics] Error updating recent reviews:`, error);
       }
     }

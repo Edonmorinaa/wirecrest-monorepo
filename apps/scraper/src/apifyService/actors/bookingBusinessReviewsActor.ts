@@ -2,7 +2,7 @@ import { ApifyClient } from 'apify-client';
 import { Actor, ReviewActorJobData } from './actor';
 import { logger } from '../../utils/logger';
 import { BookingReviewAnalyticsService } from '../../services/bookingReviewAnalyticsService';
-import { createClient } from '@supabase/supabase-js';
+import { prisma } from '@wirecrest/db';
 
 export class BookingBusinessReviewsActor extends Actor {
     constructor() {
@@ -89,22 +89,19 @@ export const bookingBusinessReviewsActorJobRunner = async (
 
         logger.info(`✅ Booking.com reviews scraping completed successfully. Found ${items.length} reviews. Dataset ID: ${run.defaultDatasetId}`);
 
-        // Initialize supabase client
-        const supabase = createClient(
-            process.env.SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
+        // Get business profile to get businessProfileId using Prisma
+        const businessProfile = await prisma.bookingBusinessProfile.findFirst({
+            where: {
+                teamId: data.teamId,
+                bookingUrl: data.bookingUrl
+            },
+            select: {
+                id: true
+            }
+        });
 
-        // Get business profile to get businessProfileId
-        const { data: businessProfile, error: profileError } = await supabase
-            .from('BookingBusinessProfile')
-            .select('id')
-            .eq('teamId', data.teamId)
-            .eq('bookingUrl', data.bookingUrl)
-            .single();
-
-        if (profileError || !businessProfile) {
-            logger.error(`❌ Business profile not found for URL: ${data.bookingUrl}`, profileError);
+        if (!businessProfile) {
+            logger.error(`❌ Business profile not found for URL: ${data.bookingUrl}`);
             return false;
         }
 

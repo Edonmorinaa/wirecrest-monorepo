@@ -4,7 +4,7 @@
  * Triggers initial scraping when a platform is configured after subscription
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { StripeFirstSubscriptionService } from '@wirecrest/billing';
 import { SubscriptionOrchestrator } from '../services/subscription/SubscriptionOrchestrator';
 import { BusinessProfileCreationService } from '../services/businessProfileCreationService';

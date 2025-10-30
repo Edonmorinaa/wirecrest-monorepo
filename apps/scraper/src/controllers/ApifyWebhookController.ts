@@ -3,7 +3,7 @@
  * Handles Apify actor run completion events
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { prisma } from '@wirecrest/db';
 import { ApifyDataSyncService } from '../services/apify/ApifyDataSyncService';
 import { ReviewDataProcessor } from '../services/processing/ReviewDataProcessor';

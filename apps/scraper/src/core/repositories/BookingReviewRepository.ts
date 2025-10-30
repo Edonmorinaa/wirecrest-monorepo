@@ -1,8 +1,8 @@
 import { prisma } from '@wirecrest/db';
-import { BookingReview } from '@prisma/client';
-import { BookingReviewWithMetadata } from '../../types/extended-types';
+import type { BookingReview } from '@prisma/client';
+import type { BookingReviewWithMetadata } from '../../types/extended-types';
 import { BaseRepository } from './BaseRepository';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
 
 /**
  * Booking Review Repository

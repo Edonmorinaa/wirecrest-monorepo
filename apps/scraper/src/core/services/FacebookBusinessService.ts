@@ -1,7 +1,7 @@
 import { MarketPlatform } from '@prisma/client';
-import { IBusinessService, BusinessProfileResult } from '../interfaces/IBusinessService';
-import { IBusinessRepository } from '../interfaces/IBusinessRepository';
-import { FacebookBusinessProfile } from '@prisma/client';
+import type { IBusinessService, BusinessProfileResult } from '../interfaces/IBusinessService';
+import type { IBusinessRepository } from '../interfaces/IBusinessRepository';
+import type { FacebookBusinessProfile } from '@prisma/client';
 import { BusinessProfileCreationService } from '../../services/businessProfileCreationService';
 
 /**

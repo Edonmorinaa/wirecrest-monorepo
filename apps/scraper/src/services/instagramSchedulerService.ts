@@ -1,10 +1,14 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+/**
+ * LEGACY FILE - For reference only
+ * Supabase has been removed. This service is deprecated.
+ */
+
 import { InstagramDataService } from './instagramDataService';
 import { InstagramSnapshotSchedule } from '../types/instagram';
 import supabase from '../supabase/supabaseClient';
 
 export class InstagramSchedulerService {
-  private supabase: SupabaseClient;
+  private supabase: any; // LEGACY: Supabase removed
   private instagramService: InstagramDataService;
   private schedulerInterval: NodeJS.Timeout | null = null;
   private isRunning: boolean = false;

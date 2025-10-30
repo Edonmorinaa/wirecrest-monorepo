@@ -4,15 +4,15 @@
  * Booking uses 1-10 rating scale (converted to 1-5 for histogram) with 7 sub-ratings
  */
 
-import { IAnalyticsService, AnalyticsResult, AnalyticsData } from '../interfaces/IAnalyticsService';
-import { IReviewRepository } from '../interfaces/IReviewRepository';
-import { ISentimentAnalyzer } from '../interfaces/ISentimentAnalyzer';
+import type { IAnalyticsService, AnalyticsResult, AnalyticsData } from '../interfaces/IAnalyticsService';
+import type { IReviewRepository } from '../interfaces/IReviewRepository';
+import type { ISentimentAnalyzer } from '../interfaces/ISentimentAnalyzer';
 import { prisma } from '@wirecrest/db';
 import type { Prisma } from '@prisma/client';
-import { PeriodCalculator, PeriodKey, PERIOD_DEFINITIONS } from './analytics/PeriodCalculator';
-import { KeywordExtractor, KeywordFrequency } from './analytics/KeywordExtractor';
-import { ResponseAnalyzer } from './analytics/ResponseAnalyzer';
-import {
+import type { PeriodCalculator, PeriodKey, PERIOD_DEFINITIONS } from './analytics/PeriodCalculator';
+import type { KeywordExtractor, KeywordFrequency } from './analytics/KeywordExtractor';
+import type { ResponseAnalyzer } from './analytics/ResponseAnalyzer';
+import type {
   BookingMetricsCalculator,
   RatingDistribution,
   BookingSubRatings,
