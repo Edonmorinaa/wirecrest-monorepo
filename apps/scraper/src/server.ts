@@ -37,7 +37,7 @@ import { MarketPlatform } from '@prisma/client';
 // Validate environment before starting
 const env = validateEnv();
 
-const app = express();
+const app: express.Express = express();
 const PORT = env.PORT;
 
 // Configuration

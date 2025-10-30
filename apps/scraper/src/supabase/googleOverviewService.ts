@@ -1,4 +1,4 @@
-import { GoogleReview } from '@prisma/client';
+import { GoogleReview, Prisma } from '@prisma/client';
 import { prisma } from '@wirecrest/db';
 
 interface RatingDistribution {
@@ -117,37 +117,26 @@ export class GoogleOverviewService {
           keywords: review.reviewMetadata?.keywords
         }));
 
-      // Check if overview exists
-      const existingOverview = await prisma.googleOverview.findFirst({
-        where: { businessProfileId: businessId },
-        select: { id: true }
-      });
-
       const overviewData = {
-        businessProfileId: businessId,
         averageRating: Number(averageRating.toFixed(2)),
         totalReviews: totalReviews,
         responseRate: Number(responseRate.toFixed(2)),
         averageResponseTime: averageResponseTime,
-        ratingDistribution: ratingDistribution,
-        sentimentAnalysis: sentimentAnalysis,
-        topKeywords: topKeywords,
-        recentReviews: recentReviews,
+        ratingDistribution: ratingDistribution as unknown as Prisma.InputJsonValue,
+        sentimentAnalysis: sentimentAnalysis as unknown as Prisma.InputJsonValue,
+        topKeywords: topKeywords as unknown as Prisma.InputJsonValue,
+        recentReviews: recentReviews as unknown as Prisma.InputJsonValue,
         lastUpdated: new Date()
       };
 
-      if (!existingOverview) {
-        // Create new overview
-        await prisma.googleOverview.create({
-          data: overviewData
-        });
-      } else {
-        // Update existing overview
-        await prisma.googleOverview.updateMany({
-          where: { businessProfileId: businessId },
-          data: overviewData
-        });
-      }
+      await prisma.googleOverview.upsert({
+        where: { businessProfileId: businessId },
+        create: {
+          businessProfile: { connect: { id: businessId } },
+          ...overviewData
+        },
+        update: overviewData
+      });
 
     } catch (error) {
       console.error('Error processing Google overview:', error);
