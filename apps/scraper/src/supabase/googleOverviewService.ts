@@ -117,25 +117,24 @@ export class GoogleOverviewService {
           keywords: review.reviewMetadata?.keywords
         }));
 
-      const overviewData = {
-        averageRating: Number(averageRating.toFixed(2)),
-        totalReviews: totalReviews,
-        responseRate: Number(responseRate.toFixed(2)),
-        averageResponseTime: averageResponseTime,
-        ratingDistribution: ratingDistribution as unknown as Prisma.InputJsonValue,
-        sentimentAnalysis: sentimentAnalysis as unknown as Prisma.InputJsonValue,
-        topKeywords: topKeywords as unknown as Prisma.InputJsonValue,
-        recentReviews: recentReviews as unknown as Prisma.InputJsonValue,
-        lastUpdated: new Date()
-      };
+      // Align with current GoogleOverview schema
+      const currentOverallRating = Number(averageRating.toFixed(2));
+      const currentTotalReviews = totalReviews;
+      const lastRefreshedAt = new Date();
 
       await prisma.googleOverview.upsert({
         where: { businessProfileId: businessId },
         create: {
-          businessProfile: { connect: { id: businessId } },
-          ...overviewData
+          businessProfileId: businessId,
+          currentOverallRating,
+          currentTotalReviews,
+          lastRefreshedAt,
         },
-        update: overviewData
+        update: {
+          currentOverallRating,
+          currentTotalReviews,
+          lastRefreshedAt,
+        },
       });
 
     } catch (error) {
