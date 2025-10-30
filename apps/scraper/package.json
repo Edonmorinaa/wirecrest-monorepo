@@ -2,6 +2,7 @@
   "name": "@wirecrest/scraper",
   "version": "1.0.0",
   "description": "Production-ready Google Review Analytics Service with comprehensive error handling, monitoring, and performance optimization",
+  "type": "module",
   "main": "dist/index.js",
   "exports": {
     ".": {
@@ -11,9 +12,9 @@
   },
   "scripts": {
     "generate": "echo 'no-op'",
-    "build": "tsc --skipLibCheck",
+    "build": "tsup",
     "postbuild": "bash scripts/validate-build.sh 2>/dev/null || echo 'Build validation skipped'",
-    "start": "node dist/server.js",
+    "start": "node --enable-source-maps dist/server.js",
     "start:old": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "dev:old": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -75,6 +76,7 @@
     "eslint-plugin-prettier": "^5.1.2",
     "prettier": "^3.1.1",
     "ts-node-dev": "^2.0.0",
+    "tsup": "^8.1.0",
     "typescript": "^5.3.3"
   },
   "engines": {

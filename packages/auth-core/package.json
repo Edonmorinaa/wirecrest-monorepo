@@ -8,8 +8,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist-cjs/index.js"
+      "import": "./dist/index.js"
     }
   },
   "dependencies": {
@@ -22,12 +21,12 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@wirecrest/typescript-config": "workspace:*",
+    "tsup": "^8.5.0",
     "typescript": "^5.2.0"
   },
   "scripts": {
     "generate": "echo 'no-op'",
-    "build": "tsc --project tsconfig.json && yarn build:cjs",
-    "build:cjs": "tsc -p tsconfig.cjs.json && node -e \"const { writeFileSync }=require('fs');writeFileSync('dist-cjs/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
+    "build": "tsup",
     "dev": "echo 'No dev step required for auth package'",
     "lint": "echo 'No lint step required for auth package'",
     "clean": "rm -rf dist",
