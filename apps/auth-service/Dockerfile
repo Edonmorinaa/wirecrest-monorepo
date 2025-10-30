@@ -36,7 +36,7 @@ RUN npx prisma generate
 
 # Build only auth-service and its dependencies using Turbo
 WORKDIR /app
-RUN npx turbo run build --filter=auth-service
+RUN npx turbo run build --filter=@wirecrest/auth-service
 
 # ==============================
 # Production stage
