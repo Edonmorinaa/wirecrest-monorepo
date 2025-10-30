@@ -1,5 +1,5 @@
 // @ts-ignore
-const { NlpManager } = require('node-nlp');
+import { NlpManager } from 'node-nlp';
 import { trainingData, TrainingUtterance } from "./sentimentTrainingData";
 
 /**

@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { InstagramDataService } from './instagramDataService';
 import { InstagramSnapshotSchedule } from '../types/instagram';
+import supabase from '../supabase/supabaseClient';
 
 export class InstagramSchedulerService {
   private supabase: SupabaseClient;
@@ -10,7 +11,7 @@ export class InstagramSchedulerService {
   private lastSnapshotTimes: Map<string, Date> = new Map(); // Track last snapshot time per business
 
   constructor(instagramService: InstagramDataService) {
-    this.supabase = require('../supabase/supabaseClient').default;
+    this.supabase = supabase;
     this.instagramService = instagramService;
   }
 

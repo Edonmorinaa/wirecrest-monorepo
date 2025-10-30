@@ -13,6 +13,8 @@ import {
   HikerAPIMediaResponse,
   HikerAPICommentResponse
 } from '../types/instagram';
+import { setFlagsFromString } from 'v8';
+import supabase from '../supabase/supabaseClient';
 
 interface HikerAPIConfig {
   baseUrl: string;
@@ -54,7 +56,7 @@ export class EnhancedInstagramDataService {
   private hikerConfig: HikerAPIConfig;
 
   constructor(hikerApiKey: string) {
-    this.supabase = require('../supabase/supabaseClient').default;
+    this.supabase = supabase;
     this.database = new DatabaseService();
     this.sentimentAnalyzer = new SentimentAnalyzer();
     

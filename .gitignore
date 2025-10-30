@@ -119,6 +119,7 @@ lerna-debug.log*
 .tscache/
 
 # Build outputs
+dist-cjs/
 dist/
 build/
 out/
