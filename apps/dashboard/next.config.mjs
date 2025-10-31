@@ -15,7 +15,7 @@ const isStaticExport = false;
 
 const nextConfig = {
   trailingSlash: true,
-  output: isStaticExport ? 'export' : undefined,
+  output: isStaticExport ? 'export' : 'standalone',
   
   // Environment variables exposed to the client
   env: {

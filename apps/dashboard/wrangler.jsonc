@@ -9,8 +9,5 @@
     "assets": {
       "directory": ".open-next/assets",
       "binding": "ASSETS"
-    },
-    "build": {
-      "command": "OPENNEXT_DISABLE_MONOREPO=1 npm run build"
     }
   }

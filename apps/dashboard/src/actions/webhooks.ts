@@ -2,10 +2,18 @@
 
 
 import { prisma } from '@wirecrest/db';
-import { getTeam } from '@/models/team';
-import { EndpointIn, EndpointOut } from 'svix';
 import { auth } from '@wirecrest/auth-next';
+import { EndpointIn, EndpointOut } from 'svix';
+import { getTeam, getByCustomerId } from '@/models/team';
+import {
+  getBySubscriptionId,
+  createStripeSubscription,
+  deleteStripeSubscription,
+  updateStripeSubscription,
+} from '@/models/subscription';
 
+import env from 'src/lib/env';
+import { stripe } from 'src/lib/stripe';
 import { createWebhook } from 'src/lib/svix';
 
 import { ApiError, recordMetric } from './lib';
@@ -481,19 +489,6 @@ export async function deleteDirectorySync(slug: string, directoryId: string) {
 export async function handleStripeWebhook(data: { body: string | Buffer; signature: string }) {
   const { body, signature } = data;
 
-  // Import Stripe and related functions
-  const Stripe = require('stripe');
-
-  const { stripe } = require('src/lib/stripe');
-  const env = require('src/lib/env').default;
-  const { getByCustomerId } = require('@/models/team');
-  const {
-    createStripeSubscription,
-    deleteStripeSubscription,
-    getBySubscriptionId,
-    updateStripeSubscription,
-  } = require('@/models/subscription');
-
   const { webhookSecret } = env.stripe;
   let event: any;
 
@@ -538,9 +533,9 @@ export async function handleStripeWebhook(data: { body: string | Buffer; signatu
   return { received: true };
 
   // Helper functions
-  async function handleSubscriptionUpdated(event: any) {
+  async function handleSubscriptionUpdated(subscriptionEvent: any) {
     const { cancel_at, id, status, current_period_end, current_period_start, customer, items } =
-      event.data.object;
+      subscriptionEvent.data.object;
 
     const subscription = await getBySubscriptionId(id);
     if (!subscription) {
@@ -548,7 +543,7 @@ export async function handleStripeWebhook(data: { body: string | Buffer; signatu
       if (!teamExists) {
         return;
       } else {
-        await handleSubscriptionCreated(event);
+        await handleSubscriptionCreated(subscriptionEvent);
       }
     } else {
       const priceId = items.data.length > 0 ? items.data[0].plan?.id : '';
@@ -562,8 +557,8 @@ export async function handleStripeWebhook(data: { body: string | Buffer; signatu
     }
   }
 
-  async function handleSubscriptionCreated(event: any) {
-    const { customer, id, current_period_start, current_period_end, items } = event.data.object;
+  async function handleSubscriptionCreated(subscriptionEvent: any) {
+    const { customer, id, current_period_start, current_period_end, items } = subscriptionEvent.data.object;
 
     await createStripeSubscription({
       customerId: customer,

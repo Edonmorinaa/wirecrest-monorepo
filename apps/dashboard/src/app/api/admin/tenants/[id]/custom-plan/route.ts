@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { prisma } from '@wirecrest/db';
 import { NextRequest, NextResponse } from 'next/server';
-import { StripeFeatureLookupKeys } from '@wirecrest/billing';
+import { StripeService, StripeFeatureLookupKeys } from '@wirecrest/billing';
 
 interface CustomPlanRequest {
   planName: string;
@@ -298,7 +298,6 @@ async function getFeatureIds(stripe: Stripe, lookupKeys: string[]): Promise<stri
  * Get Stripe instance
  */
 function getStripeInstance(): Stripe {
-  const { StripeService } = require('@wirecrest/billing');
   return StripeService.getStripeInstance();
 }
 
