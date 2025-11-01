@@ -1,0 +1,119 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'apps/dashboard/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-cloudflare-pages.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/dashboard/**'
+      - 'packages/**'
+
+# Cancel in-progress runs for the same workflow and branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Build and Deploy to Cloudflare Pages
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for proper git operations
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+      
+      - name: Enable Corepack
+        run: corepack enable
+      
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_GLOBAL_CACHE: false
+      
+      - name: Generate Prisma Client
+        run: |
+          cd apps/dashboard
+          yarn prebuild
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      
+      - name: Build for Cloudflare Pages
+        run: |
+          cd apps/dashboard
+          yarn build:cf
+        env:
+          # Build-time environment variables
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXT_PUBLIC_ROOT_DOMAIN: ${{ secrets.NEXT_PUBLIC_ROOT_DOMAIN }}
+          AUTH_SERVICE_URL: ${{ secrets.AUTH_SERVICE_URL }}
+          NEXT_PUBLIC_SCRAPER_API_URL: ${{ secrets.NEXT_PUBLIC_SCRAPER_API_URL }}
+          SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
+          NODE_ENV: production
+          SKIP_ENV_VALIDATION: 1
+      
+      - name: Deploy to Cloudflare Pages (Preview)
+        if: github.ref != 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/dashboard/.open-next/worker --project-name=wirecrest-dashboard --branch=${{ github.ref_name }}
+      
+      - name: Deploy to Cloudflare Pages (Production)
+        if: github.ref == 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/dashboard/.open-next/worker --project-name=wirecrest-dashboard --branch=main
+      
+      - name: Comment deployment URL (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentUrl = `https://${context.sha}.wirecrest-dashboard.pages.dev`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🚀 Cloudflare Pages Preview Deployment
+
+              **Deployment URL:** ${deploymentUrl}
+              
+              **Branch:** \`${context.ref}\`
+              **Commit:** \`${context.sha.substring(0, 7)}\`
+              
+              ✅ Preview deployment successful!`
+            });
+      
+      - name: Upload build artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            apps/dashboard/.next/
+            apps/dashboard/.open-next/
+            apps/dashboard/yarn-error.log
+          retention-days: 7
+

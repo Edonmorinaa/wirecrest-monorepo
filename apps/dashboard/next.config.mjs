@@ -15,6 +15,7 @@ const isStaticExport = false;
 
 const nextConfig = {
   trailingSlash: true,
+  // Use 'standalone' output for Cloudflare Pages with @cloudflare/next-on-pages
   output: isStaticExport ? 'export' : 'standalone',
   
   // Environment variables exposed to the client

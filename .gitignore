@@ -6,7 +6,7 @@
 # Operating System Files
 # =============================================================================
 
-apps/**/.open-next
+# Removed - now using .vercel
 .turbo/
 # macOS
 .DS_Store
@@ -281,6 +281,11 @@ docker-compose.local.yml
 
 # AWS
 .aws/
+
+# Cloudflare
+.dev.vars
+.wrangler/
+wrangler.toml.backup
 
 # Firebase
 .firebase/
