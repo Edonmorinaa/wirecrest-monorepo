@@ -9026,6 +9026,7 @@ __metadata:
   dependencies:
     "@prisma/client": "npm:6.18.0"
     "@wirecrest/typescript-config": "workspace:*"
+    prisma: "npm:6.18.0"
   languageName: unknown
   linkType: soft
 
@@ -16375,7 +16376,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prisma@npm:^6.14.0":
+"prisma@npm:6.18.0, prisma@npm:^6.14.0":
   version: 6.18.0
   resolution: "prisma@npm:6.18.0"
   dependencies:
