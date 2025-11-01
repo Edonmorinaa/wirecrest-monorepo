@@ -1,5 +1,6 @@
-import { auth } from '@wirecrest/auth-next';
+import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
+import type { SuperRole } from '@prisma/client';
 
 const protocol =
   process.env.NODE_ENV === 'production' ? 'https' : 'http';
@@ -40,46 +41,24 @@ function extractSubdomain(request: NextRequest): string | null {
 }
 
 export async function middleware(request: NextRequest) {
-  const url = request.nextUrl.clone(); // Clone to safely modify without side effects
+  const url = request.nextUrl.clone();
   const { pathname } = request.nextUrl;
-
-  // Safely retrieve user session data from cookies
-  let session = null;
-
   const subdomain = extractSubdomain(request);
-  
-  // Debug logging (this should always run if the middleware is triggered)
-  console.log('Middleware debug:', {
-    host: request.headers.get('host'),
-    pathname,
-    subdomain,
-    url: request.url,
-    rewritePath: subdomain === 'admin' ? (pathname === '/' ? '/dashboard/superadmin' : `/dashboard/superadmin${pathname}`) : null
-  });
 
   if (subdomain) {
     if (subdomain === 'admin') {
       if (pathname.startsWith('/auth') || pathname.startsWith('/dashboard')) {
         return new NextResponse('Not Found', { status: 404 });
       }
-      try {
-        session = await auth();
-      } catch (error) {
-        console.log('Auth session error:', error);
-        // Continue without session if auth fails
-      }
-      // Rewrite admin subdomain to superadmin dashboard
+      
       if (pathname === '/') {
         url.pathname = '/dashboard/superadmin';
       } else if (pathname === '/dashboard' || pathname === '/dashboard/') {
-        // Handle /dashboard path on admin subdomain - redirect to root
         return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}/`, request.url));
       } else if (pathname.startsWith('/dashboard/')) {
-        // Handle /dashboard/* paths - rewrite to /dashboard/superadmin/*
         const pathAfterDashboard = pathname.replace('/dashboard', '');
         url.pathname = `/dashboard/superadmin${pathAfterDashboard}`;
       } else {
-        // Handle other paths - rewrite to /dashboard/superadmin/*
         url.pathname = `/dashboard/superadmin${pathname}`;
       }
       return NextResponse.rewrite(url);
@@ -89,73 +68,44 @@ export async function middleware(request: NextRequest) {
       if (pathname.startsWith('/auth') || pathname.startsWith('/dashboard')) {
         return new NextResponse('Not Found', { status: 404 });
       }
-      try {
-        session = await auth();
-      } catch (error) {
-        console.log('Auth session error:', error);
-        // Continue without session if auth fails
-      }
-      // Handle post-authentication redirects from auth subdomain
-      if (session?.user?.id) {
-        // User is authenticated, redirect based on role
-        if (session.user.superRole === "ADMIN") {
-          // Super admin should go to admin subdomain
+      
+      const token = await getToken({ 
+        req: request, 
+        secret: process.env.NEXTAUTH_SECRET 
+      });
+      
+      if (token?.sub) {
+        if (token.superRole === 'ADMIN') {
           return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}/`, request.url));
-        } else if (session.user.team.slug) {
-          // Regular user should go to their team subdomain
-          return NextResponse.redirect(new URL(`${protocol}://${session.user.team.slug}.${rootDomain}/`, request.url));
+        } else if (token.team?.slug) {
+          return NextResponse.redirect(new URL(`${protocol}://${token.team.slug}.${rootDomain}/`, request.url));
         } else {
-          // User has no team, redirect to main domain or show error
           return NextResponse.redirect(new URL(`${protocol}://${rootDomain}/`, request.url));
         }
       }
       
-      // Not authenticated, show auth pages
       url.pathname = `/auth${pathname}`;
       return NextResponse.rewrite(url);
     }
 
-    // For other subdomains (team subdomains), rewrite to team dashboard
-    if (pathname === '/') {
-      return NextResponse.rewrite(new URL(`/dashboard/teams/${subdomain}`, request.url));
-    } else {
-      // Handle all other paths for team subdomains
-      return NextResponse.rewrite(new URL(`/dashboard/teams/${subdomain}${pathname}`, request.url));
-    }
+    return pathname === '/'
+      ? NextResponse.rewrite(new URL(`/dashboard/teams/${subdomain}`, request.url))
+      : NextResponse.rewrite(new URL(`/dashboard/teams/${subdomain}${pathname}`, request.url));
   }
 
-  // Handle authenticated users on main domain - redirect to appropriate subdomain
-if (session?.user?.id && (subdomain === 'auth')) {
-  if (session.user.superRole === "ADMIN") {
-    return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}/`, request.url));
-  } else if (session.user.team.slug) {
-    return NextResponse.redirect(new URL(`${protocol}://${session.user.team.slug}.${rootDomain}/`, request.url));
-  }
-}
-
-  // Block direct access to /dashboard paths on main domain
   if (pathname.startsWith('/dashboard')) {
     return new NextResponse('Not Found', { status: 404 });
   }
 
-  if (pathname.startsWith('/dashboard/superadmin')) {
-    let pathAfterSuperadmin = pathname.split('/dashboard/superadmin')[1];
-    if (pathAfterSuperadmin && pathAfterSuperadmin !== '') {
-      if (session?.user?.superRole !== "ADMIN") {
-      return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}${pathAfterSuperadmin}`, request.url));
-      }
-    }
-  }
-
-  if (pathname.startsWith('/auth')) {
-    let pathAfterAuth = pathname.split('/auth')[1];
-    if (pathAfterAuth && pathAfterAuth !== '') {
-      return NextResponse.redirect(new URL(`${protocol}://auth.${rootDomain}${pathAfterAuth}`, request.url));
-    }
+  if (pathname.startsWith('/auth/') && pathname !== '/auth') {
+    const pathAfterAuth = pathname.split('/auth')[1];
+    return NextResponse.redirect(new URL(`${protocol}://auth.${rootDomain}${pathAfterAuth}`, request.url));
   }
 
   return NextResponse.next();
 }
+
+export const runtime = 'edge';
 
 export const config = {
   matcher: [
