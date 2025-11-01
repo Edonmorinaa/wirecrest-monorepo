@@ -1,4 +1,3 @@
-import { SuperRole } from '@prisma/client';
 import { auth } from '@wirecrest/auth-next';
 import { NextResponse, type NextRequest } from 'next/server';
 
@@ -99,7 +98,7 @@ export async function middleware(request: NextRequest) {
       // Handle post-authentication redirects from auth subdomain
       if (session?.user?.id) {
         // User is authenticated, redirect based on role
-        if (session.user.superRole === SuperRole.ADMIN) {
+        if (session.user.superRole === "ADMIN") {
           // Super admin should go to admin subdomain
           return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}/`, request.url));
         } else if (session.user.team.slug) {
@@ -127,7 +126,7 @@ export async function middleware(request: NextRequest) {
 
   // Handle authenticated users on main domain - redirect to appropriate subdomain
 if (session?.user?.id && (subdomain === 'auth')) {
-  if (session.user.superRole === SuperRole.ADMIN) {
+  if (session.user.superRole === "ADMIN") {
     return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}/`, request.url));
   } else if (session.user.team.slug) {
     return NextResponse.redirect(new URL(`${protocol}://${session.user.team.slug}.${rootDomain}/`, request.url));
@@ -142,7 +141,7 @@ if (session?.user?.id && (subdomain === 'auth')) {
   if (pathname.startsWith('/dashboard/superadmin')) {
     let pathAfterSuperadmin = pathname.split('/dashboard/superadmin')[1];
     if (pathAfterSuperadmin && pathAfterSuperadmin !== '') {
-      if (session?.user?.superRole !== SuperRole.ADMIN) {
+      if (session?.user?.superRole !== "ADMIN") {
       return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}${pathAfterSuperadmin}`, request.url));
       }
     }
