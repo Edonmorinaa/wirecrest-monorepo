@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "next dev -p 3032 --turbopack",
     "start": "next start -p 3032",
-    "prebuild": "prisma generate --schema=../../packages/db/prisma/schema.prisma",
-    "build": "next build",
+    "build": "prisma generate --schema=../../packages/db/prisma/schema.prisma && next build",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
