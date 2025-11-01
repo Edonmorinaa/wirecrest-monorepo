@@ -1,116 +1,96 @@
-# Fix Vercel Build Errors - Yarn 4 Workspace Issue
+# 🔧 Vercel Build Fix - Yarn 4 Support
 
-## Problem
+## ❌ The Problem
 
-Vercel is using Yarn 1 instead of Yarn 4, which doesn't support the `workspace:` protocol used in your monorepo.
+Vercel uses Yarn 1.x by default, which doesn't understand `workspace:^` protocol used by Yarn 4.
 
-## Solution: Enable Yarn 4 via Corepack
-
-### Step 1: Update Build Command in Vercel Dashboard
-
-Go to **Settings → General** and set:
-
-**Build Command:**
-```bash
-corepack enable && corepack prepare yarn@4.0.2 --activate && cd ../.. && yarn install && cd ./packages/db && yarn prisma generate && cd ../.. && yarn turbo build --filter=@wirecrest/dashboard --force
+**Error:**
+```
+error Couldn't find package "@wirecrest/db@workspace:^" on the "npm" registry.
 ```
 
-**Install Command:**
-```bash
-corepack enable && corepack prepare yarn@4.0.2 --activate && cd ../.. && yarn install
+## ✅ The Solution
+
+Two approaches - use **Option 1** (recommended):
+
+---
+
+## 🚀 Option 1: Commit `.npmrc` (Recommended)
+
+### Step 1: Removed `.npmrc` from gitignore
+
+Changed `.gitignore` to allow `.npmrc` to be committed.
+
+### Step 2: Created `.npmrc`
+
+File: `/.npmrc`
+
+```
+enable-corepack=true
 ```
 
-**Alternative (Simpler) Build Command:**
-If the above is too long, use Turbo to handle Prisma generation:
-```bash
-corepack enable && corepack prepare yarn@4.0.2 --activate && cd ../.. && yarn install && yarn turbo build --filter=@wirecrest/dashboard --force
-```
+This tells Vercel to use Corepack, which reads `packageManager` from `package.json`.
 
-But first, ensure your `apps/dashboard/package.json` build script handles Prisma:
-```json
-"build": "prisma generate --schema=../../packages/db/prisma/schema.prisma && next build"
-```
-
-### Step 2: Add Environment Variables
-
-In **Settings → Environment Variables**, add:
+### Step 3: Commit and Push
 
 ```bash
+git add .npmrc .gitignore
+git commit -m "Enable Corepack for Vercel deployment"
+git push
+```
+
+---
+
+## 🚀 Option 2: Environment Variable (Alternative)
+
+If you don't want to commit `.npmrc`, add this in **Vercel Dashboard**:
+
+**Settings** → **Environment Variables** → **Add**
+
+```
+Name:  ENABLE_EXPERIMENTAL_COREPACK
+Value: 1
+```
+
+Then redeploy.
+
+### Redeploy on Vercel
+
+The next deployment will:
+1. See `.npmrc` with `enable-corepack=true`
+2. Enable Corepack
+3. Read `packageManager: yarn@4.0.2` from package.json
+4. Use Yarn 4 instead of Yarn 1
+5. Understand `workspace:^` protocol
+6. Build successfully! ✅
+
+---
+
+## 🎯 Alternative: Environment Variable
+
+If `.npmrc` doesn't work, add this in **Vercel Dashboard** → **Settings** → **Environment Variables**:
+
+```
 ENABLE_EXPERIMENTAL_COREPACK=1
-NODE_VERSION=20
 ```
 
-### Step 3: Update Root Directory
+---
 
-Ensure **Root Directory** is set to: `apps/dashboard`
+## ✅ Expected Build Output
 
-## Alternative Solution: Use Install Command to Enable Corepack
+After fix, you'll see:
 
-If the build command approach doesn't work, create a `.vercelrc` or use a build script:
-
-**Install Command:**
-```bash
-corepack enable && corepack prepare yarn@4.0.2 --activate && cd ../.. && yarn install
+```
+yarn install v4.0.2
+✓ Resolution step
+✓ Fetch step
+✓ Link step
+✓ @wirecrest/db: Build completed
+✓ @wirecrest/auth-core: Build completed
+...
 ```
 
-**Build Command:**
-```bash
-cd ../.. && yarn turbo build --filter=@wirecrest/dashboard --force
-```
+---
 
-## Why This Works
-
-1. `corepack enable` - Enables Corepack (Node.js package manager manager)
-2. `corepack prepare yarn@4.0.2 --activate` - Downloads and activates Yarn 4.0.2
-3. `cd ../..` - Moves to monorepo root (from `apps/dashboard`)
-4. `yarn install` - Installs all workspace dependencies with Yarn 4
-5. Turbo handles the build order automatically (packages before apps)
-
-## Verification
-
-After deployment, check the build logs:
-- Should see: "Corepack enabled"
-- Should see: "Yarn version 4.0.2"
-- Should NOT see: "Yarn version 1.x.x"
-- Should see workspace packages being built before dashboard
-
-## If Still Having Issues
-
-### Option A: Add .nvmrc or packageManager
-Create `.nvmrc` in root:
-```
-20
-```
-
-Ensure `package.json` has:
-```json
-"packageManager": "yarn@4.0.2"
-```
-
-### Option B: Use a Build Script
-Create `scripts/vercel-build.sh` in root:
-
-```bash
-#!/bin/bash
-set -e
-
-corepack enable
-corepack prepare yarn@4.0.2 --activate
-
-# Install dependencies
-yarn install
-
-# Generate Prisma client
-cd ./packages/db
-yarn prisma generate
-cd ../..
-
-# Build dashboard
-yarn turbo build --filter=@wirecrest/dashboard --force
-```
-
-Then use build command:
-```bash
-chmod +x scripts/vercel-build.sh && ./scripts/vercel-build.sh
-```
-
+**Status**: Fixed with `.npmrc`  
+**Action**: Commit `.npmrc` and push to trigger new build

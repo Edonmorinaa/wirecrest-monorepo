@@ -109,7 +109,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-.npmrc
+# .npmrc - commented out to allow Vercel to use Corepack
 
 # pnpm
 .pnpm-debug.log*
