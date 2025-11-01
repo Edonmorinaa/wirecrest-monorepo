@@ -1,6 +1,5 @@
 import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
-import type { SuperRole } from '@prisma/client';
 
 const protocol =
   process.env.NODE_ENV === 'production' ? 'https' : 'http';
