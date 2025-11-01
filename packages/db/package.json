@@ -7,12 +7,11 @@
     "@prisma/client": "6.18.0"
   },
   "devDependencies": {
-    "@wirecrest/typescript-config": "workspace:*",
-    "prisma": "6.18.0"
+    "@wirecrest/typescript-config": "workspace:*"
   },
   "scripts": {
     "generate": "prisma generate",
-    "build": "prisma generate && npx tsc --project tsconfig.json",
+    "build": "npx tsc --project tsconfig.json",
     "dev": "echo 'No dev step required for db package'",
     "lint": "echo 'No lint step required for db package'",
     "clean": "rm -rf dist",
