@@ -8945,6 +8945,7 @@ __metadata:
     "@wirecrest/billing": "workspace:^"
     "@wirecrest/core": "workspace:^"
     "@wirecrest/db": "workspace:^"
+    "@wirecrest/notifications": "workspace:^"
     accept-language: "npm:^3.0.20"
     apexcharts: "npm:^5.3.2"
     autosuggest-highlight: "npm:^3.3.4"
