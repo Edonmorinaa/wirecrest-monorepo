@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const protocol =
   process.env.NODE_ENV === 'production' ? 'https' : 'http';
-const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'wirecrest.local:3032';
+const rootDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'wirecrest.local:3032';
 
 function extractSubdomain(request: NextRequest): string | null {
   const host = request.headers.get('host') || '';

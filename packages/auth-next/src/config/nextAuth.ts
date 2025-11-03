@@ -62,7 +62,7 @@ const adapter = PrismaAdapter(prisma);
 const providers: Provider[] = [];
 const sessionMaxAge = 14 * 24 * 60 * 60; // 14 days
 const useSecureCookie = process.env.NEXTAUTH_URL?.startsWith('https://') || false;
-const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'wirecrest.local:3032';
+const rootDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'wirecrest.local:3032';
 const rootDomainFormatted = rootDomain.split(':')[0];
 const cookieDomain = process.env.NODE_ENV === 'production' ? `.${rootDomainFormatted}` : '.wirecrest.local'; // Use '.wirecrest.local' for local subdomain testing
 const cookiePrefix = useSecureCookie ? '__Secure-' : '';
