@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { signOut } from '@wirecrest/auth-next';
-import { getAuthUrl } from '@/lib/subdomain';
+import { getAuthDomainUrl } from '@/lib/subdomain-config';
 
 import Button from '@mui/material/Button';
 
@@ -11,7 +11,7 @@ export function SignOutButton({ onClose, sx, ...other }) {
   const handleLogout = useCallback(async () => {
     try {
       // Get the auth URL and log it for debugging
-      const authUrl = getAuthUrl('/auth/sign-in');
+      const authUrl = getAuthDomainUrl();
       console.log('Logout redirect URL:', authUrl);
       
       // Sign out and redirect to auth subdomain sign-in page

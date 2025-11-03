@@ -2,6 +2,8 @@
  * Subdomain utilities for multi-tenant routing
  */
 
+import { getMainDomainUrl } from "./subdomain-config";
+
 export interface SubdomainInfo {
   subdomain: string | null;
   domain: string;
@@ -133,29 +135,6 @@ export function isValidTeamSlug(slug: string): boolean {
   // Team slugs should be alphanumeric with hyphens, 3-50 characters
   const teamSlugRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
   return teamSlugRegex.test(slug) && slug.length >= 3 && slug.length <= 50;
-}
-
-/**
- * Get auth subdomain URL for a given path
- * Simplified helper for common auth redirects
- */
-export function getAuthUrl(path: string = '/auth/sign-in'): string {
-  // Check if we're in browser environment
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    
-    // For localhost development
-    if (hostname.includes('localhost') || hostname.includes('local')) {
-      return `http://auth.wirecrest.local:3032${path}`;
-    }
-    
-    // For production - extract domain from current hostname
-    const domain = hostname.replace(/^[^.]+\./, '').replace(/^www\./, '');
-    return `https://auth.${domain}${path}`;
-  }
-  
-  // Fallback for server-side
-  return `http://auth.wirecrest.local:3032${path}`;
 }
 
 /**

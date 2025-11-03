@@ -119,7 +119,7 @@ export function getMainDomainUrl(path: string = ''): string {
 /**
  * Get the auth subdomain URL
  */
-export function getAuthDomainUrl(path: string = ''): string {
+export function getAuthDomainUrl(path: string = '/sign-in'): string {
   return getSubdomainUrl(SUBDOMAIN_CONFIG.authSubdomain, path);
 }
 
