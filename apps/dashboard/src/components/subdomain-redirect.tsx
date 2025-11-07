@@ -31,19 +31,14 @@ export function SubdomainRedirect({ children }: SubdomainRedirectProps) {
     if (isAuthSubdomain) {
       // If on auth subdomain root, redirect to sign-in
       if (pathname === '/' || pathname === '') {
-        router.replace('/auth/sign-in');
+        router.replace('/sign-in');
         return;
       }
       
-      // If on auth subdomain but not on auth path, redirect to main domain
-      if (!pathname.startsWith('/auth/')) {
-        const mainDomain = window.location.hostname.replace('auth.', '');
-        const port = window.location.port ? `:${window.location.port}` : '';
-        const protocol = window.location.protocol;
-        const newUrl = `${protocol}//${mainDomain}${port}${pathname}`;
-        window.location.href = newUrl;
-        return;
-      }
+      // Trust the middleware to handle auth subdomain routing
+      // The middleware rewrites paths like /sign-in to /auth/sign-in internally
+      // but usePathname() still sees /sign-in, so we shouldn't redirect
+      return;
     }
 
     // Handle team subdomain redirects

@@ -1,14 +1,12 @@
 /**
- * Facebook Review Analytics Service - Hybrid Implementation (Prisma + Supabase)
+ * Facebook Review Analytics Service - Prisma Implementation
  */
 
 import { prisma } from "@wirecrest/db";
-import { createClient } from "@supabase/supabase-js";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   FacebookReviewWithMetadata,
   ReviewMetadata,
-} from "../types/facebook";
+} from "../types/facebook.js";
 import { randomUUID } from "crypto";
 
 interface KeywordFrequency {
@@ -70,18 +68,8 @@ const PERIOD_DEFINITIONS: Record<
 type PeriodKeys = keyof typeof PERIOD_DEFINITIONS;
 
 export class FacebookReviewAnalyticsService {
-  private supabase: SupabaseClient;
-
   constructor() {
-    // Initialize Supabase client for analytics dashboard
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Missing Supabase configuration for FacebookReviewAnalyticsService");
-    }
-    
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    // No initialization needed - Prisma is a singleton
   }
 
   /**
@@ -183,14 +171,25 @@ export class FacebookReviewAnalyticsService {
       const allReviews: FacebookReviewWithMetadata[] = (
         allReviewsData || []
       ).map((review) => {
+        // Transform reviewMetadata to convert Date fields to strings
+        let reviewMetadata = null;
+        if (review.reviewMetadata) {
+          const meta = review.reviewMetadata as any;
+          reviewMetadata = {
+            ...meta,
+            date: meta.date ? (meta.date instanceof Date ? meta.date.toISOString() : meta.date) : null,
+            replyDate: meta.replyDate ? (meta.replyDate instanceof Date ? meta.replyDate.toISOString() : meta.replyDate) : null,
+          };
+        }
+
         return {
           isRecommended: review.isRecommended,
-          date: review.date,
+          date: review.date.toISOString(),
           likesCount: review.likesCount,
           commentsCount: review.commentsCount,
           tags: review.tags || [],
           photoCount: review.reviewMetadata?.photoCount || 0,
-          reviewMetadata: review.reviewMetadata || null,
+          reviewMetadata,
         };
       });
 
@@ -238,24 +237,8 @@ export class FacebookReviewAnalyticsService {
       const currentDate = new Date();
 
       // 1. Upsert the FacebookOverview record (snapshot part)
-      // Fetch existing overview to get its ID for linking PeriodicalMetric records
-      let { data: overviewRecord, error: overviewFetchError } =
-        await this.supabase
-          .from("FacebookOverview")
-          .select("id")
-          .eq("businessProfileId", businessProfileId)
-          .single();
-
       const allTimeMetricsForSnapshot =
         this.calculateMetricsForPeriod(allReviews);
-
-      if (overviewFetchError && overviewFetchError.code !== "PGRST116") {
-        console.error(
-          `[Facebook Analytics] Error fetching existing FacebookOverview:`,
-          overviewFetchError,
-        );
-        throw new Error(`Could not fetch existing FacebookOverview record.`);
-      }
 
       // Calculate engagement and virality scores
       const engagementScore = this.calculateEngagementScore(
@@ -284,47 +267,16 @@ export class FacebookReviewAnalyticsService {
         lastUpdated: currentDate,
       };
 
-      if (overviewRecord) {
-        // Update existing overview
-        const { error: overviewUpdateError } = await this.supabase
-          .from("FacebookOverview")
-          .update(overviewData)
-          .eq("id", overviewRecord.id);
-
-        if (overviewUpdateError) {
-          console.error(
-            `[Facebook Analytics] Error updating FacebookOverview:`,
-            overviewUpdateError,
-          );
-          throw new Error(`Could not update FacebookOverview record.`);
-        }
-        console.log(
-          `[Facebook Analytics] Updated FacebookOverview record for businessProfileId: ${businessProfileId}`,
-        );
-      } else {
-        // Create new overview
-        const { data: newOverview, error: overviewInsertError } =
-          await this.supabase
-            .from("FacebookOverview")
-            .insert({ id: randomUUID(), ...overviewData })
-            .select("id")
-            .single();
-
-        if (overviewInsertError) {
-          console.error(
-            `[Facebook Analytics] Error creating FacebookOverview:`,
-            overviewInsertError,
-          );
-          throw new Error(`Could not create FacebookOverview record.`);
-        }
-        overviewRecord = newOverview;
-        console.log(
-          `[Facebook Analytics] Created new FacebookOverview record for businessProfileId: ${businessProfileId}`,
-        );
-      }
+      // Upsert FacebookOverview using Prisma
+      const overviewRecord = await prisma.facebookOverview.upsert({
+        where: { businessProfileId },
+        create: overviewData,
+        update: overviewData,
+        select: { id: true },
+      });
 
       console.log(
-        `[Facebook Analytics] Successfully completed PERIODICAL review processing for businessProfileId: ${businessProfileId}`,
+        `[Facebook Analytics] Upserted FacebookOverview with id: ${overviewRecord.id} for businessProfileId: ${businessProfileId}`,
       );
 
       // 2. Calculate and save Facebook Recommendation Distribution
@@ -552,18 +504,24 @@ export class FacebookReviewAnalyticsService {
       `[Facebook Analytics] Using simplified approach for businessProfileId: ${businessProfileId}`,
     );
 
-    // Fetch reviews without joins
-    const { data: simpleReviews, error: simpleError } = await this.supabase
-      .from("FacebookReview")
-      .select(
-        "id, isRecommended, date, likesCount, commentsCount, tags, photos, reviewMetadataId",
-      )
-      .eq("businessProfileId", businessProfileId)
-      .order("date", { ascending: false });
+    // Fetch reviews without joins using Prisma
+    const simpleReviews = await prisma.facebookReview.findMany({
+      where: { businessProfileId },
+      select: {
+        id: true,
+        isRecommended: true,
+        date: true,
+        likesCount: true,
+        commentsCount: true,
+        tags: true,
+        reviewMetadataId: true,
+      },
+      orderBy: { date: "desc" },
+    });
 
-    if (simpleError || !simpleReviews) {
+    if (!simpleReviews || simpleReviews.length === 0) {
       throw new Error(
-        `Could not fetch Facebook reviews with simplified approach: ${simpleError?.message}`,
+        `Could not fetch Facebook reviews with simplified approach - no reviews found`,
       );
     }
 
@@ -571,7 +529,7 @@ export class FacebookReviewAnalyticsService {
     const reviewsForAnalytics: FacebookReviewWithMetadata[] = simpleReviews.map(
       (review) => ({
         isRecommended: review.isRecommended,
-        date: review.date,
+        date: review.date.toISOString(),
         likesCount: review.likesCount,
         commentsCount: review.commentsCount,
         tags: review.tags,
@@ -582,8 +540,12 @@ export class FacebookReviewAnalyticsService {
 
     // Calculate basic metrics
     const allTimeMetrics = this.calculateMetricsForPeriod(reviewsForAnalytics);
+    
+    // Calculate engagement and virality scores
+    const engagementScore = this.calculateEngagementScore(allTimeMetrics);
+    const viralityScore = this.calculateViralityScore(allTimeMetrics);
 
-    // Update or create overview record
+    // Update or create overview record using Prisma
     const overviewData = {
       businessProfileId,
       totalReviews: allTimeMetrics.totalReviews,
@@ -595,57 +557,44 @@ export class FacebookReviewAnalyticsService {
       totalPhotos: allTimeMetrics.totalPhotos,
       averageLikesPerReview: allTimeMetrics.averageLikesPerReview,
       averageCommentsPerReview: allTimeMetrics.averageCommentsPerReview,
-      sentimentAnalysis: allTimeMetrics.sentimentCounts,
-      topKeywords: allTimeMetrics.topKeywords,
-      topTags: allTimeMetrics.topTags,
-      recentReviews: reviewsForAnalytics.slice(0, 10),
+      responseRate: allTimeMetrics.responseRatePercent,
+      averageResponseTime: allTimeMetrics.avgResponseTimeHours,
+      engagementScore: engagementScore,
+      viralityScore: viralityScore,
       lastUpdated: new Date(),
     };
 
-    const { error: upsertError } = await this.supabase
-      .from("FacebookOverview")
-      .upsert(overviewData, { onConflict: "businessProfileId" });
+    const overviewRecord = await prisma.facebookOverview.upsert({
+      where: { businessProfileId },
+      create: overviewData,
+      update: overviewData,
+      select: { id: true },
+    });
 
-    if (upsertError) {
-      console.error(
-        `[Facebook Analytics] Error upserting FacebookOverview with simplified approach:`,
-        upsertError,
-      );
-      throw new Error(
-        `Could not update FacebookOverview record with simplified approach.`,
-      );
-    }
+    console.log(
+      `[Facebook Analytics] Upserted FacebookOverview with simplified approach for businessProfileId: ${businessProfileId}`,
+    );
 
     // Also create normalized analytics and periodical metrics for simplified approach
     try {
-      // We need the overview ID for periodical metrics
-      const { data: overviewForMetrics, error: overviewError } =
-        await this.supabase
-          .from("FacebookOverview")
-          .select("id")
-          .eq("businessProfileId", businessProfileId)
-          .single();
+      // Create normalized analytics tables
+      await this.updateNormalizedAnalytics(
+        overviewRecord.id,
+        allTimeMetrics,
+        reviewsForAnalytics,
+      );
+      console.log(
+        `[Facebook Analytics] Successfully created normalized analytics for simplified approach`,
+      );
 
-      if (overviewForMetrics && !overviewError) {
-        // Create normalized analytics tables
-        await this.updateNormalizedAnalytics(
-          overviewForMetrics.id,
-          allTimeMetrics,
-          reviewsForAnalytics,
-        );
-        console.log(
-          `[Facebook Analytics] Successfully created normalized analytics for simplified approach`,
-        );
-
-        // Create periodical metrics
-        await this.updatePeriodicalMetrics(
-          overviewForMetrics.id,
-          reviewsForAnalytics,
-        );
-        console.log(
-          `[Facebook Analytics] Successfully created periodical metrics for simplified approach`,
-        );
-      }
+      // Create periodical metrics
+      await this.updatePeriodicalMetrics(
+        overviewRecord.id,
+        reviewsForAnalytics,
+      );
+      console.log(
+        `[Facebook Analytics] Successfully created periodical metrics for simplified approach`,
+      );
     } catch (metricsError) {
       console.warn(
         `[Facebook Analytics] Failed to create analytics/metrics in simplified approach:`,
@@ -709,7 +658,6 @@ export class FacebookReviewAnalyticsService {
     const olderThanSixMonths = allReviews.length - lastSixMonths;
 
     const distributionData = {
-      id: randomUUID(),
       businessProfileId,
       facebookOverviewId,
       recommended,
@@ -728,19 +676,12 @@ export class FacebookReviewAnalyticsService {
       lastUpdated: now,
     };
 
-    const { error: distributionError } = await this.supabase
-      .from("FacebookRecommendationDistribution")
-      .upsert(distributionData, {
-        onConflict: "businessProfileId",
-      });
-
-    if (distributionError) {
-      console.error(
-        `[Facebook Analytics] Error upserting FacebookRecommendationDistribution:`,
-        distributionError,
-      );
-      throw new Error(`Could not save recommendation distribution.`);
-    }
+    // Upsert using Prisma
+    await prisma.facebookRecommendationDistribution.upsert({
+      where: { businessProfileId },
+      create: distributionData,
+      update: distributionData,
+    });
 
     console.log(
       `[Facebook Analytics] Successfully updated recommendation distribution for businessProfileId: ${businessProfileId}`,
@@ -887,39 +828,32 @@ export class FacebookReviewAnalyticsService {
         JSON.stringify(periodicalMetricsToUpsert[0], null, 2),
       );
 
-      const { error: upsertMetricsError } = await this.supabase
-        .from("FacebookPeriodicalMetric")
-        .upsert(periodicalMetricsToUpsert, {
-          onConflict: "facebookOverviewId,periodKey",
-          ignoreDuplicates: false,
-        });
+      // Upsert periodical metrics using Prisma transaction
+      await prisma.$transaction(
+        periodicalMetricsToUpsert.map((metric) =>
+          prisma.facebookPeriodicalMetric.upsert({
+            where: {
+              facebookOverviewId_periodKey: {
+                facebookOverviewId: metric.facebookOverviewId,
+                periodKey: metric.periodKey,
+              },
+            },
+            create: metric,
+            update: metric,
+          }),
+        ),
+      );
 
-      if (upsertMetricsError) {
-        console.error(
-          `[Facebook Analytics] Error upserting FacebookPeriodicalMetric records for overview ${facebookOverviewId}:`,
-          upsertMetricsError,
-        );
-        console.error(`[Facebook Analytics] Error details:`, {
-          code: upsertMetricsError.code,
-          message: upsertMetricsError.message,
-          details: upsertMetricsError.details,
-          hint: upsertMetricsError.hint,
-        });
-        throw new Error(
-          `Failed to upsert Facebook periodical metrics: ${upsertMetricsError.message}`,
-        );
-      } else {
-        console.log(
-          `[Facebook Analytics] Successfully upserted ${periodicalMetricsToUpsert.length} Facebook periodical metrics`,
-        );
+      console.log(
+        `[Facebook Analytics] Successfully upserted ${periodicalMetricsToUpsert.length} Facebook periodical metrics`,
+      );
 
-        // Create keywords and tags for each periodical metric
-        await this.updatePeriodicalMetricRelations(
-          facebookOverviewId,
-          periodicalMetricsToUpsert,
-          allReviews,
-        );
-      }
+      // Create keywords and tags for each periodical metric
+      await this.updatePeriodicalMetricRelations(
+        facebookOverviewId,
+        periodicalMetricsToUpsert,
+        allReviews,
+      );
     } else {
       console.warn(
         `[Facebook Analytics] No Facebook periodical metrics to upsert - this shouldn't happen unless there are no reviews`,
@@ -1067,7 +1001,6 @@ export class FacebookReviewAnalyticsService {
         : 0;
 
     const sentimentData = {
-      id: randomUUID(),
       facebookOverviewId,
       positive: sentimentCounts.positive,
       negative: sentimentCounts.negative,
@@ -1077,20 +1010,12 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     };
 
-    const { error } = await this.supabase
-      .from("FacebookSentimentAnalysis")
-      .upsert(sentimentData, {
-        onConflict: "facebookOverviewId",
-        ignoreDuplicates: false,
-      });
-
-    if (error) {
-      console.error(
-        `[Facebook Analytics] Error updating sentiment analysis:`,
-        error,
-      );
-      throw new Error(`Failed to update sentiment analysis: ${error.message}`);
-    }
+    // Upsert using Prisma
+    await prisma.facebookSentimentAnalysis.upsert({
+      where: { facebookOverviewId },
+      create: sentimentData,
+      update: sentimentData,
+    });
   }
 
   /**
@@ -1132,7 +1057,6 @@ export class FacebookReviewAnalyticsService {
 
     // Normalize to scores (0-1)
     const emotionalData = {
-      id: randomUUID(),
       facebookOverviewId,
       joy: emotionCount > 0 ? emotions.joy / emotionCount : 0,
       anger: emotionCount > 0 ? emotions.anger / emotionCount : 0,
@@ -1143,20 +1067,12 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     };
 
-    const { error } = await this.supabase
-      .from("FacebookEmotionalAnalysis")
-      .upsert(emotionalData, {
-        onConflict: "facebookOverviewId",
-        ignoreDuplicates: false,
-      });
-
-    if (error) {
-      console.error(
-        `[Facebook Analytics] Error updating emotional analysis:`,
-        error,
-      );
-      throw new Error(`Failed to update emotional analysis: ${error.message}`);
-    }
+    // Upsert using Prisma
+    await prisma.facebookEmotionalAnalysis.upsert({
+      where: { facebookOverviewId },
+      create: emotionalData,
+      update: emotionalData,
+    });
   }
 
   /**
@@ -1178,7 +1094,6 @@ export class FacebookReviewAnalyticsService {
     });
 
     const qualityData = {
-      id: randomUUID(),
       facebookOverviewId,
       detailed,
       brief,
@@ -1187,20 +1102,12 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     };
 
-    const { error } = await this.supabase
-      .from("FacebookReviewQuality")
-      .upsert(qualityData, {
-        onConflict: "facebookOverviewId",
-        ignoreDuplicates: false,
-      });
-
-    if (error) {
-      console.error(
-        `[Facebook Analytics] Error updating review quality:`,
-        error,
-      );
-      throw new Error(`Failed to update review quality: ${error.message}`);
-    }
+    // Upsert using Prisma
+    await prisma.facebookReviewQuality.upsert({
+      where: { facebookOverviewId },
+      create: qualityData,
+      update: qualityData,
+    });
   }
 
   /**
@@ -1221,7 +1128,6 @@ export class FacebookReviewAnalyticsService {
     const longReviews = lengths.filter((l) => l >= 10).length;
 
     const contentData = {
-      id: randomUUID(),
       facebookOverviewId,
       avgLength,
       shortReviews,
@@ -1230,20 +1136,12 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     };
 
-    const { error } = await this.supabase
-      .from("FacebookContentLength")
-      .upsert(contentData, {
-        onConflict: "facebookOverviewId",
-        ignoreDuplicates: false,
-      });
-
-    if (error) {
-      console.error(
-        `[Facebook Analytics] Error updating content length:`,
-        error,
-      );
-      throw new Error(`Failed to update content length: ${error.message}`);
-    }
+    // Upsert using Prisma
+    await prisma.facebookContentLength.upsert({
+      where: { facebookOverviewId },
+      create: contentData,
+      update: contentData,
+    });
   }
 
   /**
@@ -1253,17 +1151,15 @@ export class FacebookReviewAnalyticsService {
     facebookOverviewId: string,
     topKeywords: KeywordFrequency[],
   ): Promise<void> {
-    // Delete existing keywords for this overview
-    await this.supabase
-      .from("FacebookKeyword")
-      .delete()
-      .eq("facebookOverviewId", facebookOverviewId);
+    // Delete existing keywords for this overview using Prisma
+    await prisma.facebookKeyword.deleteMany({
+      where: { facebookOverviewId },
+    });
 
     if (topKeywords.length === 0) return;
 
     // Insert new keywords
     const keywordData = topKeywords.map((kw) => ({
-      id: randomUUID(),
       facebookOverviewId,
       keyword: kw.keyword,
       count: kw.count,
@@ -1272,14 +1168,11 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     }));
 
-    const { error } = await this.supabase
-      .from("FacebookKeyword")
-      .insert(keywordData);
-
-    if (error) {
-      console.error(`[Facebook Analytics] Error updating keywords:`, error);
-      throw new Error(`Failed to update keywords: ${error.message}`);
-    }
+    // Create many keywords using Prisma
+    await prisma.facebookKeyword.createMany({
+      data: keywordData,
+      skipDuplicates: true,
+    });
   }
 
   /**
@@ -1289,17 +1182,15 @@ export class FacebookReviewAnalyticsService {
     facebookOverviewId: string,
     topTags: TagFrequency[],
   ): Promise<void> {
-    // Delete existing tags for this overview
-    await this.supabase
-      .from("FacebookTag")
-      .delete()
-      .eq("facebookOverviewId", facebookOverviewId);
+    // Delete existing tags for this overview using Prisma
+    await prisma.facebookTag.deleteMany({
+      where: { facebookOverviewId },
+    });
 
     if (topTags.length === 0) return;
 
     // Insert new tags
     const tagData = topTags.map((tag) => ({
-      id: randomUUID(),
       facebookOverviewId,
       tag: tag.tag,
       count: tag.count,
@@ -1308,12 +1199,11 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     }));
 
-    const { error } = await this.supabase.from("FacebookTag").insert(tagData);
-
-    if (error) {
-      console.error(`[Facebook Analytics] Error updating tags:`, error);
-      throw new Error(`Failed to update tags: ${error.message}`);
-    }
+    // Create many tags using Prisma
+    await prisma.facebookTag.createMany({
+      data: tagData,
+      skipDuplicates: true,
+    });
   }
 
   /**
@@ -1323,11 +1213,10 @@ export class FacebookReviewAnalyticsService {
     facebookOverviewId: string,
     recentReviews: FacebookReviewWithMetadata[],
   ): Promise<void> {
-    // Delete existing recent reviews for this overview
-    await this.supabase
-      .from("FacebookRecentReview")
-      .delete()
-      .eq("facebookOverviewId", facebookOverviewId);
+    // Delete existing recent reviews for this overview using Prisma
+    await prisma.facebookRecentReview.deleteMany({
+      where: { facebookOverviewId },
+    });
 
     if (recentReviews.length === 0) return;
 
@@ -1336,7 +1225,6 @@ export class FacebookReviewAnalyticsService {
       const engagementLevel = this.calculateEngagementLevel(review);
 
       return {
-        id: randomUUID(),
         facebookOverviewId,
         reviewId: `fb_${Date.now()}_${Math.random()}`, // Generate a unique ID
         reviewDate: new Date(review.date),
@@ -1349,17 +1237,11 @@ export class FacebookReviewAnalyticsService {
       };
     });
 
-    const { error } = await this.supabase
-      .from("FacebookRecentReview")
-      .insert(recentData);
-
-    if (error) {
-      console.error(
-        `[Facebook Analytics] Error updating recent reviews:`,
-        error,
-      );
-      throw new Error(`Failed to update recent reviews: ${error.message}`);
-    }
+    // Create many recent reviews using Prisma
+    await prisma.facebookRecentReview.createMany({
+      data: recentData,
+      skipDuplicates: true,
+    });
   }
 
   /**
@@ -1369,11 +1251,10 @@ export class FacebookReviewAnalyticsService {
     facebookOverviewId: string,
     allReviews: FacebookReviewWithMetadata[],
   ): Promise<void> {
-    // Delete existing topics for this overview
-    await this.supabase
-      .from("FacebookTopic")
-      .delete()
-      .eq("facebookOverviewId", facebookOverviewId);
+    // Delete existing topics for this overview using Prisma
+    await prisma.facebookTopic.deleteMany({
+      where: { facebookOverviewId },
+    });
 
     // Extract topics from keywords (group related keywords into topics)
     const topicGroups = this.extractTopics(allReviews);
@@ -1382,7 +1263,6 @@ export class FacebookReviewAnalyticsService {
 
     // Insert new topics
     const topicData = topicGroups.map((topic) => ({
-      id: randomUUID(),
       facebookOverviewId,
       topic: topic.topic,
       count: topic.count,
@@ -1391,14 +1271,11 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     }));
 
-    const { error } = await this.supabase
-      .from("FacebookTopic")
-      .insert(topicData);
-
-    if (error) {
-      console.error(`[Facebook Analytics] Error updating topics:`, error);
-      throw new Error(`Failed to update topics: ${error.message}`);
-    }
+    // Create many topics using Prisma
+    await prisma.facebookTopic.createMany({
+      data: topicData,
+      skipDuplicates: true,
+    });
   }
 
   /**
@@ -1408,11 +1285,10 @@ export class FacebookReviewAnalyticsService {
     facebookOverviewId: string,
     allReviews: FacebookReviewWithMetadata[],
   ): Promise<void> {
-    // Delete existing competitor mentions for this overview
-    await this.supabase
-      .from("FacebookCompetitorMention")
-      .delete()
-      .eq("facebookOverviewId", facebookOverviewId);
+    // Delete existing competitor mentions for this overview using Prisma
+    await prisma.facebookCompetitorMention.deleteMany({
+      where: { facebookOverviewId },
+    });
 
     // Extract competitor mentions (simplified - could be enhanced with competitor detection)
     const competitorMentions = this.extractCompetitorMentions(allReviews);
@@ -1421,7 +1297,6 @@ export class FacebookReviewAnalyticsService {
 
     // Insert new competitor mentions
     const mentionData = competitorMentions.map((mention) => ({
-      id: randomUUID(),
       facebookOverviewId,
       competitor: mention.competitor,
       count: mention.count,
@@ -1430,17 +1305,11 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     }));
 
-    const { error } = await this.supabase
-      .from("FacebookCompetitorMention")
-      .insert(mentionData);
-
-    if (error) {
-      console.error(
-        `[Facebook Analytics] Error updating competitor mentions:`,
-        error,
-      );
-      throw new Error(`Failed to update competitor mentions: ${error.message}`);
-    }
+    // Create many competitor mentions using Prisma
+    await prisma.facebookCompetitorMention.createMany({
+      data: mentionData,
+      skipDuplicates: true,
+    });
   }
 
   /**
@@ -1462,11 +1331,10 @@ export class FacebookReviewAnalyticsService {
       monthlyData.get(monthKey)!.push(review);
     });
 
-    // Delete existing trends for this overview
-    await this.supabase
-      .from("FacebookReviewTrend")
-      .delete()
-      .eq("facebookOverviewId", facebookOverviewId);
+    // Delete existing trends for this overview using Prisma
+    await prisma.facebookReviewTrend.deleteMany({
+      where: { facebookOverviewId },
+    });
 
     if (monthlyData.size === 0) return;
 
@@ -1494,7 +1362,6 @@ export class FacebookReviewAnalyticsService {
             : 0;
 
         return {
-          id: randomUUID(),
           facebookOverviewId,
           period: monthKey,
           periodStart,
@@ -1509,17 +1376,11 @@ export class FacebookReviewAnalyticsService {
       });
 
     if (trendData.length > 0) {
-      const { error } = await this.supabase
-        .from("FacebookReviewTrend")
-        .insert(trendData);
-
-      if (error) {
-        console.error(
-          `[Facebook Analytics] Error updating review trends:`,
-          error,
-        );
-        throw new Error(`Failed to update review trends: ${error.message}`);
-      }
+      // Create many trends using Prisma
+      await prisma.facebookReviewTrend.createMany({
+        data: trendData,
+        skipDuplicates: true,
+      });
     }
   }
 
@@ -1530,11 +1391,10 @@ export class FacebookReviewAnalyticsService {
     facebookOverviewId: string,
     allReviews: FacebookReviewWithMetadata[],
   ): Promise<void> {
-    // Delete existing seasonal patterns for this overview
-    await this.supabase
-      .from("FacebookSeasonalPattern")
-      .delete()
-      .eq("facebookOverviewId", facebookOverviewId);
+    // Delete existing seasonal patterns for this overview using Prisma
+    await prisma.facebookSeasonalPattern.deleteMany({
+      where: { facebookOverviewId },
+    });
 
     // Calculate seasonal patterns by month
     const monthlyPatterns = this.calculateSeasonalPatterns(allReviews);
@@ -1543,7 +1403,6 @@ export class FacebookReviewAnalyticsService {
 
     // Insert new seasonal patterns
     const patternData = monthlyPatterns.map((pattern) => ({
-      id: randomUUID(),
       facebookOverviewId,
       season: pattern.season,
       monthNumber: pattern.monthNumber,
@@ -1555,17 +1414,11 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     }));
 
-    const { error } = await this.supabase
-      .from("FacebookSeasonalPattern")
-      .insert(patternData);
-
-    if (error) {
-      console.error(
-        `[Facebook Analytics] Error updating seasonal patterns:`,
-        error,
-      );
-      throw new Error(`Failed to update seasonal patterns: ${error.message}`);
-    }
+    // Create many seasonal patterns using Prisma
+    await prisma.facebookSeasonalPattern.createMany({
+      data: patternData,
+      skipDuplicates: true,
+    });
   }
 
   /**
@@ -1822,10 +1675,9 @@ export class FacebookReviewAnalyticsService {
       // Calculate metrics for this period
       const periodMetrics = this.calculateMetricsForPeriod(reviewsForPeriod);
 
-      // Create keywords for this periodical metric
+      // Create keywords for this periodical metric using Prisma
       if (periodMetrics.topKeywords.length > 0) {
         const keywordData = periodMetrics.topKeywords.map((kw) => ({
-          id: randomUUID(),
           facebookPeriodicalMetricId: metric.id,
           keyword: kw.keyword,
           count: kw.count,
@@ -1834,22 +1686,22 @@ export class FacebookReviewAnalyticsService {
           updatedAt: new Date(),
         }));
 
-        const { error: keywordError } = await this.supabase
-          .from("FacebookKeyword")
-          .insert(keywordData);
-
-        if (keywordError) {
+        try {
+          await prisma.facebookKeyword.createMany({
+            data: keywordData,
+            skipDuplicates: true,
+          });
+        } catch (error) {
           console.error(
             `[Facebook Analytics] Error creating periodical keywords:`,
-            keywordError,
+            error,
           );
         }
       }
 
-      // Create tags for this periodical metric
+      // Create tags for this periodical metric using Prisma
       if (periodMetrics.topTags.length > 0) {
         const tagData = periodMetrics.topTags.map((tag) => ({
-          id: randomUUID(),
           facebookPeriodicalMetricId: metric.id,
           tag: tag.tag,
           count: tag.count,
@@ -1858,23 +1710,23 @@ export class FacebookReviewAnalyticsService {
           updatedAt: new Date(),
         }));
 
-        const { error: tagError } = await this.supabase
-          .from("FacebookTag")
-          .insert(tagData);
-
-        if (tagError) {
+        try {
+          await prisma.facebookTag.createMany({
+            data: tagData,
+            skipDuplicates: true,
+          });
+        } catch (error) {
           console.error(
             `[Facebook Analytics] Error creating periodical tags:`,
-            tagError,
+            error,
           );
         }
       }
 
-      // Create topics for this periodical metric
+      // Create topics for this periodical metric using Prisma
       const topicGroups = this.extractTopics(reviewsForPeriod);
       if (topicGroups.length > 0) {
         const topicData = topicGroups.map((topic) => ({
-          id: randomUUID(),
           facebookPeriodicalMetricId: metric.id,
           topic: topic.topic,
           count: topic.count,
@@ -1883,14 +1735,15 @@ export class FacebookReviewAnalyticsService {
           updatedAt: new Date(),
         }));
 
-        const { error: topicError } = await this.supabase
-          .from("FacebookTopic")
-          .insert(topicData);
-
-        if (topicError) {
+        try {
+          await prisma.facebookTopic.createMany({
+            data: topicData,
+            skipDuplicates: true,
+          });
+        } catch (error) {
           console.error(
             `[Facebook Analytics] Error creating periodical topics:`,
-            topicError,
+            error,
           );
         }
       }
@@ -1943,7 +1796,6 @@ export class FacebookReviewAnalyticsService {
 
     // Normalize to scores (0-1)
     const emotionalData = {
-      id: randomUUID(),
       facebookPeriodicalMetricId,
       joy: emotionCount > 0 ? emotions.joy / emotionCount : 0,
       anger: emotionCount > 0 ? emotions.anger / emotionCount : 0,
@@ -1954,11 +1806,14 @@ export class FacebookReviewAnalyticsService {
       updatedAt: new Date(),
     };
 
-    const { error } = await this.supabase
-      .from("FacebookPeriodicalEmotionalBreakdown")
-      .upsert(emotionalData, { onConflict: "facebookPeriodicalMetricId" });
-
-    if (error) {
+    // Upsert using Prisma
+    try {
+      await prisma.facebookPeriodicalEmotionalBreakdown.upsert({
+        where: { facebookPeriodicalMetricId },
+        create: emotionalData,
+        update: emotionalData,
+      });
+    } catch (error) {
       console.error(
         `[Facebook Analytics] Error updating periodical emotional breakdown:`,
         error,
@@ -1967,6 +1822,6 @@ export class FacebookReviewAnalyticsService {
   }
 
   async close(): Promise<void> {
-    // No explicit cleanup needed for Supabase client
+    // No explicit cleanup needed for Prisma client (singleton)
   }
 }
