@@ -72,12 +72,13 @@ export async function middleware(request: NextRequest) {
         req: request, 
         secret: process.env.NEXTAUTH_SECRET 
       });
-      
-      if (token?.sub) {
-        if (token.superRole === 'ADMIN') {
+
+      if (token) {
+        const { superRole, team } = token as { superRole: any; team: {slug: any} };
+        if (superRole === 'ADMIN') {
           return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}/`, request.url));
-        } else if (token.team?.slug) {
-          return NextResponse.redirect(new URL(`${protocol}://${token.team.slug}.${rootDomain}/`, request.url));
+        } else if (team?.slug) {
+          return NextResponse.redirect(new URL(`${protocol}://${team.slug}.${rootDomain}/`, request.url));
         } else {
           return NextResponse.redirect(new URL(`${protocol}://${rootDomain}/`, request.url));
         }

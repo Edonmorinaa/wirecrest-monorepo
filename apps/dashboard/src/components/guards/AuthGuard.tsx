@@ -4,7 +4,7 @@ import { useAuth } from '@wirecrest/auth-next';
 import { useRouter } from 'next/navigation';
 import { ReactNode, useEffect } from 'react';
 
-import { getSubdomainUrl } from 'src/lib/subdomain-config';
+import { getAuthDomainUrl, getMainDomainUrl, getSubdomainUrl } from 'src/lib/subdomain-config';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
@@ -24,7 +24,9 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
 
   useEffect(() => {
     if (!loading && requireAuth && !authenticated) {
-      router.push(getSubdomainUrl('auth', '/auth/sign-in'));
+      router.push(getAuthDomainUrl('/sign-in'));
+    } else if (!loading && requireAuth && authenticated) {
+      router.push(getMainDomainUrl('/dashboard'));
     }
   }, [loading, requireAuth, authenticated, router]);
 
@@ -33,7 +35,7 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
   }
 
   if (requireAuth && !authenticated) {
-    return <SplashScreen />;
+    return <NotFoundView />;
   }
 
   if (!requireAuth && authenticated) {

@@ -3,8 +3,7 @@
 import { useEffect } from 'react';
 import { SuperRole } from '@prisma/client';
 import { useAuth } from '@wirecrest/auth-next';
-import { getAuthDomainUrl } from '@/lib/subdomain-config';
-import { getSubdomainUrlForSubdomain } from '@/lib/subdomain';
+import { getAuthUrl, getSubdomainUrlForSubdomain } from '@/lib/subdomain';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
@@ -18,7 +17,7 @@ export default function AuthRedirectPage() {
 
     if (!user) {
       // User not authenticated, redirect to sign-in
-      const redirectUrl = getAuthDomainUrl();
+      const redirectUrl = getAuthUrl('/auth/sign-in');
       window.location.href = redirectUrl;
       return;
     }
@@ -30,7 +29,7 @@ export default function AuthRedirectPage() {
       redirectUrl = getSubdomainUrlForSubdomain('admin', '/dashboard/superadmin');
     } else if (user.superRole === SuperRole.TENANT && user.team?.slug) {
       // Regular user goes to their team subdomain
-      redirectUrl = getSubdomainUrlForSubdomain(user.team.slug, `/dashboard/teams/${user.team.slug}`);
+      redirectUrl = getSubdomainUrlForSubdomain(user.team.slug, `/`);
     } else {
       // Fallback to main domain dashboard
       redirectUrl = getSubdomainUrlForSubdomain('www', '/dashboard');

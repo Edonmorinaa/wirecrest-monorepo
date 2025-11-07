@@ -293,24 +293,10 @@ const authConfig: any = {
     },
 
     async jwt({ token, user, account, trigger, session }: { token: any; user?: User; account?: Account | null; trigger?: string; session?: any }) {
-      if (trigger === 'signIn' && account?.provider === 'boxyhq-idp') {
-        const userByAccount = await adapter.getUserByAccount!({
-          providerAccountId: account.providerAccountId,
-          provider: account.provider,
-        });
-
-        return { ...token, sub: userByAccount?.id };
-      }
-
-      if (trigger === 'update' && 'name' in session && session.name) {
-        return { ...token, name: session.name };
-      }
-
-      // Ensure JWT token structure matches auth-core Session interface
-      // This allows auth-core to verify tokens created by NextAuth
-      if (token.sub && (!token.superRole || !token.teamId)) {
+      // Helper function to populate token from database user
+      const populateTokenFromUser = async (userId: string) => {
         const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
+          where: { id: userId },
           select: { 
             id: true,
             email: true,
@@ -338,6 +324,7 @@ const authConfig: any = {
 
         if (dbUser) {
           // Add all user info to match auth-core Session.user structure
+          token.sub = dbUser.id;
           token.userId = dbUser.id; // Duplicate of sub for compatibility
           token.email = dbUser.email;
           token.name = dbUser.name;
@@ -356,6 +343,50 @@ const authConfig: any = {
             };
           }
         }
+      };
+
+      // Handle boxyhq-idp provider sign-in
+      if (trigger === 'signIn' && account?.provider === 'boxyhq-idp') {
+        const userByAccount = await adapter.getUserByAccount!({
+          providerAccountId: account.providerAccountId,
+          provider: account.provider,
+        });
+
+        if (userByAccount?.id) {
+          await populateTokenFromUser(userByAccount.id);
+        }
+
+        return token;
+      }
+
+      // On initial sign-in, populate token from user object
+      // NextAuth automatically sets token.sub = user.id before this callback runs
+      // We need to populate all other fields (email, name, superRole, teamId, team, etc.)
+      if (user?.id) {
+        const userId = token.sub || user.id;
+        // Always populate on initial sign-in if we don't have required fields
+        if (!token.email || !token.superRole) {
+          await populateTokenFromUser(userId);
+        }
+        return token;
+      }
+
+      // Handle session updates (e.g., name change)
+      if (trigger === 'update' && session) {
+        if ('name' in session && session.name) {
+          token.name = session.name;
+        }
+        // Refresh user data on update
+        if (token.sub) {
+          await populateTokenFromUser(token.sub);
+        }
+        return token;
+      }
+
+      // Ensure JWT token structure matches auth-core Session interface
+      // Refresh token data if missing required fields
+      if (token.sub && (!token.email || !token.superRole)) {
+        await populateTokenFromUser(token.sub);
       }
 
       return token;
