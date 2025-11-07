@@ -1,12 +1,12 @@
-import type { Request, Response } from 'express';
-import { BaseApiController } from './BaseApiController';
-import type { IAnalyticsApiController } from '../interfaces/IApiController';
-import type { AnalyticsRequest } from '../dto/ApiRequest';
-import type { AnalyticsResponse } from '../dto/ApiResponse';
-import { MarketPlatform } from '@prisma/client';
-import type { IDependencyContainer } from '../../interfaces/IDependencyContainer';
-import type { IAnalyticsService } from '../../interfaces/IAnalyticsService';
-import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
+import type { Request, Response } from "express";
+import { BaseApiController } from "./BaseApiController";
+import type { IAnalyticsApiController } from "../interfaces/IApiController";
+import type { AnalyticsRequest } from "../dto/ApiRequest";
+import type { AnalyticsResponse } from "../dto/ApiResponse";
+import { MarketPlatform } from "@prisma/client";
+import type { IDependencyContainer } from "../../interfaces/IDependencyContainer";
+import type { IAnalyticsService } from "../../interfaces/IAnalyticsService";
+import type { SERVICE_TOKENS } from "../../interfaces/IDependencyContainer";
 
 /**
  * Analytics API Controller
@@ -14,7 +14,10 @@ import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions via DI container
  */
-export class AnalyticsApiController extends BaseApiController implements IAnalyticsApiController {
+export class AnalyticsApiController
+  extends BaseApiController
+  implements IAnalyticsApiController
+{
   private container: IDependencyContainer;
 
   constructor(container: IDependencyContainer) {
@@ -27,14 +30,14 @@ export class AnalyticsApiController extends BaseApiController implements IAnalyt
    */
   async handleRequest(req: Request, res: Response): Promise<void> {
     switch (req.method) {
-      case 'GET':
+      case "GET":
         await this.getAnalytics(req, res);
         break;
-      case 'POST':
+      case "POST":
         await this.processAnalytics(req, res);
         break;
       default:
-        this.sendErrorResponse(res, 405, 'Method not allowed');
+        this.sendErrorResponse(res, 405, "Method not allowed");
     }
   }
 
@@ -49,35 +52,38 @@ export class AnalyticsApiController extends BaseApiController implements IAnalyt
 
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform as string || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(
+        (platform as string) || "GOOGLE_MAPS",
+      );
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate analytics service
       const analyticsService = this.getAnalyticsService(marketPlatform);
-      
+
       // Get analytics
-      const analytics = await analyticsService.getAnalytics(identifier as string || '');
-      
+      const analytics = await analyticsService.getAnalytics(
+        (identifier as string) || "",
+      );
+
       const response: AnalyticsResponse = {
         success: true,
         timestamp: new Date().toISOString(),
         platform: marketPlatform,
         data: analytics,
-        message: 'Analytics retrieved successfully'
+        message: "Analytics retrieved successfully",
       };
-      
-      this.sendSuccessResponse(res, 200, response);
 
+      this.sendSuccessResponse(res, 200, response);
     } catch (error) {
-      this.handleServiceError(error, res, 'get analytics');
+      this.handleServiceError(error, res, "get analytics");
     }
   }
 
@@ -88,48 +94,56 @@ export class AnalyticsApiController extends BaseApiController implements IAnalyt
   async processAnalytics(req: Request, res: Response): Promise<void> {
     try {
       // Validate required fields
-      const validationError = this.validateRequiredFields(req, ['teamId', 'identifier']);
+      const validationError = this.validateRequiredFields(req, [
+        "teamId",
+        "identifier",
+      ]);
       if (validationError) {
         this.sendErrorResponse(res, 400, validationError);
         return;
       }
 
       const { teamId, identifier, platform } = req.body as AnalyticsRequest;
-      
+
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(platform || "GOOGLE_MAPS");
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate analytics service
       const analyticsService = this.getAnalyticsService(marketPlatform);
-      
+
       // Process analytics
-      const result = await analyticsService.processReviews(identifier as string);
-      
+      const result = await analyticsService.processReviews(
+        identifier as string,
+      );
+
       if (result.success) {
         const response: AnalyticsResponse = {
           success: true,
           timestamp: new Date().toISOString(),
           platform: marketPlatform,
           data: result.analyticsData,
-          message: 'Analytics processed successfully'
+          message: "Analytics processed successfully",
         };
         this.sendSuccessResponse(res, 200, response);
       } else {
-        this.sendErrorResponse(res, 400, result.error || 'Failed to process analytics');
+        this.sendErrorResponse(
+          res,
+          400,
+          result.error || "Failed to process analytics",
+        );
       }
-
     } catch (error) {
-      this.handleServiceError(error, res, 'process analytics');
+      this.handleServiceError(error, res, "process analytics");
     }
   }
 

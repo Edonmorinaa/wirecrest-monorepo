@@ -1,12 +1,12 @@
-import type { Request, Response } from 'express';
-import { BaseApiController } from './BaseApiController';
-import type { IReviewApiController } from '../interfaces/IApiController';
-import type { ReviewRequest } from '../dto/ApiRequest';
-import type { ReviewResponse } from '../dto/ApiResponse';
-import type { MarketPlatform } from '@prisma/client';
-import type { IDependencyContainer } from '../../interfaces/IDependencyContainer';
-import type { IReviewService } from '../../interfaces/IReviewService';
-import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
+import type { Request, Response } from "express";
+import { BaseApiController } from "./BaseApiController";
+import type { IReviewApiController } from "../interfaces/IApiController";
+import type { ReviewRequest } from "../dto/ApiRequest";
+import type { ReviewResponse } from "../dto/ApiResponse";
+import type { MarketPlatform } from "@prisma/client";
+import type { IDependencyContainer } from "../../interfaces/IDependencyContainer";
+import type { IReviewService } from "../../interfaces/IReviewService";
+import type { SERVICE_TOKENS } from "../../interfaces/IDependencyContainer";
 
 /**
  * Review API Controller
@@ -14,7 +14,10 @@ import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions via DI container
  */
-export class ReviewApiController extends BaseApiController implements IReviewApiController {
+export class ReviewApiController
+  extends BaseApiController
+  implements IReviewApiController
+{
   private container: IDependencyContainer;
 
   constructor(container: IDependencyContainer) {
@@ -27,14 +30,14 @@ export class ReviewApiController extends BaseApiController implements IReviewApi
    */
   async handleRequest(req: Request, res: Response): Promise<void> {
     switch (req.method) {
-      case 'POST':
+      case "POST":
         await this.triggerReviewScraping(req, res);
         break;
-      case 'GET':
+      case "GET":
         await this.getReviews(req, res);
         break;
       default:
-        this.sendErrorResponse(res, 405, 'Method not allowed');
+        this.sendErrorResponse(res, 405, "Method not allowed");
     }
   }
 
@@ -45,33 +48,45 @@ export class ReviewApiController extends BaseApiController implements IReviewApi
   async triggerReviewScraping(req: Request, res: Response): Promise<void> {
     try {
       // Validate required fields
-      const validationError = this.validateRequiredFields(req, ['teamId', 'identifier']);
+      const validationError = this.validateRequiredFields(req, [
+        "teamId",
+        "identifier",
+      ]);
       if (validationError) {
         this.sendErrorResponse(res, 400, validationError);
         return;
       }
 
-      const { teamId, identifier, platform, forceRefresh = false } = req.body as ReviewRequest;
-      
+      const {
+        teamId,
+        identifier,
+        platform,
+        forceRefresh = false,
+      } = req.body as ReviewRequest;
+
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(platform || "GOOGLE_MAPS");
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate review service
       const reviewService = this.getReviewService(marketPlatform);
-      
+
       // Trigger review scraping
-      const result = await reviewService.triggerReviewScraping(teamId, marketPlatform, identifier);
-      
+      const result = await reviewService.triggerReviewScraping(
+        teamId,
+        marketPlatform,
+        identifier,
+      );
+
       if (result.success) {
         const response: ReviewResponse = {
           success: true,
@@ -79,15 +94,18 @@ export class ReviewApiController extends BaseApiController implements IReviewApi
           platform: marketPlatform,
           jobId: result.jobId,
           reviewsCount: result.reviewsCount,
-          message: result.message || 'Review scraping triggered successfully'
+          message: result.message || "Review scraping triggered successfully",
         };
         this.sendSuccessResponse(res, 200, response);
       } else {
-        this.sendErrorResponse(res, 400, result.error || 'Failed to trigger review scraping');
+        this.sendErrorResponse(
+          res,
+          400,
+          result.error || "Failed to trigger review scraping",
+        );
       }
-
     } catch (error) {
-      this.handleServiceError(error, res, 'trigger review scraping');
+      this.handleServiceError(error, res, "trigger review scraping");
     }
   }
 
@@ -103,23 +121,29 @@ export class ReviewApiController extends BaseApiController implements IReviewApi
 
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform as string || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(
+        (platform as string) || "GOOGLE_MAPS",
+      );
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate review service
       const reviewService = this.getReviewService(marketPlatform);
-      
+
       // Get reviews
-      const reviews = await reviewService.getReviews(teamId, marketPlatform, '');
-      
+      const reviews = await reviewService.getReviews(
+        teamId,
+        marketPlatform,
+        "",
+      );
+
       const response: ReviewResponse = {
         success: true,
         timestamp: new Date().toISOString(),
@@ -128,15 +152,14 @@ export class ReviewApiController extends BaseApiController implements IReviewApi
         pagination: {
           limit,
           offset,
-          hasMore: reviews.length === limit
+          hasMore: reviews.length === limit,
         },
-        message: `Retrieved ${reviews.length} reviews`
+        message: `Retrieved ${reviews.length} reviews`,
       };
-      
-      this.sendSuccessResponse(res, 200, response);
 
+      this.sendSuccessResponse(res, 200, response);
     } catch (error) {
-      this.handleServiceError(error, res, 'get reviews');
+      this.handleServiceError(error, res, "get reviews");
     }
   }
 
@@ -151,35 +174,40 @@ export class ReviewApiController extends BaseApiController implements IReviewApi
 
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform as string || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(
+        (platform as string) || "GOOGLE_MAPS",
+      );
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate analytics service
       const analyticsService = this.getAnalyticsService(marketPlatform);
-      
+
       // Get analytics
-      const analytics = await analyticsService.getAnalytics(teamId, marketPlatform, '');
-      
+      const analytics = await analyticsService.getAnalytics(
+        teamId,
+        marketPlatform,
+        "",
+      );
+
       const response: ReviewResponse = {
         success: true,
         timestamp: new Date().toISOString(),
         platform: marketPlatform,
         reviews: analytics,
-        message: 'Review analytics retrieved successfully'
+        message: "Review analytics retrieved successfully",
       };
-      
-      this.sendSuccessResponse(res, 200, response);
 
+      this.sendSuccessResponse(res, 200, response);
     } catch (error) {
-      this.handleServiceError(error, res, 'get review analytics');
+      this.handleServiceError(error, res, "get review analytics");
     }
   }
 

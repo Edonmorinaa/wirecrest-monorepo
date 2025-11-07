@@ -1,7 +1,7 @@
-import type { 
-  GoogleReview, 
-  FacebookReview, 
-  TripAdvisorReview, 
+import type {
+  GoogleReview,
+  FacebookReview,
+  TripAdvisorReview,
   BookingReview,
   ReviewMetadata,
   GoogleBusinessProfile,
@@ -11,8 +11,8 @@ import type {
   GoogleBusinessMetadata,
   FacebookBusinessMetadata,
   TripAdvisorBusinessMetadata,
-  BookingBusinessMetadata
-} from '@prisma/client';
+  BookingBusinessMetadata,
+} from "@prisma/client";
 
 // Extended types that include the reviewMetadata relationship
 export interface GoogleReviewWithMetadata extends GoogleReview {
@@ -32,22 +32,26 @@ export interface BookingReviewWithMetadata extends BookingReview {
 }
 
 // Extended business profile types with metadata
-export interface GoogleBusinessProfileWithMetadata extends Omit<GoogleBusinessProfile, 'metadata'> {
+export interface GoogleBusinessProfileWithMetadata
+  extends Omit<GoogleBusinessProfile, "metadata"> {
   metadata: GoogleBusinessMetadata | null;
   reviews: GoogleReviewWithMetadata[];
 }
 
-export interface FacebookBusinessProfileWithMetadata extends Omit<FacebookBusinessProfile, 'metadata'> {
+export interface FacebookBusinessProfileWithMetadata
+  extends Omit<FacebookBusinessProfile, "metadata"> {
   metadata: FacebookBusinessMetadata | null;
   reviews: FacebookReviewWithMetadata[];
 }
 
-export interface TripAdvisorBusinessProfileWithMetadata extends Omit<TripAdvisorBusinessProfile, 'metadata'> {
+export interface TripAdvisorBusinessProfileWithMetadata
+  extends Omit<TripAdvisorBusinessProfile, "metadata"> {
   metadata: TripAdvisorBusinessMetadata | null;
   reviews: TripAdvisorReviewWithMetadata[];
 }
 
-export interface BookingBusinessProfileWithMetadata extends Omit<BookingBusinessProfile, 'metadata'> {
+export interface BookingBusinessProfileWithMetadata
+  extends Omit<BookingBusinessProfile, "metadata"> {
   metadata: BookingBusinessMetadata | null;
   reviews: BookingReviewWithMetadata[];
 }

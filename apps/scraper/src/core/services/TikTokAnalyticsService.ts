@@ -1,5 +1,5 @@
-import type { AnalyticsResult } from '../interfaces/IAnalyticsService';
-import type { TikTokDataService } from '../../services/tiktokDataService';
+import type { AnalyticsResult } from "../interfaces/IAnalyticsService";
+import type { TikTokDataService } from "../../services/tiktokDataService";
 
 /**
  * TikTok Analytics Service
@@ -13,7 +13,7 @@ export class TikTokAnalyticsService {
   constructor() {
     const lamatokAccessKey = process.env.LAMATOK_ACCESS_KEY;
     if (!lamatokAccessKey) {
-      throw new Error('LAMATOK_ACCESS_KEY environment variable is required');
+      throw new Error("LAMATOK_ACCESS_KEY environment variable is required");
     }
     this.tiktokDataService = new TikTokDataService(lamatokAccessKey);
   }
@@ -23,24 +23,30 @@ export class TikTokAnalyticsService {
    */
   async getAnalytics(identifier: string): Promise<AnalyticsResult> {
     try {
-      console.log(`[TikTokAnalyticsService] Getting analytics for identifier: ${identifier}`);
+      console.log(
+        `[TikTokAnalyticsService] Getting analytics for identifier: ${identifier}`,
+      );
 
       // Resolve business profile ID by team
-      const profile = await this.tiktokDataService.getBusinessProfileByTeamId(identifier);
+      const profile =
+        await this.tiktokDataService.getBusinessProfileByTeamId(identifier);
       if (!profile.success || !profile.profile?.id) {
         return {
           success: false,
-          error: profile.error || 'TikTok business profile not found',
+          error: profile.error || "TikTok business profile not found",
         };
       }
 
       // Get 30-day analytics
-      const result = await this.tiktokDataService.getAnalytics(profile.profile.id, { period: '30' });
-      
+      const result = await this.tiktokDataService.getAnalytics(
+        profile.profile.id,
+        { period: "30" },
+      );
+
       if (!result.success) {
         return {
           success: false,
-          error: result.error || 'Failed to get TikTok analytics',
+          error: result.error || "Failed to get TikTok analytics",
         };
       }
 
@@ -50,16 +56,16 @@ export class TikTokAnalyticsService {
         averageRating: 0,
         sentimentScore: 0,
         lastUpdated: new Date(),
-        platform: 'TikTok',
+        platform: "TikTok",
       };
 
       return { success: true, analyticsData };
-
     } catch (error) {
-      console.error('[TikTokAnalyticsService] Error getting analytics:', error);
+      console.error("[TikTokAnalyticsService] Error getting analytics:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -69,23 +75,29 @@ export class TikTokAnalyticsService {
    */
   async processAnalytics(identifier: string): Promise<AnalyticsResult> {
     try {
-      console.log(`[TikTokAnalyticsService] Processing analytics for identifier: ${identifier}`);
+      console.log(
+        `[TikTokAnalyticsService] Processing analytics for identifier: ${identifier}`,
+      );
 
-      const profile = await this.tiktokDataService.getBusinessProfileByTeamId(identifier);
+      const profile =
+        await this.tiktokDataService.getBusinessProfileByTeamId(identifier);
       if (!profile.success || !profile.profile?.id) {
         return {
           success: false,
-          error: profile.error || 'TikTok business profile not found',
+          error: profile.error || "TikTok business profile not found",
         };
       }
 
       // Reuse getAnalytics for 30-day period
-      const result = await this.tiktokDataService.getAnalytics(profile.profile.id, { period: '30' });
-      
+      const result = await this.tiktokDataService.getAnalytics(
+        profile.profile.id,
+        { period: "30" },
+      );
+
       if (!result.success) {
         return {
           success: false,
-          error: result.error || 'Failed to process TikTok analytics',
+          error: result.error || "Failed to process TikTok analytics",
         };
       }
 
@@ -95,16 +107,19 @@ export class TikTokAnalyticsService {
         averageRating: 0,
         sentimentScore: 0,
         lastUpdated: new Date(),
-        platform: 'TikTok',
+        platform: "TikTok",
       };
 
       return { success: true, analyticsData };
-
     } catch (error) {
-      console.error('[TikTokAnalyticsService] Error processing analytics:', error);
+      console.error(
+        "[TikTokAnalyticsService] Error processing analytics:",
+        error,
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }

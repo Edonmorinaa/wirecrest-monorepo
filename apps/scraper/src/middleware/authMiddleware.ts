@@ -3,10 +3,14 @@
  * Extracts JWT token from cookies or Authorization header and validates it
  */
 
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from "express";
 // import { getSession, requireAuth, requireAdmin } from '@wirecrest/auth-core';
-import type { getSession, requireAuth, requireAdmin } from '@wirecrest/auth-core';
-import { SuperRole } from '@prisma/client';
+import type {
+  getSession,
+  requireAuth,
+  requireAdmin,
+} from "@wirecrest/auth-core";
+import { SuperRole } from "@prisma/client";
 
 /**
  * Extract JWT token from request
@@ -15,7 +19,7 @@ import { SuperRole } from '@prisma/client';
 function extractToken(req: Request): string | undefined {
   // Get Bearer token from Authorization header
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.substring(7);
   }
 
@@ -33,12 +37,16 @@ function attachTokenToRequest(req: Request, token: string): void {
  * Basic authentication middleware
  * Validates JWT token and sets user in request
  */
-export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function authenticate(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const token = extractToken(req);
-    
+
     if (!token) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 
@@ -46,20 +54,20 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     attachTokenToRequest(req, token);
 
     const session = await getSession(token);
-    
+
     if (!session || !session.user) {
-      res.status(401).json({ error: 'Invalid session' });
+      res.status(401).json({ error: "Invalid session" });
       return;
     }
 
     // Attach user to request
     (req as any).user = session.user;
     (req as any).session = session;
-    
+
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    res.status(401).json({ error: 'Authentication failed' });
+    console.error("Authentication error:", error);
+    res.status(401).json({ error: "Authentication failed" });
   }
 }
 
@@ -67,12 +75,16 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
  * Admin authentication middleware
  * Requires admin role
  */
-export async function requireAdminAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function requireAdminAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const token = extractToken(req);
-    
+
     if (!token) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 
@@ -80,15 +92,15 @@ export async function requireAdminAuth(req: Request, res: Response, next: NextFu
     attachTokenToRequest(req, token);
 
     const session = await requireAdmin(token);
-    
+
     // Attach user to request
     (req as any).user = session.user;
     (req as any).session = session;
-    
+
     next();
   } catch (error) {
-    console.error('Admin authentication error:', error);
-    res.status(403).json({ error: 'Admin access required' });
+    console.error("Admin authentication error:", error);
+    res.status(403).json({ error: "Admin access required" });
   }
 }
 
@@ -96,18 +108,22 @@ export async function requireAdminAuth(req: Request, res: Response, next: NextFu
  * Team authentication middleware
  * Validates user has access to the specified team
  */
-export async function requireTeamAccess(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function requireTeamAccess(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const token = extractToken(req);
     const { teamId } = req.params;
-    
+
     if (!token) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 
     if (!teamId) {
-      res.status(400).json({ error: 'Team ID required' });
+      res.status(400).json({ error: "Team ID required" });
       return;
     }
 
@@ -115,20 +131,23 @@ export async function requireTeamAccess(req: Request, res: Response, next: NextF
     attachTokenToRequest(req, token);
 
     const session = await requireAuth(token);
-    
+
     // Check if user has access to this team
-    if (session.user.teamId !== teamId && session.user.superRole !== SuperRole.ADMIN) {
-      res.status(403).json({ error: 'Access denied to this team' });
+    if (
+      session.user.teamId !== teamId &&
+      session.user.superRole !== SuperRole.ADMIN
+    ) {
+      res.status(403).json({ error: "Access denied to this team" });
       return;
     }
 
     // Attach user to request
     (req as any).user = session.user;
     (req as any).session = session;
-    
+
     next();
   } catch (error) {
-    console.error('Team access authentication error:', error);
-    res.status(401).json({ error: 'Authentication failed' });
+    console.error("Team access authentication error:", error);
+    res.status(401).json({ error: "Authentication failed" });
   }
 }

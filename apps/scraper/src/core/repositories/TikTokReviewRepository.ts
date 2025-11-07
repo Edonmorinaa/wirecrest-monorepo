@@ -1,4 +1,4 @@
-import { MarketPlatform } from '@prisma/client';
+import { MarketPlatform } from "@prisma/client";
 
 /**
  * TikTok Review Repository (for snapshots)
@@ -22,22 +22,26 @@ export interface TikTokSnapshot {
 
 export type CreateTikTokSnapshotInput = Omit<
   TikTokSnapshot,
-  'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'platform'
+  "id" | "createdAt" | "updatedAt" | "teamId" | "platform"
 >;
 
 export type UpdateTikTokSnapshotInput = Partial<
-  Omit<TikTokSnapshot, 'id' | 'teamId' | 'platform' | 'createdAt'>
+  Omit<TikTokSnapshot, "id" | "teamId" | "platform" | "createdAt">
 >;
 
 export class TikTokReviewRepository {
-  
   /**
    * Get snapshots by team ID and platform
    */
-  async getByTeamId(teamId: string, platform: MarketPlatform): Promise<TikTokSnapshot[]> {
+  async getByTeamId(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<TikTokSnapshot[]> {
     try {
-      console.log(`[TikTokReviewRepository] Getting snapshots for team ${teamId}`);
-      
+      console.log(
+        `[TikTokReviewRepository] Getting snapshots for team ${teamId}`,
+      );
+
       // This would typically query the database
       // For now, return a mock response
       return [
@@ -51,12 +55,11 @@ export class TikTokReviewRepository {
           totalLikes: 5000,
           totalComments: 500,
           totalViews: 10000,
-          createdAt: new Date()
-        }
+          createdAt: new Date(),
+        },
       ];
-
     } catch (error) {
-      console.error('[TikTokReviewRepository] Error getting snapshots:', error);
+      console.error("[TikTokReviewRepository] Error getting snapshots:", error);
       throw error;
     }
   }
@@ -66,13 +69,17 @@ export class TikTokReviewRepository {
    */
   async getCount(businessId: string): Promise<number> {
     try {
-      console.log(`[TikTokReviewRepository] Getting snapshot count for business ${businessId}`);
-      
+      console.log(
+        `[TikTokReviewRepository] Getting snapshot count for business ${businessId}`,
+      );
+
       // This would typically query the database
       return 1;
-
     } catch (error) {
-      console.error('[TikTokReviewRepository] Error getting snapshot count:', error);
+      console.error(
+        "[TikTokReviewRepository] Error getting snapshot count:",
+        error,
+      );
       throw error;
     }
   }
@@ -80,10 +87,16 @@ export class TikTokReviewRepository {
   /**
    * Create snapshot
    */
-  async create(teamId: string, platform: MarketPlatform, data: CreateTikTokSnapshotInput): Promise<TikTokSnapshot> {
+  async create(
+    teamId: string,
+    platform: MarketPlatform,
+    data: CreateTikTokSnapshotInput,
+  ): Promise<TikTokSnapshot> {
     try {
-      console.log(`[TikTokReviewRepository] Creating snapshot for team ${teamId}`);
-      
+      console.log(
+        `[TikTokReviewRepository] Creating snapshot for team ${teamId}`,
+      );
+
       // This would typically insert into the database
       const snapshot: TikTokSnapshot = {
         id: `tiktok-snapshot-${teamId}-${Date.now()}`,
@@ -95,13 +108,12 @@ export class TikTokReviewRepository {
         totalLikes: data.totalLikes,
         totalComments: data.totalComments,
         totalViews: data.totalViews,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       return snapshot;
-
     } catch (error) {
-      console.error('[TikTokReviewRepository] Error creating snapshot:', error);
+      console.error("[TikTokReviewRepository] Error creating snapshot:", error);
       throw error;
     }
   }
@@ -109,14 +121,17 @@ export class TikTokReviewRepository {
   /**
    * Update snapshot
    */
-  async update(snapshotId: string, data: UpdateTikTokSnapshotInput): Promise<TikTokSnapshot> {
+  async update(
+    snapshotId: string,
+    data: UpdateTikTokSnapshotInput,
+  ): Promise<TikTokSnapshot> {
     try {
       console.log(`[TikTokReviewRepository] Updating snapshot ${snapshotId}`);
-      
+
       // This would typically update the database
       const snapshot: TikTokSnapshot = {
         id: snapshotId,
-        teamId: 'mock-team',
+        teamId: "mock-team",
         platform: MarketPlatform.GOOGLE_MAPS,
         snapshotDate: data.snapshotDate ?? new Date(),
         followerCount: data.followerCount ?? 0,
@@ -125,13 +140,12 @@ export class TikTokReviewRepository {
         totalComments: data.totalComments ?? 0,
         totalViews: data.totalViews ?? 0,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       return snapshot;
-
     } catch (error) {
-      console.error('[TikTokReviewRepository] Error updating snapshot:', error);
+      console.error("[TikTokReviewRepository] Error updating snapshot:", error);
       throw error;
     }
   }
@@ -142,12 +156,11 @@ export class TikTokReviewRepository {
   async delete(snapshotId: string): Promise<boolean> {
     try {
       console.log(`[TikTokReviewRepository] Deleting snapshot ${snapshotId}`);
-      
+
       // This would typically delete from the database
       return true;
-
     } catch (error) {
-      console.error('[TikTokReviewRepository] Error deleting snapshot:', error);
+      console.error("[TikTokReviewRepository] Error deleting snapshot:", error);
       throw error;
     }
   }

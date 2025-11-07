@@ -1,19 +1,33 @@
-import type { IAnalyticsService, AnalyticsResult, AnalyticsData } from '../interfaces/IAnalyticsService';
-import type { IReviewRepository } from '../interfaces/IReviewRepository';
-import type { ISentimentAnalyzer } from '../interfaces/ISentimentAnalyzer';
-import type { GoogleReviewWithMetadata } from '../../types/extended-types.js';
-import { prisma } from '@wirecrest/db';
-import type { Prisma } from '@prisma/client';
-import type { PeriodCalculator, PeriodKey, PERIOD_DEFINITIONS } from './analytics/PeriodCalculator';
-import type { HistogramBuilder, RatingDistribution } from './analytics/HistogramBuilder';
-import type { KeywordExtractor, KeywordFrequency } from './analytics/KeywordExtractor';
-import type { ResponseAnalyzer } from './analytics/ResponseAnalyzer';
+import type {
+  IAnalyticsService,
+  AnalyticsResult,
+  AnalyticsData,
+} from "../interfaces/IAnalyticsService";
+import type { IReviewRepository } from "../interfaces/IReviewRepository";
+import type { ISentimentAnalyzer } from "../interfaces/ISentimentAnalyzer";
+import type { GoogleReviewWithMetadata } from "../../types/extended-types.js";
+import { prisma } from "@wirecrest/db";
+import type { Prisma } from "@prisma/client";
+import type {
+  PeriodCalculator,
+  PeriodKey,
+  PERIOD_DEFINITIONS,
+} from "./analytics/PeriodCalculator";
+import type {
+  HistogramBuilder,
+  RatingDistribution,
+} from "./analytics/HistogramBuilder";
+import type {
+  KeywordExtractor,
+  KeywordFrequency,
+} from "./analytics/KeywordExtractor";
+import type { ResponseAnalyzer } from "./analytics/ResponseAnalyzer";
 
 /**
  * Google Analytics Service
  * Follows Single Responsibility Principle (SRP) - only handles Google analytics
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
- * 
+ *
  * Complete implementation with:
  * - Period-based metrics (1d, 3d, 7d, 30d, 180d, 365d, all-time)
  * - Rating distribution histograms
@@ -56,16 +70,20 @@ interface PeriodMetrics {
 export class GoogleAnalyticsService implements IAnalyticsService {
   constructor(
     private reviewRepository: IReviewRepository<GoogleReviewWithMetadata>,
-    private sentimentAnalyzer?: ISentimentAnalyzer
+    private sentimentAnalyzer?: ISentimentAnalyzer,
   ) {}
 
   /**
    * Main analytics processing method
    * Processes all reviews and updates dashboard with period-based metrics
    */
-  async processReviewsAndUpdateDashboard(businessProfileId: string): Promise<void> {
-    console.log(`[Google Analytics] Starting analytics processing for businessProfileId: ${businessProfileId}`);
-    
+  async processReviewsAndUpdateDashboard(
+    businessProfileId: string,
+  ): Promise<void> {
+    console.log(
+      `[Google Analytics] Starting analytics processing for businessProfileId: ${businessProfileId}`,
+    );
+
     try {
       // Fetch business profile
       const businessProfile = await prisma.googleBusinessProfile.findUnique({
@@ -84,7 +102,9 @@ export class GoogleAnalyticsService implements IAnalyticsService {
         throw new Error(`Business profile ${businessProfileId} not found`);
       }
 
-      console.log(`[Google Analytics] Processing for "${businessProfile.displayName}" (Team: ${businessProfile.teamId})`);
+      console.log(
+        `[Google Analytics] Processing for "${businessProfile.displayName}" (Team: ${businessProfile.teamId})`,
+      );
 
       // Fetch all reviews with metadata
       const allReviews = await prisma.googleReview.findMany({
@@ -105,10 +125,12 @@ export class GoogleAnalyticsService implements IAnalyticsService {
             },
           },
         },
-        orderBy: { publishedAtDate: 'desc' },
+        orderBy: { publishedAtDate: "desc" },
       });
 
-      console.log(`[Google Analytics] Fetched ${allReviews.length} reviews with metadata`);
+      console.log(
+        `[Google Analytics] Fetched ${allReviews.length} reviews with metadata`,
+      );
 
       // Calculate all-time metrics for overview
       const allTimeMetrics = this.calculateMetricsForPeriod(allReviews);
@@ -146,14 +168,16 @@ export class GoogleAnalyticsService implements IAnalyticsService {
       });
 
       if (!overview) {
-        throw new Error('Failed to create/update GoogleOverview');
+        throw new Error("Failed to create/update GoogleOverview");
       }
 
       // Process all periods
       const periods = PeriodCalculator.getAllPeriods();
-      
+
       for (const periodKey of periods) {
-        const periodReviews = PeriodCalculator.filterByPeriod<typeof allReviews[number]>(allReviews, periodKey);
+        const periodReviews = PeriodCalculator.filterByPeriod<
+          (typeof allReviews)[number]
+        >(allReviews, periodKey);
         const periodMetrics = this.calculateMetricsForPeriod(periodReviews);
         const period = PERIOD_DEFINITIONS[periodKey];
 
@@ -171,12 +195,14 @@ export class GoogleAnalyticsService implements IAnalyticsService {
             periodLabel: period.label,
             avgRating: periodMetrics.avgRating,
             reviewCount: periodMetrics.reviewCount,
-            ratingDistribution: periodMetrics.ratingDistribution as unknown as Prisma.InputJsonValue,
+            ratingDistribution:
+              periodMetrics.ratingDistribution as unknown as Prisma.InputJsonValue,
             sentimentPositive: periodMetrics.sentimentCounts.positive,
             sentimentNeutral: periodMetrics.sentimentCounts.neutral,
             sentimentNegative: periodMetrics.sentimentCounts.negative,
             sentimentTotal: periodMetrics.sentimentCounts.total,
-            topKeywords: periodMetrics.topKeywords as unknown as Prisma.InputJsonValue,
+            topKeywords:
+              periodMetrics.topKeywords as unknown as Prisma.InputJsonValue,
             responseRatePercent: periodMetrics.responseRatePercent,
             avgResponseTimeHours: periodMetrics.avgResponseTimeHours,
           },
@@ -184,19 +210,23 @@ export class GoogleAnalyticsService implements IAnalyticsService {
             periodLabel: period.label,
             avgRating: periodMetrics.avgRating,
             reviewCount: periodMetrics.reviewCount,
-            ratingDistribution: periodMetrics.ratingDistribution as unknown as Prisma.InputJsonValue,
+            ratingDistribution:
+              periodMetrics.ratingDistribution as unknown as Prisma.InputJsonValue,
             sentimentPositive: periodMetrics.sentimentCounts.positive,
             sentimentNeutral: periodMetrics.sentimentCounts.neutral,
             sentimentNegative: periodMetrics.sentimentCounts.negative,
             sentimentTotal: periodMetrics.sentimentCounts.total,
-            topKeywords: periodMetrics.topKeywords as unknown as Prisma.InputJsonValue,
+            topKeywords:
+              periodMetrics.topKeywords as unknown as Prisma.InputJsonValue,
             responseRatePercent: periodMetrics.responseRatePercent,
             avgResponseTimeHours: periodMetrics.avgResponseTimeHours,
           },
         });
       }
 
-      console.log(`✅ [Google Analytics] Successfully updated dashboard for ${businessProfile.displayName}`);
+      console.log(
+        `✅ [Google Analytics] Successfully updated dashboard for ${businessProfile.displayName}`,
+      );
     } catch (error) {
       console.error(`❌ [Google Analytics] Error processing analytics:`, error);
       throw error;
@@ -206,20 +236,22 @@ export class GoogleAnalyticsService implements IAnalyticsService {
   /**
    * Calculate metrics for a specific period
    */
-  private calculateMetricsForPeriod<T extends {
-    rating?: number | null;
-    stars?: number | null;
-    publishedAtDate: Date | string;
-    reviewMetadata?: {
-      emotional?: string | null;
-      keywords?: string[] | null;
-      reply?: string | null;
-      replyDate?: Date | null;
-      sentiment?: number | null;
-    } | null;
-    responseFromOwnerText?: string | null;
-    responseFromOwnerDate?: Date | null;
-  }>(reviews: T[]): PeriodMetrics {
+  private calculateMetricsForPeriod<
+    T extends {
+      rating?: number | null;
+      stars?: number | null;
+      publishedAtDate: Date | string;
+      reviewMetadata?: {
+        emotional?: string | null;
+        keywords?: string[] | null;
+        reply?: string | null;
+        replyDate?: Date | null;
+        sentiment?: number | null;
+      } | null;
+      responseFromOwnerText?: string | null;
+      responseFromOwnerDate?: Date | null;
+    },
+  >(reviews: T[]): PeriodMetrics {
     const reviewCount = reviews.length;
 
     if (reviewCount === 0) {
@@ -235,24 +267,27 @@ export class GoogleAnalyticsService implements IAnalyticsService {
     }
 
     // Extract ratings (prefer stars over rating field)
-    const ratings = reviews.map(r => r.stars ?? r.rating ?? 0).filter(r => r > 0);
+    const ratings = reviews
+      .map((r) => r.stars ?? r.rating ?? 0)
+      .filter((r) => r > 0);
 
     // Calculate average rating
     const avgRating = HistogramBuilder.calculateAverageRating(ratings);
 
     // Build rating distribution
-    const ratingDistribution = HistogramBuilder.buildRatingDistribution(ratings);
+    const ratingDistribution =
+      HistogramBuilder.buildRatingDistribution(ratings);
 
     // Build sentiment distribution
     const sentimentCounts = HistogramBuilder.buildSentimentFromRatings(ratings);
 
     // Extract top keywords
     const topKeywords = KeywordExtractor.extractFromReviews(
-      reviews.map(r => ({
+      reviews.map((r) => ({
         text: null, // Google reviews don't always have text in our sample
         reviewMetadata: r.reviewMetadata,
       })),
-      20
+      20,
     );
 
     // Calculate response metrics
@@ -272,14 +307,14 @@ export class GoogleAnalyticsService implements IAnalyticsService {
   async processReviews(businessId: string): Promise<AnalyticsResult> {
     try {
       await this.processReviewsAndUpdateDashboard(businessId);
-      
+
       // Fetch the analytics data
       const analyticsData = await this.getAnalytics(businessId);
-      
+
       if (!analyticsData) {
         return {
           success: false,
-          error: 'Failed to retrieve analytics after processing',
+          error: "Failed to retrieve analytics after processing",
         };
       }
 
@@ -290,7 +325,7 @@ export class GoogleAnalyticsService implements IAnalyticsService {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -311,15 +346,18 @@ export class GoogleAnalyticsService implements IAnalyticsService {
         averageRating: overview.currentOverallRating ?? 0,
         sentimentScore: 0, // Calculate from sentiment counts if needed
         lastUpdated: overview.lastRefreshedAt ?? new Date(),
-        platform: 'Google',
+        platform: "Google",
       };
     } catch (error) {
-      console.error('Error getting analytics:', error);
+      console.error("Error getting analytics:", error);
       return null;
     }
   }
 
-  async updateAnalytics(businessId: string, data: AnalyticsData): Promise<void> {
+  async updateAnalytics(
+    businessId: string,
+    data: AnalyticsData,
+  ): Promise<void> {
     // This is handled by processReviewsAndUpdateDashboard
     await this.processReviewsAndUpdateDashboard(businessId);
   }
@@ -330,7 +368,7 @@ export class GoogleAnalyticsService implements IAnalyticsService {
         where: { businessProfileId: businessId },
       });
     } catch (error) {
-      console.error('Error deleting analytics:', error);
+      console.error("Error deleting analytics:", error);
       throw error;
     }
   }

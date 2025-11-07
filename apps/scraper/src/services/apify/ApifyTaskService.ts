@@ -3,7 +3,7 @@
  * Handles creation and execution of one-time Apify actor tasks
  */
 
-import { ApifyClient } from 'apify-client';
+import { ApifyClient } from "apify-client";
 import type {
   Platform,
   TaskRunConfig,
@@ -14,13 +14,13 @@ import type {
   BookingActorInput,
   ApifyWebhookConfig,
   ApifyEventType,
-} from '../../types/apify.types';
+} from "../../types/apify.types";
 
 const ACTOR_IDS: Record<Platform, string> = {
-  google_reviews: 'Xb8osYTtOjlsgI6k9',  // Google Maps Reviews Scraper (specialized, cost-effective)
-  facebook: 'dX3d80hsNMilEwjXG',         // Facebook Reviews Scraper (specialized)
-  tripadvisor: 'Hvp4YfFGyLM635Q2F',     // TripAdvisor Reviews Scraper (specialized)
-  booking: 'PbMHke3jW25J6hSOA',          // Booking.com Reviews Scraper (specialized)
+  google_reviews: "Xb8osYTtOjlsgI6k9", // Google Maps Reviews Scraper (specialized, cost-effective)
+  facebook: "dX3d80hsNMilEwjXG", // Facebook Reviews Scraper (specialized)
+  tripadvisor: "Hvp4YfFGyLM635Q2F", // TripAdvisor Reviews Scraper (specialized)
+  booking: "PbMHke3jW25J6hSOA", // Booking.com Reviews Scraper (specialized)
 };
 
 export class ApifyTaskService {
@@ -46,9 +46,12 @@ export class ApifyTaskService {
 
     return {
       apifyRunId: run.id,
-      status: run.status === 'RUNNING' ? 'running' : 'pending',
+      status: run.status === "RUNNING" ? "running" : "pending",
       startedAt: new Date(run.startedAt),
-      estimatedCompletion: this.estimateCompletion(config.identifiers.length, config.maxReviews),
+      estimatedCompletion: this.estimateCompletion(
+        config.identifiers.length,
+        config.maxReviews,
+      ),
     };
   }
 
@@ -59,13 +62,13 @@ export class ApifyTaskService {
     const webhookConfig = this.buildWebhookConfig(config.platform);
 
     switch (config.platform) {
-      case 'google_reviews':
+      case "google_reviews":
         return this.buildGoogleMapsInput(config, webhookConfig);
-      case 'facebook':
+      case "facebook":
         return this.buildFacebookInput(config, webhookConfig);
-      case 'tripadvisor':
+      case "tripadvisor":
         return this.buildTripAdvisorInput(config, webhookConfig);
-      case 'booking':
+      case "booking":
         return this.buildBookingInput(config, webhookConfig);
     }
   }
@@ -77,14 +80,14 @@ export class ApifyTaskService {
    */
   private buildGoogleMapsInput(
     config: TaskRunConfig,
-    webhooks: ApifyWebhookConfig[]
+    webhooks: ApifyWebhookConfig[],
   ): GoogleMapsActorInput {
     return {
       placeIds: config.identifiers, // Array of all place IDs - batched together
       maxReviews: config.maxReviews,
-      reviewsSort: 'newest',
-      language: 'en',
-      reviewsOrigin: 'google', // Only Google reviews (not TripAdvisor etc)
+      reviewsSort: "newest",
+      language: "en",
+      reviewsOrigin: "google", // Only Google reviews (not TripAdvisor etc)
       personalData: false, // Don't scrape personal reviewer data (GDPR compliant)
       webhooks,
     };
@@ -93,85 +96,85 @@ export class ApifyTaskService {
   /**
    * Build Facebook actor input
    * Using Facebook Reviews Scraper (dX3d80hsNMilEwjXG)
-   * 
+   *
    * Note: For initial syncs, we remove resultsLimit to get ALL reviews.
    * The actor will scrape all available reviews when no limit is set.
    */
   private buildFacebookInput(
     config: TaskRunConfig,
-    webhooks: ApifyWebhookConfig[]
+    webhooks: ApifyWebhookConfig[],
   ): FacebookActorInput {
     const input: FacebookActorInput = {
       startUrls: config.identifiers.map((url) => ({ url })),
       proxy: {
-        apifyProxyGroups: ['RESIDENTIAL'],
+        apifyProxyGroups: ["RESIDENTIAL"],
       },
       maxRequestRetries: 10,
       webhooks,
     };
-    
+
     // Only add resultsLimit for recurring syncs (not initial)
     // For initial sync, omit the limit to get all historical reviews
     if (!config.isInitial && config.maxReviews < 99999) {
       input.resultsLimit = config.maxReviews;
     }
-    
+
     return input;
   }
 
   /**
    * Build TripAdvisor actor input
    * Using TripAdvisor Reviews Scraper (Hvp4YfFGyLM635Q2F)
-   * 
+   *
    * Note: For initial syncs, we remove maxItemsPerQuery to get ALL reviews.
    */
   private buildTripAdvisorInput(
     config: TaskRunConfig,
-    webhooks: ApifyWebhookConfig[]
+    webhooks: ApifyWebhookConfig[],
   ): TripAdvisorActorInput {
     const input: TripAdvisorActorInput = {
       startUrls: config.identifiers.map((url) => ({ url })),
       scrapeReviewerInfo: true,
-      reviewRatings: ['ALL_REVIEW_RATINGS'],
-      reviewsLanguages: ['ALL_REVIEW_LANGUAGES'],
+      reviewRatings: ["ALL_REVIEW_RATINGS"],
+      reviewsLanguages: ["ALL_REVIEW_LANGUAGES"],
       webhooks,
     };
-    
+
     // Only add limit for recurring syncs (not initial)
     // For initial sync, omit the limit to get all historical reviews
     if (!config.isInitial && config.maxReviews < 99999) {
       input.maxItemsPerQuery = config.maxReviews;
     }
-    
+
     return input;
   }
 
   /**
    * Build Booking.com actor input
    * Using Booking.com Reviews Scraper (PbMHke3jW25J6hSOA)
-   * 
+   *
    * Note: For initial syncs, we remove maxReviewsPerHotel to get ALL reviews.
    */
   private buildBookingInput(
     config: TaskRunConfig,
-    webhooks: ApifyWebhookConfig[]
+    webhooks: ApifyWebhookConfig[],
   ): BookingActorInput {
     const input: BookingActorInput = {
       startUrls: config.identifiers.map((url) => ({ url })),
-      sortReviewsBy: 'f_recent_desc',  // Newest first for deduplication
-      reviewScores: ['ALL'],
+      sortReviewsBy: "f_recent_desc", // Newest first for deduplication
+      reviewScores: ["ALL"],
       proxyConfiguration: {
         useApifyProxy: true,
       },
       webhooks,
     };
-    
+
     // Only add limit for recurring syncs (not initial)
     // For initial sync, omit the limit to get all historical reviews
     if (!config.isInitial && config.maxReviews < 99999) {
       input.maxReviewsPerHotel = config.maxReviews;
     }
-    
+
     return input;
   }
 
@@ -181,15 +184,17 @@ export class ApifyTaskService {
    */
   private buildWebhookConfig(platform: Platform): ApifyWebhookConfig[] {
     const webhookSecret = process.env.APIFY_WEBHOOK_SECRET;
-    
+
     if (!webhookSecret) {
-      throw new Error('APIFY_WEBHOOK_SECRET environment variable is required for webhook security');
+      throw new Error(
+        "APIFY_WEBHOOK_SECRET environment variable is required for webhook security",
+      );
     }
 
     const eventTypes: ApifyEventType[] = [
-      'ACTOR.RUN.SUCCEEDED',
-      'ACTOR.RUN.FAILED',
-      'ACTOR.RUN.ABORTED',
+      "ACTOR.RUN.SUCCEEDED",
+      "ACTOR.RUN.FAILED",
+      "ACTOR.RUN.ABORTED",
     ];
 
     return [
@@ -198,10 +203,10 @@ export class ApifyTaskService {
         requestUrl: `${this.webhookBaseUrl}/webhooks/apify?token=${webhookSecret}`,
         payloadTemplate: JSON.stringify({
           platform,
-          eventType: '{{eventType}}',
-          actorRunId: '{{resource.id}}',
-          datasetId: '{{resource.defaultDatasetId}}',
-          status: '{{resource.status}}',
+          eventType: "{{eventType}}",
+          actorRunId: "{{resource.id}}",
+          datasetId: "{{resource.defaultDatasetId}}",
+          status: "{{resource.status}}",
         }),
       },
     ];
@@ -212,7 +217,8 @@ export class ApifyTaskService {
    */
   private estimateCompletion(businessCount: number, maxReviews: number): Date {
     // Rough estimate: 30 seconds per business + 1 second per review
-    const estimatedSeconds = businessCount * 30 + (businessCount * maxReviews) / 10;
+    const estimatedSeconds =
+      businessCount * 30 + (businessCount * maxReviews) / 10;
     return new Date(Date.now() + estimatedSeconds * 1000);
   }
 
@@ -226,9 +232,9 @@ export class ApifyTaskService {
     datasetId?: string;
   }> {
     const run = await this.apifyClient.run(apifyRunId).get();
-    
+
     return {
-      status: run?.status || 'UNKNOWN',
+      status: run?.status || "UNKNOWN",
       startedAt: new Date(run?.startedAt || Date.now()),
       finishedAt: run?.finishedAt ? new Date(run.finishedAt) : undefined,
       datasetId: run?.defaultDatasetId,
@@ -242,4 +248,3 @@ export class ApifyTaskService {
     await this.apifyClient.run(apifyRunId).abort();
   }
 }
-

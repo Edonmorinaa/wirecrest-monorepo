@@ -1,9 +1,9 @@
-import { MarketPlatform } from '@prisma/client';
-import { UnifiedBusinessService } from './UnifiedBusinessService';
-import { IDependencyContainer } from '../interfaces/IDependencyContainer';
-import { BusinessProfileResult } from '../interfaces/IBusinessService';
-import { ReviewResult } from '../interfaces/IReviewService';
-import { AnalyticsResult } from '../interfaces/IAnalyticsService';
+import { MarketPlatform } from "@prisma/client";
+import { UnifiedBusinessService } from "./UnifiedBusinessService";
+import { IDependencyContainer } from "../interfaces/IDependencyContainer";
+import { BusinessProfileResult } from "../interfaces/IBusinessService";
+import { ReviewResult } from "../interfaces/IReviewService";
+import { AnalyticsResult } from "../interfaces/IAnalyticsService";
 
 /**
  * Modern Business Service
@@ -19,7 +19,7 @@ export class ModernBusinessService {
   constructor(
     private container: IDependencyContainer,
     private actorManager: any, // TODO: Define proper interface
-    private teamService: any    // TODO: Define proper interface
+    private teamService: any, // TODO: Define proper interface
   ) {
     this.unifiedBusinessService = new UnifiedBusinessService(container);
   }
@@ -31,48 +31,56 @@ export class ModernBusinessService {
   async setupBusiness(
     teamId: string,
     platform: MarketPlatform,
-    identifier: string
+    identifier: string,
   ): Promise<{ success: boolean; businessId?: string; error?: string }> {
     try {
-      console.log(`🚀 Starting modern business setup for team ${teamId}, platform ${platform}, identifier ${identifier}`);
-      
+      console.log(
+        `🚀 Starting modern business setup for team ${teamId}, platform ${platform}, identifier ${identifier}`,
+      );
+
       // Step 1: Create business profile
-      console.log('🏢 Creating business profile...');
-      const profileResult = await this.unifiedBusinessService.createBusinessProfile(teamId, platform, identifier);
-      
+      console.log("🏢 Creating business profile...");
+      const profileResult =
+        await this.unifiedBusinessService.createBusinessProfile(
+          teamId,
+          platform,
+          identifier,
+        );
+
       if (!profileResult.success) {
         return {
           success: false,
-          error: profileResult.error || 'Failed to create business profile'
+          error: profileResult.error || "Failed to create business profile",
         };
       }
 
       // Step 2: Trigger review scraping (delegated to actor manager)
-      console.log('🔍 Starting review collection...');
+      console.log("🔍 Starting review collection...");
       await this.triggerReviewScraping(teamId, platform, identifier);
 
       // Step 3: Process analytics
-      console.log('📊 Processing analytics...');
-      const analyticsResult = await this.unifiedBusinessService.processBusinessAnalytics(
-        profileResult.businessId!,
-        platform
-      );
+      console.log("📊 Processing analytics...");
+      const analyticsResult =
+        await this.unifiedBusinessService.processBusinessAnalytics(
+          profileResult.businessId!,
+          platform,
+        );
 
       if (!analyticsResult.success) {
-        console.warn('⚠️ Analytics processing failed:', analyticsResult.error);
+        console.warn("⚠️ Analytics processing failed:", analyticsResult.error);
       }
 
       console.log(`✅ Modern business setup completed for team ${teamId}`);
-      
+
       return {
         success: true,
-        businessId: profileResult.businessId
+        businessId: profileResult.businessId,
       };
     } catch (error) {
-      console.error('❌ Business setup failed:', error);
+      console.error("❌ Business setup failed:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -84,9 +92,13 @@ export class ModernBusinessService {
   async createOrUpdateProfile(
     teamId: string,
     platform: MarketPlatform,
-    identifier: string
+    identifier: string,
   ): Promise<BusinessProfileResult> {
-    return await this.unifiedBusinessService.createBusinessProfile(teamId, platform, identifier);
+    return await this.unifiedBusinessService.createBusinessProfile(
+      teamId,
+      platform,
+      identifier,
+    );
   }
 
   /**
@@ -94,9 +106,12 @@ export class ModernBusinessService {
    */
   async getProfile(
     teamId: string,
-    platform: MarketPlatform
+    platform: MarketPlatform,
   ): Promise<BusinessProfileResult> {
-    return await this.unifiedBusinessService.getBusinessProfile(teamId, platform);
+    return await this.unifiedBusinessService.getBusinessProfile(
+      teamId,
+      platform,
+    );
   }
 
   /**
@@ -105,9 +120,13 @@ export class ModernBusinessService {
   async saveReviews(
     businessId: string,
     platform: MarketPlatform,
-    reviews: any[]
+    reviews: any[],
   ): Promise<ReviewResult> {
-    return await this.unifiedBusinessService.saveBusinessReviews(businessId, platform, reviews);
+    return await this.unifiedBusinessService.saveBusinessReviews(
+      businessId,
+      platform,
+      reviews,
+    );
   }
 
   /**
@@ -115,9 +134,12 @@ export class ModernBusinessService {
    */
   async processAnalytics(
     businessId: string,
-    platform: MarketPlatform
+    platform: MarketPlatform,
   ): Promise<AnalyticsResult> {
-    return await this.unifiedBusinessService.processBusinessAnalytics(businessId, platform);
+    return await this.unifiedBusinessService.processBusinessAnalytics(
+      businessId,
+      platform,
+    );
   }
 
   /**
@@ -127,12 +149,14 @@ export class ModernBusinessService {
   private async triggerReviewScraping(
     teamId: string,
     platform: MarketPlatform,
-    identifier: string
+    identifier: string,
   ): Promise<void> {
     // This would delegate to the actor manager
     // The actor manager is injected as a dependency
-    console.log(`🎬 Triggering review scraping for ${platform} business ${identifier}`);
-    
+    console.log(
+      `🎬 Triggering review scraping for ${platform} business ${identifier}`,
+    );
+
     // TODO: Implement actual actor triggering
     // await this.actorManager.triggerReviewScraping(teamId, platform, identifier);
   }

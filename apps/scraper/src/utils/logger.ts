@@ -36,13 +36,18 @@ class Logger {
   }
 
   private getLogLevelFromEnv(): LogLevel {
-    const level = process.env.LOG_LEVEL?.toLowerCase() || 'info';
+    const level = process.env.LOG_LEVEL?.toLowerCase() || "info";
     switch (level) {
-      case 'error': return LogLevel.ERROR;
-      case 'warn': return LogLevel.WARN;
-      case 'info': return LogLevel.INFO;
-      case 'debug': return LogLevel.DEBUG;
-      default: return LogLevel.INFO;
+      case "error":
+        return LogLevel.ERROR;
+      case "warn":
+        return LogLevel.WARN;
+      case "info":
+        return LogLevel.INFO;
+      case "debug":
+        return LogLevel.DEBUG;
+      default:
+        return LogLevel.INFO;
     }
   }
 
@@ -51,23 +56,31 @@ class Logger {
   }
 
   private formatLog(entry: LogEntry): string {
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       return JSON.stringify(entry);
     } else {
       // Pretty format for development
       const prefix = `[${entry.timestamp}] [${entry.level}]`;
-      const context = entry.requestId ? ` [${entry.requestId}]` : '';
-      const business = entry.businessId ? ` [Business: ${entry.businessId}]` : '';
-      return `${prefix}${context}${business} ${entry.message}${entry.data ? '\n' + JSON.stringify(entry.data, null, 2) : ''}`;
+      const context = entry.requestId ? ` [${entry.requestId}]` : "";
+      const business = entry.businessId
+        ? ` [Business: ${entry.businessId}]`
+        : "";
+      return `${prefix}${context}${business} ${entry.message}${entry.data ? "\n" + JSON.stringify(entry.data, null, 2) : ""}`;
     }
   }
 
-  private log(level: LogLevel, levelName: string, message: string, data?: unknown, context?: {
-    userId?: string;
-    businessId?: string;
-    requestId?: string;
-    error?: Error;
-  }): void {
+  private log(
+    level: LogLevel,
+    levelName: string,
+    message: string,
+    data?: unknown,
+    context?: {
+      userId?: string;
+      businessId?: string;
+      requestId?: string;
+      error?: Error;
+    },
+  ): void {
     if (!this.shouldLog(level)) return;
 
     const entry: LogEntry = {
@@ -89,7 +102,7 @@ class Logger {
     }
 
     const formatted = this.formatLog(entry);
-    
+
     if (level === LogLevel.ERROR) {
       console.error(formatted);
     } else if (level === LogLevel.WARN) {
@@ -99,65 +112,105 @@ class Logger {
     }
   }
 
-  error(message: string, error?: Error, data?: unknown, context?: {
-    userId?: string;
-    businessId?: string;
-    requestId?: string;
-  }): void {
-    this.log(LogLevel.ERROR, 'ERROR', message, data, { ...context, error });
+  error(
+    message: string,
+    error?: Error,
+    data?: unknown,
+    context?: {
+      userId?: string;
+      businessId?: string;
+      requestId?: string;
+    },
+  ): void {
+    this.log(LogLevel.ERROR, "ERROR", message, data, { ...context, error });
   }
 
-  warn(message: string, data?: unknown, context?: {
-    userId?: string;
-    businessId?: string;
-    requestId?: string;
-  }): void {
-    this.log(LogLevel.WARN, 'WARN', message, data, context);
+  warn(
+    message: string,
+    data?: unknown,
+    context?: {
+      userId?: string;
+      businessId?: string;
+      requestId?: string;
+    },
+  ): void {
+    this.log(LogLevel.WARN, "WARN", message, data, context);
   }
 
-  info(message: string, data?: unknown, context?: {
-    userId?: string;
-    businessId?: string;
-    requestId?: string;
-  }): void {
-    this.log(LogLevel.INFO, 'INFO', message, data, context);
+  info(
+    message: string,
+    data?: unknown,
+    context?: {
+      userId?: string;
+      businessId?: string;
+      requestId?: string;
+    },
+  ): void {
+    this.log(LogLevel.INFO, "INFO", message, data, context);
   }
 
-  debug(message: string, data?: unknown, context?: {
-    userId?: string;
-    businessId?: string;
-    requestId?: string;
-  }): void {
-    this.log(LogLevel.DEBUG, 'DEBUG', message, data, context);
+  debug(
+    message: string,
+    data?: unknown,
+    context?: {
+      userId?: string;
+      businessId?: string;
+      requestId?: string;
+    },
+  ): void {
+    this.log(LogLevel.DEBUG, "DEBUG", message, data, context);
   }
 
   // Specialized methods for common scenarios
-  dbOperation(operation: string, table: string, data?: unknown, context?: {
-    businessId?: string;
-    requestId?: string;
-  }): void {
+  dbOperation(
+    operation: string,
+    table: string,
+    data?: unknown,
+    context?: {
+      businessId?: string;
+      requestId?: string;
+    },
+  ): void {
     this.debug(`DB Operation: ${operation} on ${table}`, data, context);
   }
 
-  apiRequest(method: string, path: string, data?: unknown, context?: {
-    userId?: string;
-    requestId?: string;
-  }): void {
+  apiRequest(
+    method: string,
+    path: string,
+    data?: unknown,
+    context?: {
+      userId?: string;
+      requestId?: string;
+    },
+  ): void {
     this.info(`API ${method} ${path}`, data, context);
   }
 
-  reviewProcessing(action: string, reviewId: string, data?: unknown, context?: {
-    businessId?: string;
-    requestId?: string;
-  }): void {
+  reviewProcessing(
+    action: string,
+    reviewId: string,
+    data?: unknown,
+    context?: {
+      businessId?: string;
+      requestId?: string;
+    },
+  ): void {
     this.info(`Review ${action}: ${reviewId}`, data, context);
   }
 
-  performance(operation: string, duration: number, context?: {
-    businessId?: string;
-    requestId?: string;
-  }): void {
-    this.info(`Performance: ${operation} completed in ${duration}ms`, undefined, context);
+  performance(
+    operation: string,
+    duration: number,
+    context?: {
+      businessId?: string;
+      requestId?: string;
+    },
+  ): void {
+    this.info(
+      `Performance: ${operation} completed in ${duration}ms`,
+      undefined,
+      context,
+    );
   }
 
   // Create child logger with context
@@ -177,7 +230,7 @@ class ChildLogger {
       userId?: string;
       businessId?: string;
       requestId?: string;
-    }
+    },
   ) {}
 
   error(message: string, error?: Error, data?: unknown): void {
@@ -213,4 +266,4 @@ class ChildLogger {
   }
 }
 
-export const logger = Logger.getInstance(); 
+export const logger = Logger.getInstance();

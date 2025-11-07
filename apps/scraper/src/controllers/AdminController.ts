@@ -1,18 +1,18 @@
 /**
  * Admin Controller
  * Provides manual trigger endpoints for admin dashboard
- * 
+ *
  * SECURITY: These endpoints should be protected by admin authentication!
  */
 
-import type { Request, Response } from 'express';
-import { prisma } from '@wirecrest/db';
-import { SubscriptionOrchestrator } from '../services/subscription/SubscriptionOrchestrator';
-import { ApifyScheduleService } from '../services/apify/ApifyScheduleService';
-import { ApifyTaskService } from '../services/apify/ApifyTaskService';
-import { ApifyDataSyncService } from '../services/apify/ApifyDataSyncService';
-import { FeatureExtractor } from '../services/subscription/FeatureExtractor';
-import type { Platform } from '../types/apify.types';
+import type { Request, Response } from "express";
+import { prisma } from "@wirecrest/db";
+import { SubscriptionOrchestrator } from "../services/subscription/SubscriptionOrchestrator";
+import { ApifyScheduleService } from "../services/apify/ApifyScheduleService";
+import { ApifyTaskService } from "../services/apify/ApifyTaskService";
+import { ApifyDataSyncService } from "../services/apify/ApifyDataSyncService";
+import { FeatureExtractor } from "../services/subscription/FeatureExtractor";
+import type { Platform } from "../types/apify.types";
 
 export class AdminController {
   private orchestrator: SubscriptionOrchestrator;
@@ -26,7 +26,7 @@ export class AdminController {
     scheduleService: ApifyScheduleService,
     taskService: ApifyTaskService,
     syncService: ApifyDataSyncService,
-    featureExtractor: FeatureExtractor
+    featureExtractor: FeatureExtractor,
   ) {
     this.orchestrator = orchestrator;
     this.scheduleService = scheduleService;
@@ -44,11 +44,13 @@ export class AdminController {
       const { teamId } = req.params;
       const { forceReset = false } = req.body;
 
-      console.log(`🔧 [ADMIN] Triggering subscription setup for team ${teamId}`);
+      console.log(
+        `🔧 [ADMIN] Triggering subscription setup for team ${teamId}`,
+      );
 
       // If forceReset, delete existing schedules first
       if (forceReset) {
-        console.log('🗑️  [ADMIN] Force reset - deleting existing schedules...');
+        console.log("🗑️  [ADMIN] Force reset - deleting existing schedules...");
         await this.scheduleService.deleteTeamSchedules(teamId);
       }
 
@@ -57,13 +59,13 @@ export class AdminController {
 
       res.json({
         success: true,
-        message: 'Subscription setup triggered',
+        message: "Subscription setup triggered",
         teamId,
         forceReset,
         result,
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error triggering subscription setup:', error);
+      console.error("[ADMIN] Error triggering subscription setup:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -83,7 +85,11 @@ export class AdminController {
       console.log(`🔄 [ADMIN] Triggering ${platform} sync for team ${teamId}`);
 
       // Validate platform
-      if (!['google_reviews', 'facebook', 'tripadvisor', 'booking'].includes(platform)) {
+      if (
+        !["google_reviews", "facebook", "tripadvisor", "booking"].includes(
+          platform,
+        )
+      ) {
         res.status(400).json({
           success: false,
           error: `Invalid platform: ${platform}`,
@@ -92,7 +98,10 @@ export class AdminController {
       }
 
       // Check if platform is enabled
-      const isEnabled = await this.featureExtractor.isPlatformEnabled(teamId, platform);
+      const isEnabled = await this.featureExtractor.isPlatformEnabled(
+        teamId,
+        platform,
+      );
       if (!isEnabled) {
         res.status(403).json({
           success: false,
@@ -102,7 +111,10 @@ export class AdminController {
       }
 
       // Get business identifiers
-      const identifiers = await this.getBusinessIdentifiers(teamId, platform as Platform);
+      const identifiers = await this.getBusinessIdentifiers(
+        teamId,
+        platform as Platform,
+      );
 
       if (identifiers.length === 0) {
         res.status(404).json({
@@ -123,14 +135,14 @@ export class AdminController {
 
       res.json({
         success: true,
-        message: 'Platform sync triggered',
+        message: "Platform sync triggered",
         teamId,
         platform,
         identifiersCount: identifiers.length,
         result,
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error triggering platform sync:', error);
+      console.error("[ADMIN] Error triggering platform sync:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -153,12 +165,12 @@ export class AdminController {
 
       res.json({
         success: true,
-        message: 'Schedules refreshed',
+        message: "Schedules refreshed",
         teamId,
         result,
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error refreshing schedules:', error);
+      console.error("[ADMIN] Error refreshing schedules:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -176,16 +188,17 @@ export class AdminController {
 
       console.log(`⏸️  [ADMIN] Pausing schedules for team ${teamId}`);
 
-      const result = await this.orchestrator.handleSubscriptionCancellation(teamId);
+      const result =
+        await this.orchestrator.handleSubscriptionCancellation(teamId);
 
       res.json({
         success: true,
-        message: 'Schedules paused',
+        message: "Schedules paused",
         teamId,
         result,
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error pausing schedules:', error);
+      console.error("[ADMIN] Error pausing schedules:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -214,7 +227,7 @@ export class AdminController {
           await this.scheduleService.resumeSchedule(
             schedule.teamId,
             schedule.platform as any,
-            schedule.scheduleType as any
+            schedule.scheduleType as any,
           );
           resumedCount++;
         } catch (error) {
@@ -224,13 +237,13 @@ export class AdminController {
 
       res.json({
         success: true,
-        message: 'Schedules resumed',
+        message: "Schedules resumed",
         teamId,
         totalSchedules: schedules.length,
         resumedCount,
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error resuming schedules:', error);
+      console.error("[ADMIN] Error resuming schedules:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -248,16 +261,17 @@ export class AdminController {
 
       console.log(`🗑️  [ADMIN] Deleting schedules for team ${teamId}`);
 
-      const deletedCount = await this.scheduleService.deleteTeamSchedules(teamId);
+      const deletedCount =
+        await this.scheduleService.deleteTeamSchedules(teamId);
 
       res.json({
         success: true,
-        message: 'Schedules deleted',
+        message: "Schedules deleted",
         teamId,
         deletedCount,
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error deleting schedules:', error);
+      console.error("[ADMIN] Error deleting schedules:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -294,7 +308,7 @@ export class AdminController {
       if (!team) {
         res.status(404).json({
           success: false,
-          error: 'Team not found',
+          error: "Team not found",
         });
         return;
       }
@@ -305,16 +319,22 @@ export class AdminController {
       // Get recent syncs
       const recentSyncs = await prisma.syncRecord.findMany({
         where: { teamId },
-        orderBy: { startedAt: 'desc' },
+        orderBy: { startedAt: "desc" },
         take: 10,
       });
 
       // Get business profiles count
       const businessCounts = {
         google: await prisma.googleBusinessProfile.count({ where: { teamId } }),
-        facebook: await prisma.facebookBusinessProfile.count({ where: { teamId } }),
-        tripadvisor: await prisma.tripAdvisorBusinessProfile.count({ where: { teamId } }),
-        booking: await prisma.bookingBusinessProfile.count({ where: { teamId } }),
+        facebook: await prisma.facebookBusinessProfile.count({
+          where: { teamId },
+        }),
+        tripadvisor: await prisma.tripAdvisorBusinessProfile.count({
+          where: { teamId },
+        }),
+        booking: await prisma.bookingBusinessProfile.count({
+          where: { teamId },
+        }),
       };
 
       // Get features
@@ -333,7 +353,7 @@ export class AdminController {
         features,
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error getting team status:', error);
+      console.error("[ADMIN] Error getting team status:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -353,9 +373,9 @@ export class AdminController {
 
       // Build where clause
       const where: any = {};
-      if (hasSchedules === 'true') {
+      if (hasSchedules === "true") {
         where.apifySchedules = { some: {} };
-      } else if (hasSchedules === 'false') {
+      } else if (hasSchedules === "false") {
         where.apifySchedules = { none: {} };
       }
 
@@ -388,7 +408,7 @@ export class AdminController {
               },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         }),
         prisma.team.count({ where }),
       ]);
@@ -404,7 +424,7 @@ export class AdminController {
         },
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error getting teams:', error);
+      console.error("[ADMIN] Error getting teams:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -430,24 +450,26 @@ export class AdminController {
       if (!schedule) {
         res.status(404).json({
           success: false,
-          error: 'Schedule not found',
+          error: "Schedule not found",
         });
         return;
       }
 
       // Trigger schedule in Apify
-      const result = await this.scheduleService.triggerSchedule(schedule.apifyScheduleId);
+      const result = await this.scheduleService.triggerSchedule(
+        schedule.apifyScheduleId,
+      );
 
       res.json({
         success: true,
-        message: 'Schedule triggered',
+        message: "Schedule triggered",
         scheduleId,
         platform: schedule.platform,
         scheduleType: schedule.scheduleType,
         result,
       });
     } catch (error: any) {
-      console.error('[ADMIN] Error triggering schedule:', error);
+      console.error("[ADMIN] Error triggering schedule:", error);
       res.status(500).json({
         success: false,
         error: error.message,
@@ -458,9 +480,12 @@ export class AdminController {
   /**
    * Helper: Get business identifiers for a platform
    */
-  private async getBusinessIdentifiers(teamId: string, platform: Platform): Promise<string[]> {
+  private async getBusinessIdentifiers(
+    teamId: string,
+    platform: Platform,
+  ): Promise<string[]> {
     switch (platform) {
-      case 'google_reviews': {
+      case "google_reviews": {
         const profiles = await prisma.googleBusinessProfile.findMany({
           where: { teamId },
           select: { placeId: true },
@@ -468,7 +493,7 @@ export class AdminController {
         return profiles.map((p) => p.placeId).filter(Boolean) as string[];
       }
 
-      case 'facebook': {
+      case "facebook": {
         const profiles = await prisma.facebookBusinessProfile.findMany({
           where: { teamId },
           select: { facebookUrl: true },
@@ -476,15 +501,17 @@ export class AdminController {
         return profiles.map((p) => p.facebookUrl).filter(Boolean) as string[];
       }
 
-      case 'tripadvisor': {
+      case "tripadvisor": {
         const profiles = await prisma.tripAdvisorBusinessProfile.findMany({
           where: { teamId },
           select: { tripAdvisorUrl: true },
         });
-        return profiles.map((p) => p.tripAdvisorUrl).filter(Boolean) as string[];
+        return profiles
+          .map((p) => p.tripAdvisorUrl)
+          .filter(Boolean) as string[];
       }
 
-      case 'booking': {
+      case "booking": {
         const profiles = await prisma.bookingBusinessProfile.findMany({
           where: { teamId },
           select: { bookingUrl: true },
@@ -497,4 +524,3 @@ export class AdminController {
     }
   }
 }
-

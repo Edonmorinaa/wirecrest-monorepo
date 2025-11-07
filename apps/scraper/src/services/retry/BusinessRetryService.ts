@@ -1,20 +1,20 @@
 /**
  * Business Retry Service
- * 
+ *
  * Handles per-business retry logic for failed scrapes.
  * Uses exponential backoff and isolated retry queue.
  */
 
-import { prisma } from '@wirecrest/db';
-import { ApifyClient } from 'apify-client';
-import type { Platform } from '../../types/apify.types';
-import { sendNotification } from '../../utils/notificationHelper';
+import { prisma } from "@wirecrest/db";
+import { ApifyClient } from "apify-client";
+import type { Platform } from "../../types/apify.types";
+import { sendNotification } from "../../utils/notificationHelper";
 
 const ACTOR_IDS: Record<Platform, string> = {
-  google_reviews: 'Xb8osYTtOjlsgI6k9',
-  facebook: 'dX3d80hsNMilEwjXG',
-  tripadvisor: 'Hvp4YfFGyLM635Q2F',
-  booking: 'PbMHke3jW25J6hSOA',
+  google_reviews: "Xb8osYTtOjlsgI6k9",
+  facebook: "dX3d80hsNMilEwjXG",
+  tripadvisor: "Hvp4YfFGyLM635Q2F",
+  booking: "PbMHke3jW25J6hSOA",
 };
 
 const MAX_RETRIES = 3;
@@ -37,7 +37,7 @@ export class BusinessRetryService {
     businessProfileId: string,
     platform: Platform,
     identifier: string,
-    error: string
+    error: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Check if already in queue
@@ -60,7 +60,7 @@ export class BusinessRetryService {
           await prisma.businessRetryQueue.update({
             where: { id: existing.id },
             data: {
-              status: 'failed',
+              status: "failed",
               lastError: error,
               lastAttemptAt: new Date(),
               retryCount: newRetryCount,
@@ -69,32 +69,39 @@ export class BusinessRetryService {
 
           // Send notification to team
           await sendNotification({
-            type: 'order',
-            scope: 'team',
+            type: "order",
+            scope: "team",
             teamId,
             title: `<p>Business scraping failed after <strong>${newRetryCount}</strong> retries</p>`,
-            category: 'System',
+            category: "System",
             metadata: {
               businessProfileId,
               platform,
               error: error.substring(0, 200),
-              identifier
+              identifier,
             },
-            expiresInDays: 14
-          });
-          
-          // Send admin notification for critical failures
-          await sendNotification({
-            type: 'payment',
-            scope: 'super',
-            superRole: 'ADMIN',
-            title: `<p>Business scraping permanently failed: <strong>${platform}</strong></p>`,
-            category: 'Critical',
-            metadata: { teamId, businessProfileId, platform, retries: newRetryCount },
-            expiresInDays: 30
+            expiresInDays: 14,
           });
 
-          console.error(`❌ Business ${businessProfileId} failed after ${newRetryCount} retries`);
+          // Send admin notification for critical failures
+          await sendNotification({
+            type: "payment",
+            scope: "super",
+            superRole: "ADMIN",
+            title: `<p>Business scraping permanently failed: <strong>${platform}</strong></p>`,
+            category: "Critical",
+            metadata: {
+              teamId,
+              businessProfileId,
+              platform,
+              retries: newRetryCount,
+            },
+            expiresInDays: 30,
+          });
+
+          console.error(
+            `❌ Business ${businessProfileId} failed after ${newRetryCount} retries`,
+          );
 
           return {
             success: false,
@@ -109,11 +116,13 @@ export class BusinessRetryService {
             lastError: error,
             lastAttemptAt: new Date(),
             nextRetryAt,
-            status: 'pending',
+            status: "pending",
           },
         });
 
-        console.log(`⚠️ Business ${businessProfileId} queued for retry ${newRetryCount}/${existing.maxRetries} at ${nextRetryAt.toISOString()}`);
+        console.log(
+          `⚠️ Business ${businessProfileId} queued for retry ${newRetryCount}/${existing.maxRetries} at ${nextRetryAt.toISOString()}`,
+        );
       } else {
         // Create new entry
         const nextRetryAt = this.calculateNextRetry(1);
@@ -128,19 +137,21 @@ export class BusinessRetryService {
             maxRetries: MAX_RETRIES,
             lastError: error,
             nextRetryAt,
-            status: 'pending',
+            status: "pending",
           },
         });
 
-        console.log(`⚠️ Business ${businessProfileId} added to retry queue, next retry at ${nextRetryAt.toISOString()}`);
+        console.log(
+          `⚠️ Business ${businessProfileId} added to retry queue, next retry at ${nextRetryAt.toISOString()}`,
+        );
       }
 
       return {
         success: true,
-        message: 'Added to retry queue',
+        message: "Added to retry queue",
       };
     } catch (error: any) {
-      console.error('Error adding to retry queue:', error);
+      console.error("Error adding to retry queue:", error);
       return {
         success: false,
         message: `Failed: ${error.message}`,
@@ -161,7 +172,7 @@ export class BusinessRetryService {
       // Get businesses ready for retry
       const businessesToRetry = await prisma.businessRetryQueue.findMany({
         where: {
-          status: 'pending',
+          status: "pending",
           nextRetryAt: {
             lte: new Date(),
           },
@@ -178,7 +189,7 @@ export class BusinessRetryService {
         await prisma.businessRetryQueue.update({
           where: { id: business.id },
           data: {
-            status: 'retrying',
+            status: "retrying",
             lastAttemptAt: new Date(),
           },
         });
@@ -187,20 +198,22 @@ export class BusinessRetryService {
           // Trigger Apify actor run for this specific business
           await this.retryBusinessScrape(
             business.platform as Platform,
-            business.identifier
+            business.identifier,
           );
 
           // Mark as resolved
           await prisma.businessRetryQueue.update({
             where: { id: business.id },
             data: {
-              status: 'resolved',
+              status: "resolved",
               resolvedAt: new Date(),
             },
           });
 
           succeeded++;
-          console.log(`✓ Successfully retried business ${business.businessProfileId}`);
+          console.log(
+            `✓ Successfully retried business ${business.businessProfileId}`,
+          );
         } catch (error: any) {
           // Retry failed, add back to queue with incremented count
           const newRetryCount = business.retryCount + 1;
@@ -211,28 +224,32 @@ export class BusinessRetryService {
             await prisma.businessRetryQueue.update({
               where: { id: business.id },
               data: {
-                status: 'failed',
+                status: "failed",
                 retryCount: newRetryCount,
                 lastError: error.message,
               },
             });
 
             // TODO: Alert team owner
-            console.error(`❌ Business ${business.businessProfileId} failed permanently`);
+            console.error(
+              `❌ Business ${business.businessProfileId} failed permanently`,
+            );
             failed++;
           } else {
             // Queue for next retry
             await prisma.businessRetryQueue.update({
               where: { id: business.id },
               data: {
-                status: 'pending',
+                status: "pending",
                 retryCount: newRetryCount,
                 lastError: error.message,
                 nextRetryAt,
               },
             });
 
-            console.log(`⚠️ Retry failed for ${business.businessProfileId}, will retry again at ${nextRetryAt.toISOString()}`);
+            console.log(
+              `⚠️ Retry failed for ${business.businessProfileId}, will retry again at ${nextRetryAt.toISOString()}`,
+            );
           }
         }
 
@@ -240,12 +257,14 @@ export class BusinessRetryService {
       }
 
       if (processed > 0) {
-        console.log(`✓ Processed ${processed} retry attempts: ${succeeded} succeeded, ${failed} failed`);
+        console.log(
+          `✓ Processed ${processed} retry attempts: ${succeeded} succeeded, ${failed} failed`,
+        );
       }
 
       return { processed, succeeded, failed };
     } catch (error: any) {
-      console.error('Error processing retry queue:', error);
+      console.error("Error processing retry queue:", error);
       return { processed: 0, succeeded: 0, failed: 0 };
     }
   }
@@ -255,13 +274,13 @@ export class BusinessRetryService {
    */
   private async retryBusinessScrape(
     platform: Platform,
-    identifier: string
+    identifier: string,
   ): Promise<void> {
     const actorId = ACTOR_IDS[platform];
     const webhookSecret = process.env.APIFY_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
-      throw new Error('APIFY_WEBHOOK_SECRET is required');
+      throw new Error("APIFY_WEBHOOK_SECRET is required");
     }
 
     // Build input for single business
@@ -270,14 +289,18 @@ export class BusinessRetryService {
     // Build webhook
     const webhooks = [
       {
-        eventTypes: ['ACTOR.RUN.SUCCEEDED', 'ACTOR.RUN.FAILED', 'ACTOR.RUN.ABORTED'],
+        eventTypes: [
+          "ACTOR.RUN.SUCCEEDED",
+          "ACTOR.RUN.FAILED",
+          "ACTOR.RUN.ABORTED",
+        ],
         requestUrl: `${this.webhookBaseUrl}/webhooks/apify?token=${webhookSecret}`,
         payloadTemplate: JSON.stringify({
           platform,
-          eventType: '{{eventType}}',
-          actorRunId: '{{resource.id}}',
-          datasetId: '{{resource.defaultDatasetId}}',
-          status: '{{resource.status}}',
+          eventType: "{{eventType}}",
+          actorRunId: "{{resource.id}}",
+          datasetId: "{{resource.defaultDatasetId}}",
+          status: "{{resource.status}}",
           isRetry: true,
         }),
       },
@@ -295,43 +318,46 @@ export class BusinessRetryService {
   /**
    * Build input for single business scrape
    */
-  private buildSingleBusinessInput(platform: Platform, identifier: string): any {
+  private buildSingleBusinessInput(
+    platform: Platform,
+    identifier: string,
+  ): any {
     switch (platform) {
-      case 'google_reviews':
+      case "google_reviews":
         return {
           placeIds: [identifier],
           maxReviews: 50,
-          reviewsSort: 'newest',
-          language: 'en',
-          reviewsOrigin: 'google',
+          reviewsSort: "newest",
+          language: "en",
+          reviewsOrigin: "google",
           personalData: false,
         };
 
-      case 'facebook':
+      case "facebook":
         return {
           startUrls: [{ url: identifier }],
           resultsLimit: 50,
           proxy: {
-            apifyProxyGroups: ['RESIDENTIAL'],
+            apifyProxyGroups: ["RESIDENTIAL"],
           },
           maxRequestRetries: 10,
         };
 
-      case 'tripadvisor':
+      case "tripadvisor":
         return {
           startUrls: [{ url: identifier }],
           maxItemsPerQuery: 50,
           scrapeReviewerInfo: true,
-          reviewRatings: ['ALL_REVIEW_RATINGS'],
-          reviewsLanguages: ['ALL_REVIEW_LANGUAGES'],
+          reviewRatings: ["ALL_REVIEW_RATINGS"],
+          reviewsLanguages: ["ALL_REVIEW_LANGUAGES"],
         };
 
-      case 'booking':
+      case "booking":
         return {
           startUrls: [{ url: identifier }],
           maxReviewsPerHotel: 50,
-          sortReviewsBy: 'f_recent_desc',
-          reviewScores: ['ALL'],
+          sortReviewsBy: "f_recent_desc",
+          reviewScores: ["ALL"],
           proxyConfiguration: {
             useApifyProxy: true,
           },
@@ -355,7 +381,7 @@ export class BusinessRetryService {
    */
   async removeFromRetryQueue(
     businessProfileId: string,
-    platform: Platform
+    platform: Platform,
   ): Promise<void> {
     const existing = await prisma.businessRetryQueue.findUnique({
       where: {
@@ -370,12 +396,14 @@ export class BusinessRetryService {
       await prisma.businessRetryQueue.update({
         where: { id: existing.id },
         data: {
-          status: 'resolved',
+          status: "resolved",
           resolvedAt: new Date(),
         },
       });
 
-      console.log(`✓ Removed business ${businessProfileId} from retry queue (resolved)`);
+      console.log(
+        `✓ Removed business ${businessProfileId} from retry queue (resolved)`,
+      );
     }
   }
 
@@ -390,10 +418,10 @@ export class BusinessRetryService {
     totalErrors: number;
   }> {
     const [pending, retrying, failed, resolved] = await Promise.all([
-      prisma.businessRetryQueue.count({ where: { status: 'pending' } }),
-      prisma.businessRetryQueue.count({ where: { status: 'retrying' } }),
-      prisma.businessRetryQueue.count({ where: { status: 'failed' } }),
-      prisma.businessRetryQueue.count({ where: { status: 'resolved' } }),
+      prisma.businessRetryQueue.count({ where: { status: "pending" } }),
+      prisma.businessRetryQueue.count({ where: { status: "retrying" } }),
+      prisma.businessRetryQueue.count({ where: { status: "failed" } }),
+      prisma.businessRetryQueue.count({ where: { status: "resolved" } }),
     ]);
 
     return {
@@ -414,7 +442,7 @@ export class BusinessRetryService {
 
     const result = await prisma.businessRetryQueue.deleteMany({
       where: {
-        status: 'resolved',
+        status: "resolved",
         resolvedAt: {
           lt: cutoffDate,
         },
@@ -425,4 +453,3 @@ export class BusinessRetryService {
     return result.count;
   }
 }
-

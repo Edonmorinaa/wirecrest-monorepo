@@ -33,10 +33,10 @@ export class FacebookMetricsCalculator {
    * Calculate recommendation metrics
    */
   static calculateRecommendationMetrics(
-    reviews: Array<{ isRecommended: boolean }>
+    reviews: Array<{ isRecommended: boolean }>,
   ): FacebookRecommendationMetrics {
     const totalReviews = reviews.length;
-    
+
     if (totalReviews === 0) {
       return {
         totalReviews: 0,
@@ -46,7 +46,7 @@ export class FacebookMetricsCalculator {
       };
     }
 
-    const recommendedCount = reviews.filter(r => r.isRecommended).length;
+    const recommendedCount = reviews.filter((r) => r.isRecommended).length;
     const notRecommendedCount = totalReviews - recommendedCount;
     const recommendationRate = (recommendedCount / totalReviews) * 100;
 
@@ -66,10 +66,10 @@ export class FacebookMetricsCalculator {
       likesCount?: number | null;
       commentsCount?: number | null;
       reviewMetadata?: { photoCount?: number | null } | null;
-    }>
+    }>,
   ): FacebookEngagementMetrics {
     const totalReviews = reviews.length;
-    
+
     if (totalReviews === 0) {
       return {
         totalLikes: 0,
@@ -83,8 +83,14 @@ export class FacebookMetricsCalculator {
     }
 
     const totalLikes = reviews.reduce((sum, r) => sum + (r.likesCount || 0), 0);
-    const totalComments = reviews.reduce((sum, r) => sum + (r.commentsCount || 0), 0);
-    const totalPhotos = reviews.reduce((sum, r) => sum + (r.reviewMetadata?.photoCount || 0), 0);
+    const totalComments = reviews.reduce(
+      (sum, r) => sum + (r.commentsCount || 0),
+      0,
+    );
+    const totalPhotos = reviews.reduce(
+      (sum, r) => sum + (r.reviewMetadata?.photoCount || 0),
+      0,
+    );
 
     const averageLikesPerReview = totalLikes / totalReviews;
     const averageCommentsPerReview = totalComments / totalReviews;
@@ -113,19 +119,22 @@ export class FacebookMetricsCalculator {
       isRecommended: boolean;
       reviewMetadata?: { sentiment?: number | null } | null;
     }>,
-    limit: number = 20
+    limit: number = 20,
   ): TagFrequency[] {
-    const tagMap = new Map<string, {
-      count: number;
-      recommendedCount: number;
-      sentimentSum: number;
-      sentimentCount: number;
-    }>();
+    const tagMap = new Map<
+      string,
+      {
+        count: number;
+        recommendedCount: number;
+        sentimentSum: number;
+        sentimentCount: number;
+      }
+    >();
 
-    reviews.forEach(review => {
+    reviews.forEach((review) => {
       if (!review.tags) return;
 
-      review.tags.forEach(tag => {
+      review.tags.forEach((tag) => {
         if (!tag) return;
 
         const normalizedTag = tag.toLowerCase().trim();
@@ -140,7 +149,7 @@ export class FacebookMetricsCalculator {
         if (review.isRecommended) {
           existing.recommendedCount++;
         }
-        
+
         if (review.reviewMetadata?.sentiment) {
           existing.sentimentSum += review.reviewMetadata.sentiment;
           existing.sentimentCount++;
@@ -156,9 +165,10 @@ export class FacebookMetricsCalculator {
         tag,
         count: stats.count,
         recommendationRate: (stats.recommendedCount / stats.count) * 100,
-        averageSentiment: stats.sentimentCount > 0 
-          ? stats.sentimentSum / stats.sentimentCount 
-          : 0,
+        averageSentiment:
+          stats.sentimentCount > 0
+            ? stats.sentimentSum / stats.sentimentCount
+            : 0,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);
@@ -178,7 +188,9 @@ export class FacebookMetricsCalculator {
    * Convert recommendation rate (percentage) to 5-star equivalent
    * For display purposes only - Facebook doesn't actually use stars
    */
-  static recommendationRateToStarEquivalent(recommendationRate: number): number {
+  static recommendationRateToStarEquivalent(
+    recommendationRate: number,
+  ): number {
     // 100% = 5 stars, 0% = 1 star
     // Linear interpolation
     return 1 + (recommendationRate / 100) * 4;
@@ -193,7 +205,7 @@ export class FacebookMetricsCalculator {
     totalLikes: number,
     totalComments: number,
     totalPhotos: number,
-    responseRatePercent: number
+    responseRatePercent: number,
   ): number {
     if (totalReviews === 0) return 0;
 
@@ -202,7 +214,7 @@ export class FacebookMetricsCalculator {
     const responseRate = responseRatePercent / 100;
 
     // Weighted engagement score: engagement(50%) + photos(25%) + responses(25%)
-    const score = (engagementRate * 50) + (photoRate * 25) + (responseRate * 25);
+    const score = engagementRate * 50 + photoRate * 25 + responseRate * 25;
     return Math.min(100, Math.max(0, score));
   }
 
@@ -213,13 +225,15 @@ export class FacebookMetricsCalculator {
   static calculateViralityScore(
     averageLikesPerReview: number,
     averageCommentsPerReview: number,
-    recommendationRatePercent: number
+    recommendationRatePercent: number,
   ): number {
     const recommendationRate = recommendationRatePercent / 100;
 
     // Virality: likes(30%) + comments(40%) + recommendation(30%)
-    const score = (averageLikesPerReview * 30) + (averageCommentsPerReview * 40) + (recommendationRate * 30);
+    const score =
+      averageLikesPerReview * 30 +
+      averageCommentsPerReview * 40 +
+      recommendationRate * 30;
     return Math.min(100, Math.max(0, score));
   }
 }
-

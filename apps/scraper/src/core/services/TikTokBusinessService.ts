@@ -1,6 +1,9 @@
-import { MarketPlatform } from '@prisma/client';
-import type { IBusinessService, BusinessProfileResult } from '../interfaces/IBusinessService';
-import type { TikTokDataService } from '../../services/tiktokDataService';
+import { MarketPlatform } from "@prisma/client";
+import type {
+  IBusinessService,
+  BusinessProfileResult,
+} from "../interfaces/IBusinessService";
+import type { TikTokDataService } from "../../services/tiktokDataService";
 
 /**
  * TikTok Business Service
@@ -9,9 +12,20 @@ import type { TikTokDataService } from '../../services/tiktokDataService';
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
 export interface ITikTokBusinessRepository {
-  getByTeamId(teamId: string, platform: MarketPlatform): Promise<{ id: string } | null>;
-  create(teamId: string, platform: MarketPlatform, data: { username: string; isActive?: boolean }): Promise<{ id: string }>;
-  update(teamId: string, platform: MarketPlatform, data: { username?: string; isActive?: boolean }): Promise<{ id: string }>;
+  getByTeamId(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<{ id: string } | null>;
+  create(
+    teamId: string,
+    platform: MarketPlatform,
+    data: { username: string; isActive?: boolean },
+  ): Promise<{ id: string }>;
+  update(
+    teamId: string,
+    platform: MarketPlatform,
+    data: { username?: string; isActive?: boolean },
+  ): Promise<{ id: string }>;
   delete(teamId: string, platform: MarketPlatform): Promise<boolean>;
 }
 
@@ -23,7 +37,7 @@ export class TikTokBusinessService {
     this.businessRepository = businessRepository;
     const lamatokAccessKey = process.env.LAMATOK_ACCESS_KEY;
     if (!lamatokAccessKey) {
-      throw new Error('LAMATOK_ACCESS_KEY environment variable is required');
+      throw new Error("LAMATOK_ACCESS_KEY environment variable is required");
     }
     this.tiktokDataService = new TikTokDataService(lamatokAccessKey);
   }
@@ -34,18 +48,23 @@ export class TikTokBusinessService {
   async createProfile(
     teamId: string,
     platform: MarketPlatform,
-    identifier: string
+    identifier: string,
   ): Promise<BusinessProfileResult> {
     try {
-      console.log(`[TikTokBusinessService] Creating profile for team ${teamId}, username: ${identifier}`);
+      console.log(
+        `[TikTokBusinessService] Creating profile for team ${teamId}, username: ${identifier}`,
+      );
 
       // Create business profile using TikTokDataService
-      const result = await this.tiktokDataService.createBusinessProfile(teamId, identifier);
-      
+      const result = await this.tiktokDataService.createBusinessProfile(
+        teamId,
+        identifier,
+      );
+
       if (!result.success) {
         return {
           success: false,
-          error: result.error || 'Failed to create TikTok business profile'
+          error: result.error || "Failed to create TikTok business profile",
         };
       }
 
@@ -56,15 +75,15 @@ export class TikTokBusinessService {
           teamId,
           platform,
           identifier,
-          businessProfileId: result.businessProfileId!
-        }
+          businessProfileId: result.businessProfileId!,
+        },
       };
-
     } catch (error) {
-      console.error('[TikTokBusinessService] Error creating profile:', error);
+      console.error("[TikTokBusinessService] Error creating profile:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -72,31 +91,37 @@ export class TikTokBusinessService {
   /**
    * Get TikTok business profile
    */
-  async getProfile(teamId: string, platform: MarketPlatform): Promise<BusinessProfileResult> {
+  async getProfile(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<BusinessProfileResult> {
     try {
       console.log(`[TikTokBusinessService] Getting profile for team ${teamId}`);
 
       // Get business profile from repository
-      const profile = await this.businessRepository.getByTeamId(teamId, platform);
-      
+      const profile = await this.businessRepository.getByTeamId(
+        teamId,
+        platform,
+      );
+
       if (!profile) {
         return {
           success: false,
-          error: 'TikTok business profile not found'
+          error: "TikTok business profile not found",
         };
       }
 
       return {
         success: true,
         businessId: profile.id,
-        profileData: profile
+        profileData: profile,
       };
-
     } catch (error) {
-      console.error('[TikTokBusinessService] Error getting profile:', error);
+      console.error("[TikTokBusinessService] Error getting profile:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -107,32 +132,38 @@ export class TikTokBusinessService {
   async updateProfile(
     teamId: string,
     platform: MarketPlatform,
-    profileData: { username?: string; isActive?: boolean }
+    profileData: { username?: string; isActive?: boolean },
   ): Promise<BusinessProfileResult> {
     try {
-      console.log(`[TikTokBusinessService] Updating profile for team ${teamId}`);
+      console.log(
+        `[TikTokBusinessService] Updating profile for team ${teamId}`,
+      );
 
       // Update business profile in repository
-      const updatedProfile = await this.businessRepository.update(teamId, platform, profileData);
-      
+      const updatedProfile = await this.businessRepository.update(
+        teamId,
+        platform,
+        profileData,
+      );
+
       if (!updatedProfile) {
         return {
           success: false,
-          error: 'Failed to update TikTok business profile'
+          error: "Failed to update TikTok business profile",
         };
       }
 
       return {
         success: true,
         businessId: updatedProfile.id,
-        profileData: updatedProfile
+        profileData: updatedProfile,
       };
-
     } catch (error) {
-      console.error('[TikTokBusinessService] Error updating profile:', error);
+      console.error("[TikTokBusinessService] Error updating profile:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -140,31 +171,36 @@ export class TikTokBusinessService {
   /**
    * Delete TikTok business profile
    */
-  async deleteProfile(teamId: string, platform: MarketPlatform): Promise<BusinessProfileResult> {
+  async deleteProfile(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<BusinessProfileResult> {
     try {
-      console.log(`[TikTokBusinessService] Deleting profile for team ${teamId}`);
+      console.log(
+        `[TikTokBusinessService] Deleting profile for team ${teamId}`,
+      );
 
       // Delete business profile from repository
       const deleted = await this.businessRepository.delete(teamId, platform);
-      
+
       if (!deleted) {
         return {
           success: false,
-          error: 'Failed to delete TikTok business profile'
+          error: "Failed to delete TikTok business profile",
         };
       }
 
       return {
         success: true,
-        businessId: '',
-        profileData: null
+        businessId: "",
+        profileData: null,
       };
-
     } catch (error) {
-      console.error('[TikTokBusinessService] Error deleting profile:', error);
+      console.error("[TikTokBusinessService] Error deleting profile:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }

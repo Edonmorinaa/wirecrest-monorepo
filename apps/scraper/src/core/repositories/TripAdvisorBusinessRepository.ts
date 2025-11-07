@@ -1,45 +1,55 @@
-import { prisma } from '@wirecrest/db';
-import { MarketPlatform } from '@wirecrest/db';
-import type { TripAdvisorBusinessProfile } from '@prisma/client';
-import { BaseRepository } from './BaseRepository';
-import type { IBusinessRepository } from '../interfaces/IBusinessRepository';
+import { prisma } from "@wirecrest/db";
+import { MarketPlatform } from "@wirecrest/db";
+import type { TripAdvisorBusinessProfile } from "@prisma/client";
+import { BaseRepository } from "./BaseRepository";
+import type { IBusinessRepository } from "../interfaces/IBusinessRepository";
 
 /**
  * TripAdvisor Business Repository
  * Follows Single Responsibility Principle (SRP) - only handles TripAdvisor business data
  */
-export class TripAdvisorBusinessRepository extends BaseRepository<TripAdvisorBusinessProfile, string> implements IBusinessRepository<TripAdvisorBusinessProfile> {
+export class TripAdvisorBusinessRepository
+  extends BaseRepository<TripAdvisorBusinessProfile, string>
+  implements IBusinessRepository<TripAdvisorBusinessProfile>
+{
   protected model = prisma.tripAdvisorBusinessProfile;
 
   async findByTeamId(teamId: string): Promise<TripAdvisorBusinessProfile[]> {
     return await this.model.findMany({
-      where: { teamId }
+      where: { teamId },
     });
   }
 
-  async findByPlaceId(placeId: string): Promise<TripAdvisorBusinessProfile | null> {
+  async findByPlaceId(
+    placeId: string,
+  ): Promise<TripAdvisorBusinessProfile | null> {
     return await this.model.findFirst({
-      where: { locationId: placeId }
+      where: { locationId: placeId },
     });
   }
 
-  async findByPlatform(teamId: string, platform: MarketPlatform): Promise<TripAdvisorBusinessProfile | null> {
+  async findByPlatform(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<TripAdvisorBusinessProfile | null> {
     return await this.model.findFirst({
-      where: { 
+      where: {
         teamId,
         // TripAdvisor business profiles don't have platform field, they are implicitly TripAdvisor
-      }
+      },
     });
   }
 
-  async findNeedingUpdate(limit: number): Promise<TripAdvisorBusinessProfile[]> {
+  async findNeedingUpdate(
+    limit: number,
+  ): Promise<TripAdvisorBusinessProfile[]> {
     return await this.model.findMany({
       where: {
         businessMetadata: {
-          isActive: true
-        }
+          isActive: true,
+        },
       },
-      take: limit
+      take: limit,
     });
   }
 
@@ -50,16 +60,19 @@ export class TripAdvisorBusinessRepository extends BaseRepository<TripAdvisorBus
       data: {
         businessMetadata: {
           update: {
-            lastUpdateAt: scrapedAt
-          }
-        }
-      }
+            lastUpdateAt: scrapedAt,
+          },
+        },
+      },
     });
   }
 
-  async getBusinessCount(teamId: string, platform: MarketPlatform): Promise<number> {
+  async getBusinessCount(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<number> {
     return await this.model.count({
-      where: { teamId }
+      where: { teamId },
     });
   }
 }

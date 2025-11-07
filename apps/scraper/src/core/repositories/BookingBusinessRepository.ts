@@ -1,34 +1,40 @@
-import { prisma } from '@wirecrest/db';
-import type { BookingBusinessProfile } from '@prisma/client';
-import { MarketPlatform } from '@wirecrest/db';
-import { BaseRepository } from './BaseRepository';
-import type { IBusinessRepository } from '../interfaces/IBusinessRepository';
+import { prisma } from "@wirecrest/db";
+import type { BookingBusinessProfile } from "@prisma/client";
+import { MarketPlatform } from "@wirecrest/db";
+import { BaseRepository } from "./BaseRepository";
+import type { IBusinessRepository } from "../interfaces/IBusinessRepository";
 
 /**
  * Booking Business Repository
  * Follows Single Responsibility Principle (SRP) - only handles Booking business data
  */
-export class BookingBusinessRepository extends BaseRepository<BookingBusinessProfile, string> implements IBusinessRepository<BookingBusinessProfile> {
+export class BookingBusinessRepository
+  extends BaseRepository<BookingBusinessProfile, string>
+  implements IBusinessRepository<BookingBusinessProfile>
+{
   protected model = prisma.bookingBusinessProfile;
 
   async findByTeamId(teamId: string): Promise<BookingBusinessProfile[]> {
     return await this.model.findMany({
-      where: { teamId }
+      where: { teamId },
     });
   }
 
   async findByPlaceId(placeId: string): Promise<BookingBusinessProfile | null> {
     return await this.model.findFirst({
-      where: { bookingUrl: placeId }
+      where: { bookingUrl: placeId },
     });
   }
 
-  async findByPlatform(teamId: string, platform: MarketPlatform): Promise<BookingBusinessProfile | null> {
+  async findByPlatform(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<BookingBusinessProfile | null> {
     return await this.model.findFirst({
-      where: { 
+      where: {
         teamId,
         // Booking business profiles don't have platform field, they are implicitly Booking
-      }
+      },
     });
   }
 
@@ -36,10 +42,10 @@ export class BookingBusinessRepository extends BaseRepository<BookingBusinessPro
     return await this.model.findMany({
       where: {
         businessMetadata: {
-          isActive: true
-        }
+          isActive: true,
+        },
       },
-      take: limit
+      take: limit,
     });
   }
 
@@ -50,16 +56,19 @@ export class BookingBusinessRepository extends BaseRepository<BookingBusinessPro
       data: {
         businessMetadata: {
           update: {
-            lastUpdateAt: scrapedAt
-          }
-        }
-      }
+            lastUpdateAt: scrapedAt,
+          },
+        },
+      },
     });
   }
 
-  async getBusinessCount(teamId: string, platform: MarketPlatform): Promise<number> {
+  async getBusinessCount(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<number> {
     return await this.model.count({
-      where: { teamId }
+      where: { teamId },
     });
   }
 }

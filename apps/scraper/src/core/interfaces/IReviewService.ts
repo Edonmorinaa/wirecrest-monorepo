@@ -1,4 +1,9 @@
-import type { GoogleReviewWithMetadata, FacebookReviewWithMetadata, TripAdvisorReviewWithMetadata, BookingReviewWithMetadata } from '../../types/extended-types';
+import type {
+  GoogleReviewWithMetadata,
+  FacebookReviewWithMetadata,
+  TripAdvisorReviewWithMetadata,
+  BookingReviewWithMetadata,
+} from "../../types/extended-types";
 
 /**
  * Review service interface
@@ -21,5 +26,6 @@ export interface ReviewResult {
 
 export type GoogleReviewService = IReviewService<GoogleReviewWithMetadata>;
 export type FacebookReviewService = IReviewService<FacebookReviewWithMetadata>;
-export type TripAdvisorReviewService = IReviewService<TripAdvisorReviewWithMetadata>;
+export type TripAdvisorReviewService =
+  IReviewService<TripAdvisorReviewWithMetadata>;
 export type BookingReviewService = IReviewService<BookingReviewWithMetadata>;

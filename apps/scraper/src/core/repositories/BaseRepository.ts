@@ -1,4 +1,4 @@
-import type { IRepository } from '../interfaces/IRepository';
+import type { IRepository } from "../interfaces/IRepository";
 
 /**
  * Base repository implementation using Prisma
@@ -13,9 +13,14 @@ type RepositoryDelegate<T, K> = {
   count(args?: unknown): Promise<number>;
 };
 
-export abstract class BaseRepository<T, K, D extends RepositoryDelegate<T, K> = RepositoryDelegate<T, K>> implements IRepository<T, K> {
+export abstract class BaseRepository<
+  T,
+  K,
+  D extends RepositoryDelegate<T, K> = RepositoryDelegate<T, K>,
+> implements IRepository<T, K>
+{
   protected abstract model: D;
-  
+
   async findById(id: K): Promise<T | null> {
     return await this.model.findUnique({ where: { id } });
   }
@@ -24,7 +29,7 @@ export abstract class BaseRepository<T, K, D extends RepositoryDelegate<T, K> = 
     return await this.model.findMany();
   }
 
-  async create(entity: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+  async create(entity: Omit<T, "id" | "createdAt" | "updatedAt">): Promise<T> {
     return await this.model.create({ data: entity });
   }
 

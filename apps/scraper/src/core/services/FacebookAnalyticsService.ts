@@ -4,20 +4,31 @@
  * Facebook uses recommendation-based system (no star ratings)
  */
 
-import type { IAnalyticsService, AnalyticsResult, AnalyticsData } from '../interfaces/IAnalyticsService';
-import type { IReviewRepository } from '../interfaces/IReviewRepository';
-import type { ISentimentAnalyzer } from '../interfaces/ISentimentAnalyzer';
-import { prisma } from '@wirecrest/db';
-import type { Prisma } from '@prisma/client';
-import type { PeriodCalculator, PeriodKey, PERIOD_DEFINITIONS } from './analytics/PeriodCalculator';
-import type { KeywordExtractor, KeywordFrequency } from './analytics/KeywordExtractor';
-import type { ResponseAnalyzer } from './analytics/ResponseAnalyzer';
+import type {
+  IAnalyticsService,
+  AnalyticsResult,
+  AnalyticsData,
+} from "../interfaces/IAnalyticsService";
+import type { IReviewRepository } from "../interfaces/IReviewRepository";
+import type { ISentimentAnalyzer } from "../interfaces/ISentimentAnalyzer";
+import { prisma } from "@wirecrest/db";
+import type { Prisma } from "@prisma/client";
+import type {
+  PeriodCalculator,
+  PeriodKey,
+  PERIOD_DEFINITIONS,
+} from "./analytics/PeriodCalculator";
+import type {
+  KeywordExtractor,
+  KeywordFrequency,
+} from "./analytics/KeywordExtractor";
+import type { ResponseAnalyzer } from "./analytics/ResponseAnalyzer";
 import type {
   FacebookMetricsCalculator,
   FacebookRecommendationMetrics,
   FacebookEngagementMetrics,
   TagFrequency,
-} from './analytics/FacebookMetricsCalculator';
+} from "./analytics/FacebookMetricsCalculator";
 
 /**
  * Facebook Review with metadata
@@ -67,7 +78,7 @@ interface PeriodMetrics {
 export class FacebookAnalyticsService implements IAnalyticsService {
   constructor(
     private reviewRepository: IReviewRepository<FacebookReviewWithMetadata>,
-    private sentimentAnalyzer?: ISentimentAnalyzer
+    private sentimentAnalyzer?: ISentimentAnalyzer,
   ) {}
 
   /**
@@ -84,10 +95,13 @@ export class FacebookAnalyticsService implements IAnalyticsService {
         analyticsData: analyticsData || undefined,
       };
     } catch (error) {
-      console.error(`[Facebook Analytics] Error processing reviews for ${businessProfileId}:`, error);
+      console.error(
+        `[Facebook Analytics] Error processing reviews for ${businessProfileId}:`,
+        error,
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -102,8 +116,8 @@ export class FacebookAnalyticsService implements IAnalyticsService {
       });
 
       if (!overview) {
-    return null;
-  }
+        return null;
+      }
 
       return {
         businessId: businessProfileId,
@@ -111,10 +125,13 @@ export class FacebookAnalyticsService implements IAnalyticsService {
         averageRating: overview.recommendationRate / 20, // Convert 0-100% to 0-5 equivalent
         sentimentScore: overview.recommendationRate, // Use recommendation rate as sentiment
         lastUpdated: overview.lastUpdated,
-        platform: 'facebook',
+        platform: "facebook",
       };
     } catch (error) {
-      console.error(`[Facebook Analytics] Error fetching analytics for ${businessProfileId}:`, error);
+      console.error(
+        `[Facebook Analytics] Error fetching analytics for ${businessProfileId}:`,
+        error,
+      );
       return null;
     }
   }
@@ -122,7 +139,10 @@ export class FacebookAnalyticsService implements IAnalyticsService {
   /**
    * Update analytics with new data
    */
-  async updateAnalytics(businessProfileId: string, data: AnalyticsData): Promise<void> {
+  async updateAnalytics(
+    businessProfileId: string,
+    data: AnalyticsData,
+  ): Promise<void> {
     await this.processReviewsAndUpdateDashboard(businessProfileId);
   }
 
@@ -138,8 +158,12 @@ export class FacebookAnalyticsService implements IAnalyticsService {
   /**
    * Main processing method - calculates all metrics and updates database
    */
-  async processReviewsAndUpdateDashboard(businessProfileId: string): Promise<void> {
-    console.log(`[Facebook Analytics] Starting review processing for businessProfileId: ${businessProfileId}`);
+  async processReviewsAndUpdateDashboard(
+    businessProfileId: string,
+  ): Promise<void> {
+    console.log(
+      `[Facebook Analytics] Starting review processing for businessProfileId: ${businessProfileId}`,
+    );
 
     try {
       // Fetch all reviews with metadata using Prisma
@@ -157,49 +181,58 @@ export class FacebookAnalyticsService implements IAnalyticsService {
             },
           },
         },
-        orderBy: { date: 'desc' },
+        orderBy: { date: "desc" },
       });
 
-      console.log(`[Facebook Analytics] Fetched ${allReviewsData.length} reviews`);
+      console.log(
+        `[Facebook Analytics] Fetched ${allReviewsData.length} reviews`,
+      );
 
       if (allReviewsData.length === 0) {
-        console.log(`[Facebook Analytics] No reviews found for businessProfileId: ${businessProfileId}`);
+        console.log(
+          `[Facebook Analytics] No reviews found for businessProfileId: ${businessProfileId}`,
+        );
         return;
       }
 
       // Map to our internal interface
-      const allReviews: FacebookReviewWithMetadata[] = allReviewsData.map((review) => ({
-        isRecommended: review.isRecommended,
-        publishedAtDate: review.date, // Map date to publishedAtDate
-        likesCount: review.likesCount || 0,
-        commentsCount: review.commentsCount || 0,
-        tags: review.tags,
-        reviewMetadata: review.reviewMetadata ? {
-          emotional: review.reviewMetadata.emotional,
-          keywords: review.reviewMetadata.keywords,
-          reply: review.reviewMetadata.reply,
-          replyDate: review.reviewMetadata.replyDate,
-          sentiment: review.reviewMetadata.sentiment,
-          photoCount: review.reviewMetadata.photoCount,
-        } : null,
-      }));
+      const allReviews: FacebookReviewWithMetadata[] = allReviewsData.map(
+        (review) => ({
+          isRecommended: review.isRecommended,
+          publishedAtDate: review.date, // Map date to publishedAtDate
+          likesCount: review.likesCount || 0,
+          commentsCount: review.commentsCount || 0,
+          tags: review.tags,
+          reviewMetadata: review.reviewMetadata
+            ? {
+                emotional: review.reviewMetadata.emotional,
+                keywords: review.reviewMetadata.keywords,
+                reply: review.reviewMetadata.reply,
+                replyDate: review.reviewMetadata.replyDate,
+                sentiment: review.reviewMetadata.sentiment,
+                photoCount: review.reviewMetadata.photoCount,
+              }
+            : null,
+        }),
+      );
 
       // Calculate all-time metrics
       const allTimeMetrics = this.calculateMetricsForPeriod(allReviews);
 
       // Calculate engagement and virality scores
-      const engagementScore = FacebookMetricsCalculator.calculateEngagementScore(
-        allTimeMetrics.totalReviews,
-        allTimeMetrics.totalLikes,
-        allTimeMetrics.totalComments,
-        allTimeMetrics.totalPhotos,
-        allTimeMetrics.responseRatePercent
-      );
+      const engagementScore =
+        FacebookMetricsCalculator.calculateEngagementScore(
+          allTimeMetrics.totalReviews,
+          allTimeMetrics.totalLikes,
+          allTimeMetrics.totalComments,
+          allTimeMetrics.totalPhotos,
+          allTimeMetrics.responseRatePercent,
+        );
 
       const viralityScore = FacebookMetricsCalculator.calculateViralityScore(
         allTimeMetrics.averageLikesPerReview,
         allTimeMetrics.averageCommentsPerReview,
-        allTimeMetrics.recommendationRate
+        allTimeMetrics.recommendationRate,
       );
 
       // Upsert FacebookOverview
@@ -240,7 +273,9 @@ export class FacebookAnalyticsService implements IAnalyticsService {
         },
       });
 
-      console.log(`[Facebook Analytics] Updated FacebookOverview for businessProfileId: ${businessProfileId}`);
+      console.log(
+        `[Facebook Analytics] Updated FacebookOverview for businessProfileId: ${businessProfileId}`,
+      );
 
       // Get the overview ID for linking period metrics
       const overview = await prisma.facebookOverview.findUnique({
@@ -249,26 +284,31 @@ export class FacebookAnalyticsService implements IAnalyticsService {
       });
 
       if (!overview) {
-        throw new Error('Failed to create/update FacebookOverview');
+        throw new Error("Failed to create/update FacebookOverview");
       }
 
       // Process all periods
       const periods = PeriodCalculator.getAllPeriods();
 
       for (const periodKey of periods) {
-        const periodReviews = PeriodCalculator.filterByPeriod(allReviews, periodKey);
+        const periodReviews = PeriodCalculator.filterByPeriod(
+          allReviews,
+          periodKey,
+        );
         const periodMetrics = this.calculateMetricsForPeriod(periodReviews);
         const period = PERIOD_DEFINITIONS[periodKey];
 
         // Calculate period-specific engagement metrics
         const averageEngagement =
           periodMetrics.totalReviews > 0
-            ? (periodMetrics.totalLikes + periodMetrics.totalComments) / periodMetrics.totalReviews
+            ? (periodMetrics.totalLikes + periodMetrics.totalComments) /
+              periodMetrics.totalReviews
             : 0;
 
         const sentimentScore =
           periodMetrics.sentimentCounts.total > 0
-            ? ((periodMetrics.sentimentCounts.positive - periodMetrics.sentimentCounts.negative) /
+            ? ((periodMetrics.sentimentCounts.positive -
+                periodMetrics.sentimentCounts.negative) /
                 periodMetrics.sentimentCounts.total) *
               100
             : 0;
@@ -278,7 +318,7 @@ export class FacebookAnalyticsService implements IAnalyticsService {
         const viralityIndex = FacebookMetricsCalculator.calculateViralityScore(
           periodMetrics.averageLikesPerReview,
           periodMetrics.averageCommentsPerReview,
-          periodMetrics.recommendationRate
+          periodMetrics.recommendationRate,
         );
 
         // Upsert period metrics
@@ -334,13 +374,18 @@ export class FacebookAnalyticsService implements IAnalyticsService {
         });
 
         console.log(
-          `[Facebook Analytics] Updated period ${period.label} with ${periodMetrics.totalReviews} reviews`
+          `[Facebook Analytics] Updated period ${period.label} with ${periodMetrics.totalReviews} reviews`,
         );
       }
 
-      console.log(`[Facebook Analytics] Successfully completed processing for businessProfileId: ${businessProfileId}`);
+      console.log(
+        `[Facebook Analytics] Successfully completed processing for businessProfileId: ${businessProfileId}`,
+      );
     } catch (error) {
-      console.error(`[Facebook Analytics] Error in processReviewsAndUpdateDashboard:`, error);
+      console.error(
+        `[Facebook Analytics] Error in processReviewsAndUpdateDashboard:`,
+        error,
+      );
       throw error;
     }
   }
@@ -348,7 +393,9 @@ export class FacebookAnalyticsService implements IAnalyticsService {
   /**
    * Calculate metrics for a given set of reviews
    */
-  private calculateMetricsForPeriod(reviews: FacebookReviewWithMetadata[]): PeriodMetrics {
+  private calculateMetricsForPeriod(
+    reviews: FacebookReviewWithMetadata[],
+  ): PeriodMetrics {
     const reviewCount = reviews.length;
 
     if (reviewCount === 0) {
@@ -371,10 +418,12 @@ export class FacebookAnalyticsService implements IAnalyticsService {
     }
 
     // Calculate recommendation metrics
-    const recommendationMetrics = FacebookMetricsCalculator.calculateRecommendationMetrics(reviews);
+    const recommendationMetrics =
+      FacebookMetricsCalculator.calculateRecommendationMetrics(reviews);
 
     // Calculate engagement metrics
-    const engagementMetrics = FacebookMetricsCalculator.calculateEngagementMetrics(reviews);
+    const engagementMetrics =
+      FacebookMetricsCalculator.calculateEngagementMetrics(reviews);
 
     // Calculate sentiment counts from emotional field
     const sentimentCounts = this.calculateSentimentCounts(reviews);
@@ -383,15 +432,19 @@ export class FacebookAnalyticsService implements IAnalyticsService {
     const topKeywords = KeywordExtractor.extractFromReviews(reviews, 10);
 
     // Extract top tags with recommendation rates
-    const topTags = FacebookMetricsCalculator.calculateTagFrequency(reviews, 20);
+    const topTags = FacebookMetricsCalculator.calculateTagFrequency(
+      reviews,
+      20,
+    );
 
     // Calculate response metrics
-    const { responseRate, averageResponseTimeHours } = ResponseAnalyzer.calculateResponseMetrics(
-      reviews.map((r) => ({
-        publishedAtDate: r.publishedAtDate,
-        reviewMetadata: r.reviewMetadata,
-      }))
-    );
+    const { responseRate, averageResponseTimeHours } =
+      ResponseAnalyzer.calculateResponseMetrics(
+        reviews.map((r) => ({
+          publishedAtDate: r.publishedAtDate,
+          reviewMetadata: r.reviewMetadata,
+        })),
+      );
 
     return {
       totalReviews: reviewCount,
@@ -427,9 +480,9 @@ export class FacebookAnalyticsService implements IAnalyticsService {
 
     reviews.forEach((review) => {
       const emotional = review.reviewMetadata?.emotional?.toLowerCase();
-      if (emotional === 'positive') {
+      if (emotional === "positive") {
         positive++;
-      } else if (emotional === 'negative') {
+      } else if (emotional === "negative") {
         negative++;
       } else {
         neutral++;

@@ -1,4 +1,4 @@
-import { MarketPlatform } from '@prisma/client';
+import { MarketPlatform } from "@prisma/client";
 
 /**
  * TikTok Business Repository
@@ -21,31 +21,39 @@ export type CreateTikTokBusinessInput = {
   isActive?: boolean;
 };
 
-export type UpdateTikTokBusinessInput = Partial<Pick<TikTokBusinessProfile, 'username' | 'isActive'>>;
+export type UpdateTikTokBusinessInput = Partial<
+  Pick<TikTokBusinessProfile, "username" | "isActive">
+>;
 
 export class TikTokBusinessRepository {
-  
   /**
    * Get business profile by team ID and platform
    */
-  async getByTeamId(teamId: string, platform: MarketPlatform): Promise<TikTokBusinessProfile> {
+  async getByTeamId(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<TikTokBusinessProfile> {
     try {
-      console.log(`[TikTokBusinessRepository] Getting business profile for team ${teamId}`);
-      
+      console.log(
+        `[TikTokBusinessRepository] Getting business profile for team ${teamId}`,
+      );
+
       // This would typically query the database
       // For now, return a mock response
       return {
         id: `tiktok-business-${teamId}`,
         teamId,
         platform,
-        username: 'mock-username',
+        username: "mock-username",
         isActive: true,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
-
     } catch (error) {
-      console.error('[TikTokBusinessRepository] Error getting business profile:', error);
+      console.error(
+        "[TikTokBusinessRepository] Error getting business profile:",
+        error,
+      );
       throw error;
     }
   }
@@ -53,10 +61,16 @@ export class TikTokBusinessRepository {
   /**
    * Create business profile
    */
-  async create(teamId: string, platform: MarketPlatform, data: CreateTikTokBusinessInput): Promise<TikTokBusinessProfile> {
+  async create(
+    teamId: string,
+    platform: MarketPlatform,
+    data: CreateTikTokBusinessInput,
+  ): Promise<TikTokBusinessProfile> {
     try {
-      console.log(`[TikTokBusinessRepository] Creating business profile for team ${teamId}`);
-      
+      console.log(
+        `[TikTokBusinessRepository] Creating business profile for team ${teamId}`,
+      );
+
       // This would typically insert into the database
       const businessProfile: TikTokBusinessProfile = {
         id: `tiktok-business-${teamId}-${Date.now()}`,
@@ -65,13 +79,15 @@ export class TikTokBusinessRepository {
         username: data.username,
         isActive: data.isActive ?? true,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       return businessProfile;
-
     } catch (error) {
-      console.error('[TikTokBusinessRepository] Error creating business profile:', error);
+      console.error(
+        "[TikTokBusinessRepository] Error creating business profile:",
+        error,
+      );
       throw error;
     }
   }
@@ -79,25 +95,33 @@ export class TikTokBusinessRepository {
   /**
    * Update business profile
    */
-  async update(teamId: string, platform: MarketPlatform, data: UpdateTikTokBusinessInput): Promise<TikTokBusinessProfile> {
+  async update(
+    teamId: string,
+    platform: MarketPlatform,
+    data: UpdateTikTokBusinessInput,
+  ): Promise<TikTokBusinessProfile> {
     try {
-      console.log(`[TikTokBusinessRepository] Updating business profile for team ${teamId}`);
-      
+      console.log(
+        `[TikTokBusinessRepository] Updating business profile for team ${teamId}`,
+      );
+
       // This would typically update the database
       const businessProfile: TikTokBusinessProfile = {
         id: `tiktok-business-${teamId}`,
         teamId,
         platform,
-        username: data.username ?? 'mock-username',
+        username: data.username ?? "mock-username",
         isActive: data.isActive ?? true,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       return businessProfile;
-
     } catch (error) {
-      console.error('[TikTokBusinessRepository] Error updating business profile:', error);
+      console.error(
+        "[TikTokBusinessRepository] Error updating business profile:",
+        error,
+      );
       throw error;
     }
   }
@@ -107,13 +131,17 @@ export class TikTokBusinessRepository {
    */
   async delete(teamId: string, platform: MarketPlatform): Promise<boolean> {
     try {
-      console.log(`[TikTokBusinessRepository] Deleting business profile for team ${teamId}`);
-      
+      console.log(
+        `[TikTokBusinessRepository] Deleting business profile for team ${teamId}`,
+      );
+
       // This would typically delete from the database
       return true;
-
     } catch (error) {
-      console.error('[TikTokBusinessRepository] Error deleting business profile:', error);
+      console.error(
+        "[TikTokBusinessRepository] Error deleting business profile:",
+        error,
+      );
       throw error;
     }
   }

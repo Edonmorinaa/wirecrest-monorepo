@@ -4,16 +4,21 @@
  * Also handles custom intervals for Enterprise/special teams
  */
 
-import { FeatureChecker, ProductFeaturesService, StripeFeatureLookupKeys, StripeService } from '@wirecrest/billing/server';
-import { prisma } from '@wirecrest/db';
+import {
+  FeatureChecker,
+  ProductFeaturesService,
+  StripeFeatureLookupKeys,
+  StripeService,
+} from "@wirecrest/billing/server";
+import { prisma } from "@wirecrest/db";
 import type {
   ExtractedFeatures,
   SubscriptionTier,
   PlatformFeatures,
   SubscriptionLimits,
   TIER_SCHEDULE_CONFIGS,
-} from '../../types/subscription.types';
-import type { Platform } from '../../types/apify.types';
+} from "../../types/subscription.types";
+import type { Platform } from "../../types/apify.types";
 
 // Lazy initialization of feature checker
 let featureChecker: FeatureChecker | null = null;
@@ -34,11 +39,12 @@ export class FeatureExtractor {
    */
   async extractTeamFeatures(teamId: string): Promise<ExtractedFeatures> {
     // Get enabled features from FeatureChecker (with Stripe integration and Redis caching)
-    const enabledFeaturesSet = await getFeatureChecker().getTeamFeatures(teamId);
-    
+    const enabledFeaturesSet =
+      await getFeatureChecker().getTeamFeatures(teamId);
+
     // Convert Set to array for compatibility
     const enabledFeatures = Array.from(enabledFeaturesSet);
-    
+
     // Convert to a map for easier access
     const featureMap: Record<string, boolean> = {};
     enabledFeatures.forEach((feature: string) => {
@@ -50,9 +56,11 @@ export class FeatureExtractor {
 
     // Extract platform features using StripeFeatureLookupKeys
     const platforms: PlatformFeatures = {
-      googleReviews: featureMap[StripeFeatureLookupKeys.GOOGLE_REVIEWS] === true,
+      googleReviews:
+        featureMap[StripeFeatureLookupKeys.GOOGLE_REVIEWS] === true,
       facebook: featureMap[StripeFeatureLookupKeys.FACEBOOK_REVIEWS] === true,
-      tripadvisor: featureMap[StripeFeatureLookupKeys.TRIPADVISOR_REVIEWS] === true,
+      tripadvisor:
+        featureMap[StripeFeatureLookupKeys.TRIPADVISOR_REVIEWS] === true,
       booking: featureMap[StripeFeatureLookupKeys.BOOKING_REVIEWS] === true,
     };
 
@@ -72,32 +80,34 @@ export class FeatureExtractor {
   private determineTier(features: Record<string, any>): SubscriptionTier {
     // Check for enterprise features
     if (
-      features['reviews.google'] &&
-      features['reviews.facebook'] &&
-      features['reviews.tripadvisor'] &&
-      features['reviews.booking'] &&
-      features['reviews.unlimited']
+      features["reviews.google"] &&
+      features["reviews.facebook"] &&
+      features["reviews.tripadvisor"] &&
+      features["reviews.booking"] &&
+      features["reviews.unlimited"]
     ) {
-      return 'enterprise';
+      return "enterprise";
     }
 
     // Check for professional features
     if (
-      features['reviews.google'] &&
-      (features['reviews.facebook'] || features['reviews.tripadvisor'])
+      features["reviews.google"] &&
+      (features["reviews.facebook"] || features["reviews.tripadvisor"])
     ) {
-      return 'professional';
+      return "professional";
     }
 
     // Default to starter
-    return 'starter';
+    return "starter";
   }
 
   /**
    * Get subscription limits from Stripe product metadata
    * This is the source of truth for limits
    */
-  private async getStripeLimits(teamId: string): Promise<Partial<SubscriptionLimits> | null> {
+  private async getStripeLimits(
+    teamId: string,
+  ): Promise<Partial<SubscriptionLimits> | null> {
     try {
       // Get team's Stripe subscription
       const subscription = await prisma.teamSubscription.findUnique({
@@ -111,33 +121,45 @@ export class FeatureExtractor {
 
       // Get product with metadata from Stripe
       const stripe = StripeService.getStripeInstance();
-      const product = await stripe.products.retrieve(subscription.stripeProductId);
-      
+      const product = await stripe.products.retrieve(
+        subscription.stripeProductId,
+      );
+
       // Parse limits from metadata
       const limits: Partial<SubscriptionLimits> = {};
-      
+
       if (product.metadata.maxReviewsPerBusiness) {
-        limits.maxReviewsPerBusiness = parseInt(product.metadata.maxReviewsPerBusiness);
+        limits.maxReviewsPerBusiness = parseInt(
+          product.metadata.maxReviewsPerBusiness,
+        );
       }
       if (product.metadata.maxBusinessLocations) {
-        limits.maxBusinessLocations = parseInt(product.metadata.maxBusinessLocations);
+        limits.maxBusinessLocations = parseInt(
+          product.metadata.maxBusinessLocations,
+        );
       }
       if (product.metadata.reviewsScrapeIntervalHours) {
-        limits.reviewsScrapeIntervalHours = parseInt(product.metadata.reviewsScrapeIntervalHours);
+        limits.reviewsScrapeIntervalHours = parseInt(
+          product.metadata.reviewsScrapeIntervalHours,
+        );
       }
       if (product.metadata.overviewScrapeIntervalHours) {
-        limits.overviewScrapeIntervalHours = parseInt(product.metadata.overviewScrapeIntervalHours);
+        limits.overviewScrapeIntervalHours = parseInt(
+          product.metadata.overviewScrapeIntervalHours,
+        );
       }
       if (product.metadata.historicalDataMonths) {
-        limits.historicalDataMonths = parseInt(product.metadata.historicalDataMonths);
+        limits.historicalDataMonths = parseInt(
+          product.metadata.historicalDataMonths,
+        );
       }
       if (product.metadata.concurrentScrapes) {
         limits.concurrentScrapes = parseInt(product.metadata.concurrentScrapes);
       }
-      
+
       return limits;
     } catch (error) {
-      console.error('Failed to get Stripe limits:', error);
+      console.error("Failed to get Stripe limits:", error);
       return null;
     }
   }
@@ -146,7 +168,11 @@ export class FeatureExtractor {
    * Extract subscription limits
    * Priority: Stripe metadata > Feature flags > Hardcoded tier defaults
    */
-  private async extractLimits(teamId: string, features: Record<string, any>, tier: SubscriptionTier): Promise<SubscriptionLimits> {
+  private async extractLimits(
+    teamId: string,
+    features: Record<string, any>,
+    tier: SubscriptionTier,
+  ): Promise<SubscriptionLimits> {
     // Get limits from Stripe (source of truth)
     const stripeLimits = await this.getStripeLimits(teamId);
     // Base limits by tier
@@ -183,26 +209,24 @@ export class FeatureExtractor {
     return {
       maxReviewsPerBusiness:
         stripeLimits?.maxReviewsPerBusiness ||
-        features['reviews.maxPerBusiness'] ||
+        features["reviews.maxPerBusiness"] ||
         baseLimits.maxReviewsPerBusiness,
       maxBusinessLocations:
         stripeLimits?.maxBusinessLocations ||
-        features['reviews.maxLocations'] ||
+        features["reviews.maxLocations"] ||
         baseLimits.maxBusinessLocations,
       reviewsScrapeIntervalHours:
         stripeLimits?.reviewsScrapeIntervalHours ||
-        features['reviews.scrapeInterval'] ||
+        features["reviews.scrapeInterval"] ||
         baseLimits.reviewsScrapeIntervalHours,
       overviewScrapeIntervalHours:
         stripeLimits?.overviewScrapeIntervalHours ||
-        features['overview.scrapeInterval'] ||
+        features["overview.scrapeInterval"] ||
         baseLimits.overviewScrapeIntervalHours,
       historicalDataMonths:
-        stripeLimits?.historicalDataMonths ||
-        baseLimits.historicalDataMonths,
+        stripeLimits?.historicalDataMonths || baseLimits.historicalDataMonths,
       concurrentScrapes:
-        stripeLimits?.concurrentScrapes ||
-        baseLimits.concurrentScrapes,
+        stripeLimits?.concurrentScrapes || baseLimits.concurrentScrapes,
     };
   }
 
@@ -211,15 +235,15 @@ export class FeatureExtractor {
    */
   async isPlatformEnabled(teamId: string, platform: string): Promise<boolean> {
     const features = await this.extractTeamFeatures(teamId);
-    
+
     switch (platform) {
-      case 'google_reviews':
+      case "google_reviews":
         return features.platforms.googleReviews;
-      case 'facebook':
+      case "facebook":
         return features.platforms.facebook;
-      case 'tripadvisor':
+      case "tripadvisor":
         return features.platforms.tripadvisor;
-      case 'booking':
+      case "booking":
         return features.platforms.booking;
       default:
         return false;
@@ -233,10 +257,10 @@ export class FeatureExtractor {
     const features = await this.extractTeamFeatures(teamId);
     const platforms: string[] = [];
 
-    if (features.platforms.googleReviews) platforms.push('google_reviews');
-    if (features.platforms.facebook) platforms.push('facebook');
-    if (features.platforms.tripadvisor) platforms.push('tripadvisor');
-    if (features.platforms.booking) platforms.push('booking');
+    if (features.platforms.googleReviews) platforms.push("google_reviews");
+    if (features.platforms.facebook) platforms.push("facebook");
+    if (features.platforms.tripadvisor) platforms.push("tripadvisor");
+    if (features.platforms.booking) platforms.push("booking");
 
     return platforms;
   }
@@ -248,7 +272,7 @@ export class FeatureExtractor {
   async getIntervalForTeamPlatform(
     teamId: string,
     platform: Platform,
-    scheduleType: 'reviews' | 'overview' = 'reviews'
+    scheduleType: "reviews" | "overview" = "reviews",
   ): Promise<number> {
     // Check for custom interval
     const customInterval = await prisma.scheduleCustomInterval.findUnique({
@@ -263,18 +287,22 @@ export class FeatureExtractor {
     // Check if custom interval is still valid
     if (customInterval) {
       if (!customInterval.expiresAt || customInterval.expiresAt > new Date()) {
-        console.log(`✓ Using custom interval ${customInterval.customIntervalHours}h for team ${teamId} on ${platform}`);
+        console.log(
+          `✓ Using custom interval ${customInterval.customIntervalHours}h for team ${teamId} on ${platform}`,
+        );
         return customInterval.customIntervalHours;
       } else {
-        console.log(`⚠️  Custom interval expired for team ${teamId} on ${platform}, using default`);
+        console.log(
+          `⚠️  Custom interval expired for team ${teamId} on ${platform}, using default`,
+        );
         // Could optionally delete expired custom interval here
       }
     }
 
     // Fallback to tier-based interval
     const features = await this.extractTeamFeatures(teamId);
-    
-    if (scheduleType === 'reviews') {
+
+    if (scheduleType === "reviews") {
       return features.limits.reviewsScrapeIntervalHours;
     } else {
       return features.limits.overviewScrapeIntervalHours;
@@ -290,14 +318,14 @@ export class FeatureExtractor {
     customIntervalHours: number,
     reason: string,
     setBy: string,
-    expiresAt?: Date
+    expiresAt?: Date,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Validate interval
       if (customIntervalHours < 1 || customIntervalHours > 168) {
         return {
           success: false,
-          message: 'Invalid interval: must be between 1 and 168 hours',
+          message: "Invalid interval: must be between 1 and 168 hours",
         };
       }
 
@@ -325,14 +353,16 @@ export class FeatureExtractor {
         },
       });
 
-      console.log(`✓ Set custom interval ${customIntervalHours}h for team ${teamId} on ${platform}`);
+      console.log(
+        `✓ Set custom interval ${customIntervalHours}h for team ${teamId} on ${platform}`,
+      );
 
       return {
         success: true,
         message: `Custom interval set to ${customIntervalHours}h`,
       };
     } catch (error: any) {
-      console.error('Error setting custom interval:', error);
+      console.error("Error setting custom interval:", error);
       return {
         success: false,
         message: `Failed: ${error.message}`,
@@ -345,7 +375,7 @@ export class FeatureExtractor {
    */
   async removeCustomInterval(
     teamId: string,
-    platform: Platform
+    platform: Platform,
   ): Promise<{ success: boolean; message: string }> {
     try {
       await prisma.scheduleCustomInterval.delete({
@@ -357,22 +387,24 @@ export class FeatureExtractor {
         },
       });
 
-      console.log(`✓ Removed custom interval for team ${teamId} on ${platform}`);
+      console.log(
+        `✓ Removed custom interval for team ${teamId} on ${platform}`,
+      );
 
       return {
         success: true,
-        message: 'Custom interval removed',
+        message: "Custom interval removed",
       };
     } catch (error: any) {
-      if (error.code === 'P2025') {
+      if (error.code === "P2025") {
         // Record not found
         return {
           success: true,
-          message: 'No custom interval set',
+          message: "No custom interval set",
         };
       }
 
-      console.error('Error removing custom interval:', error);
+      console.error("Error removing custom interval:", error);
       return {
         success: false,
         message: `Failed: ${error.message}`,
@@ -383,16 +415,17 @@ export class FeatureExtractor {
   /**
    * Get all custom intervals for a team
    */
-  async getTeamCustomIntervals(teamId: string): Promise<Array<{
-    platform: string;
-    customIntervalHours: number;
-    reason: string | null;
-    setBy: string | null;
-    expiresAt: Date | null;
-  }>> {
+  async getTeamCustomIntervals(teamId: string): Promise<
+    Array<{
+      platform: string;
+      customIntervalHours: number;
+      reason: string | null;
+      setBy: string | null;
+      expiresAt: Date | null;
+    }>
+  > {
     return prisma.scheduleCustomInterval.findMany({
       where: { teamId },
     });
   }
 }
-

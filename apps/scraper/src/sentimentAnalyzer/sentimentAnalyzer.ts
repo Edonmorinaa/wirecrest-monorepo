@@ -1,5 +1,5 @@
 // @ts-ignore
-import { NlpManager } from 'node-nlp';
+import { NlpManager } from "node-nlp";
 import type { trainingData, TrainingUtterance } from "./sentimentTrainingData";
 
 /**
@@ -7,9 +7,9 @@ import type { trainingData, TrainingUtterance } from "./sentimentTrainingData";
  */
 export class SentimentAnalyzer {
   private manager: any;
-  private modelPath: string = './model.nlp';
+  private modelPath: string = "./model.nlp";
 
-  constructor(languages: string[] = ['en']) {
+  constructor(languages: string[] = ["en"]) {
     this.manager = new NlpManager({
       languages,
       forceNER: true,
@@ -25,8 +25,8 @@ export class SentimentAnalyzer {
   private cleanText(text: string): string {
     return text
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '') // Remove emojis, special characters
-      .replace(/\s+/g, ' ') // Normalize spaces
+      .replace(/[^a-z0-9\s]/g, "") // Remove emojis, special characters
+      .replace(/\s+/g, " ") // Normalize spaces
       .trim();
   }
 
@@ -37,7 +37,7 @@ export class SentimentAnalyzer {
     // Add static training data
     for (const { text, sentiment } of trainingData) {
       const cleanedText = this.cleanText(text);
-      this.manager.addDocument('en', cleanedText, sentiment);
+      this.manager.addDocument("en", cleanedText, sentiment);
     }
 
     // Train the model
@@ -45,7 +45,9 @@ export class SentimentAnalyzer {
 
     // Save the trained model
     this.manager.save(this.modelPath);
-    console.log(`Model trained with ${trainingData.length} utterances and saved`);
+    console.log(
+      `Model trained with ${trainingData.length} utterances and saved`,
+    );
   }
 
   /**
@@ -54,10 +56,10 @@ export class SentimentAnalyzer {
   async loadModel(): Promise<boolean> {
     try {
       await this.manager.load(this.modelPath);
-      console.log('Loaded pre-trained model');
+      console.log("Loaded pre-trained model");
       return true;
     } catch (err) {
-      console.log('No pre-trained model found, training required');
+      console.log("No pre-trained model found, training required");
       await this.train();
       return false;
     }
@@ -70,24 +72,22 @@ export class SentimentAnalyzer {
    */
   async analyzeSentiment(text: string): Promise<number> {
     const cleanedText = this.cleanText(text);
-    const response = await this.manager.process('en', cleanedText);
+    const response = await this.manager.process("en", cleanedText);
     const sentiment = response.sentiment;
 
     let score: number;
     switch (sentiment.vote) {
-      case 'positive':
+      case "positive":
         score = sentiment.score;
         break;
-      case 'negative':
+      case "negative":
         score = -sentiment.score;
         break;
-      case 'neutral':
+      case "neutral":
       default:
         score = 0;
         break;
     }
-
-    
 
     return Number(score.toFixed(2));
   }

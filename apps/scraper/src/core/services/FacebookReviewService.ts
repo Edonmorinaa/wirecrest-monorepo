@@ -1,28 +1,36 @@
-import type { FacebookReviewWithMetadata } from '../../types/extended-types.js';
-import type { IReviewService, ReviewResult } from '../interfaces/IReviewService';
-import type { IReviewRepository } from '../interfaces/IReviewRepository';
-import { randomUUID } from 'crypto';
+import type { FacebookReviewWithMetadata } from "../../types/extended-types.js";
+import type {
+  IReviewService,
+  ReviewResult,
+} from "../interfaces/IReviewService";
+import type { IReviewRepository } from "../interfaces/IReviewRepository";
+import { randomUUID } from "crypto";
 
 /**
  * Facebook Review Service
  * Follows Single Responsibility Principle (SRP) - only handles Facebook review operations
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-export class FacebookReviewService implements IReviewService<FacebookReviewWithMetadata> {
+export class FacebookReviewService
+  implements IReviewService<FacebookReviewWithMetadata>
+{
   constructor(
-    private reviewRepository: IReviewRepository<FacebookReviewWithMetadata>
+    private reviewRepository: IReviewRepository<FacebookReviewWithMetadata>,
   ) {}
 
-  async saveReviews(businessId: string, reviews: FacebookReviewWithMetadata[]): Promise<ReviewResult> {
+  async saveReviews(
+    businessId: string,
+    reviews: FacebookReviewWithMetadata[],
+  ): Promise<ReviewResult> {
     try {
       // Delete existing reviews
       await this.reviewRepository.deleteByBusinessId(businessId);
 
       // Create review metadata for each review
-      const reviewsWithMetadata = reviews.map(review => ({
+      const reviewsWithMetadata = reviews.map((review) => ({
         ...review,
         reviewMetadataId: randomUUID(),
-        businessProfileId: businessId
+        businessProfileId: businessId,
       }));
 
       // Save reviews
@@ -31,12 +39,12 @@ export class FacebookReviewService implements IReviewService<FacebookReviewWithM
       return {
         success: true,
         reviewsCount: reviews.length,
-        message: `Successfully saved ${reviews.length} reviews`
+        message: `Successfully saved ${reviews.length} reviews`,
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -45,7 +53,9 @@ export class FacebookReviewService implements IReviewService<FacebookReviewWithM
     return await this.reviewRepository.findByBusinessId(businessId);
   }
 
-  async getReviewsWithMetadata(businessId: string): Promise<FacebookReviewWithMetadata[]> {
+  async getReviewsWithMetadata(
+    businessId: string,
+  ): Promise<FacebookReviewWithMetadata[]> {
     return await this.reviewRepository.findByBusinessIdWithMetadata(businessId);
   }
 

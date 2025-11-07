@@ -1,9 +1,9 @@
 /**
  * Global Schedule Orchestrator
- * 
+ *
  * Manages global interval-based schedules where businesses across all teams
  * share schedules based on their subscription tier's update interval.
- * 
+ *
  * Core Principles:
  * - One schedule per (platform × interval × scheduleType × batchIndex) combination
  * - Businesses are mapped to schedules via BusinessScheduleMapping table
@@ -12,30 +12,30 @@
  * - Strict data isolation via database relationships
  */
 
-import { ApifyClient } from 'apify-client';
-import { prisma } from '@wirecrest/db';
-import type { Platform, ScheduleType } from '../../types/apify.types';
-import { sendNotification } from '../../utils/notificationHelper';
+import { ApifyClient } from "apify-client";
+import { prisma } from "@wirecrest/db";
+import type { Platform, ScheduleType } from "../../types/apify.types";
+import { sendNotification } from "../../utils/notificationHelper";
 
 const ACTOR_IDS: Record<Platform, string> = {
-  google_reviews: 'Xb8osYTtOjlsgI6k9',
-  facebook: 'dX3d80hsNMilEwjXG',
-  tripadvisor: 'Hvp4YfFGyLM635Q2F',
-  booking: 'PbMHke3jW25J6hSOA',
+  google_reviews: "Xb8osYTtOjlsgI6k9",
+  facebook: "dX3d80hsNMilEwjXG",
+  tripadvisor: "Hvp4YfFGyLM635Q2F",
+  booking: "PbMHke3jW25J6hSOA",
 };
 
 // Task IDs for each platform - tasks allow flexible input schemas
 const TASK_IDS: Record<Platform, string> = {
-  google_reviews: process.env.APIFY_GOOGLE_REVIEWS_TASK_ID || '',
-  facebook: process.env.APIFY_FACEBOOK_TASK_ID || '',
-  tripadvisor: process.env.APIFY_TRIPADVISOR_TASK_ID || '',
-  booking: process.env.APIFY_BOOKING_TASK_ID || '',
+  google_reviews: process.env.APIFY_GOOGLE_REVIEWS_TASK_ID || "",
+  facebook: process.env.APIFY_FACEBOOK_TASK_ID || "",
+  tripadvisor: process.env.APIFY_TRIPADVISOR_TASK_ID || "",
+  booking: process.env.APIFY_BOOKING_TASK_ID || "",
 };
 
 // Maximum businesses per schedule before batching
 const MAX_BATCH_SIZE: Record<Platform, number> = {
-  google_reviews: 50,  // Google can handle more efficiently
-  facebook: 30,        // Facebook is slower
+  google_reviews: 50, // Google can handle more efficiently
+  facebook: 30, // Facebook is slower
   tripadvisor: 30,
   booking: 30,
 };
@@ -82,15 +82,17 @@ export class GlobalScheduleOrchestrator {
 
     // Create a new task for this actor
     const actorId = ACTOR_IDS[platform];
-    const taskName = `wirecrest-${platform.replace(/_/g, '-')}-scheduled`;
+    const taskName = `wirecrest-${platform.replace(/_/g, "-")}-scheduled`;
 
     try {
       // Check if task already exists
       const tasks = await this.apifyClient.tasks().list();
       const existingTask = tasks.items.find((t: any) => t.name === taskName);
-      
+
       if (existingTask) {
-        console.log(`✓ Found existing task for ${platform}: ${existingTask.id}`);
+        console.log(
+          `✓ Found existing task for ${platform}: ${existingTask.id}`,
+        );
         this.taskCache.set(platform, existingTask.id);
         return existingTask.id;
       }
@@ -101,7 +103,7 @@ export class GlobalScheduleOrchestrator {
         actId: actorId,
         name: taskName,
         options: {
-          build: 'latest',
+          build: "latest",
           timeoutSecs: 3600,
           memoryMbytes: 4096,
         },
@@ -124,27 +126,27 @@ export class GlobalScheduleOrchestrator {
    */
   private buildDefaultTaskInput(platform: Platform): any {
     switch (platform) {
-      case 'google_reviews':
+      case "google_reviews":
         return {
           placeIds: [],
           maxReviews: 100,
-          reviewsSort: 'newest',
-          language: 'en',
+          reviewsSort: "newest",
+          language: "en",
         };
-      case 'facebook':
+      case "facebook":
         return {
           startUrls: [],
           maxRequestRetries: 10,
         };
-      case 'tripadvisor':
+      case "tripadvisor":
         return {
           startUrls: [],
           scrapeReviewerInfo: true,
         };
-      case 'booking':
+      case "booking":
         return {
           startUrls: [],
-          sortReviewsBy: 'f_recent_desc',
+          sortReviewsBy: "f_recent_desc",
         };
     }
   }
@@ -159,9 +161,14 @@ export class GlobalScheduleOrchestrator {
     message: string;
   }> {
     try {
-      const platforms: Platform[] = ['google_reviews', 'facebook', 'tripadvisor', 'booking'];
+      const platforms: Platform[] = [
+        "google_reviews",
+        "facebook",
+        "tripadvisor",
+        "booking",
+      ];
       const intervals = [6, 12, 24, 72]; // Common intervals in hours
-      const scheduleTypes: ScheduleType[] = ['reviews', 'overview'];
+      const scheduleTypes: ScheduleType[] = ["reviews", "overview"];
 
       let schedulesCreated = 0;
 
@@ -181,7 +188,9 @@ export class GlobalScheduleOrchestrator {
             });
 
             if (existing) {
-              console.log(`✓ Schedule already exists: ${platform}_${scheduleType}_${interval}h`);
+              console.log(
+                `✓ Schedule already exists: ${platform}_${scheduleType}_${interval}h`,
+              );
               continue;
             }
 
@@ -205,7 +214,7 @@ export class GlobalScheduleOrchestrator {
         message: `Initialized ${schedulesCreated} global schedules`,
       };
     } catch (error: any) {
-      console.error('Error initializing global schedules:', error);
+      console.error("Error initializing global schedules:", error);
       return {
         success: false,
         schedulesCreated: 0,
@@ -222,7 +231,7 @@ export class GlobalScheduleOrchestrator {
     teamId: string,
     platform: Platform,
     identifier: string,
-    intervalHours: number
+    intervalHours: number,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Check if mapping already exists
@@ -238,28 +247,30 @@ export class GlobalScheduleOrchestrator {
       if (existingMapping) {
         return {
           success: false,
-          message: 'Business already mapped to a schedule',
+          message: "Business already mapped to a schedule",
         };
       }
 
       // Find or create appropriate schedule for both reviews and overview
-      for (const scheduleType of ['reviews', 'overview'] as ScheduleType[]) {
+      for (const scheduleType of ["reviews", "overview"] as ScheduleType[]) {
         const schedule = await this.getOrCreateScheduleForInterval(
           platform,
           scheduleType,
-          intervalHours
+          intervalHours,
         );
 
         // Create or update mapping
         const identifierField = this.getIdentifierFieldName(platform);
-        const existingMapping = await prisma.businessScheduleMapping.findUnique({
-          where: {
-            businessProfileId_platform: {
-              businessProfileId,
-              platform,
+        const existingMapping = await prisma.businessScheduleMapping.findUnique(
+          {
+            where: {
+              businessProfileId_platform: {
+                businessProfileId,
+                platform,
+              },
             },
           },
-        });
+        );
 
         await prisma.businessScheduleMapping.upsert({
           where: {
@@ -302,32 +313,34 @@ export class GlobalScheduleOrchestrator {
         }
       }
 
-      console.log(`✓ Added business ${businessProfileId} to ${platform} schedules (${intervalHours}h)`);
+      console.log(
+        `✓ Added business ${businessProfileId} to ${platform} schedules (${intervalHours}h)`,
+      );
 
       return {
         success: true,
         message: `Business added to ${intervalHours}h schedules`,
       };
     } catch (error: any) {
-      console.error('Error adding business to schedule:', error);
-      
+      console.error("Error adding business to schedule:", error);
+
       // Notify admin of schedule management failure
       await sendNotification({
-        type: 'chat',
-        scope: 'super',
-        superRole: 'ADMIN',
+        type: "chat",
+        scope: "super",
+        superRole: "ADMIN",
         title: `<p>Failed to add business to schedule: <strong>${platform}</strong></p>`,
-        category: 'System',
+        category: "System",
         metadata: {
           teamId,
           businessProfileId,
           platform,
           intervalHours,
-          error: error.message
+          error: error.message,
         },
-        expiresInDays: 7
+        expiresInDays: 7,
       });
-      
+
       return {
         success: false,
         message: `Failed: ${error.message}`,
@@ -342,7 +355,7 @@ export class GlobalScheduleOrchestrator {
     businessProfileId: string,
     platform: Platform,
     fromIntervalHours: number,
-    toIntervalHours: number
+    toIntervalHours: number,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Get current mapping
@@ -359,7 +372,7 @@ export class GlobalScheduleOrchestrator {
       if (!mapping) {
         return {
           success: false,
-          message: 'Business mapping not found',
+          message: "Business mapping not found",
         };
       }
 
@@ -367,7 +380,7 @@ export class GlobalScheduleOrchestrator {
       if (mapping.intervalHours === toIntervalHours) {
         return {
           success: true,
-          message: 'Business already at target interval',
+          message: "Business already at target interval",
         };
       }
 
@@ -378,7 +391,7 @@ export class GlobalScheduleOrchestrator {
       const newSchedule = await this.getOrCreateScheduleForInterval(
         platform,
         scheduleType,
-        toIntervalHours
+        toIntervalHours,
       );
 
       // Update mapping
@@ -404,14 +417,16 @@ export class GlobalScheduleOrchestrator {
       await this.updateScheduleInput(oldScheduleId);
       await this.updateScheduleInput(newSchedule.id);
 
-      console.log(`✓ Moved business ${businessProfileId} from ${fromIntervalHours}h → ${toIntervalHours}h`);
+      console.log(
+        `✓ Moved business ${businessProfileId} from ${fromIntervalHours}h → ${toIntervalHours}h`,
+      );
 
       return {
         success: true,
         message: `Business moved from ${fromIntervalHours}h to ${toIntervalHours}h`,
       };
     } catch (error: any) {
-      console.error('Error moving business between schedules:', error);
+      console.error("Error moving business between schedules:", error);
       return {
         success: false,
         message: `Failed: ${error.message}`,
@@ -424,7 +439,7 @@ export class GlobalScheduleOrchestrator {
    */
   async removeBusinessFromSchedule(
     businessProfileId: string,
-    platform: Platform
+    platform: Platform,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Get mapping
@@ -440,7 +455,7 @@ export class GlobalScheduleOrchestrator {
       if (!mapping) {
         return {
           success: true,
-          message: 'Business not mapped to any schedule',
+          message: "Business not mapped to any schedule",
         };
       }
 
@@ -464,10 +479,10 @@ export class GlobalScheduleOrchestrator {
 
       return {
         success: true,
-        message: 'Business removed from schedule',
+        message: "Business removed from schedule",
       };
     } catch (error: any) {
-      console.error('Error removing business from schedule:', error);
+      console.error("Error removing business from schedule:", error);
       return {
         success: false,
         message: `Failed: ${error.message}`,
@@ -490,20 +505,20 @@ export class GlobalScheduleOrchestrator {
       });
 
       if (!schedule) {
-        throw new Error('Schedule not found');
+        throw new Error("Schedule not found");
       }
 
       // Collect identifiers based on platform
       const identifiers = schedule.businessMappings
         .map((mapping) => {
           switch (schedule.platform) {
-            case 'google_reviews':
+            case "google_reviews":
               return mapping.placeId;
-            case 'facebook':
+            case "facebook":
               return mapping.facebookUrl;
-            case 'tripadvisor':
+            case "tripadvisor":
               return mapping.tripAdvisorUrl;
-            case 'booking':
+            case "booking":
               return mapping.bookingUrl;
             default:
               return null;
@@ -515,14 +530,18 @@ export class GlobalScheduleOrchestrator {
       const input = this.buildScheduleInput(
         schedule.platform as Platform,
         identifiers,
-        schedule.maxReviewsPerRun
+        schedule.maxReviewsPerRun,
       );
 
       // Build webhook config
-      const webhookConfig = this.buildWebhookConfig(schedule.platform as Platform);
+      const webhookConfig = this.buildWebhookConfig(
+        schedule.platform as Platform,
+      );
 
       // Get current schedule from Apify to preserve all settings
-      const apifySchedule = await this.apifyClient.schedule(schedule.apifyScheduleId).get();
+      const apifySchedule = await this.apifyClient
+        .schedule(schedule.apifyScheduleId)
+        .get();
 
       // Determine if this is a task-based or actor-based schedule
       const isTaskBased = schedule.apifyTaskId !== null;
@@ -565,9 +584,11 @@ export class GlobalScheduleOrchestrator {
         },
       });
 
-      console.log(`✓ Updated schedule ${schedule.platform}_${schedule.scheduleType}_${schedule.intervalHours}h with ${identifiers.length} businesses`);
+      console.log(
+        `✓ Updated schedule ${schedule.platform}_${schedule.scheduleType}_${schedule.intervalHours}h with ${identifiers.length} businesses`,
+      );
     } catch (error: any) {
-      console.error('Error updating schedule input:', error);
+      console.error("Error updating schedule input:", error);
       throw error;
     }
   }
@@ -578,7 +599,7 @@ export class GlobalScheduleOrchestrator {
   private async getOrCreateScheduleForInterval(
     platform: Platform,
     scheduleType: ScheduleType,
-    intervalHours: number
+    intervalHours: number,
   ): Promise<any> {
     // Find existing schedule with capacity
     const schedules = await prisma.apifyGlobalSchedule.findMany({
@@ -592,7 +613,7 @@ export class GlobalScheduleOrchestrator {
         },
       },
       orderBy: {
-        batchIndex: 'asc',
+        batchIndex: "asc",
       },
     });
 
@@ -603,7 +624,7 @@ export class GlobalScheduleOrchestrator {
     // Find highest batch index
     const highestBatch = await prisma.apifyGlobalSchedule.findFirst({
       where: { platform, scheduleType, intervalHours },
-      orderBy: { batchIndex: 'desc' },
+      orderBy: { batchIndex: "desc" },
     });
 
     const nextBatchIndex = highestBatch ? highestBatch.batchIndex + 1 : 0;
@@ -620,26 +641,38 @@ export class GlobalScheduleOrchestrator {
   /**
    * Create a new global schedule
    */
-  private async createGlobalSchedule(config: GlobalScheduleConfig): Promise<any> {
+  private async createGlobalSchedule(
+    config: GlobalScheduleConfig,
+  ): Promise<any> {
     const actorId = ACTOR_IDS[config.platform];
-    
+
     // Get or create task for this actor to allow flexible input schemas
     const taskId = await this.getOrCreateTaskForActor(config.platform);
     const isTask = taskId !== actorId; // If they're different, we're using a task
-    
-    const cronExpression = this.intervalToCron(config.intervalHours, config.batchIndex);
-    const batchSuffix = config.batchIndex && config.batchIndex > 0 ? `_batch_${config.batchIndex}` : '';
+
+    const cronExpression = this.intervalToCron(
+      config.intervalHours,
+      config.batchIndex,
+    );
+    const batchSuffix =
+      config.batchIndex && config.batchIndex > 0
+        ? `_batch_${config.batchIndex}`
+        : "";
 
     // Build initial empty input (will be populated when businesses are added)
     const initialInput = this.buildScheduleInput(config.platform, [], 100);
     const webhookConfig = this.buildWebhookConfig(config.platform);
 
     // Create schedule in Apify
-    const scheduleName = `${config.platform}_${config.scheduleType}_${config.intervalHours}h${batchSuffix}`.replace(/[^a-z0-9-]/g, '-');
-    
+    const scheduleName =
+      `${config.platform}_${config.scheduleType}_${config.intervalHours}h${batchSuffix}`.replace(
+        /[^a-z0-9-]/g,
+        "-",
+      );
+
     const scheduleAction: any = isTask
       ? {
-          type: 'RUN_ACTOR_TASK',
+          type: "RUN_ACTOR_TASK",
           actorTaskId: taskId,
           input: {
             ...initialInput,
@@ -647,14 +680,14 @@ export class GlobalScheduleOrchestrator {
           },
         }
       : {
-          type: 'RUN_ACTOR',
+          type: "RUN_ACTOR",
           actorId,
           input: {
             ...initialInput,
             webhooks: webhookConfig,
           },
           options: {
-            build: 'latest',
+            build: "latest",
             timeoutSecs: 3600,
             memoryMbytes: 4096,
           },
@@ -684,14 +717,19 @@ export class GlobalScheduleOrchestrator {
       },
     });
 
-    console.log(`✓ Created global schedule: ${apifySchedule.name} (${isTask ? 'task' : 'actor'}-based)`);
+    console.log(
+      `✓ Created global schedule: ${apifySchedule.name} (${isTask ? "task" : "actor"}-based)`,
+    );
     return schedule;
   }
 
   /**
    * Check if schedule needs batching and split if necessary
    */
-  private async checkAndSplitSchedule(scheduleId: string, platform: Platform): Promise<void> {
+  private async checkAndSplitSchedule(
+    scheduleId: string,
+    platform: Platform,
+  ): Promise<void> {
     const schedule = await prisma.apifyGlobalSchedule.findUnique({
       where: { id: scheduleId },
       include: {
@@ -705,7 +743,9 @@ export class GlobalScheduleOrchestrator {
       return;
     }
 
-    console.log(`⚠️ Schedule ${scheduleId} has reached max capacity, splitting...`);
+    console.log(
+      `⚠️ Schedule ${scheduleId} has reached max capacity, splitting...`,
+    );
 
     // Create new batch
     const newSchedule = await this.createGlobalSchedule({
@@ -717,7 +757,7 @@ export class GlobalScheduleOrchestrator {
 
     // Move half of businesses to new batch
     const businessesToMove = schedule.businessMappings.slice(
-      Math.floor(schedule.businessCount / 2)
+      Math.floor(schedule.businessCount / 2),
     );
 
     for (const business of businessesToMove) {
@@ -741,7 +781,9 @@ export class GlobalScheduleOrchestrator {
     await this.updateScheduleInput(scheduleId);
     await this.updateScheduleInput(newSchedule.id);
 
-    console.log(`✓ Split schedule: moved ${businessesToMove.length} businesses to new batch`);
+    console.log(
+      `✓ Split schedule: moved ${businessesToMove.length} businesses to new batch`,
+    );
   }
 
   /**
@@ -750,24 +792,24 @@ export class GlobalScheduleOrchestrator {
   private buildScheduleInput(
     platform: Platform,
     identifiers: string[],
-    maxReviews: number
+    maxReviews: number,
   ): any {
     switch (platform) {
-      case 'google_reviews':
+      case "google_reviews":
         return {
           placeIds: identifiers,
           maxReviews,
-          reviewsSort: 'newest',
-          language: 'en',
-          reviewsOrigin: 'google',
+          reviewsSort: "newest",
+          language: "en",
+          reviewsOrigin: "google",
           personalData: false,
         };
 
-      case 'facebook': {
+      case "facebook": {
         const input: any = {
           startUrls: identifiers.map((url) => ({ url })),
           proxy: {
-            apifyProxyGroups: ['RESIDENTIAL'],
+            apifyProxyGroups: ["RESIDENTIAL"],
           },
           maxRequestRetries: 10,
         };
@@ -778,12 +820,12 @@ export class GlobalScheduleOrchestrator {
         return input;
       }
 
-      case 'tripadvisor': {
+      case "tripadvisor": {
         const input: any = {
           startUrls: identifiers.map((url) => ({ url })),
           scrapeReviewerInfo: true,
-          reviewRatings: ['ALL_REVIEW_RATINGS'],
-          reviewsLanguages: ['ALL_REVIEW_LANGUAGES'],
+          reviewRatings: ["ALL_REVIEW_RATINGS"],
+          reviewsLanguages: ["ALL_REVIEW_LANGUAGES"],
         };
         // Only add limit if reasonable (not "unlimited")
         if (maxReviews < 99999) {
@@ -792,11 +834,11 @@ export class GlobalScheduleOrchestrator {
         return input;
       }
 
-      case 'booking': {
+      case "booking": {
         const input: any = {
           startUrls: identifiers.map((url) => ({ url })),
-          sortReviewsBy: 'f_recent_desc',
-          reviewScores: ['ALL'],
+          sortReviewsBy: "f_recent_desc",
+          reviewScores: ["ALL"],
           proxyConfiguration: {
             useApifyProxy: true,
           },
@@ -817,19 +859,23 @@ export class GlobalScheduleOrchestrator {
     const webhookSecret = process.env.APIFY_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
-      throw new Error('APIFY_WEBHOOK_SECRET is required');
+      throw new Error("APIFY_WEBHOOK_SECRET is required");
     }
 
     return [
       {
-        eventTypes: ['ACTOR.RUN.SUCCEEDED', 'ACTOR.RUN.FAILED', 'ACTOR.RUN.ABORTED'],
+        eventTypes: [
+          "ACTOR.RUN.SUCCEEDED",
+          "ACTOR.RUN.FAILED",
+          "ACTOR.RUN.ABORTED",
+        ],
         requestUrl: `${this.webhookBaseUrl}/webhooks/apify?token=${webhookSecret}`,
         payloadTemplate: JSON.stringify({
           platform,
-          eventType: '{{eventType}}',
-          actorRunId: '{{resource.id}}',
-          datasetId: '{{resource.defaultDatasetId}}',
-          status: '{{resource.status}}',
+          eventType: "{{eventType}}",
+          actorRunId: "{{resource.id}}",
+          datasetId: "{{resource.defaultDatasetId}}",
+          status: "{{resource.status}}",
         }),
       },
     ];
@@ -860,15 +906,14 @@ export class GlobalScheduleOrchestrator {
    */
   private getIdentifierFieldName(platform: Platform): string {
     switch (platform) {
-      case 'google_reviews':
-        return 'placeId';
-      case 'facebook':
-        return 'facebookUrl';
-      case 'tripadvisor':
-        return 'tripAdvisorUrl';
-      case 'booking':
-        return 'bookingUrl';
+      case "google_reviews":
+        return "placeId";
+      case "facebook":
+        return "facebookUrl";
+      case "tripadvisor":
+        return "tripAdvisorUrl";
+      case "booking":
+        return "bookingUrl";
     }
   }
 }
-

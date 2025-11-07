@@ -3,8 +3,8 @@
  * Handles creation, update, and management of Apify schedules
  */
 
-import { ApifyClient } from 'apify-client';
-import { prisma } from '@wirecrest/db';
+import { ApifyClient } from "apify-client";
+import { prisma } from "@wirecrest/db";
 import type {
   Platform,
   ScheduleType,
@@ -12,13 +12,13 @@ import type {
   ApifyScheduleInfo,
   ApifyWebhookConfig,
   ApifyEventType,
-} from '../../types/apify.types';
+} from "../../types/apify.types";
 
 const ACTOR_IDS: Record<Platform, string> = {
-  google_reviews: 'Xb8osYTtOjlsgI6k9', // Google Maps Reviews Scraper (specialized, cost-effective)
-  facebook: 'dX3d80hsNMilEwjXG',        // Facebook Reviews Scraper (specialized)
-  tripadvisor: 'Hvp4YfFGyLM635Q2F',    // TripAdvisor Reviews Scraper (specialized)
-  booking: 'PbMHke3jW25J6hSOA',         // Booking.com Reviews Scraper (specialized)
+  google_reviews: "Xb8osYTtOjlsgI6k9", // Google Maps Reviews Scraper (specialized, cost-effective)
+  facebook: "dX3d80hsNMilEwjXG", // Facebook Reviews Scraper (specialized)
+  tripadvisor: "Hvp4YfFGyLM635Q2F", // TripAdvisor Reviews Scraper (specialized)
+  booking: "PbMHke3jW25J6hSOA", // Booking.com Reviews Scraper (specialized)
 };
 
 export class ApifyScheduleService {
@@ -33,7 +33,10 @@ export class ApifyScheduleService {
   /**
    * Create or update a schedule for a team
    */
-  async upsertSchedule(teamId: string, config: ScheduleConfig): Promise<ApifyScheduleInfo> {
+  async upsertSchedule(
+    teamId: string,
+    config: ScheduleConfig,
+  ): Promise<ApifyScheduleInfo> {
     // Check if schedule already exists
     const existingSchedule = await prisma.apifySchedule.findUnique({
       where: {
@@ -47,7 +50,11 @@ export class ApifyScheduleService {
 
     if (existingSchedule) {
       // Update existing schedule
-      return this.updateSchedule(teamId, existingSchedule.apifyScheduleId, config);
+      return this.updateSchedule(
+        teamId,
+        existingSchedule.apifyScheduleId,
+        config,
+      );
     } else {
       // Create new schedule
       return this.createSchedule(teamId, config);
@@ -57,7 +64,10 @@ export class ApifyScheduleService {
   /**
    * Create a new Apify schedule
    */
-  private async createSchedule(teamId: string, config: ScheduleConfig): Promise<ApifyScheduleInfo> {
+  private async createSchedule(
+    teamId: string,
+    config: ScheduleConfig,
+  ): Promise<ApifyScheduleInfo> {
     const actorId = ACTOR_IDS[config.platform];
     const input = this.buildScheduleInput(config);
     const webhookConfig = this.buildWebhookConfig(config.platform);
@@ -70,14 +80,14 @@ export class ApifyScheduleService {
       isExclusive: false,
       actions: [
         {
-          type: 'RUN_ACTOR' as any,
+          type: "RUN_ACTOR" as any,
           actorId,
           runInput: {
             ...input,
             webhooks: webhookConfig,
           },
           runOptions: {
-            build: 'latest',
+            build: "latest",
             timeoutSecs: 3600,
             memoryMbytes: 4096,
           } as any,
@@ -97,7 +107,9 @@ export class ApifyScheduleService {
         intervalHours: config.intervalHours,
         maxReviewsPerRun: config.maxReviewsPerRun,
         isActive: true,
-        nextRunAt: apifySchedule.nextRunAt ? new Date(apifySchedule.nextRunAt) : null,
+        nextRunAt: apifySchedule.nextRunAt
+          ? new Date(apifySchedule.nextRunAt)
+          : null,
       },
     });
 
@@ -118,16 +130,18 @@ export class ApifyScheduleService {
   private async updateSchedule(
     teamId: string,
     apifyScheduleId: string,
-    config: ScheduleConfig
+    config: ScheduleConfig,
   ): Promise<ApifyScheduleInfo> {
     const input = this.buildScheduleInput(config);
     const webhookConfig = this.buildWebhookConfig(config.platform);
 
     // Get current schedule from Apify to preserve all settings
-    const currentSchedule = await this.apifyClient.schedule(apifyScheduleId).get();
+    const currentSchedule = await this.apifyClient
+      .schedule(apifyScheduleId)
+      .get();
 
     // Clone existing actions but replace the input
-    const updatedActions = currentSchedule.actions.map(action => ({
+    const updatedActions = currentSchedule.actions.map((action) => ({
       ...action,
       runInput: {
         ...input,
@@ -136,11 +150,13 @@ export class ApifyScheduleService {
     }));
 
     // Update schedule in Apify with new actions
-    const apifySchedule = await this.apifyClient.schedule(apifyScheduleId).update({
-      cronExpression: config.cronExpression,
-      isEnabled: true,
-      actions: updatedActions,
-    });
+    const apifySchedule = await this.apifyClient
+      .schedule(apifyScheduleId)
+      .update({
+        cronExpression: config.cronExpression,
+        isEnabled: true,
+        actions: updatedActions,
+      });
 
     // Update database record
     const dbSchedule = await prisma.apifySchedule.update({
@@ -149,7 +165,9 @@ export class ApifyScheduleService {
         cronExpression: config.cronExpression,
         intervalHours: config.intervalHours,
         maxReviewsPerRun: config.maxReviewsPerRun,
-        nextRunAt: apifySchedule.nextRunAt ? new Date(apifySchedule.nextRunAt) : null,
+        nextRunAt: apifySchedule.nextRunAt
+          ? new Date(apifySchedule.nextRunAt)
+          : null,
         updatedAt: new Date(),
       },
     });
@@ -168,7 +186,11 @@ export class ApifyScheduleService {
   /**
    * Delete a schedule
    */
-  async deleteSchedule(teamId: string, platform: Platform, scheduleType: ScheduleType): Promise<void> {
+  async deleteSchedule(
+    teamId: string,
+    platform: Platform,
+    scheduleType: ScheduleType,
+  ): Promise<void> {
     const schedule = await prisma.apifySchedule.findUnique({
       where: {
         teamId_platform_scheduleType: { teamId, platform, scheduleType },
@@ -191,7 +213,11 @@ export class ApifyScheduleService {
   /**
    * Pause a schedule
    */
-  async pauseSchedule(teamId: string, platform: Platform, scheduleType: ScheduleType): Promise<void> {
+  async pauseSchedule(
+    teamId: string,
+    platform: Platform,
+    scheduleType: ScheduleType,
+  ): Promise<void> {
     const schedule = await prisma.apifySchedule.findUnique({
       where: {
         teamId_platform_scheduleType: { teamId, platform, scheduleType },
@@ -199,11 +225,13 @@ export class ApifyScheduleService {
     });
 
     if (!schedule) {
-      throw new Error('Schedule not found');
+      throw new Error("Schedule not found");
     }
 
     // Get current schedule from Apify to preserve all settings
-    const currentSchedule = await this.apifyClient.schedule(schedule.apifyScheduleId).get();
+    const currentSchedule = await this.apifyClient
+      .schedule(schedule.apifyScheduleId)
+      .get();
 
     // Update schedule in Apify - preserve all actions, just disable
     await this.apifyClient.schedule(schedule.apifyScheduleId).update({
@@ -221,7 +249,11 @@ export class ApifyScheduleService {
   /**
    * Resume a schedule by team, platform, and schedule type
    */
-  async resumeSchedule(teamId: string, platform: Platform, scheduleType: ScheduleType): Promise<void> {
+  async resumeSchedule(
+    teamId: string,
+    platform: Platform,
+    scheduleType: ScheduleType,
+  ): Promise<void> {
     const schedule = await prisma.apifySchedule.findUnique({
       where: {
         teamId_platform_scheduleType: { teamId, platform, scheduleType },
@@ -229,11 +261,13 @@ export class ApifyScheduleService {
     });
 
     if (!schedule) {
-      throw new Error('Schedule not found');
+      throw new Error("Schedule not found");
     }
 
     // Get current schedule from Apify to preserve all settings
-    const currentSchedule = await this.apifyClient.schedule(schedule.apifyScheduleId).get();
+    const currentSchedule = await this.apifyClient
+      .schedule(schedule.apifyScheduleId)
+      .get();
 
     // Update schedule in Apify - preserve all actions, just enable
     await this.apifyClient.schedule(schedule.apifyScheduleId).update({
@@ -253,7 +287,9 @@ export class ApifyScheduleService {
    */
   private async resumeScheduleById(apifyScheduleId: string): Promise<void> {
     // Get current schedule from Apify to preserve all settings
-    const currentSchedule = await this.apifyClient.schedule(apifyScheduleId).get();
+    const currentSchedule = await this.apifyClient
+      .schedule(apifyScheduleId)
+      .get();
 
     // Update schedule in Apify - preserve all actions, just enable
     await this.apifyClient.schedule(apifyScheduleId).update({
@@ -269,24 +305,24 @@ export class ApifyScheduleService {
    */
   private buildScheduleInput(config: ScheduleConfig): any {
     switch (config.platform) {
-      case 'google_reviews':
+      case "google_reviews":
         // Google Maps Reviews Scraper - batches all placeIds together
         // Cost-effective: ~$0.50 per 1000 reviews vs $4 per 1000 places
         return {
           placeIds: config.identifiers,
           maxReviews: config.maxReviewsPerRun,
-          reviewsSort: 'newest',
-          language: 'en',
-          reviewsOrigin: 'google',  // Only Google reviews (not TripAdvisor)
-          personalData: false,       // GDPR compliant
+          reviewsSort: "newest",
+          language: "en",
+          reviewsOrigin: "google", // Only Google reviews (not TripAdvisor)
+          personalData: false, // GDPR compliant
         };
 
-      case 'facebook': {
+      case "facebook": {
         // Facebook Reviews Scraper
         const input: any = {
           startUrls: config.identifiers.map((url) => ({ url })),
           proxy: {
-            apifyProxyGroups: ['RESIDENTIAL'],
+            apifyProxyGroups: ["RESIDENTIAL"],
           },
           maxRequestRetries: 10,
         };
@@ -297,13 +333,13 @@ export class ApifyScheduleService {
         return input;
       }
 
-      case 'tripadvisor': {
+      case "tripadvisor": {
         // TripAdvisor Reviews Scraper
         const input: any = {
           startUrls: config.identifiers.map((url) => ({ url })),
           scrapeReviewerInfo: true,
-          reviewRatings: ['ALL_REVIEW_RATINGS'],
-          reviewsLanguages: ['ALL_REVIEW_LANGUAGES'],
+          reviewRatings: ["ALL_REVIEW_RATINGS"],
+          reviewsLanguages: ["ALL_REVIEW_LANGUAGES"],
         };
         // Only add limit if reasonable (not "unlimited")
         if (config.maxReviewsPerRun < 99999) {
@@ -312,12 +348,12 @@ export class ApifyScheduleService {
         return input;
       }
 
-      case 'booking': {
+      case "booking": {
         // Booking.com Reviews Scraper
         const input: any = {
           startUrls: config.identifiers.map((url) => ({ url })),
-          sortReviewsBy: 'f_recent_desc',  // Newest first for deduplication
-          reviewScores: ['ALL'],
+          sortReviewsBy: "f_recent_desc", // Newest first for deduplication
+          reviewScores: ["ALL"],
           proxyConfiguration: {
             useApifyProxy: true,
           },
@@ -337,15 +373,17 @@ export class ApifyScheduleService {
    */
   private buildWebhookConfig(platform: Platform): ApifyWebhookConfig[] {
     const webhookSecret = process.env.APIFY_WEBHOOK_SECRET;
-    
+
     if (!webhookSecret) {
-      throw new Error('APIFY_WEBHOOK_SECRET environment variable is required for webhook security');
+      throw new Error(
+        "APIFY_WEBHOOK_SECRET environment variable is required for webhook security",
+      );
     }
 
     const eventTypes: ApifyEventType[] = [
-      'ACTOR.RUN.SUCCEEDED',
-      'ACTOR.RUN.FAILED',
-      'ACTOR.RUN.ABORTED',
+      "ACTOR.RUN.SUCCEEDED",
+      "ACTOR.RUN.FAILED",
+      "ACTOR.RUN.ABORTED",
     ];
 
     return [
@@ -354,10 +392,10 @@ export class ApifyScheduleService {
         requestUrl: `${this.webhookBaseUrl}/webhooks/apify?token=${webhookSecret}`,
         payloadTemplate: JSON.stringify({
           platform,
-          eventType: '{{eventType}}',
-          actorRunId: '{{resource.id}}',
-          datasetId: '{{resource.defaultDatasetId}}',
-          status: '{{resource.status}}',
+          eventType: "{{eventType}}",
+          actorRunId: "{{resource.id}}",
+          datasetId: "{{resource.defaultDatasetId}}",
+          status: "{{resource.status}}",
         }),
       },
     ];
@@ -413,18 +451,17 @@ export class ApifyScheduleService {
     // Apify doesn't have a direct "trigger" API, so we need to manually start the actor
     // Get the schedule details first
     const schedule = await this.apifyClient.schedule(apifyScheduleId).get();
-    
+
     if (!schedule || !schedule.actions || schedule.actions.length === 0) {
-      throw new Error('Schedule not found or has no actions');
+      throw new Error("Schedule not found or has no actions");
     }
 
     const action = schedule.actions[0] as any;
     if (!action.actorId) {
-      throw new Error('Schedule action has no actorId');
+      throw new Error("Schedule action has no actorId");
     }
 
     // Run the actor with the schedule's input
     await this.apifyClient.actor(action.actorId).call(action.runInput || {});
   }
 }
-

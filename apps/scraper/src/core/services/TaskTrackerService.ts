@@ -1,7 +1,14 @@
-import { randomUUID } from 'crypto';
-import { MarketPlatform } from '@prisma/client';
-import type { ITaskTracker, Task, TaskMessage, TaskProgressUpdate, TaskStatus, TaskStep } from '../interfaces/ITaskTracker';
-import type { IDependencyContainer } from '../interfaces/IDependencyContainer';
+import { randomUUID } from "crypto";
+import { MarketPlatform } from "@prisma/client";
+import type {
+  ITaskTracker,
+  Task,
+  TaskMessage,
+  TaskProgressUpdate,
+  TaskStatus,
+  TaskStep,
+} from "../interfaces/ITaskTracker";
+import type { IDependencyContainer } from "../interfaces/IDependencyContainer";
 
 /**
  * Task Tracker Service
@@ -20,7 +27,11 @@ export class TaskTrackerService implements ITaskTracker {
    * Create a new task
    * Follows Single Responsibility Principle (SRP) - only creates tasks
    */
-  async createTask(teamId: string, platform: MarketPlatform, identifier: string): Promise<Task> {
+  async createTask(
+    teamId: string,
+    platform: MarketPlatform,
+    identifier: string,
+  ): Promise<Task> {
     const taskId = randomUUID();
     const now = new Date();
 
@@ -36,7 +47,7 @@ export class TaskTrackerService implements ITaskTracker {
       lastActivityAt: now,
       errorCount: 0,
       maxRetries: 3,
-      metadata: {}
+      metadata: {},
     };
 
     // TODO: Store task in database via repository
@@ -50,7 +61,10 @@ export class TaskTrackerService implements ITaskTracker {
    * Get a task by team and platform
    * Follows Single Responsibility Principle (SRP) - only retrieves tasks
    */
-  async getTask(teamId: string, platform: MarketPlatform): Promise<Task | null> {
+  async getTask(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<Task | null> {
     // TODO: Retrieve from database via repository
     // For now, we'll use in-memory storage
     return this.getStoredTask(teamId, platform);
@@ -60,10 +74,16 @@ export class TaskTrackerService implements ITaskTracker {
    * Update task status
    * Follows Single Responsibility Principle (SRP) - only updates task status
    */
-  async updateTaskStatus(teamId: string, platform: MarketPlatform, status: TaskStatus): Promise<void> {
+  async updateTaskStatus(
+    teamId: string,
+    platform: MarketPlatform,
+    status: TaskStatus,
+  ): Promise<void> {
     const task = await this.getTask(teamId, platform);
     if (!task) {
-      throw new Error(`Task not found for team ${teamId} and platform ${platform}`);
+      throw new Error(
+        `Task not found for team ${teamId} and platform ${platform}`,
+      );
     }
 
     task.status = status;
@@ -90,10 +110,17 @@ export class TaskTrackerService implements ITaskTracker {
    * Start a specific step
    * Follows Single Responsibility Principle (SRP) - only starts steps
    */
-  async startStep(teamId: string, platform: MarketPlatform, step: TaskStep, message: string): Promise<void> {
+  async startStep(
+    teamId: string,
+    platform: MarketPlatform,
+    step: TaskStep,
+    message: string,
+  ): Promise<void> {
     const task = await this.getTask(teamId, platform);
     if (!task) {
-      throw new Error(`Task not found for team ${teamId} and platform ${platform}`);
+      throw new Error(
+        `Task not found for team ${teamId} and platform ${platform}`,
+      );
     }
 
     task.currentStep = step;
@@ -109,8 +136,8 @@ export class TaskTrackerService implements ITaskTracker {
       step,
       status: TaskStatus.IN_PROGRESS,
       message,
-      messageType: 'info',
-      timestamp: new Date()
+      messageType: "info",
+      timestamp: new Date(),
     });
   }
 
@@ -118,10 +145,16 @@ export class TaskTrackerService implements ITaskTracker {
    * Update task progress
    * Follows Single Responsibility Principle (SRP) - only updates progress
    */
-  async updateProgress(teamId: string, platform: MarketPlatform, update: TaskProgressUpdate): Promise<void> {
+  async updateProgress(
+    teamId: string,
+    platform: MarketPlatform,
+    update: TaskProgressUpdate,
+  ): Promise<void> {
     const task = await this.getTask(teamId, platform);
     if (!task) {
-      throw new Error(`Task not found for team ${teamId} and platform ${platform}`);
+      throw new Error(
+        `Task not found for team ${teamId} and platform ${platform}`,
+      );
     }
 
     task.currentStep = update.step;
@@ -141,12 +174,12 @@ export class TaskTrackerService implements ITaskTracker {
       step: update.step,
       status: update.status,
       message: update.message,
-      messageType: update.messageType || 'info',
+      messageType: update.messageType || "info",
       progressPercent: update.progressPercent,
       itemsProcessed: update.itemsProcessed,
       totalItems: update.totalItems,
       metadata: update.metadata,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
@@ -154,14 +187,24 @@ export class TaskTrackerService implements ITaskTracker {
    * Complete a step
    * Follows Single Responsibility Principle (SRP) - only completes steps
    */
-  async completeStep(teamId: string, platform: MarketPlatform, step: TaskStep, message: string, result?: any): Promise<void> {
+  async completeStep(
+    teamId: string,
+    platform: MarketPlatform,
+    step: TaskStep,
+    message: string,
+    result?: any,
+  ): Promise<void> {
     const task = await this.getTask(teamId, platform);
     if (!task) {
-      throw new Error(`Task not found for team ${teamId} and platform ${platform}`);
+      throw new Error(
+        `Task not found for team ${teamId} and platform ${platform}`,
+      );
     }
 
     task.completedSteps += 1;
-    task.progressPercent = Math.round((task.completedSteps / task.totalSteps) * 100);
+    task.progressPercent = Math.round(
+      (task.completedSteps / task.totalSteps) * 100,
+    );
     task.lastActivityAt = new Date();
 
     // Check if all steps are completed
@@ -179,10 +222,10 @@ export class TaskTrackerService implements ITaskTracker {
       step,
       status: TaskStatus.COMPLETED,
       message,
-      messageType: 'success',
+      messageType: "success",
       progressPercent: task.progressPercent,
       metadata: result ? { result } : undefined,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
@@ -190,10 +233,17 @@ export class TaskTrackerService implements ITaskTracker {
    * Fail a step
    * Follows Single Responsibility Principle (SRP) - only handles step failures
    */
-  async failStep(teamId: string, platform: MarketPlatform, step: TaskStep, errorMessage: string): Promise<void> {
+  async failStep(
+    teamId: string,
+    platform: MarketPlatform,
+    step: TaskStep,
+    errorMessage: string,
+  ): Promise<void> {
     const task = await this.getTask(teamId, platform);
     if (!task) {
-      throw new Error(`Task not found for team ${teamId} and platform ${platform}`);
+      throw new Error(
+        `Task not found for team ${teamId} and platform ${platform}`,
+      );
     }
 
     task.errorCount += 1;
@@ -216,9 +266,9 @@ export class TaskTrackerService implements ITaskTracker {
       step,
       status: task.status,
       message: errorMessage,
-      messageType: 'error',
+      messageType: "error",
       metadata: { errorCount: task.errorCount, maxRetries: task.maxRetries },
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
@@ -226,7 +276,11 @@ export class TaskTrackerService implements ITaskTracker {
    * Add a message to a task
    * Follows Single Responsibility Principle (SRP) - only adds messages
    */
-  async addMessage(teamId: string, platform: MarketPlatform, message: TaskMessage): Promise<void> {
+  async addMessage(
+    teamId: string,
+    platform: MarketPlatform,
+    message: TaskMessage,
+  ): Promise<void> {
     // TODO: Store message in database via repository
     this.storeMessage(message);
   }
@@ -235,7 +289,11 @@ export class TaskTrackerService implements ITaskTracker {
    * Get messages for a task
    * Follows Single Responsibility Principle (SRP) - only retrieves messages
    */
-  async getMessages(teamId: string, platform: MarketPlatform, limit: number = 10): Promise<TaskMessage[]> {
+  async getMessages(
+    teamId: string,
+    platform: MarketPlatform,
+    limit: number = 10,
+  ): Promise<TaskMessage[]> {
     // TODO: Retrieve from database via repository
     return this.getStoredMessages(teamId, platform, limit);
   }
@@ -244,7 +302,10 @@ export class TaskTrackerService implements ITaskTracker {
    * Get task status
    * Follows Single Responsibility Principle (SRP) - only retrieves task status
    */
-  async getTaskStatus(teamId: string, platform: MarketPlatform): Promise<Task | null> {
+  async getTaskStatus(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<Task | null> {
     return this.getTask(teamId, platform);
   }
 
@@ -252,7 +313,11 @@ export class TaskTrackerService implements ITaskTracker {
    * Get recent messages
    * Follows Single Responsibility Principle (SRP) - only retrieves recent messages
    */
-  async getRecentMessages(teamId: string, platform: MarketPlatform, limit: number = 10): Promise<TaskMessage[]> {
+  async getRecentMessages(
+    teamId: string,
+    platform: MarketPlatform,
+    limit: number = 10,
+  ): Promise<TaskMessage[]> {
     return this.getMessages(teamId, platform, limit);
   }
 
@@ -263,7 +328,9 @@ export class TaskTrackerService implements ITaskTracker {
   async retryTask(teamId: string, platform: MarketPlatform): Promise<void> {
     const task = await this.getTask(teamId, platform);
     if (!task) {
-      throw new Error(`Task not found for team ${teamId} and platform ${platform}`);
+      throw new Error(
+        `Task not found for team ${teamId} and platform ${platform}`,
+      );
     }
 
     task.status = TaskStatus.PENDING;
@@ -279,9 +346,9 @@ export class TaskTrackerService implements ITaskTracker {
       taskId: task.id,
       step: task.currentStep || TaskStep.CREATING_PROFILE,
       status: TaskStatus.PENDING,
-      message: 'Task retry initiated',
-      messageType: 'info',
-      timestamp: new Date()
+      message: "Task retry initiated",
+      messageType: "info",
+      timestamp: new Date(),
     });
   }
 
@@ -329,7 +396,11 @@ export class TaskTrackerService implements ITaskTracker {
     this.messageStorage.get(key)!.push(message);
   }
 
-  private getStoredMessages(teamId: string, platform: MarketPlatform, limit: number): TaskMessage[] {
+  private getStoredMessages(
+    teamId: string,
+    platform: MarketPlatform,
+    limit: number,
+  ): TaskMessage[] {
     const task = this.getStoredTask(teamId, platform);
     if (!task) return [];
 

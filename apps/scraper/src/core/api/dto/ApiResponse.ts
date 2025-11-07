@@ -1,4 +1,4 @@
-import { MarketPlatform } from '@prisma/client';
+import { MarketPlatform } from "@prisma/client";
 
 /**
  * Base API Response DTO
@@ -65,7 +65,7 @@ export interface TaskStatusResponse extends BaseApiResponse {
  * Health Check Response DTO
  */
 export interface HealthCheckResponse extends BaseApiResponse {
-  status: 'healthy' | 'starting' | 'error';
+  status: "healthy" | "starting" | "error";
   uptime: number;
   environment: string;
   port: number;

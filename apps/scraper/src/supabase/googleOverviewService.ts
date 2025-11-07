@@ -1,5 +1,5 @@
-import { GoogleReview, Prisma } from '@prisma/client';
-import { prisma } from '@wirecrest/db';
+import { GoogleReview, Prisma } from "@prisma/client";
+import { prisma } from "@wirecrest/db";
 
 interface RatingDistribution {
   [key: string]: {
@@ -32,27 +32,25 @@ export class GoogleOverviewService {
     // No initialization needed for Prisma
   }
 
-  async processAndUpdateOverview(placeId: string, reviews: GoogleReviewWithMeta[]): Promise<void> {
+  async processAndUpdateOverview(
+    placeId: string,
+    reviews: GoogleReviewWithMeta[],
+  ): Promise<void> {
     // try {
     //   // First get the business profile ID using placeId
     //   const businessData = await prisma.googleBusinessProfile.findFirst({
     //     where: { placeId },
     //     select: { id: true }
     //   });
-
     //   if (!businessData) {
     //     throw new Error(`Business with placeId ${placeId} not found`);
     //   }
-
     //   const businessId = businessData.id;
-
     //   // Calculate average rating
     //   const averageRating = reviews.reduce((sum, review) => sum + (review.stars || 0), 0) / reviews.length;
-
     //   // Calculate response metrics
     //   const reviewsWithResponse = reviews.filter(review => review.responseFromOwnerText);
     //   const responseRate = (reviewsWithResponse.length / reviews.length) * 100;
-
     //   // Calculate average response time in minutes
     //   const responseTimes = reviewsWithResponse
     //     .map(review => {
@@ -62,15 +60,12 @@ export class GoogleOverviewService {
     //       return null;
     //     })
     //     .filter(time => time !== null) as number[];
-
     //   const averageResponseTime = responseTimes.length > 0
     //     ? Math.round(responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length)
     //     : 0;
-
     //   // Calculate rating distribution with value and percentageValue
     //   const ratingDistribution: { [key: string]: { value: number; percentageValue: number } } = {};
     //   const totalReviews = reviews.length;
-
     //   for (let i = 1; i <= 5; i++) {
     //     const count = reviews.filter(r => r.stars === i).length;
     //     ratingDistribution[i.toString()] = {
@@ -78,14 +73,12 @@ export class GoogleOverviewService {
     //       percentageValue: Number(((count / totalReviews) * 100).toFixed(1))
     //     };
     //   }
-
     //   // Calculate sentiment analysis
     //   const sentimentAnalysis = {
     //     positive: reviews.filter(r => r.reviewMetadata?.emotional === 'positive').length,
     //     neutral: reviews.filter(r => r.reviewMetadata?.emotional === 'neutral').length,
     //     negative: reviews.filter(r => r.reviewMetadata?.emotional === 'negative').length
     //   };
-
     //   // Calculate top keywords with counts
     //   const keywordCounts: { [key: string]: number } = {};
     //   reviews.forEach(review => {
@@ -93,12 +86,10 @@ export class GoogleOverviewService {
     //       keywordCounts[keyword] = (keywordCounts[keyword] || 0) + 1;
     //     });
     //   });
-
     //   const topKeywords = Object.entries(keywordCounts)
     //     .sort((a, b) => b[1] - a[1])
     //     .slice(0, 10)
     //     .map(([key, value]) => ({ key, value }));
-
     //   // Get recent reviews with all details
     //   const recentReviews = reviews
     //     .sort((a, b) => new Date(b.publishedAtDate).getTime() - new Date(a.publishedAtDate).getTime())
@@ -116,12 +107,10 @@ export class GoogleOverviewService {
     //       topics: undefined,
     //       keywords: review.reviewMetadata?.keywords
     //     }));
-
     //   // Align with current GoogleOverview schema
     //   const currentOverallRating = Number(averageRating.toFixed(2));
     //   const currentTotalReviews = totalReviews;
     //   const lastRefreshedAt = new Date();
-
     //   await prisma.googleOverview.upsert({
     //     where: { businessProfileId: businessId },
     //     create: {
@@ -136,7 +125,6 @@ export class GoogleOverviewService {
     //       lastRefreshedAt,
     //     },
     //   });
-
     // } catch (error) {
     //   console.error('Error processing Google overview:', error);
     //   throw error;
@@ -145,90 +133,113 @@ export class GoogleOverviewService {
 
   private calculateAverageRating(reviews: GoogleReview[]): number {
     if (reviews.length === 0) return 0;
-    
-    const validReviews = reviews.filter(review => 
-      (review.rating !== null && review.rating !== undefined) || 
-      (review.stars !== null && review.stars !== undefined)
+
+    const validReviews = reviews.filter(
+      (review) =>
+        (review.rating !== null && review.rating !== undefined) ||
+        (review.stars !== null && review.stars !== undefined),
     );
-    
+
     if (validReviews.length === 0) return 0;
-    
+
     const sum = validReviews.reduce((acc, review) => {
       return acc + (review.rating || review.stars || 0);
     }, 0);
-    
+
     return Number((sum / validReviews.length).toFixed(2));
   }
 
-  private calculateResponseMetrics(reviews: GoogleReview[]): { responseRate: number; averageResponseTime: number } {
-    const reviewsWithResponse = reviews.filter(review => 
-      review.responseFromOwnerText && review.responseFromOwnerText.trim() !== ''
+  private calculateResponseMetrics(reviews: GoogleReview[]): {
+    responseRate: number;
+    averageResponseTime: number;
+  } {
+    const reviewsWithResponse = reviews.filter(
+      (review) =>
+        review.responseFromOwnerText &&
+        review.responseFromOwnerText.trim() !== "",
     );
-    
-    const responseRate = reviews.length > 0 ? 
-      Number(((reviewsWithResponse.length / reviews.length) * 100).toFixed(2)) : 0;
-    
+
+    const responseRate =
+      reviews.length > 0
+        ? Number(
+            ((reviewsWithResponse.length / reviews.length) * 100).toFixed(2),
+          )
+        : 0;
+
     // Calculate average response time in hours
     const responseTimes = reviewsWithResponse
-      .map(review => {
+      .map((review) => {
         if (review.responseFromOwnerDate && review.publishedAtDate) {
-          const responseTime = new Date(review.responseFromOwnerDate).getTime() - new Date(review.publishedAtDate).getTime();
+          const responseTime =
+            new Date(review.responseFromOwnerDate).getTime() -
+            new Date(review.publishedAtDate).getTime();
           return responseTime / (1000 * 60 * 60); // Convert to hours
         }
         return null;
       })
-      .filter(time => time !== null && time >= 0) as number[];
-    
-    const averageResponseTime = responseTimes.length > 0 ?
-      Number((responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length).toFixed(2)) : 0;
-    
+      .filter((time) => time !== null && time >= 0) as number[];
+
+    const averageResponseTime =
+      responseTimes.length > 0
+        ? Number(
+            (
+              responseTimes.reduce((sum, time) => sum + time, 0) /
+              responseTimes.length
+            ).toFixed(2),
+          )
+        : 0;
+
     return { responseRate, averageResponseTime };
   }
 
-  private generateRatingDistribution(reviews: GoogleReview[]): RatingDistribution {
+  private generateRatingDistribution(
+    reviews: GoogleReview[],
+  ): RatingDistribution {
     const distribution: RatingDistribution = {};
     const totalReviews = reviews.length;
-    
+
     if (totalReviews === 0) {
       // Initialize with zeros if no reviews
       for (let i = 1; i <= 5; i++) {
         distribution[i.toString()] = {
           value: 0,
-          percentageValue: 0
+          percentageValue: 0,
         };
       }
       return distribution;
     }
-    
+
     // Calculate distribution
     for (let i = 1; i <= 5; i++) {
-      const count = reviews.filter(review => 
-        (review.rating === i) || (review.stars === i)
+      const count = reviews.filter(
+        (review) => review.rating === i || review.stars === i,
       ).length;
-      
+
       distribution[i.toString()] = {
         value: count,
-        percentageValue: Number(((count / totalReviews) * 100).toFixed(1))
+        percentageValue: Number(((count / totalReviews) * 100).toFixed(1)),
       };
     }
-    
+
     return distribution;
   }
 
-  private aggregateSentimentAnalysis(reviews: GoogleReviewWithMeta[]): SentimentAnalysis {
+  private aggregateSentimentAnalysis(
+    reviews: GoogleReviewWithMeta[],
+  ): SentimentAnalysis {
     const sentimentCounts = {
       positive: 0,
       neutral: 0,
-      negative: 0
+      negative: 0,
     };
-    
-    reviews.forEach(review => {
+
+    reviews.forEach((review) => {
       const emotional = review.reviewMetadata?.emotional;
-      if (emotional === 'positive') {
+      if (emotional === "positive") {
         sentimentCounts.positive++;
-      } else if (emotional === 'negative') {
+      } else if (emotional === "negative") {
         sentimentCounts.negative++;
-      } else if (emotional === 'neutral') {
+      } else if (emotional === "neutral") {
         sentimentCounts.neutral++;
       } else {
         // If no emotional analysis, infer from rating
@@ -242,23 +253,24 @@ export class GoogleOverviewService {
         }
       }
     });
-    
+
     return sentimentCounts;
   }
 
   private aggregateKeywords(reviews: GoogleReviewWithMeta[]): KeywordCount[] {
     const keywordCounts: { [key: string]: number } = {};
-    
-    reviews.forEach(review => {
+
+    reviews.forEach((review) => {
       const keywords = review.reviewMetadata?.keywords || [];
-      keywords.forEach(keyword => {
+      keywords.forEach((keyword) => {
         if (keyword && keyword.trim()) {
           const normalizedKeyword = keyword.toLowerCase().trim();
-          keywordCounts[normalizedKeyword] = (keywordCounts[normalizedKeyword] || 0) + 1;
+          keywordCounts[normalizedKeyword] =
+            (keywordCounts[normalizedKeyword] || 0) + 1;
         }
       });
     });
-    
+
     return Object.entries(keywordCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20) // Top 20 keywords
@@ -267,23 +279,27 @@ export class GoogleOverviewService {
 
   private getRecentReviews(reviews: GoogleReviewWithMeta[]): any[] {
     return reviews
-      .sort((a, b) => new Date(b.publishedAtDate).getTime() - new Date(a.publishedAtDate).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.publishedAtDate).getTime() -
+          new Date(a.publishedAtDate).getTime(),
+      )
       .slice(0, 10) // Get top 10 most recent
-      .map(review => ({
+      .map((review) => ({
         id: review.id,
         author: review.name,
         rating: review.rating || review.stars,
-        text: review.text || '',
+        text: review.text || "",
         publishedAtDate: review.publishedAtDate,
         responseFromOwnerText: review.responseFromOwnerText || null,
         responseFromOwnerDate: review.responseFromOwnerDate || null,
         sentiment: review.reviewMetadata?.sentiment || null,
         emotional: review.reviewMetadata?.emotional || null,
-        keywords: review.reviewMetadata?.keywords || []
+        keywords: review.reviewMetadata?.keywords || [],
       }));
   }
 
   async close(): Promise<void> {
     // Prisma client doesn't need explicit closing in this context
   }
-} 
+}

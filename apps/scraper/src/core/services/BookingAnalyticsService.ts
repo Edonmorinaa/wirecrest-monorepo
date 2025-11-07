@@ -4,14 +4,25 @@
  * Booking uses 1-10 rating scale (converted to 1-5 for histogram) with 7 sub-ratings
  */
 
-import type { IAnalyticsService, AnalyticsResult, AnalyticsData } from '../interfaces/IAnalyticsService';
-import type { IReviewRepository } from '../interfaces/IReviewRepository';
-import type { ISentimentAnalyzer } from '../interfaces/ISentimentAnalyzer';
-import { prisma } from '@wirecrest/db';
-import type { Prisma } from '@prisma/client';
-import type { PeriodCalculator, PeriodKey, PERIOD_DEFINITIONS } from './analytics/PeriodCalculator';
-import type { KeywordExtractor, KeywordFrequency } from './analytics/KeywordExtractor';
-import type { ResponseAnalyzer } from './analytics/ResponseAnalyzer';
+import type {
+  IAnalyticsService,
+  AnalyticsResult,
+  AnalyticsData,
+} from "../interfaces/IAnalyticsService";
+import type { IReviewRepository } from "../interfaces/IReviewRepository";
+import type { ISentimentAnalyzer } from "../interfaces/ISentimentAnalyzer";
+import { prisma } from "@wirecrest/db";
+import type { Prisma } from "@prisma/client";
+import type {
+  PeriodCalculator,
+  PeriodKey,
+  PERIOD_DEFINITIONS,
+} from "./analytics/PeriodCalculator";
+import type {
+  KeywordExtractor,
+  KeywordFrequency,
+} from "./analytics/KeywordExtractor";
+import type { ResponseAnalyzer } from "./analytics/ResponseAnalyzer";
 import type {
   BookingMetricsCalculator,
   RatingDistribution,
@@ -19,7 +30,7 @@ import type {
   BookingSubRatingAverages,
   GuestTypeCounts,
   StayLengthMetrics,
-} from './analytics/BookingMetricsCalculator';
+} from "./analytics/BookingMetricsCalculator";
 
 /**
  * Booking Review with metadata
@@ -77,7 +88,7 @@ interface PeriodMetrics {
 export class BookingAnalyticsService implements IAnalyticsService {
   constructor(
     private reviewRepository: IReviewRepository<BookingReviewWithMetadata>,
-    private sentimentAnalyzer?: ISentimentAnalyzer
+    private sentimentAnalyzer?: ISentimentAnalyzer,
   ) {}
 
   /**
@@ -94,10 +105,13 @@ export class BookingAnalyticsService implements IAnalyticsService {
         analyticsData: analyticsData || undefined,
       };
     } catch (error) {
-      console.error(`[Booking Analytics] Error processing reviews for ${businessProfileId}:`, error);
+      console.error(
+        `[Booking Analytics] Error processing reviews for ${businessProfileId}:`,
+        error,
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -112,19 +126,24 @@ export class BookingAnalyticsService implements IAnalyticsService {
       });
 
       if (!overview) {
-    return null;
-  }
+        return null;
+      }
 
       return {
         businessId: businessProfileId,
         totalReviews: overview.totalReviews,
         averageRating: overview.averageRating || 0,
-        sentimentScore: overview.averageRating ? (overview.averageRating / 10) * 100 : 0, // Convert 1-10 to percentage
+        sentimentScore: overview.averageRating
+          ? (overview.averageRating / 10) * 100
+          : 0, // Convert 1-10 to percentage
         lastUpdated: overview.lastUpdated,
-        platform: 'booking',
+        platform: "booking",
       };
     } catch (error) {
-      console.error(`[Booking Analytics] Error fetching analytics for ${businessProfileId}:`, error);
+      console.error(
+        `[Booking Analytics] Error fetching analytics for ${businessProfileId}:`,
+        error,
+      );
       return null;
     }
   }
@@ -132,7 +151,10 @@ export class BookingAnalyticsService implements IAnalyticsService {
   /**
    * Update analytics with new data
    */
-  async updateAnalytics(businessProfileId: string, data: AnalyticsData): Promise<void> {
+  async updateAnalytics(
+    businessProfileId: string,
+    data: AnalyticsData,
+  ): Promise<void> {
     await this.processReviewsAndUpdateDashboard(businessProfileId);
   }
 
@@ -148,8 +170,12 @@ export class BookingAnalyticsService implements IAnalyticsService {
   /**
    * Main processing method - calculates all metrics and updates database
    */
-  async processReviewsAndUpdateDashboard(businessProfileId: string): Promise<void> {
-    console.log(`[Booking Analytics] Starting review processing for businessProfileId: ${businessProfileId}`);
+  async processReviewsAndUpdateDashboard(
+    businessProfileId: string,
+  ): Promise<void> {
+    console.log(
+      `[Booking Analytics] Starting review processing for businessProfileId: ${businessProfileId}`,
+    );
 
     try {
       // Fetch all reviews with metadata using Prisma
@@ -165,42 +191,50 @@ export class BookingAnalyticsService implements IAnalyticsService {
             },
           },
         },
-        orderBy: { publishedDate: 'desc' },
+        orderBy: { publishedDate: "desc" },
       });
 
-      console.log(`[Booking Analytics] Fetched ${allReviewsData.length} reviews`);
+      console.log(
+        `[Booking Analytics] Fetched ${allReviewsData.length} reviews`,
+      );
 
       if (allReviewsData.length === 0) {
-        console.log(`[Booking Analytics] No reviews found for businessProfileId: ${businessProfileId}`);
+        console.log(
+          `[Booking Analytics] No reviews found for businessProfileId: ${businessProfileId}`,
+        );
         return;
       }
 
       // Map to our internal interface
-      const allReviews: BookingReviewWithMetadata[] = allReviewsData.map((review) => ({
-        rating: review.rating,
-        publishedAtDate: review.publishedDate,
-        stayDate: review.stayDate,
-        lengthOfStay: review.lengthOfStay,
-        roomType: review.roomType,
-        guestType: review.guestType,
-        reviewerNationality: review.reviewerNationality,
-        hasOwnerResponse: review.hasOwnerResponse,
-        responseFromOwnerDate: review.responseFromOwnerDate,
-        isVerifiedStay: review.isVerifiedStay,
-        cleanlinessRating: review.cleanlinessRating,
-        comfortRating: review.comfortRating,
-        locationRating: review.locationRating,
-        facilitiesRating: review.facilitiesRating,
-        staffRating: review.staffRating,
-        valueForMoneyRating: review.valueForMoneyRating,
-        wifiRating: review.wifiRating,
-        reviewMetadata: review.reviewMetadata ? {
-          keywords: review.reviewMetadata.keywords,
-          reply: review.reviewMetadata.reply,
-          replyDate: review.reviewMetadata.replyDate,
-          sentiment: review.reviewMetadata.sentiment,
-        } : null,
-      }));
+      const allReviews: BookingReviewWithMetadata[] = allReviewsData.map(
+        (review) => ({
+          rating: review.rating,
+          publishedAtDate: review.publishedDate,
+          stayDate: review.stayDate,
+          lengthOfStay: review.lengthOfStay,
+          roomType: review.roomType,
+          guestType: review.guestType,
+          reviewerNationality: review.reviewerNationality,
+          hasOwnerResponse: review.hasOwnerResponse,
+          responseFromOwnerDate: review.responseFromOwnerDate,
+          isVerifiedStay: review.isVerifiedStay,
+          cleanlinessRating: review.cleanlinessRating,
+          comfortRating: review.comfortRating,
+          locationRating: review.locationRating,
+          facilitiesRating: review.facilitiesRating,
+          staffRating: review.staffRating,
+          valueForMoneyRating: review.valueForMoneyRating,
+          wifiRating: review.wifiRating,
+          reviewMetadata: review.reviewMetadata
+            ? {
+                keywords: review.reviewMetadata.keywords,
+                reply: review.reviewMetadata.reply,
+                replyDate: review.reviewMetadata.replyDate,
+                sentiment: review.reviewMetadata.sentiment,
+              }
+            : null,
+        }),
+      );
 
       // Calculate all-time metrics
       const allTimeMetrics = this.calculateMetricsForPeriod(allReviews);
@@ -212,25 +246,34 @@ export class BookingAnalyticsService implements IAnalyticsService {
           businessProfileId,
           totalReviews: allTimeMetrics.totalReviews,
           averageRating: allTimeMetrics.avgRating,
-          oneStarCount: allTimeMetrics.ratingDistribution['1'] || 0,
-          twoStarCount: allTimeMetrics.ratingDistribution['2'] || 0,
-          threeStarCount: allTimeMetrics.ratingDistribution['3'] || 0,
-          fourStarCount: allTimeMetrics.ratingDistribution['4'] || 0,
-          fiveStarCount: allTimeMetrics.ratingDistribution['5'] || 0,
-          averageCleanlinessRating: allTimeMetrics.subRatingAverages.averageCleanlinessRating,
-          averageComfortRating: allTimeMetrics.subRatingAverages.averageComfortRating,
-          averageLocationRating: allTimeMetrics.subRatingAverages.averageLocationRating,
-          averageFacilitiesRating: allTimeMetrics.subRatingAverages.averageFacilitiesRating,
-          averageStaffRating: allTimeMetrics.subRatingAverages.averageStaffRating,
-          averageValueForMoneyRating: allTimeMetrics.subRatingAverages.averageValueForMoneyRating,
+          oneStarCount: allTimeMetrics.ratingDistribution["1"] || 0,
+          twoStarCount: allTimeMetrics.ratingDistribution["2"] || 0,
+          threeStarCount: allTimeMetrics.ratingDistribution["3"] || 0,
+          fourStarCount: allTimeMetrics.ratingDistribution["4"] || 0,
+          fiveStarCount: allTimeMetrics.ratingDistribution["5"] || 0,
+          averageCleanlinessRating:
+            allTimeMetrics.subRatingAverages.averageCleanlinessRating,
+          averageComfortRating:
+            allTimeMetrics.subRatingAverages.averageComfortRating,
+          averageLocationRating:
+            allTimeMetrics.subRatingAverages.averageLocationRating,
+          averageFacilitiesRating:
+            allTimeMetrics.subRatingAverages.averageFacilitiesRating,
+          averageStaffRating:
+            allTimeMetrics.subRatingAverages.averageStaffRating,
+          averageValueForMoneyRating:
+            allTimeMetrics.subRatingAverages.averageValueForMoneyRating,
           averageWifiRating: allTimeMetrics.subRatingAverages.averageWifiRating,
           soloTravelers: allTimeMetrics.guestTypeCounts.soloTravelers,
           couples: allTimeMetrics.guestTypeCounts.couples,
-          familiesWithYoungChildren: allTimeMetrics.guestTypeCounts.familiesWithYoungChildren,
-          familiesWithOlderChildren: allTimeMetrics.guestTypeCounts.familiesWithOlderChildren,
+          familiesWithYoungChildren:
+            allTimeMetrics.guestTypeCounts.familiesWithYoungChildren,
+          familiesWithOlderChildren:
+            allTimeMetrics.guestTypeCounts.familiesWithOlderChildren,
           groupsOfFriends: allTimeMetrics.guestTypeCounts.groupsOfFriends,
           businessTravelers: allTimeMetrics.guestTypeCounts.businessTravelers,
-          averageLengthOfStay: allTimeMetrics.stayLengthMetrics.averageLengthOfStay,
+          averageLengthOfStay:
+            allTimeMetrics.stayLengthMetrics.averageLengthOfStay,
           shortStays: allTimeMetrics.stayLengthMetrics.shortStays,
           mediumStays: allTimeMetrics.stayLengthMetrics.mediumStays,
           longStays: allTimeMetrics.stayLengthMetrics.longStays,
@@ -243,25 +286,34 @@ export class BookingAnalyticsService implements IAnalyticsService {
         update: {
           totalReviews: allTimeMetrics.totalReviews,
           averageRating: allTimeMetrics.avgRating,
-          oneStarCount: allTimeMetrics.ratingDistribution['1'] || 0,
-          twoStarCount: allTimeMetrics.ratingDistribution['2'] || 0,
-          threeStarCount: allTimeMetrics.ratingDistribution['3'] || 0,
-          fourStarCount: allTimeMetrics.ratingDistribution['4'] || 0,
-          fiveStarCount: allTimeMetrics.ratingDistribution['5'] || 0,
-          averageCleanlinessRating: allTimeMetrics.subRatingAverages.averageCleanlinessRating,
-          averageComfortRating: allTimeMetrics.subRatingAverages.averageComfortRating,
-          averageLocationRating: allTimeMetrics.subRatingAverages.averageLocationRating,
-          averageFacilitiesRating: allTimeMetrics.subRatingAverages.averageFacilitiesRating,
-          averageStaffRating: allTimeMetrics.subRatingAverages.averageStaffRating,
-          averageValueForMoneyRating: allTimeMetrics.subRatingAverages.averageValueForMoneyRating,
+          oneStarCount: allTimeMetrics.ratingDistribution["1"] || 0,
+          twoStarCount: allTimeMetrics.ratingDistribution["2"] || 0,
+          threeStarCount: allTimeMetrics.ratingDistribution["3"] || 0,
+          fourStarCount: allTimeMetrics.ratingDistribution["4"] || 0,
+          fiveStarCount: allTimeMetrics.ratingDistribution["5"] || 0,
+          averageCleanlinessRating:
+            allTimeMetrics.subRatingAverages.averageCleanlinessRating,
+          averageComfortRating:
+            allTimeMetrics.subRatingAverages.averageComfortRating,
+          averageLocationRating:
+            allTimeMetrics.subRatingAverages.averageLocationRating,
+          averageFacilitiesRating:
+            allTimeMetrics.subRatingAverages.averageFacilitiesRating,
+          averageStaffRating:
+            allTimeMetrics.subRatingAverages.averageStaffRating,
+          averageValueForMoneyRating:
+            allTimeMetrics.subRatingAverages.averageValueForMoneyRating,
           averageWifiRating: allTimeMetrics.subRatingAverages.averageWifiRating,
           soloTravelers: allTimeMetrics.guestTypeCounts.soloTravelers,
           couples: allTimeMetrics.guestTypeCounts.couples,
-          familiesWithYoungChildren: allTimeMetrics.guestTypeCounts.familiesWithYoungChildren,
-          familiesWithOlderChildren: allTimeMetrics.guestTypeCounts.familiesWithOlderChildren,
+          familiesWithYoungChildren:
+            allTimeMetrics.guestTypeCounts.familiesWithYoungChildren,
+          familiesWithOlderChildren:
+            allTimeMetrics.guestTypeCounts.familiesWithOlderChildren,
           groupsOfFriends: allTimeMetrics.guestTypeCounts.groupsOfFriends,
           businessTravelers: allTimeMetrics.guestTypeCounts.businessTravelers,
-          averageLengthOfStay: allTimeMetrics.stayLengthMetrics.averageLengthOfStay,
+          averageLengthOfStay:
+            allTimeMetrics.stayLengthMetrics.averageLengthOfStay,
           shortStays: allTimeMetrics.stayLengthMetrics.shortStays,
           mediumStays: allTimeMetrics.stayLengthMetrics.mediumStays,
           longStays: allTimeMetrics.stayLengthMetrics.longStays,
@@ -273,7 +325,9 @@ export class BookingAnalyticsService implements IAnalyticsService {
         },
       });
 
-      console.log(`[Booking Analytics] Updated BookingOverview for businessProfileId: ${businessProfileId}`);
+      console.log(
+        `[Booking Analytics] Updated BookingOverview for businessProfileId: ${businessProfileId}`,
+      );
 
       // Get the overview ID for linking period metrics
       const overview = await prisma.bookingOverview.findUnique({
@@ -282,21 +336,25 @@ export class BookingAnalyticsService implements IAnalyticsService {
       });
 
       if (!overview) {
-        throw new Error('Failed to create/update BookingOverview');
+        throw new Error("Failed to create/update BookingOverview");
       }
 
       // Process all periods
       const periods = PeriodCalculator.getAllPeriods();
 
       for (const periodKey of periods) {
-        const periodReviews = PeriodCalculator.filterByPeriod(allReviews, periodKey);
+        const periodReviews = PeriodCalculator.filterByPeriod(
+          allReviews,
+          periodKey,
+        );
         const periodMetrics = this.calculateMetricsForPeriod(periodReviews);
         const period = PERIOD_DEFINITIONS[periodKey];
 
         // Calculate sentiment score
         const sentimentScore =
           periodMetrics.sentimentCounts.total > 0
-            ? ((periodMetrics.sentimentCounts.positive - periodMetrics.sentimentCounts.negative) /
+            ? ((periodMetrics.sentimentCounts.positive -
+                periodMetrics.sentimentCounts.negative) /
                 periodMetrics.sentimentCounts.total) *
               100
             : 0;
@@ -314,19 +372,26 @@ export class BookingAnalyticsService implements IAnalyticsService {
             periodKey: periodKey,
             periodLabel: period.label,
             averageRating: periodMetrics.avgRating || 0,
-            oneStarCount: periodMetrics.ratingDistribution['1'] || 0,
-            twoStarCount: periodMetrics.ratingDistribution['2'] || 0,
-            threeStarCount: periodMetrics.ratingDistribution['3'] || 0,
-            fourStarCount: periodMetrics.ratingDistribution['4'] || 0,
-            fiveStarCount: periodMetrics.ratingDistribution['5'] || 0,
+            oneStarCount: periodMetrics.ratingDistribution["1"] || 0,
+            twoStarCount: periodMetrics.ratingDistribution["2"] || 0,
+            threeStarCount: periodMetrics.ratingDistribution["3"] || 0,
+            fourStarCount: periodMetrics.ratingDistribution["4"] || 0,
+            fiveStarCount: periodMetrics.ratingDistribution["5"] || 0,
             reviewCount: periodMetrics.totalReviews,
-            averageCleanlinessRating: periodMetrics.subRatingAverages.averageCleanlinessRating,
-            averageComfortRating: periodMetrics.subRatingAverages.averageComfortRating,
-            averageLocationRating: periodMetrics.subRatingAverages.averageLocationRating,
-            averageFacilitiesRating: periodMetrics.subRatingAverages.averageFacilitiesRating,
-            averageStaffRating: periodMetrics.subRatingAverages.averageStaffRating,
-            averageValueForMoneyRating: periodMetrics.subRatingAverages.averageValueForMoneyRating,
-            averageWifiRating: periodMetrics.subRatingAverages.averageWifiRating,
+            averageCleanlinessRating:
+              periodMetrics.subRatingAverages.averageCleanlinessRating,
+            averageComfortRating:
+              periodMetrics.subRatingAverages.averageComfortRating,
+            averageLocationRating:
+              periodMetrics.subRatingAverages.averageLocationRating,
+            averageFacilitiesRating:
+              periodMetrics.subRatingAverages.averageFacilitiesRating,
+            averageStaffRating:
+              periodMetrics.subRatingAverages.averageStaffRating,
+            averageValueForMoneyRating:
+              periodMetrics.subRatingAverages.averageValueForMoneyRating,
+            averageWifiRating:
+              periodMetrics.subRatingAverages.averageWifiRating,
             soloTravelers: periodMetrics.guestTypeCounts.soloTravelers,
             couples: periodMetrics.guestTypeCounts.couples,
             families:
@@ -334,9 +399,11 @@ export class BookingAnalyticsService implements IAnalyticsService {
               periodMetrics.guestTypeCounts.familiesWithOlderChildren,
             groups: periodMetrics.guestTypeCounts.groupsOfFriends,
             businessTravelers: periodMetrics.guestTypeCounts.businessTravelers,
-            averageLengthOfStay: periodMetrics.stayLengthMetrics.averageLengthOfStay,
+            averageLengthOfStay:
+              periodMetrics.stayLengthMetrics.averageLengthOfStay,
             totalNights: Math.round(
-              (periodMetrics.stayLengthMetrics.averageLengthOfStay || 0) * periodMetrics.totalReviews
+              (periodMetrics.stayLengthMetrics.averageLengthOfStay || 0) *
+                periodMetrics.totalReviews,
             ),
             responseRatePercent: periodMetrics.responseRatePercent,
             avgResponseTimeHours: periodMetrics.avgResponseTimeHours,
@@ -349,19 +416,26 @@ export class BookingAnalyticsService implements IAnalyticsService {
           update: {
             periodLabel: period.label,
             averageRating: periodMetrics.avgRating || 0,
-            oneStarCount: periodMetrics.ratingDistribution['1'] || 0,
-            twoStarCount: periodMetrics.ratingDistribution['2'] || 0,
-            threeStarCount: periodMetrics.ratingDistribution['3'] || 0,
-            fourStarCount: periodMetrics.ratingDistribution['4'] || 0,
-            fiveStarCount: periodMetrics.ratingDistribution['5'] || 0,
+            oneStarCount: periodMetrics.ratingDistribution["1"] || 0,
+            twoStarCount: periodMetrics.ratingDistribution["2"] || 0,
+            threeStarCount: periodMetrics.ratingDistribution["3"] || 0,
+            fourStarCount: periodMetrics.ratingDistribution["4"] || 0,
+            fiveStarCount: periodMetrics.ratingDistribution["5"] || 0,
             reviewCount: periodMetrics.totalReviews,
-            averageCleanlinessRating: periodMetrics.subRatingAverages.averageCleanlinessRating,
-            averageComfortRating: periodMetrics.subRatingAverages.averageComfortRating,
-            averageLocationRating: periodMetrics.subRatingAverages.averageLocationRating,
-            averageFacilitiesRating: periodMetrics.subRatingAverages.averageFacilitiesRating,
-            averageStaffRating: periodMetrics.subRatingAverages.averageStaffRating,
-            averageValueForMoneyRating: periodMetrics.subRatingAverages.averageValueForMoneyRating,
-            averageWifiRating: periodMetrics.subRatingAverages.averageWifiRating,
+            averageCleanlinessRating:
+              periodMetrics.subRatingAverages.averageCleanlinessRating,
+            averageComfortRating:
+              periodMetrics.subRatingAverages.averageComfortRating,
+            averageLocationRating:
+              periodMetrics.subRatingAverages.averageLocationRating,
+            averageFacilitiesRating:
+              periodMetrics.subRatingAverages.averageFacilitiesRating,
+            averageStaffRating:
+              periodMetrics.subRatingAverages.averageStaffRating,
+            averageValueForMoneyRating:
+              periodMetrics.subRatingAverages.averageValueForMoneyRating,
+            averageWifiRating:
+              periodMetrics.subRatingAverages.averageWifiRating,
             soloTravelers: periodMetrics.guestTypeCounts.soloTravelers,
             couples: periodMetrics.guestTypeCounts.couples,
             families:
@@ -369,9 +443,11 @@ export class BookingAnalyticsService implements IAnalyticsService {
               periodMetrics.guestTypeCounts.familiesWithOlderChildren,
             groups: periodMetrics.guestTypeCounts.groupsOfFriends,
             businessTravelers: periodMetrics.guestTypeCounts.businessTravelers,
-            averageLengthOfStay: periodMetrics.stayLengthMetrics.averageLengthOfStay,
+            averageLengthOfStay:
+              periodMetrics.stayLengthMetrics.averageLengthOfStay,
             totalNights: Math.round(
-              (periodMetrics.stayLengthMetrics.averageLengthOfStay || 0) * periodMetrics.totalReviews
+              (periodMetrics.stayLengthMetrics.averageLengthOfStay || 0) *
+                periodMetrics.totalReviews,
             ),
             responseRatePercent: periodMetrics.responseRatePercent,
             avgResponseTimeHours: periodMetrics.avgResponseTimeHours,
@@ -384,13 +460,18 @@ export class BookingAnalyticsService implements IAnalyticsService {
         });
 
         console.log(
-          `[Booking Analytics] Updated period ${period.label} with ${periodMetrics.totalReviews} reviews`
+          `[Booking Analytics] Updated period ${period.label} with ${periodMetrics.totalReviews} reviews`,
         );
       }
 
-      console.log(`[Booking Analytics] Successfully completed processing for businessProfileId: ${businessProfileId}`);
+      console.log(
+        `[Booking Analytics] Successfully completed processing for businessProfileId: ${businessProfileId}`,
+      );
     } catch (error) {
-      console.error(`[Booking Analytics] Error in processReviewsAndUpdateDashboard:`, error);
+      console.error(
+        `[Booking Analytics] Error in processReviewsAndUpdateDashboard:`,
+        error,
+      );
       throw error;
     }
   }
@@ -398,14 +479,16 @@ export class BookingAnalyticsService implements IAnalyticsService {
   /**
    * Calculate metrics for a given set of reviews
    */
-  private calculateMetricsForPeriod(reviews: BookingReviewWithMetadata[]): PeriodMetrics {
+  private calculateMetricsForPeriod(
+    reviews: BookingReviewWithMetadata[],
+  ): PeriodMetrics {
     const reviewCount = reviews.length;
 
     if (reviewCount === 0) {
       return {
         totalReviews: 0,
         avgRating: null,
-        ratingDistribution: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
+        ratingDistribution: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 },
         subRatingAverages: {
           averageCleanlinessRating: null,
           averageComfortRating: null,
@@ -440,8 +523,10 @@ export class BookingAnalyticsService implements IAnalyticsService {
 
     // Calculate rating distribution and average (1-10 scale)
     const ratings = reviews.map((r) => r.rating);
-    const ratingDistribution = BookingMetricsCalculator.buildRatingDistribution10To5Scale(ratings);
-    const avgRating = BookingMetricsCalculator.calculateAverageRating10Scale(ratings);
+    const ratingDistribution =
+      BookingMetricsCalculator.buildRatingDistribution10To5Scale(ratings);
+    const avgRating =
+      BookingMetricsCalculator.calculateAverageRating10Scale(ratings);
 
     // Calculate sub-rating averages
     const subRatingAverages = BookingMetricsCalculator.calculateSubRatings(
@@ -455,23 +540,30 @@ export class BookingAnalyticsService implements IAnalyticsService {
           valueForMoneyRating: r.valueForMoneyRating,
           wifiRating: r.wifiRating,
         },
-      }))
+      })),
     );
 
     // Calculate guest type distribution
-    const guestTypeCounts = BookingMetricsCalculator.calculateGuestTypeDistribution(reviews);
+    const guestTypeCounts =
+      BookingMetricsCalculator.calculateGuestTypeDistribution(reviews);
 
     // Calculate stay length metrics
-    const stayLengthMetrics = BookingMetricsCalculator.calculateStayLengthMetrics(reviews);
+    const stayLengthMetrics =
+      BookingMetricsCalculator.calculateStayLengthMetrics(reviews);
 
     // Get top nationalities
-    const topNationalities = BookingMetricsCalculator.getTopNationalities(reviews, 10);
+    const topNationalities = BookingMetricsCalculator.getTopNationalities(
+      reviews,
+      10,
+    );
 
     // Get most popular room types
-    const mostPopularRoomTypes = BookingMetricsCalculator.getMostPopularRoomTypes(reviews, 10);
+    const mostPopularRoomTypes =
+      BookingMetricsCalculator.getMostPopularRoomTypes(reviews, 10);
 
     // Calculate sentiment from 1-10 rating scale
-    const sentimentCounts = BookingMetricsCalculator.buildSentimentFromRatings10Scale(ratings);
+    const sentimentCounts =
+      BookingMetricsCalculator.buildSentimentFromRatings10Scale(ratings);
 
     // Extract top keywords
     const topKeywords = KeywordExtractor.extractFromReviews(
@@ -479,18 +571,19 @@ export class BookingAnalyticsService implements IAnalyticsService {
         text: null,
         reviewMetadata: r.reviewMetadata,
       })),
-      10
+      10,
     );
 
     // Calculate response metrics
-    const { responseRate, averageResponseTimeHours } = ResponseAnalyzer.calculateResponseMetrics(
-      reviews.map((r) => ({
-        publishedAtDate: r.publishedAtDate,
-        responseFromOwnerText: r.hasOwnerResponse ? 'yes' : null,
-        responseFromOwnerDate: r.responseFromOwnerDate,
-        reviewMetadata: r.reviewMetadata,
-      }))
-    );
+    const { responseRate, averageResponseTimeHours } =
+      ResponseAnalyzer.calculateResponseMetrics(
+        reviews.map((r) => ({
+          publishedAtDate: r.publishedAtDate,
+          responseFromOwnerText: r.hasOwnerResponse ? "yes" : null,
+          responseFromOwnerDate: r.responseFromOwnerDate,
+          reviewMetadata: r.reviewMetadata,
+        })),
+      );
 
     return {
       totalReviews: reviewCount,

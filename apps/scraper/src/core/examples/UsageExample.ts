@@ -1,9 +1,9 @@
 /**
  * SOLID Architecture Usage Example
- * 
+ *
  * This file demonstrates how to use the new SOLID-compliant architecture
  * for business operations, reviews, and analytics.
- * 
+ *
  * Key Benefits:
  * - Single Responsibility: Each class has one reason to change
  * - Open/Closed: Easy to extend with new platforms
@@ -12,8 +12,8 @@
  * - Dependency Inversion: Depends on abstractions, not concretions
  */
 
-import { ServiceFactory } from '../container/ServiceFactory';
-import { MarketPlatform } from '@prisma/client';
+import { ServiceFactory } from "../container/ServiceFactory";
+import { MarketPlatform } from "@prisma/client";
 
 /**
  * Example: How to use the new SOLID-compliant architecture
@@ -30,25 +30,32 @@ export class ArchitectureUsageExample {
    * Example: Create a Google business profile
    * Follows Single Responsibility Principle (SRP) - only handles Google business creation
    */
-  async createGoogleBusinessProfile(teamId: string, placeId: string): Promise<void> {
+  async createGoogleBusinessProfile(
+    teamId: string,
+    placeId: string,
+  ): Promise<void> {
     try {
       // Get the unified business service
-      const unifiedBusinessService = this.serviceFactory.getContainer().getService<any>('UnifiedBusinessService');
-      
+      const unifiedBusinessService = this.serviceFactory
+        .getContainer()
+        .getService<any>("UnifiedBusinessService");
+
       // Create business profile
       const result = await unifiedBusinessService.createBusinessProfile(
         teamId,
         MarketPlatform.GOOGLE_MAPS,
-        placeId
+        placeId,
       );
 
       if (result.success) {
         console.log(`✅ Google business profile created: ${result.businessId}`);
       } else {
-        console.error(`❌ Failed to create Google business profile: ${result.error}`);
+        console.error(
+          `❌ Failed to create Google business profile: ${result.error}`,
+        );
       }
     } catch (error) {
-      console.error('Error creating Google business profile:', error);
+      console.error("Error creating Google business profile:", error);
     }
   }
 
@@ -59,18 +66,20 @@ export class ArchitectureUsageExample {
   async getFacebookReviews(teamId: string, pageId: string): Promise<void> {
     try {
       // Get the unified business service
-      const unifiedBusinessService = this.serviceFactory.getContainer().getService<any>('UnifiedBusinessService');
-      
+      const unifiedBusinessService = this.serviceFactory
+        .getContainer()
+        .getService<any>("UnifiedBusinessService");
+
       // Get reviews (this method needs to be implemented in UnifiedBusinessService)
       const reviews = await unifiedBusinessService.getReviews(
         teamId,
         MarketPlatform.FACEBOOK,
-        pageId
+        pageId,
       );
 
       console.log(`📝 Retrieved ${reviews.length} Facebook reviews`);
     } catch (error) {
-      console.error('Error getting Facebook reviews:', error);
+      console.error("Error getting Facebook reviews:", error);
     }
   }
 
@@ -78,25 +87,32 @@ export class ArchitectureUsageExample {
    * Example: Process analytics for TripAdvisor
    * Follows Single Responsibility Principle (SRP) - only handles TripAdvisor analytics
    */
-  async processTripAdvisorAnalytics(teamId: string, locationId: string): Promise<void> {
+  async processTripAdvisorAnalytics(
+    teamId: string,
+    locationId: string,
+  ): Promise<void> {
     try {
       // Get the unified business service
-      const unifiedBusinessService = this.serviceFactory.getContainer().getService<any>('UnifiedBusinessService');
-      
+      const unifiedBusinessService = this.serviceFactory
+        .getContainer()
+        .getService<any>("UnifiedBusinessService");
+
       // Get analytics
       const result = await unifiedBusinessService.getAnalytics(
         teamId,
         MarketPlatform.TRIPADVISOR,
-        locationId
+        locationId,
       );
 
       if (result.success) {
         console.log(`📊 TripAdvisor analytics processed:`, result.data);
       } else {
-        console.error(`❌ Failed to process TripAdvisor analytics: ${result.error}`);
+        console.error(
+          `❌ Failed to process TripAdvisor analytics: ${result.error}`,
+        );
       }
     } catch (error) {
-      console.error('Error processing TripAdvisor analytics:', error);
+      console.error("Error processing TripAdvisor analytics:", error);
     }
   }
 
@@ -109,34 +125,46 @@ export class ArchitectureUsageExample {
 
     try {
       // Get Google-specific services
-      const googleBusinessService = container.getService<any>('GoogleBusinessService');
-      const googleReviewService = container.getService<any>('GoogleReviewService');
-      const googleAnalyticsService = container.getService<any>('GoogleAnalyticsService');
+      const googleBusinessService = container.getService<any>(
+        "GoogleBusinessService",
+      );
+      const googleReviewService = container.getService<any>(
+        "GoogleReviewService",
+      );
+      const googleAnalyticsService = container.getService<any>(
+        "GoogleAnalyticsService",
+      );
 
       // Use Google business service
       const businessResult = await googleBusinessService.createProfile(
-        'team-123',
+        "team-123",
         MarketPlatform.GOOGLE_MAPS,
-        'place-id-456'
+        "place-id-456",
       );
 
       if (businessResult.success) {
-        console.log('Google business profile created:', businessResult.businessId);
+        console.log(
+          "Google business profile created:",
+          businessResult.businessId,
+        );
       }
 
       // Use Google review service
-      const reviews = await googleReviewService.getReviews('business-123');
+      const reviews = await googleReviewService.getReviews("business-123");
       console.log(`Retrieved ${reviews.length} reviews`);
 
       // Use Google analytics service
-      const analyticsResult = await googleAnalyticsService.processReviews('business-123');
+      const analyticsResult =
+        await googleAnalyticsService.processReviews("business-123");
 
       if (analyticsResult.success) {
-        console.log('Google analytics processed:', analyticsResult.analyticsData);
+        console.log(
+          "Google analytics processed:",
+          analyticsResult.analyticsData,
+        );
       }
-
     } catch (error) {
-      console.error('Error using platform-specific services:', error);
+      console.error("Error using platform-specific services:", error);
     }
   }
 
@@ -201,12 +229,12 @@ export class ArchitectureUsageExample {
 export async function runArchitectureExample(): Promise<void> {
   const example = new ArchitectureUsageExample();
 
-  console.log('🚀 Running SOLID Architecture Examples...\n');
+  console.log("🚀 Running SOLID Architecture Examples...\n");
 
   // Demonstrate basic usage
-  await example.createGoogleBusinessProfile('team-123', 'place-id-456');
-  await example.getFacebookReviews('team-123', 'page-id-789');
-  await example.processTripAdvisorAnalytics('team-123', 'location-id-101');
+  await example.createGoogleBusinessProfile("team-123", "place-id-456");
+  await example.getFacebookReviews("team-123", "page-id-789");
+  await example.processTripAdvisorAnalytics("team-123", "location-id-101");
 
   // Demonstrate platform-specific services
   await example.usePlatformSpecificServices();
@@ -217,7 +245,7 @@ export async function runArchitectureExample(): Promise<void> {
   // Demonstrate SOLID principles
   await example.demonstrateSOLIDPrinciples();
 
-  console.log('\n✨ SOLID Architecture Examples Complete!');
+  console.log("\n✨ SOLID Architecture Examples Complete!");
 }
 
 // Export for use in other modules

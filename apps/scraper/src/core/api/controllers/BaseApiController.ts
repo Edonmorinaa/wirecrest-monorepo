@@ -1,7 +1,7 @@
-import type { Request, Response } from 'express';
-import type { IApiController } from '../interfaces/IApiController';
-import type { BaseApiResponse, ErrorResponse } from '../dto/ApiResponse';
-import type { MarketPlatform } from '@prisma/client';
+import type { Request, Response } from "express";
+import type { IApiController } from "../interfaces/IApiController";
+import type { BaseApiResponse, ErrorResponse } from "../dto/ApiResponse";
+import type { MarketPlatform } from "@prisma/client";
 
 /**
  * Base API Controller
@@ -19,13 +19,16 @@ export abstract class BaseApiController implements IApiController {
    * Validate required fields in request body
    * Follows Single Responsibility Principle (SRP) - only handles validation
    */
-  protected validateRequiredFields(req: Request, requiredFields: string[]): string | null {
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-    
+  protected validateRequiredFields(
+    req: Request,
+    requiredFields: string[],
+  ): string | null {
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
+
     if (missingFields.length > 0) {
-      return `Missing required fields: ${missingFields.join(', ')}`;
+      return `Missing required fields: ${missingFields.join(", ")}`;
     }
-    
+
     return null;
   }
 
@@ -36,11 +39,11 @@ export abstract class BaseApiController implements IApiController {
   protected validatePlatform(platform: string): MarketPlatform | null {
     const validPlatforms = Object.values(MarketPlatform);
     const upperPlatform = platform.toUpperCase();
-    
+
     if (validPlatforms.includes(upperPlatform as MarketPlatform)) {
       return upperPlatform as MarketPlatform;
     }
-    
+
     return null;
   }
 
@@ -49,13 +52,13 @@ export abstract class BaseApiController implements IApiController {
    * Follows Single Responsibility Principle (SRP) - only handles success responses
    */
   protected sendSuccessResponse<T extends BaseApiResponse>(
-    res: Response, 
-    statusCode: number, 
-    data: T
+    res: Response,
+    statusCode: number,
+    data: T,
   ): void {
     res.status(statusCode).json({
       ...data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -64,18 +67,18 @@ export abstract class BaseApiController implements IApiController {
    * Follows Single Responsibility Principle (SRP) - only handles error responses
    */
   protected sendErrorResponse(
-    res: Response, 
-    statusCode: number, 
-    error: string, 
-    details?: string
+    res: Response,
+    statusCode: number,
+    error: string,
+    details?: string,
   ): void {
     const errorResponse: ErrorResponse = {
       success: false,
       timestamp: new Date().toISOString(),
       error,
-      details
+      details,
     };
-    
+
     res.status(statusCode).json(errorResponse);
   }
 
@@ -83,10 +86,15 @@ export abstract class BaseApiController implements IApiController {
    * Handle service errors
    * Follows Single Responsibility Principle (SRP) - only handles service error processing
    */
-  protected handleServiceError(error: unknown, res: Response, operation: string): void {
+  protected handleServiceError(
+    error: unknown,
+    res: Response,
+    operation: string,
+  ): void {
     console.error(`Error in ${operation}:`, error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     this.sendErrorResponse(res, 500, `Failed to ${operation}`, errorMessage);
   }
 
@@ -94,10 +102,13 @@ export abstract class BaseApiController implements IApiController {
    * Extract pagination parameters
    * Follows Single Responsibility Principle (SRP) - only handles pagination extraction
    */
-  protected extractPaginationParams(req: Request): { limit: number; offset: number } {
+  protected extractPaginationParams(req: Request): {
+    limit: number;
+    offset: number;
+  } {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
-    
+
     return { limit, offset };
   }
 
@@ -107,7 +118,8 @@ export abstract class BaseApiController implements IApiController {
    */
   protected validateTeamId(teamId: string): boolean {
     // Basic UUID validation - can be enhanced
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(teamId);
   }
 }

@@ -3,9 +3,9 @@
  * Supabase has been removed. This service is deprecated.
  */
 
-import { DatabaseService } from '../supabase/database';
-import { SentimentAnalyzer } from '../sentimentAnalyzer/sentimentAnalyzer';
-import { v4 as uuidv4 } from 'uuid';
+import { DatabaseService } from "../supabase/database";
+import { SentimentAnalyzer } from "../sentimentAnalyzer/sentimentAnalyzer";
+import { v4 as uuidv4 } from "uuid";
 import {
   InstagramBusinessProfile,
   InstagramDailySnapshot,
@@ -15,10 +15,10 @@ import {
   TakeSnapshotRequest,
   HikerAPIUserResponse,
   HikerAPIMediaResponse,
-  HikerAPICommentResponse
-} from '../types/instagram';
-import { setFlagsFromString } from 'v8';
-import supabase from '../supabase/supabaseClient';
+  HikerAPICommentResponse,
+} from "../types/instagram";
+import { setFlagsFromString } from "v8";
+import supabase from "../supabase/supabaseClient";
 
 interface HikerAPIConfig {
   baseUrl: string;
@@ -36,7 +36,7 @@ interface InstagramAnalyticsData {
   dailyFollowersGrowth: number;
   weeklyFollowersGrowth: number;
   monthlyFollowersGrowth: number;
-  
+
   // Engagement metrics
   engagementRate: number;
   weeklyEngagementRate: number;
@@ -44,13 +44,13 @@ interface InstagramAnalyticsData {
   avgComments: number;
   commentsRatio: number;
   weeklyPosts: number;
-  
+
   // Ratios
   followersRatio: number;
-  
+
   // Predictions
   predictedFollowers?: number;
-  growthTrend: 'INCREASING' | 'DECREASING' | 'STABLE';
+  growthTrend: "INCREASING" | "DECREASING" | "STABLE";
 }
 
 export class EnhancedInstagramDataService {
@@ -63,14 +63,14 @@ export class EnhancedInstagramDataService {
     this.supabase = supabase;
     this.database = new DatabaseService();
     this.sentimentAnalyzer = new SentimentAnalyzer();
-    
+
     this.hikerConfig = {
-      baseUrl: 'https://api.hikerapi.com',
+      baseUrl: "https://api.hikerapi.com",
       apiKey: hikerApiKey,
       rateLimit: {
         requestsPerMinute: 60,
-        burstLimit: 10
-      }
+        burstLimit: 10,
+      },
     };
   }
 
@@ -79,78 +79,90 @@ export class EnhancedInstagramDataService {
    */
   async takeEnhancedDailySnapshot(
     businessProfileId: string,
-    options: Partial<Omit<TakeSnapshotRequest, 'businessProfileId'>> = {}
-  ): Promise<{ success: boolean; snapshotId?: string; analyticsId?: string; error?: string }> {
+    options: Partial<Omit<TakeSnapshotRequest, "businessProfileId">> = {},
+  ): Promise<{
+    success: boolean;
+    snapshotId?: string;
+    analyticsId?: string;
+    error?: string;
+  }> {
     try {
       // Get business profile
       const { data: profile } = await this.supabase
-        .from('InstagramBusinessProfile')
-        .select('*')
-        .eq('id', businessProfileId)
+        .from("InstagramBusinessProfile")
+        .select("*")
+        .eq("id", businessProfileId)
         .single();
 
       if (!profile) {
-        return { success: false, error: 'Business profile not found' };
+        return { success: false, error: "Business profile not found" };
       }
 
       // Check if snapshot already exists for today
       const today = new Date();
-      const todayDateString = today.toISOString().split('T')[0];
+      const todayDateString = today.toISOString().split("T")[0];
       const { data: existingSnapshot } = await this.supabase
-        .from('InstagramDailySnapshot')
-        .select('id')
-        .eq('businessProfileId', businessProfileId)
-        .eq('snapshotDate', todayDateString)
+        .from("InstagramDailySnapshot")
+        .select("id")
+        .eq("businessProfileId", businessProfileId)
+        .eq("snapshotDate", todayDateString)
         .single();
 
       if (existingSnapshot) {
-        return { success: false, error: 'Snapshot already exists for today' };
+        return { success: false, error: "Snapshot already exists for today" };
       }
 
       // Fetch current data from HikerAPI
       const userData = await this.fetchUserByUsername(profile.username);
       if (!userData) {
-        return { success: false, error: 'Failed to fetch Instagram data' };
+        return { success: false, error: "Failed to fetch Instagram data" };
       }
 
       let actualUserData = userData;
-      if (userData.user && typeof userData.user === 'object') {
+      if (userData.user && typeof userData.user === "object") {
         actualUserData = userData.user;
       }
 
       // Get historical snapshots for calculations
       const { data: historicalSnapshots } = await this.supabase
-        .from('InstagramDailySnapshot')
-        .select('*')
-        .eq('businessProfileId', businessProfileId)
-        .order('snapshotDate', { ascending: false })
+        .from("InstagramDailySnapshot")
+        .select("*")
+        .eq("businessProfileId", businessProfileId)
+        .order("snapshotDate", { ascending: false })
         .limit(90); // Get last 90 days for growth calculations
 
       // Get previous day snapshot
       const previousSnapshot = historicalSnapshots?.[0];
-      
+
       // Get snapshots from 7 and 30 days ago
       const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const ninetyDaysAgo = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(
+        today.getTime() - 30 * 24 * 60 * 60 * 1000,
+      );
+      const ninetyDaysAgo = new Date(
+        today.getTime() - 90 * 24 * 60 * 60 * 1000,
+      );
 
-      const weeklySnapshot = historicalSnapshots?.find(s => 
-        new Date(s.snapshotDate) <= sevenDaysAgo
+      const weeklySnapshot = historicalSnapshots?.find(
+        (s) => new Date(s.snapshotDate) <= sevenDaysAgo,
       );
-      const monthlySnapshot = historicalSnapshots?.find(s => 
-        new Date(s.snapshotDate) <= thirtyDaysAgo
+      const monthlySnapshot = historicalSnapshots?.find(
+        (s) => new Date(s.snapshotDate) <= thirtyDaysAgo,
       );
-      const ninetyDaySnapshot = historicalSnapshots?.find(s => 
-        new Date(s.snapshotDate) <= ninetyDaysAgo
+      const ninetyDaySnapshot = historicalSnapshots?.find(
+        (s) => new Date(s.snapshotDate) <= ninetyDaysAgo,
       );
 
       // Fetch recent media for engagement calculations
-      const userMedia = await this.fetchUserMedia(profile.username, options.maxMedia || 20);
-      
+      const userMedia = await this.fetchUserMedia(
+        profile.username,
+        options.maxMedia || 20,
+      );
+
       // Calculate daily engagement metrics
       const oneDayAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
       const twoDaysAgo = new Date(today.getTime() - 48 * 60 * 60 * 1000);
-      
+
       let dailyLikes = 0;
       let dailyComments = 0;
       let dailyViews = 0;
@@ -162,53 +174,59 @@ export class EnhancedInstagramDataService {
 
       for (const media of userMedia) {
         const mediaDate = new Date(media.taken_at * 1000);
-        
+
         if (mediaDate >= twoDaysAgo) {
           dailyLikes += media.like_count || 0;
           dailyComments += media.comment_count || 0;
           dailyViews += media.play_count || 0;
           dailySaves += media.saved_count || 0;
           dailyShares += media.share_count || 0;
-          
+
           if (mediaDate >= oneDayAgo) {
-            if (media.media_type === 1) newPosts++; // Photo
-            else if (media.media_type === 2) newPosts++; // Video
-            else if (media.media_type === 8) newPosts++; // Carousel
+            if (media.media_type === 1)
+              newPosts++; // Photo
+            else if (media.media_type === 2)
+              newPosts++; // Video
+            else if (media.media_type === 8)
+              newPosts++; // Carousel
             else if (media.media_type === 2 && media.is_reel) newReels++; // Reel
           }
         }
       }
 
       // Calculate growth metrics
-      const followersGrowth = previousSnapshot 
-        ? actualUserData.follower_count - previousSnapshot.followersCount 
+      const followersGrowth = previousSnapshot
+        ? actualUserData.follower_count - previousSnapshot.followersCount
         : 0;
-      const followingGrowth = previousSnapshot 
-        ? actualUserData.following_count - previousSnapshot.followingCount 
+      const followingGrowth = previousSnapshot
+        ? actualUserData.following_count - previousSnapshot.followingCount
         : 0;
-      const mediaGrowth = previousSnapshot 
-        ? actualUserData.media_count - previousSnapshot.mediaCount 
+      const mediaGrowth = previousSnapshot
+        ? actualUserData.media_count - previousSnapshot.mediaCount
         : 0;
 
-      const weeklyFollowersGrowth = weeklySnapshot 
-        ? actualUserData.follower_count - weeklySnapshot.followersCount 
+      const weeklyFollowersGrowth = weeklySnapshot
+        ? actualUserData.follower_count - weeklySnapshot.followersCount
         : 0;
-      const monthlyFollowersGrowth = monthlySnapshot 
-        ? actualUserData.follower_count - monthlySnapshot.followersCount 
+      const monthlyFollowersGrowth = monthlySnapshot
+        ? actualUserData.follower_count - monthlySnapshot.followersCount
         : 0;
 
       // Calculate engagement rate
-      const engagementRate = actualUserData.follower_count > 0 
-        ? ((dailyLikes + dailyComments + dailySaves + dailyShares) / actualUserData.follower_count) * 100 
-        : 0;
+      const engagementRate =
+        actualUserData.follower_count > 0
+          ? ((dailyLikes + dailyComments + dailySaves + dailyShares) /
+              actualUserData.follower_count) *
+            100
+          : 0;
 
       // Calculate ratios
-      const followersRatio = actualUserData.following_count > 0 
-        ? actualUserData.follower_count / actualUserData.following_count 
-        : 0;
-      const commentsRatio = dailyLikes > 0 
-        ? (dailyComments / dailyLikes) * 100 
-        : 0;
+      const followersRatio =
+        actualUserData.following_count > 0
+          ? actualUserData.follower_count / actualUserData.following_count
+          : 0;
+      const commentsRatio =
+        dailyLikes > 0 ? (dailyComments / dailyLikes) * 100 : 0;
 
       // Calculate averages
       const avgLikesPerPost = newPosts > 0 ? dailyLikes / newPosts : 0;
@@ -219,40 +237,40 @@ export class EnhancedInstagramDataService {
         businessProfileId,
         snapshotDate: today,
         snapshotTime: today,
-        snapshotType: options.snapshotType || 'DAILY',
-        
+        snapshotType: options.snapshotType || "DAILY",
+
         // Core metrics
         followersCount: actualUserData.follower_count,
         followingCount: actualUserData.following_count,
         mediaCount: actualUserData.media_count,
-        
+
         // Daily engagement metrics
         totalLikes: dailyLikes,
         totalComments: dailyComments,
         totalViews: dailyViews,
         totalSaves: dailySaves,
         totalShares: dailyShares,
-        
+
         // Content metrics
         newPosts,
         newStories,
         newReels,
         storyViews: 0, // Would need separate API call
         storyReplies: 0, // Would need separate API call
-        
+
         // Calculated metrics (derived, not stored on snapshot model)
-        
+
         // Growth metrics (derived, not stored on snapshot model)
-        
-        hasErrors: false
+
+        hasErrors: false,
       };
 
       // Insert snapshot
       snapshotData.id = uuidv4();
       const { data: snapshot, error: snapshotError } = await this.supabase
-        .from('InstagramDailySnapshot')
+        .from("InstagramDailySnapshot")
         .insert(snapshotData)
-        .select('id')
+        .select("id")
         .single();
 
       if (snapshotError) throw snapshotError;
@@ -262,53 +280,58 @@ export class EnhancedInstagramDataService {
         businessProfileId,
         actualUserData,
         historicalSnapshots || [],
-        today
+        today,
       );
 
       // Create analytics record
-      type InstagramAnalyticsRow = InstagramAnalyticsData & { id: string; businessProfileId: string; date: Date; period: string; calculatedAt: Date };
+      type InstagramAnalyticsRow = InstagramAnalyticsData & {
+        id: string;
+        businessProfileId: string;
+        date: Date;
+        period: string;
+        calculatedAt: Date;
+      };
       const analyticsRecord: Partial<InstagramAnalyticsRow> = {
         businessProfileId,
         date: today,
-        period: 'DAILY',
+        period: "DAILY",
         ...analyticsData,
-        calculatedAt: today
+        calculatedAt: today,
       };
 
       analyticsRecord.id = uuidv4();
       const { data: analytics, error: analyticsError } = await this.supabase
-        .from('InstagramAnalytics')
-        .upsert(analyticsRecord, { 
-          onConflict: 'businessProfileId,date,period' 
+        .from("InstagramAnalytics")
+        .upsert(analyticsRecord, {
+          onConflict: "businessProfileId,date,period",
         })
-        .select('id')
+        .select("id")
         .single();
 
       if (analyticsError) {
-        console.warn('Analytics calculation failed:', analyticsError);
+        console.warn("Analytics calculation failed:", analyticsError);
       }
 
       // Update business profile
       await this.supabase
-        .from('InstagramBusinessProfile')
+        .from("InstagramBusinessProfile")
         .update({
           currentFollowersCount: actualUserData.follower_count,
           currentFollowingCount: actualUserData.following_count,
           currentMediaCount: actualUserData.media_count,
           lastSnapshotAt: today.toISOString(),
           totalSnapshots: (profile.totalSnapshots || 0) + 1,
-          updatedAt: today.toISOString()
+          updatedAt: today.toISOString(),
         })
-        .eq('id', businessProfileId);
+        .eq("id", businessProfileId);
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         snapshotId: snapshot.id,
-        analyticsId: analytics?.id
+        analyticsId: analytics?.id,
       };
-
     } catch (error) {
-      console.error('Error taking enhanced daily snapshot:', error);
+      console.error("Error taking enhanced daily snapshot:", error);
       return { success: false, error: error.message };
     }
   }
@@ -320,26 +343,34 @@ export class EnhancedInstagramDataService {
     businessProfileId: string,
     currentData: any,
     historicalSnapshots: InstagramDailySnapshot[],
-    currentDate: Date
+    currentDate: Date,
   ): Promise<InstagramAnalyticsData> {
-    const ninetyDaysAgo = new Date(currentDate.getTime() - 90 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgo = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(
+      currentDate.getTime() - 90 * 24 * 60 * 60 * 1000,
+    );
+    const sevenDaysAgo = new Date(
+      currentDate.getTime() - 7 * 24 * 60 * 60 * 1000,
+    );
+    const thirtyDaysAgo = new Date(
+      currentDate.getTime() - 30 * 24 * 60 * 60 * 1000,
+    );
 
     // Find snapshots for different periods
-    const ninetyDaySnapshot = historicalSnapshots.find(s => 
-      new Date(s.snapshotDate) <= ninetyDaysAgo
+    const ninetyDaySnapshot = historicalSnapshots.find(
+      (s) => new Date(s.snapshotDate) <= ninetyDaysAgo,
     );
-    const weeklySnapshots = historicalSnapshots.filter(s => 
-      new Date(s.snapshotDate) >= sevenDaysAgo
+    const weeklySnapshots = historicalSnapshots.filter(
+      (s) => new Date(s.snapshotDate) >= sevenDaysAgo,
     );
-    const monthlySnapshots = historicalSnapshots.filter(s => 
-      new Date(s.snapshotDate) >= thirtyDaysAgo
+    const monthlySnapshots = historicalSnapshots.filter(
+      (s) => new Date(s.snapshotDate) >= thirtyDaysAgo,
     );
 
     // Calculate 90-day growth rate
-    const followersGrowthRate90d = ninetyDaySnapshot 
-      ? ((currentData.follower_count - ninetyDaySnapshot.followersCount) / ninetyDaySnapshot.followersCount) * 100
+    const followersGrowthRate90d = ninetyDaySnapshot
+      ? ((currentData.follower_count - ninetyDaySnapshot.followersCount) /
+          ninetyDaySnapshot.followersCount) *
+        100
       : 0;
 
     // Calculate steady growth rate (consistency of growth)
@@ -347,85 +378,123 @@ export class EnhancedInstagramDataService {
     for (let i = 1; i < historicalSnapshots.length; i++) {
       const current = historicalSnapshots[i - 1];
       const previous = historicalSnapshots[i];
-      const growthRate = previous.followersCount > 0 
-        ? ((current.followersCount - previous.followersCount) / previous.followersCount) * 100
-        : 0;
+      const growthRate =
+        previous.followersCount > 0
+          ? ((current.followersCount - previous.followersCount) /
+              previous.followersCount) *
+            100
+          : 0;
       growthRates.push(growthRate);
     }
 
     // Calculate steady growth rate (consistency)
-    const avgGrowthRate = growthRates.length > 0 
-      ? growthRates.reduce((sum, rate) => sum + rate, 0) / growthRates.length 
-      : 0;
-    const growthVariance = growthRates.length > 0 
-      ? growthRates.reduce((sum, rate) => sum + Math.pow(rate - avgGrowthRate, 2), 0) / growthRates.length 
-      : 0;
-    const steadyGrowthRate = Math.max(0, 100 - (Math.sqrt(growthVariance) * 10));
+    const avgGrowthRate =
+      growthRates.length > 0
+        ? growthRates.reduce((sum, rate) => sum + rate, 0) / growthRates.length
+        : 0;
+    const growthVariance =
+      growthRates.length > 0
+        ? growthRates.reduce(
+            (sum, rate) => sum + Math.pow(rate - avgGrowthRate, 2),
+            0,
+          ) / growthRates.length
+        : 0;
+    const steadyGrowthRate = Math.max(0, 100 - Math.sqrt(growthVariance) * 10);
 
     // Calculate daily, weekly, monthly growth
-    const dailyFollowersGrowth = historicalSnapshots.length > 0 
-      ? currentData.follower_count - historicalSnapshots[0].followersCount 
-      : 0;
-    const weeklyFollowersGrowth = weeklySnapshots.length > 0 
-      ? currentData.follower_count - weeklySnapshots[weeklySnapshots.length - 1].followersCount 
-      : 0;
-    const monthlyFollowersGrowth = monthlySnapshots.length > 0 
-      ? currentData.follower_count - monthlySnapshots[monthlySnapshots.length - 1].followersCount 
-      : 0;
+    const dailyFollowersGrowth =
+      historicalSnapshots.length > 0
+        ? currentData.follower_count - historicalSnapshots[0].followersCount
+        : 0;
+    const weeklyFollowersGrowth =
+      weeklySnapshots.length > 0
+        ? currentData.follower_count -
+          weeklySnapshots[weeklySnapshots.length - 1].followersCount
+        : 0;
+    const monthlyFollowersGrowth =
+      monthlySnapshots.length > 0
+        ? currentData.follower_count -
+          monthlySnapshots[monthlySnapshots.length - 1].followersCount
+        : 0;
 
     // Calculate engagement metrics
     const recentSnapshots = historicalSnapshots.slice(0, 7); // Last 7 days
-      const avgEngagementRate = recentSnapshots.length > 0 
-      ? recentSnapshots.reduce((sum, s) => {
-          const engagement = (s.totalLikes + s.totalComments + s.totalSaves + s.totalShares);
-          const followers = Math.max(1, s.followersCount);
-          return sum + (engagement / followers) * 100;
-        }, 0) / recentSnapshots.length 
-      : 0;
-    
+    const avgEngagementRate =
+      recentSnapshots.length > 0
+        ? recentSnapshots.reduce((sum, s) => {
+            const engagement =
+              s.totalLikes + s.totalComments + s.totalSaves + s.totalShares;
+            const followers = Math.max(1, s.followersCount);
+            return sum + (engagement / followers) * 100;
+          }, 0) / recentSnapshots.length
+        : 0;
+
     const weeklyEngagementRate = recentSnapshots.reduce((sum, s) => {
-      const engagement = (s.totalLikes + s.totalComments + s.totalSaves + s.totalShares);
+      const engagement =
+        s.totalLikes + s.totalComments + s.totalSaves + s.totalShares;
       const followers = Math.max(1, s.followersCount);
       return sum + (engagement / followers) * 100;
     }, 0);
-    
-    const avgLikes = recentSnapshots.length > 0 
-      ? recentSnapshots.reduce((sum, s) => sum + (s.newPosts > 0 ? s.totalLikes / s.newPosts : 0), 0) / recentSnapshots.length 
-      : 0;
-    
-    const avgComments = recentSnapshots.length > 0 
-      ? recentSnapshots.reduce((sum, s) => sum + (s.newPosts > 0 ? s.totalComments / s.newPosts : 0), 0) / recentSnapshots.length 
-      : 0;
-    
-    const commentsRatio = recentSnapshots.length > 0 
-      ? recentSnapshots.reduce((sum, s) => sum + (s.totalLikes > 0 ? (s.totalComments / s.totalLikes) * 100 : 0), 0) / recentSnapshots.length 
-      : 0;
-    
-    const weeklyPosts = recentSnapshots.reduce((sum, s) => sum + (s.newPosts || 0), 0);
+
+    const avgLikes =
+      recentSnapshots.length > 0
+        ? recentSnapshots.reduce(
+            (sum, s) => sum + (s.newPosts > 0 ? s.totalLikes / s.newPosts : 0),
+            0,
+          ) / recentSnapshots.length
+        : 0;
+
+    const avgComments =
+      recentSnapshots.length > 0
+        ? recentSnapshots.reduce(
+            (sum, s) =>
+              sum + (s.newPosts > 0 ? s.totalComments / s.newPosts : 0),
+            0,
+          ) / recentSnapshots.length
+        : 0;
+
+    const commentsRatio =
+      recentSnapshots.length > 0
+        ? recentSnapshots.reduce(
+            (sum, s) =>
+              sum +
+              (s.totalLikes > 0 ? (s.totalComments / s.totalLikes) * 100 : 0),
+            0,
+          ) / recentSnapshots.length
+        : 0;
+
+    const weeklyPosts = recentSnapshots.reduce(
+      (sum, s) => sum + (s.newPosts || 0),
+      0,
+    );
 
     // Calculate followers ratio
-    const followersRatio = currentData.following_count > 0 
-      ? currentData.follower_count / currentData.following_count 
-      : 0;
+    const followersRatio =
+      currentData.following_count > 0
+        ? currentData.follower_count / currentData.following_count
+        : 0;
 
     // Predict future followers (simple linear regression)
     let predictedFollowers: number | undefined;
     if (historicalSnapshots.length >= 7) {
       const recentGrowth = historicalSnapshots.slice(0, 7);
-      const totalGrowth = recentGrowth[0].followersCount - recentGrowth[6].followersCount;
+      const totalGrowth =
+        recentGrowth[0].followersCount - recentGrowth[6].followersCount;
       const avgDailyGrowth = totalGrowth / 7;
-      predictedFollowers = currentData.follower_count + (avgDailyGrowth * 30); // 30-day prediction
+      predictedFollowers = currentData.follower_count + avgDailyGrowth * 30; // 30-day prediction
     }
 
     // Determine growth trend
-    let growthTrend: 'INCREASING' | 'DECREASING' | 'STABLE' = 'STABLE';
+    let growthTrend: "INCREASING" | "DECREASING" | "STABLE" = "STABLE";
     if (historicalSnapshots.length >= 3) {
       const recentGrowth = historicalSnapshots.slice(0, 3);
-      const growth1 = recentGrowth[0].followersCount - recentGrowth[1].followersCount;
-      const growth2 = recentGrowth[1].followersCount - recentGrowth[2].followersCount;
-      
-      if (growth1 > growth2 * 1.1) growthTrend = 'INCREASING';
-      else if (growth1 < growth2 * 0.9) growthTrend = 'DECREASING';
+      const growth1 =
+        recentGrowth[0].followersCount - recentGrowth[1].followersCount;
+      const growth2 =
+        recentGrowth[1].followersCount - recentGrowth[2].followersCount;
+
+      if (growth1 > growth2 * 1.1) growthTrend = "INCREASING";
+      else if (growth1 < growth2 * 0.9) growthTrend = "DECREASING";
     }
 
     return {
@@ -442,7 +511,7 @@ export class EnhancedInstagramDataService {
       weeklyPosts,
       followersRatio,
       predictedFollowers,
-      growthTrend
+      growthTrend,
     };
   }
 
@@ -452,7 +521,7 @@ export class EnhancedInstagramDataService {
   async getAnalyticsData(
     businessProfileId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<{
     success: boolean;
     data?: {
@@ -467,148 +536,210 @@ export class EnhancedInstagramDataService {
     try {
       // Get snapshots for the date range
       const { data: snapshots } = await this.supabase
-        .from('InstagramDailySnapshot')
-        .select('*')
-        .eq('businessProfileId', businessProfileId)
-        .gte('snapshotDate', startDate.toISOString())
-        .lte('snapshotDate', endDate.toISOString())
-        .order('snapshotDate', { ascending: true });
+        .from("InstagramDailySnapshot")
+        .select("*")
+        .eq("businessProfileId", businessProfileId)
+        .gte("snapshotDate", startDate.toISOString())
+        .lte("snapshotDate", endDate.toISOString())
+        .order("snapshotDate", { ascending: true });
 
       if (!snapshots || snapshots.length === 0) {
-        return { success: false, error: 'No data found for the specified date range' };
+        return {
+          success: false,
+          error: "No data found for the specified date range",
+        };
       }
 
       // Get analytics data
       const { data: analytics } = await this.supabase
-        .from('InstagramAnalytics')
-        .select('*')
-        .eq('businessProfileId', businessProfileId)
-        .gte('date', startDate.toISOString())
-        .lte('date', endDate.toISOString())
-        .order('date', { ascending: true });
+        .from("InstagramAnalytics")
+        .select("*")
+        .eq("businessProfileId", businessProfileId)
+        .gte("date", startDate.toISOString())
+        .lte("date", endDate.toISOString())
+        .order("date", { ascending: true });
 
       const latestSnapshot = snapshots[snapshots.length - 1];
       const firstSnapshot = snapshots[0];
 
       // Calculate general metrics
       const general = {
-        profilePicture: '', // Would need to fetch from profile
-        bio: '', // Would need to fetch from profile
+        profilePicture: "", // Would need to fetch from profile
+        bio: "", // Would need to fetch from profile
         followers: {
           count: latestSnapshot.followersCount,
-          delta: latestSnapshot.followersCount - firstSnapshot.followersCount
+          delta: latestSnapshot.followersCount - firstSnapshot.followersCount,
         },
         following: {
           count: latestSnapshot.followingCount,
-          delta: latestSnapshot.followingCount - firstSnapshot.followingCount
+          delta: latestSnapshot.followingCount - firstSnapshot.followingCount,
         },
         posts: {
           count: latestSnapshot.mediaCount,
-          delta: latestSnapshot.mediaCount - firstSnapshot.mediaCount
-        }
+          delta: latestSnapshot.mediaCount - firstSnapshot.mediaCount,
+        },
       };
 
       // Calculate overview metrics
       const overview = {
-        followersGrowthRate90d: analytics?.[analytics.length - 1]?.followersGrowthRate90d || 0,
-        weeklyFollowers: snapshots.reduce((sum, s) => sum + (s.weeklyFollowersGrowth || 0), 0),
-        engagementRate: latestSnapshot.followersCount > 0 ? ((latestSnapshot.totalLikes + latestSnapshot.totalComments + latestSnapshot.totalSaves + latestSnapshot.totalShares) / latestSnapshot.followersCount) * 100 : 0,
-        avgLikes: latestSnapshot.newPosts > 0 ? latestSnapshot.totalLikes / latestSnapshot.newPosts : 0,
-        avgComments: latestSnapshot.newPosts > 0 ? latestSnapshot.totalComments / latestSnapshot.newPosts : 0,
+        followersGrowthRate90d:
+          analytics?.[analytics.length - 1]?.followersGrowthRate90d || 0,
+        weeklyFollowers: snapshots.reduce(
+          (sum, s) => sum + (s.weeklyFollowersGrowth || 0),
+          0,
+        ),
+        engagementRate:
+          latestSnapshot.followersCount > 0
+            ? ((latestSnapshot.totalLikes +
+                latestSnapshot.totalComments +
+                latestSnapshot.totalSaves +
+                latestSnapshot.totalShares) /
+                latestSnapshot.followersCount) *
+              100
+            : 0,
+        avgLikes:
+          latestSnapshot.newPosts > 0
+            ? latestSnapshot.totalLikes / latestSnapshot.newPosts
+            : 0,
+        avgComments:
+          latestSnapshot.newPosts > 0
+            ? latestSnapshot.totalComments / latestSnapshot.newPosts
+            : 0,
         weeklyPosts: snapshots.reduce((sum, s) => sum + (s.newPosts || 0), 0),
-        followersRatio: latestSnapshot.followingCount > 0 ? latestSnapshot.followersCount / latestSnapshot.followingCount : 0,
-        commentsRatio: latestSnapshot.totalLikes > 0 ? (latestSnapshot.totalComments / latestSnapshot.totalLikes) * 100 : 0,
-        followersChart: snapshots.map(s => ({
+        followersRatio:
+          latestSnapshot.followingCount > 0
+            ? latestSnapshot.followersCount / latestSnapshot.followingCount
+            : 0,
+        commentsRatio:
+          latestSnapshot.totalLikes > 0
+            ? (latestSnapshot.totalComments / latestSnapshot.totalLikes) * 100
+            : 0,
+        followersChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followersCount
+          value: s.followersCount,
         })),
-        followingChart: snapshots.map(s => ({
+        followingChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followingCount
+          value: s.followingCount,
         })),
-        engagementRateChart: snapshots.map(s => ({
+        engagementRateChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.engagementRate || 0
+          value: s.engagementRate || 0,
         })),
-        avgLikesChart: snapshots.map(s => ({
+        avgLikesChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.avgLikesPerPost || 0
-        }))
+          value: s.avgLikesPerPost || 0,
+        })),
       };
 
       // Calculate growth metrics
       const growth = {
-        followersGrowthRate90d: analytics?.[analytics.length - 1]?.followersGrowthRate90d || 0,
-        steadyGrowthRate: analytics?.[analytics.length - 1]?.steadyGrowthRate || 0,
-        dailyFollowers: snapshots.map(s => ({
+        followersGrowthRate90d:
+          analytics?.[analytics.length - 1]?.followersGrowthRate90d || 0,
+        steadyGrowthRate:
+          analytics?.[analytics.length - 1]?.steadyGrowthRate || 0,
+        dailyFollowers: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followersGrowth || 0
+          value: s.followersGrowth || 0,
         })),
-        weeklyFollowers: snapshots.map(s => ({
+        weeklyFollowers: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.weeklyFollowersGrowth || 0
+          value: s.weeklyFollowersGrowth || 0,
         })),
-        monthlyFollowers: snapshots.map(s => ({
+        monthlyFollowers: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.monthlyFollowersGrowth || 0
+          value: s.monthlyFollowersGrowth || 0,
         })),
-        followersChart: snapshots.map(s => ({
+        followersChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followersCount
+          value: s.followersCount,
         })),
-        followingChart: snapshots.map(s => ({
+        followingChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followingCount
+          value: s.followingCount,
         })),
-        newDailyFollowersChart: snapshots.map(s => ({
+        newDailyFollowersChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followersGrowth || 0
+          value: s.followersGrowth || 0,
         })),
-        predictedFollowersChart: snapshots.map(s => ({
+        predictedFollowersChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followersCount + (s.followersGrowth || 0) * 30 // Simple prediction
-        }))
+          value: s.followersCount + (s.followersGrowth || 0) * 30, // Simple prediction
+        })),
       };
 
-      const weeklyEngagementRate =
-  snapshots.reduce((sum, s) => {
-    const engagement = (s.totalLikes + s.totalComments + s.totalSaves + s.totalShares);
-    const followers = Math.max(1, s.followersCount);
-    return sum + (engagement / followers) * 100;
-  }, 0);
+      const weeklyEngagementRate = snapshots.reduce((sum, s) => {
+        const engagement =
+          s.totalLikes + s.totalComments + s.totalSaves + s.totalShares;
+        const followers = Math.max(1, s.followersCount);
+        return sum + (engagement / followers) * 100;
+      }, 0);
 
       // Calculate engagement metrics
       const engagement = {
-        engagementRate: latestSnapshot.followersCount > 0 ? ((latestSnapshot.totalLikes + latestSnapshot.totalComments + latestSnapshot.totalSaves + latestSnapshot.totalShares) / latestSnapshot.followersCount) * 100 : 0,
-        avgLikes: latestSnapshot.newPosts > 0 ? latestSnapshot.totalLikes / latestSnapshot.newPosts : 0,
+        engagementRate:
+          latestSnapshot.followersCount > 0
+            ? ((latestSnapshot.totalLikes +
+                latestSnapshot.totalComments +
+                latestSnapshot.totalSaves +
+                latestSnapshot.totalShares) /
+                latestSnapshot.followersCount) *
+              100
+            : 0,
+        avgLikes:
+          latestSnapshot.newPosts > 0
+            ? latestSnapshot.totalLikes / latestSnapshot.newPosts
+            : 0,
         weeklyEngagementRate: weeklyEngagementRate,
         weeklyPosts: snapshots.reduce((sum, s) => sum + (s.newPosts || 0), 0),
-        avgComments: latestSnapshot.newPosts > 0 ? latestSnapshot.totalComments / latestSnapshot.newPosts : 0,
-        commentsRatio: latestSnapshot.totalLikes > 0 ? (latestSnapshot.totalComments / latestSnapshot.totalLikes) * 100 : 0,
-        engagementRateChart: snapshots.map(s => ({
+        avgComments:
+          latestSnapshot.newPosts > 0
+            ? latestSnapshot.totalComments / latestSnapshot.newPosts
+            : 0,
+        commentsRatio:
+          latestSnapshot.totalLikes > 0
+            ? (latestSnapshot.totalComments / latestSnapshot.totalLikes) * 100
+            : 0,
+        engagementRateChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followersCount > 0 ? ((s.totalLikes + s.totalComments + s.totalSaves + s.totalShares) / s.followersCount) * 100 : 0
+          value:
+            s.followersCount > 0
+              ? ((s.totalLikes +
+                  s.totalComments +
+                  s.totalSaves +
+                  s.totalShares) /
+                  s.followersCount) *
+                100
+              : 0,
         })),
-        avgLikesChart: snapshots.map(s => ({
+        avgLikesChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.newPosts > 0 ? s.totalLikes / s.newPosts : 0
+          value: s.newPosts > 0 ? s.totalLikes / s.newPosts : 0,
         })),
-        weeklyEngagementRateChart: snapshots.map(s => ({
+        weeklyEngagementRateChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.followersCount > 0 ? ((s.totalLikes + s.totalComments + s.totalSaves + s.totalShares) / s.followersCount) * 100 : 0
+          value:
+            s.followersCount > 0
+              ? ((s.totalLikes +
+                  s.totalComments +
+                  s.totalSaves +
+                  s.totalShares) /
+                  s.followersCount) *
+                100
+              : 0,
         })),
-        weeklyPostsChart: snapshots.map(s => ({
+        weeklyPostsChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.newPosts || 0
+          value: s.newPosts || 0,
         })),
-        avgCommentsChart: snapshots.map(s => ({
+        avgCommentsChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.newPosts > 0 ? s.totalComments / s.newPosts : 0
+          value: s.newPosts > 0 ? s.totalComments / s.newPosts : 0,
         })),
-        commentsRatioChart: snapshots.map(s => ({
+        commentsRatioChart: snapshots.map((s) => ({
           date: s.snapshotDate,
-          value: s.totalLikes > 0 ? (s.totalComments / s.totalLikes) * 100 : 0
-        }))
+          value: s.totalLikes > 0 ? (s.totalComments / s.totalLikes) * 100 : 0,
+        })),
       };
 
       // Calculate history table
@@ -617,15 +748,41 @@ export class EnhancedInstagramDataService {
         return {
           date: snapshot.snapshotDate,
           followersCount: snapshot.followersCount,
-          followersDelta: previousSnapshot ? snapshot.followersCount - previousSnapshot.followersCount : 0,
+          followersDelta: previousSnapshot
+            ? snapshot.followersCount - previousSnapshot.followersCount
+            : 0,
           followingCount: snapshot.followingCount,
           mediaCount: snapshot.mediaCount,
-          mediaDelta: previousSnapshot ? snapshot.mediaCount - previousSnapshot.mediaCount : 0,
-          engagementRate: snapshot.followersCount > 0 ? ((snapshot.totalLikes + snapshot.totalComments + snapshot.totalSaves + snapshot.totalShares) / snapshot.followersCount) * 100 : 0,
-          engagementDelta: previousSnapshot ? (
-            (snapshot.followersCount > 0 ? ((snapshot.totalLikes + snapshot.totalComments + snapshot.totalSaves + snapshot.totalShares) / snapshot.followersCount) * 100 : 0) -
-            (previousSnapshot.followersCount > 0 ? ((previousSnapshot.totalLikes + previousSnapshot.totalComments + previousSnapshot.totalSaves + previousSnapshot.totalShares) / previousSnapshot.followersCount) * 100 : 0)
-          ) : 0
+          mediaDelta: previousSnapshot
+            ? snapshot.mediaCount - previousSnapshot.mediaCount
+            : 0,
+          engagementRate:
+            snapshot.followersCount > 0
+              ? ((snapshot.totalLikes +
+                  snapshot.totalComments +
+                  snapshot.totalSaves +
+                  snapshot.totalShares) /
+                  snapshot.followersCount) *
+                100
+              : 0,
+          engagementDelta: previousSnapshot
+            ? (snapshot.followersCount > 0
+                ? ((snapshot.totalLikes +
+                    snapshot.totalComments +
+                    snapshot.totalSaves +
+                    snapshot.totalShares) /
+                    snapshot.followersCount) *
+                  100
+                : 0) -
+              (previousSnapshot.followersCount > 0
+                ? ((previousSnapshot.totalLikes +
+                    previousSnapshot.totalComments +
+                    previousSnapshot.totalSaves +
+                    previousSnapshot.totalShares) /
+                    previousSnapshot.followersCount) *
+                  100
+                : 0)
+            : 0,
         };
       });
 
@@ -636,12 +793,11 @@ export class EnhancedInstagramDataService {
           overview,
           growth,
           engagement,
-          history
-        }
+          history,
+        },
       };
-
     } catch (error) {
-      console.error('Error getting analytics data:', error);
+      console.error("Error getting analytics data:", error);
       return { success: false, error: error.message };
     }
   }
@@ -653,7 +809,10 @@ export class EnhancedInstagramDataService {
     return null;
   }
 
-  private async fetchUserMedia(username: string, maxMedia: number): Promise<any[]> {
+  private async fetchUserMedia(
+    username: string,
+    maxMedia: number,
+  ): Promise<any[]> {
     // Implementation would use HikerAPI
     // This is a placeholder
     return [];

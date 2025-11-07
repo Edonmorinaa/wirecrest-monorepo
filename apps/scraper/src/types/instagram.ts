@@ -18,18 +18,18 @@ export interface InstagramBusinessProfile {
   contactEmail?: string;
   contactPhone?: string;
   contactAddress?: string;
-  
+
   // Current state (from latest snapshot)
   currentFollowersCount?: number;
   currentFollowingCount?: number;
   currentMediaCount?: number;
-  
+
   // Metadata
   firstSnapshotAt?: Date;
   lastSnapshotAt?: Date;
   totalSnapshots: number;
   isActive: boolean;
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -38,44 +38,44 @@ export interface InstagramBusinessProfile {
 export interface InstagramDailySnapshot {
   id: string;
   businessProfileId: string;
-  
+
   // Snapshot metadata
   snapshotDate: Date;
   snapshotTime: Date;
-  snapshotType: 'DAILY' | 'MANUAL' | 'INITIAL';
-  
+  snapshotType: "DAILY" | "MANUAL" | "INITIAL";
+
   // Profile metrics
   followersCount: number;
   followingCount: number;
   mediaCount: number;
-  
+
   // Engagement metrics
   totalLikes: number;
   totalComments: number;
   totalViews: number;
   totalSaves: number;
   totalShares: number;
-  
+
   // Recent activity
   newPosts: number;
   newStories: number;
   newReels: number;
-  
+
   // Story metrics
   storyViews: number;
   storyReplies: number;
-  
+
   // Hashtag performance
   topHashtags?: Array<{
     hashtag: string;
     count: number;
     reach: number;
   }>;
-  
+
   // Error tracking
   hasErrors: boolean;
   errorMessage?: string;
-  
+
   // Timestamps
   createdAt: Date;
 }
@@ -84,12 +84,12 @@ export interface InstagramMediaSnapshot {
   id: string;
   businessProfileId: string;
   dailySnapshotId: string;
-  
+
   // Media identification
   mediaId: string;
   mediaCode?: string;
-  mediaType: 'photo' | 'video' | 'carousel' | 'reel';
-  
+  mediaType: "photo" | "video" | "carousel" | "reel";
+
   // Media content
   caption?: string;
   hashtags: string[];
@@ -99,18 +99,18 @@ export interface InstagramMediaSnapshot {
     name: string;
     coordinates?: { lat: number; lng: number };
   };
-  
+
   // Performance metrics
   likesCount: number;
   commentsCount: number;
   viewsCount: number;
   savesCount: number;
   sharesCount: number;
-  
+
   // Engagement rate
   engagementRate: number;
   reachEstimate: number;
-  
+
   // Timestamps
   publishedAt?: Date;
   snapshotAt: Date;
@@ -121,25 +121,25 @@ export interface InstagramCommentSnapshot {
   businessProfileId: string;
   dailySnapshotId: string;
   mediaSnapshotId?: string;
-  
+
   // Comment identification
   commentId: string;
   mediaId: string;
-  
+
   // Comment content
   text: string;
   authorUsername: string;
   authorUserId: string;
-  
+
   // Engagement
   likesCount: number;
   hasReplies: boolean;
-  
+
   // Sentiment analysis
   sentiment?: number; // -1.0 to 1.0
   keywords: string[];
   isBusinessReply: boolean;
-  
+
   // Timestamps
   publishedAt?: Date;
   snapshotAt: Date;
@@ -148,32 +148,32 @@ export interface InstagramCommentSnapshot {
 export interface InstagramWeeklyAggregation {
   id: string;
   businessProfileId: string;
-  
+
   // Week identification
   weekStartDate: Date;
   weekEndDate: Date;
   year: number;
   weekNumber: number;
-  
+
   // Growth metrics
   followersGrowth: number;
   followersGrowthPercent: number;
   followingGrowth: number;
   followingGrowthPercent: number;
   mediaGrowth: number;
-  
+
   // Engagement metrics
   totalLikes: number;
   totalComments: number;
   totalViews: number;
   totalSaves: number;
   totalShares: number;
-  
+
   // Average daily metrics
   avgDailyLikes: number;
   avgDailyComments: number;
   avgDailyViews: number;
-  
+
   // Best performing content
   bestPerformingPost?: {
     mediaId: string;
@@ -186,7 +186,7 @@ export interface InstagramWeeklyAggregation {
     count: number;
     reach: number;
   }>;
-  
+
   // Sentiment analysis
   sentimentBreakdown?: {
     positive: number;
@@ -200,7 +200,7 @@ export interface InstagramWeeklyAggregation {
     sentiment: number;
   }>;
   responseRate: number;
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -209,39 +209,39 @@ export interface InstagramWeeklyAggregation {
 export interface InstagramMonthlyAggregation {
   id: string;
   businessProfileId: string;
-  
+
   // Month identification
   monthStartDate: Date;
   monthEndDate: Date;
   year: number;
   month: number;
-  
+
   // Growth metrics
   followersGrowth: number;
   followersGrowthPercent: number;
   followingGrowth: number;
   followingGrowthPercent: number;
   mediaGrowth: number;
-  
+
   // Engagement metrics
   totalLikes: number;
   totalComments: number;
   totalViews: number;
   totalSaves: number;
   totalShares: number;
-  
+
   // Average metrics
   avgDailyLikes: number;
   avgDailyComments: number;
   avgDailyViews: number;
   avgEngagementRate: number;
-  
+
   // Content analysis
   totalPosts: number;
   totalStories: number;
   totalReels: number;
   bestPerformingContent?: any;
-  
+
   // Sentiment analysis
   sentimentBreakdown?: {
     positive: number;
@@ -255,11 +255,11 @@ export interface InstagramMonthlyAggregation {
     sentiment: number;
   }>;
   responseRate: number;
-  
+
   // Trends
-  growthTrend: 'increasing' | 'decreasing' | 'stable';
-  engagementTrend: 'increasing' | 'decreasing' | 'stable';
-  
+  growthTrend: "increasing" | "decreasing" | "stable";
+  engagementTrend: "increasing" | "decreasing" | "stable";
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -268,21 +268,21 @@ export interface InstagramMonthlyAggregation {
 export interface InstagramSnapshotSchedule {
   id: string;
   businessProfileId: string;
-  
+
   // Schedule configuration
   isActive: boolean;
   snapshotTime: string; // HH:MM:SS format
   timezone: string;
-  
+
   // Retry configuration
   maxRetries: number;
   retryDelayMinutes: number;
-  
+
   // Last execution
   lastExecutedAt?: Date;
   lastSuccessAt?: Date;
   consecutiveFailures: number;
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -308,7 +308,7 @@ export interface CreateInstagramProfileResponse {
 
 export interface TakeSnapshotRequest {
   businessProfileId: string;
-  snapshotType?: 'DAILY' | 'MANUAL' | 'INITIAL';
+  snapshotType?: "DAILY" | "MANUAL" | "INITIAL";
   includeMedia?: boolean;
   includeComments?: boolean;
   maxMedia?: number;
@@ -331,7 +331,7 @@ export interface TakeSnapshotResponse {
 
 export interface GetAnalyticsRequest {
   businessProfileId: string;
-  period: 'week' | 'month' | 'quarter' | 'year';
+  period: "week" | "month" | "quarter" | "year";
   startDate?: string;
   endDate?: string;
 }
@@ -421,4 +421,4 @@ export interface HikerAPICommentResponse {
     username: string;
     profile_pic_url: string;
   };
-} 
+}

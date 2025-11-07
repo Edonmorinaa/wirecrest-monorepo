@@ -1,4 +1,4 @@
-import { MarketPlatform } from '@prisma/client';
+import { MarketPlatform } from "@prisma/client";
 
 /**
  * Business-specific repository interface
@@ -11,10 +11,10 @@ export interface IBusinessRepository<T> {
   findNeedingUpdate(limit: number): Promise<T[]>;
   updateScrapedAt(id: string, scrapedAt: Date): Promise<void>;
   getBusinessCount(teamId: string, platform: MarketPlatform): Promise<number>;
-  
+
   // CRUD operations
   findById(id: string): Promise<T | null>;
-  create(entity: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
+  create(entity: Omit<T, "id" | "createdAt" | "updatedAt">): Promise<T>;
   update(id: string, entity: Partial<T>): Promise<T>;
   delete(id: string): Promise<void>;
 }

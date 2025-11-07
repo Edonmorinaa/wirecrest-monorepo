@@ -1,16 +1,68 @@
-import { SentimentAnalyzer } from '../../sentimentAnalyzer/sentimentAnalyzer';
+import { SentimentAnalyzer } from "../../sentimentAnalyzer/sentimentAnalyzer";
 
 /**
  * Common words to exclude from keyword analysis
  * Centralized to ensure consistency across all platforms
  */
 export const COMMON_WORDS = new Set([
-  'the', 'and', 'a', 'to', 'of', 'in', 'is', 'it', 'that', 'for', 'on', 'with',
-  'as', 'at', 'this', 'by', 'from', 'an', 'be', 'or', 'but', 'was', 'are',
-  'were', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-  'could', 'should', 'may', 'might', 'can', 'these', 'those', 'i', 'you', 'he',
-  'she', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his',
-  'her', 'its', 'our', 'their'
+  "the",
+  "and",
+  "a",
+  "to",
+  "of",
+  "in",
+  "is",
+  "it",
+  "that",
+  "for",
+  "on",
+  "with",
+  "as",
+  "at",
+  "this",
+  "by",
+  "from",
+  "an",
+  "be",
+  "or",
+  "but",
+  "was",
+  "are",
+  "were",
+  "been",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "can",
+  "these",
+  "those",
+  "i",
+  "you",
+  "he",
+  "she",
+  "we",
+  "they",
+  "me",
+  "him",
+  "her",
+  "us",
+  "them",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
 ]);
 
 /**
@@ -19,38 +71,107 @@ export const COMMON_WORDS = new Set([
  */
 export const BUSINESS_TERMS = {
   service: [
-    'service', 'staff', 'employee', 'server', 'waiter', 'waitress', 'host', 
-    'hostess', 'friendly', 'helpful', 'attentive', 'professional', 'rude', 
-    'slow', 'unhelpful'
+    "service",
+    "staff",
+    "employee",
+    "server",
+    "waiter",
+    "waitress",
+    "host",
+    "hostess",
+    "friendly",
+    "helpful",
+    "attentive",
+    "professional",
+    "rude",
+    "slow",
+    "unhelpful",
   ],
   food: [
-    'food', 'dish', 'meal', 'taste', 'flavor', 'menu', 'delicious', 'fresh', 
-    'quality', 'portion', 'cooked', 'spicy', 'bland'
+    "food",
+    "dish",
+    "meal",
+    "taste",
+    "flavor",
+    "menu",
+    "delicious",
+    "fresh",
+    "quality",
+    "portion",
+    "cooked",
+    "spicy",
+    "bland",
   ],
   ambiance: [
-    'ambiance', 'atmosphere', 'decor', 'environment', 'setting', 'clean', 
-    'dirty', 'noisy', 'quiet', 'cozy', 'modern', 'traditional'
+    "ambiance",
+    "atmosphere",
+    "decor",
+    "environment",
+    "setting",
+    "clean",
+    "dirty",
+    "noisy",
+    "quiet",
+    "cozy",
+    "modern",
+    "traditional",
   ],
   value: [
-    'price', 'value', 'worth', 'expensive', 'cheap', 'affordable', 'overpriced', 
-    'reasonable', 'budget', 'cost'
+    "price",
+    "value",
+    "worth",
+    "expensive",
+    "cheap",
+    "affordable",
+    "overpriced",
+    "reasonable",
+    "budget",
+    "cost",
   ],
   location: [
-    'location', 'place', 'area', 'neighborhood', 'district', 'parking', 
-    'accessible', 'convenient', 'remote'
+    "location",
+    "place",
+    "area",
+    "neighborhood",
+    "district",
+    "parking",
+    "accessible",
+    "convenient",
+    "remote",
   ],
   timing: [
-    'wait', 'time', 'quick', 'fast', 'slow', 'busy', 'crowded', 'empty', 
-    'reservation', 'booking'
+    "wait",
+    "time",
+    "quick",
+    "fast",
+    "slow",
+    "busy",
+    "crowded",
+    "empty",
+    "reservation",
+    "booking",
   ],
   quality: [
-    'quality', 'excellent', 'good', 'bad', 'poor', 'amazing', 'terrible', 
-    'outstanding', 'disappointing'
+    "quality",
+    "excellent",
+    "good",
+    "bad",
+    "poor",
+    "amazing",
+    "terrible",
+    "outstanding",
+    "disappointing",
   ],
   experience: [
-    'experience', 'visit', 'return', 'recommend', 'enjoy', 'disappoint', 
-    'satisfy', 'impress'
-  ]
+    "experience",
+    "visit",
+    "return",
+    "recommend",
+    "enjoy",
+    "disappoint",
+    "satisfy",
+    "impress",
+  ],
 };
 
 /**
@@ -58,13 +179,32 @@ export const BUSINESS_TERMS = {
  */
 const EMOTIONAL_KEYWORDS = {
   positive: [
-    'excellent', 'amazing', 'wonderful', 'fantastic', 'great', 'love', 'perfect', 
-    'outstanding', 'superb', 'exceptional', 'brilliant', 'delightful'
+    "excellent",
+    "amazing",
+    "wonderful",
+    "fantastic",
+    "great",
+    "love",
+    "perfect",
+    "outstanding",
+    "superb",
+    "exceptional",
+    "brilliant",
+    "delightful",
   ],
   negative: [
-    'terrible', 'awful', 'horrible', 'disgusting', 'hate', 'worst', 'disappointed', 
-    'bad', 'poor', 'unacceptable', 'appalling'
-  ]
+    "terrible",
+    "awful",
+    "horrible",
+    "disgusting",
+    "hate",
+    "worst",
+    "disappointed",
+    "bad",
+    "poor",
+    "unacceptable",
+    "appalling",
+  ],
 };
 
 /**
@@ -80,10 +220,10 @@ export interface ReviewAnalysisResult {
 
 /**
  * Centralized Review Analysis Service
- * 
+ *
  * Provides consistent sentiment analysis, keyword extraction, and topic classification
  * across all platforms (Google, Facebook, TripAdvisor, Booking, etc.)
- * 
+ *
  * @example
  * ```typescript
  * const service = ReviewAnalysisService.getInstance();
@@ -98,7 +238,7 @@ export class ReviewAnalysisService {
   private sentimentAnalyzer: SentimentAnalyzer;
 
   private constructor() {
-    this.sentimentAnalyzer = new SentimentAnalyzer(['en']);
+    this.sentimentAnalyzer = new SentimentAnalyzer(["en"]);
   }
 
   /**
@@ -113,35 +253,39 @@ export class ReviewAnalysisService {
 
   /**
    * Analyze a review and extract sentiment, keywords, topics, and urgency
-   * 
+   *
    * @param text - The review text to analyze
    * @param rating - The rating (1-5 scale) associated with the review
    * @returns Analysis result with sentiment, emotional tone, keywords, topics, and urgency
    */
   public async analyzeReview(
     text?: string | null,
-    rating?: number | null
+    rating?: number | null,
   ): Promise<ReviewAnalysisResult> {
     // Handle empty text
-    if (!text || text.trim() === '') {
+    if (!text || text.trim() === "") {
       return {
         sentiment: 0,
-        emotional: 'neutral',
+        emotional: "neutral",
         keywords: [],
         topics: [],
-        responseUrgency: 3 // Default medium urgency
+        responseUrgency: 3, // Default medium urgency
       };
     }
 
     try {
       // Get sentiment score from analyzer
-      const sentimentScore = await this.sentimentAnalyzer.analyzeSentiment(text);
+      const sentimentScore =
+        await this.sentimentAnalyzer.analyzeSentiment(text);
 
       // Determine emotional state
       const emotional = this.determineEmotionalState(text, sentimentScore);
 
       // Adjust sentiment based on rating if available
-      const finalSentiment = this.calculateFinalSentiment(sentimentScore, rating);
+      const finalSentiment = this.calculateFinalSentiment(
+        sentimentScore,
+        rating,
+      );
 
       // Extract keywords with importance scoring
       const keywords = this.extractKeywords(text);
@@ -150,24 +294,28 @@ export class ReviewAnalysisService {
       const topics = this.extractTopics(text);
 
       // Calculate response urgency (1-10 scale)
-      const responseUrgency = this.calculateResponseUrgency(text, sentimentScore, rating);
+      const responseUrgency = this.calculateResponseUrgency(
+        text,
+        sentimentScore,
+        rating,
+      );
 
       return {
         sentiment: Number(finalSentiment.toFixed(2)),
         emotional,
         keywords,
         topics,
-        responseUrgency
+        responseUrgency,
       };
     } catch (error) {
-      console.error('Error analyzing review:', error);
+      console.error("Error analyzing review:", error);
       // Return default values on error
       return {
         sentiment: 0,
-        emotional: 'neutral',
+        emotional: "neutral",
         keywords: [],
         topics: [],
-        responseUrgency: 3
+        responseUrgency: 3,
       };
     }
   }
@@ -175,35 +323,41 @@ export class ReviewAnalysisService {
   /**
    * Determine emotional state based on sentiment score and keyword analysis
    */
-  private determineEmotionalState(text: string, sentimentScore: number): string {
+  private determineEmotionalState(
+    text: string,
+    sentimentScore: number,
+  ): string {
     const lowerText = text.toLowerCase();
 
     // Count positive and negative emotional keywords
-    const positiveCount = EMOTIONAL_KEYWORDS.positive.filter(word => 
-      lowerText.includes(word)
+    const positiveCount = EMOTIONAL_KEYWORDS.positive.filter((word) =>
+      lowerText.includes(word),
     ).length;
-    const negativeCount = EMOTIONAL_KEYWORDS.negative.filter(word => 
-      lowerText.includes(word)
+    const negativeCount = EMOTIONAL_KEYWORDS.negative.filter((word) =>
+      lowerText.includes(word),
     ).length;
 
     // Determine emotional state based on keyword counts and sentiment
     if (positiveCount > negativeCount && sentimentScore > 0.3) {
-      return 'positive';
+      return "positive";
     } else if (negativeCount > positiveCount && sentimentScore < -0.3) {
-      return 'negative';
+      return "negative";
     } else if (sentimentScore > 0.3) {
-      return 'positive';
+      return "positive";
     } else if (sentimentScore < -0.3) {
-      return 'negative';
+      return "negative";
     }
-    
-    return 'neutral';
+
+    return "neutral";
   }
 
   /**
    * Calculate final sentiment by combining sentiment score and rating
    */
-  private calculateFinalSentiment(sentimentScore: number, rating?: number | null): number {
+  private calculateFinalSentiment(
+    sentimentScore: number,
+    rating?: number | null,
+  ): number {
     if (!rating) {
       return sentimentScore;
     }
@@ -220,27 +374,28 @@ export class ReviewAnalysisService {
    */
   private extractKeywords(text: string): string[] {
     // Tokenize and clean text
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, '')
+    const words = text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, "")
       .split(/\s+/)
-      .filter(word => word.length > 3 && !COMMON_WORDS.has(word));
+      .filter((word) => word.length > 3 && !COMMON_WORDS.has(word));
 
     // Count word frequencies
     const wordFreq: Map<string, number> = new Map();
-    words.forEach(word => {
+    words.forEach((word) => {
       wordFreq.set(word, (wordFreq.get(word) || 0) + 1);
     });
 
     // Calculate word importance based on frequency and context
     const wordImportance: Map<string, number> = new Map();
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim());
+    const sentences = text.split(/[.!?]+/).filter((s) => s.trim());
 
     wordFreq.forEach((freq, word) => {
       let importance = freq;
 
       // Boost words that appear in business terms
-      const isBusinessTerm = Object.values(BUSINESS_TERMS).some(terms =>
-        terms.some(term => word.includes(term) || term.includes(word))
+      const isBusinessTerm = Object.values(BUSINESS_TERMS).some((terms) =>
+        terms.some((term) => word.includes(term) || term.includes(word)),
       );
       if (isBusinessTerm) {
         importance *= 1.5;
@@ -250,7 +405,7 @@ export class ReviewAnalysisService {
       if (sentences.length > 0) {
         const firstSentence = sentences[0].toLowerCase();
         const lastSentence = sentences[sentences.length - 1].toLowerCase();
-        
+
         if (firstSentence.includes(word) || lastSentence.includes(word)) {
           importance *= 1.3;
         }
@@ -274,7 +429,7 @@ export class ReviewAnalysisService {
     const topics = new Set<string>();
 
     Object.entries(BUSINESS_TERMS).forEach(([topic, terms]) => {
-      if (terms.some(term => lowerText.includes(term))) {
+      if (terms.some((term) => lowerText.includes(term))) {
         topics.add(topic);
       }
     });
@@ -289,7 +444,7 @@ export class ReviewAnalysisService {
   private calculateResponseUrgency(
     text: string,
     sentimentScore: number,
-    rating?: number | null
+    rating?: number | null,
   ): number {
     let urgency = 3; // Default medium urgency
 
@@ -315,9 +470,16 @@ export class ReviewAnalysisService {
 
     // Keyword-based urgency boost
     const lowerText = text.toLowerCase();
-    const urgentKeywords = ['complaint', 'issue', 'problem', 'refund', 'manager', 'unacceptable'];
-    
-    if (urgentKeywords.some(keyword => lowerText.includes(keyword))) {
+    const urgentKeywords = [
+      "complaint",
+      "issue",
+      "problem",
+      "refund",
+      "manager",
+      "unacceptable",
+    ];
+
+    if (urgentKeywords.some((keyword) => lowerText.includes(keyword))) {
       urgency = Math.max(urgency, 9);
     }
 
@@ -326,15 +488,15 @@ export class ReviewAnalysisService {
 
   /**
    * Batch analyze multiple reviews efficiently
-   * 
+   *
    * @param reviews - Array of reviews to analyze
    * @returns Array of analysis results
    */
   public async analyzeReviews(
-    reviews: Array<{ text?: string | null; rating?: number | null }>
+    reviews: Array<{ text?: string | null; rating?: number | null }>,
   ): Promise<ReviewAnalysisResult[]> {
     return Promise.all(
-      reviews.map(review => this.analyzeReview(review.text, review.rating))
+      reviews.map((review) => this.analyzeReview(review.text, review.rating)),
     );
   }
 }
@@ -343,4 +505,3 @@ export class ReviewAnalysisService {
  * Export singleton instance for convenience
  */
 export const reviewAnalysisService = ReviewAnalysisService.getInstance();
-

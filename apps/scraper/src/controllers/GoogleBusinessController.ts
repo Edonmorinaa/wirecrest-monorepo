@@ -1,6 +1,6 @@
 /**
  * Google Business Controller
- * 
+ *
  * Handles Google Business Profile creation/deletion and syncs with global schedules.
  * When a user creates a Google business profile, this controller:
  * 1. Creates the GoogleBusinessProfile record
@@ -8,17 +8,20 @@
  * 3. Adds the business to the appropriate global schedule
  */
 
-import { Request, Response } from 'express';
-import { prisma } from '@wirecrest/db';
-import { GlobalScheduleOrchestrator } from '../services/subscription/GlobalScheduleOrchestrator';
-import { FeatureExtractor } from '../services/subscription/FeatureExtractor';
+import { Request, Response } from "express";
+import { prisma } from "@wirecrest/db";
+import { GlobalScheduleOrchestrator } from "../services/subscription/GlobalScheduleOrchestrator";
+import { FeatureExtractor } from "../services/subscription/FeatureExtractor";
 
 export class GoogleBusinessController {
   private globalOrchestrator: GlobalScheduleOrchestrator;
   private featureExtractor: FeatureExtractor;
 
   constructor(apifyToken: string, webhookBaseUrl: string) {
-    this.globalOrchestrator = new GlobalScheduleOrchestrator(apifyToken, webhookBaseUrl);
+    this.globalOrchestrator = new GlobalScheduleOrchestrator(
+      apifyToken,
+      webhookBaseUrl,
+    );
     this.featureExtractor = new FeatureExtractor();
   }
 
@@ -31,7 +34,7 @@ export class GoogleBusinessController {
       const { teamId, placeId } = req.body;
 
       if (!teamId || !placeId) {
-        res.status(400).json({ error: 'teamId and placeId are required' });
+        res.status(400).json({ error: "teamId and placeId are required" });
         return;
       }
 
@@ -44,7 +47,7 @@ export class GoogleBusinessController {
         res.json({
           success: true,
           profile: existingProfile,
-          message: 'Profile already exists',
+          message: "Profile already exists",
         });
         return;
       }
@@ -64,36 +67,38 @@ export class GoogleBusinessController {
       // Get team's interval (checks custom intervals first, then tier)
       const interval = await this.featureExtractor.getIntervalForTeamPlatform(
         teamId,
-        'google_reviews',
-        'reviews'
+        "google_reviews",
+        "reviews",
       );
 
       // Add business to global schedules
       const result = await this.globalOrchestrator.addBusinessToSchedule(
         profile.id,
         teamId,
-        'google_reviews',
+        "google_reviews",
         placeId,
-        interval
+        interval,
       );
 
       if (!result.success) {
-        console.error('Failed to add business to schedule:', result.message);
+        console.error("Failed to add business to schedule:", result.message);
         // Don't fail the request, profile is still created
       }
 
-      console.log(`✓ Created Google Business Profile for team ${teamId} with placeId ${placeId}`);
+      console.log(
+        `✓ Created Google Business Profile for team ${teamId} with placeId ${placeId}`,
+      );
 
       res.json({
         success: true,
         profile,
         scheduleResult: result,
-        message: 'Google Business Profile created successfully',
+        message: "Google Business Profile created successfully",
       });
     } catch (error: any) {
-      console.error('Error creating Google Business Profile:', error);
+      console.error("Error creating Google Business Profile:", error);
       res.status(500).json({
-        error: 'Failed to create Google Business Profile',
+        error: "Failed to create Google Business Profile",
         details: error.message,
       });
     }
@@ -113,18 +118,21 @@ export class GoogleBusinessController {
       });
 
       if (!profile) {
-        res.status(404).json({ error: 'Profile not found' });
+        res.status(404).json({ error: "Profile not found" });
         return;
       }
 
       // Remove from global schedule
       const result = await this.globalOrchestrator.removeBusinessFromSchedule(
         profile.id,
-        'google_reviews'
+        "google_reviews",
       );
 
       if (!result.success) {
-        console.error('Failed to remove business from schedule:', result.message);
+        console.error(
+          "Failed to remove business from schedule:",
+          result.message,
+        );
       }
 
       // Delete profile
@@ -136,13 +144,13 @@ export class GoogleBusinessController {
 
       res.json({
         success: true,
-        message: 'Google Business Profile deleted successfully',
+        message: "Google Business Profile deleted successfully",
         scheduleResult: result,
       });
     } catch (error: any) {
-      console.error('Error deleting Google Business Profile:', error);
+      console.error("Error deleting Google Business Profile:", error);
       res.status(500).json({
-        error: 'Failed to delete Google Business Profile',
+        error: "Failed to delete Google Business Profile",
         details: error.message,
       });
     }
@@ -164,7 +172,7 @@ export class GoogleBusinessController {
       });
 
       if (!profile) {
-        res.status(404).json({ error: 'Profile not found' });
+        res.status(404).json({ error: "Profile not found" });
         return;
       }
 
@@ -173,7 +181,7 @@ export class GoogleBusinessController {
         where: {
           businessProfileId_platform: {
             businessProfileId: profile.id,
-            platform: 'google_reviews',
+            platform: "google_reviews",
           },
         },
         include: {
@@ -184,20 +192,21 @@ export class GoogleBusinessController {
       res.json({
         success: true,
         profile,
-        scheduleInfo: mapping ? {
-          intervalHours: mapping.intervalHours,
-          scheduleId: mapping.scheduleId,
-          isActive: mapping.isActive,
-          nextRun: mapping.schedule.nextRunAt,
-        } : null,
+        scheduleInfo: mapping
+          ? {
+              intervalHours: mapping.intervalHours,
+              scheduleId: mapping.scheduleId,
+              isActive: mapping.isActive,
+              nextRun: mapping.schedule.nextRunAt,
+            }
+          : null,
       });
     } catch (error: any) {
-      console.error('Error getting Google Business Profile:', error);
+      console.error("Error getting Google Business Profile:", error);
       res.status(500).json({
-        error: 'Failed to get Google Business Profile',
+        error: "Failed to get Google Business Profile",
         details: error.message,
       });
     }
   }
 }
-

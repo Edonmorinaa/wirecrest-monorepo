@@ -8,9 +8,9 @@
 
 // async function debugBookingAnalytics() {
 //   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-  
+
 //   console.log('🔍 Starting Booking.com Analytics Debug Script...\n');
-  
+
 //   try {
 //     // 1. Find all Booking.com business profiles
 //     console.log('📋 Fetching all Booking.com business profiles...');
@@ -30,7 +30,7 @@
 //     }
 
 //     console.log(`✅ Found ${profiles.length} Booking.com business profiles:\n`);
-    
+
 //     for (const [index, profile] of profiles.entries()) {
 //       console.log(`${index + 1}. ${profile.name || 'Unnamed'}`);
 //       console.log(`   ID: ${profile.id}`);
@@ -42,10 +42,10 @@
 
 //     // 2. For each profile, check if overview exists and reviews count
 //     console.log('🔍 Checking overview and reviews data for each profile...\n');
-    
+
 //     for (const profile of profiles) {
 //       console.log(`📊 Analyzing profile: ${profile.name || profile.id}`);
-      
+
 //       // Check if overview exists
 //       const { data: overview, error: overviewError } = await supabase
 //         .from('BookingOverview')
@@ -68,7 +68,7 @@
 //       const { data: sampleReviews, error: sampleError } = await supabase
 //         .from('BookingReview')
 //         .select(`
-//           id, rating, cleanlinessRating, comfortRating, locationRating, 
+//           id, rating, cleanlinessRating, comfortRating, locationRating,
 //           facilitiesRating, staffRating, valueForMoneyRating, wifiRating,
 //           lengthOfStay, guestType, hasOwnerResponse, isVerifiedStay,
 //           reviewMetadata:ReviewMetadata(sentiment, keywords)
@@ -105,12 +105,12 @@
 //       // Analyze sample reviews for data quality issues
 //       if (sampleReviews && sampleReviews.length > 0) {
 //         console.log(`   🔍 Sample review analysis (${sampleReviews.length} reviews):`);
-        
+
 //         let hasSubRatings = false;
 //         let hasSentiment = false;
 //         let hasLengthOfStay = false;
 //         let hasGuestTypes = false;
-        
+
 //         sampleReviews.forEach((review, idx) => {
 //           console.log(`      Review ${idx + 1}:`);
 //           console.log(`        Rating: ${review.rating}`);
@@ -119,16 +119,16 @@
 //           console.log(`        Guest type: ${review.guestType}`);
 //           console.log(`        Has response: ${review.hasOwnerResponse}`);
 //           console.log(`        Verified stay: ${review.isVerifiedStay}`);
-          
-//           const metadata = Array.isArray(review.reviewMetadata) 
-//             ? review.reviewMetadata[0] 
+
+//           const metadata = Array.isArray(review.reviewMetadata)
+//             ? review.reviewMetadata[0]
 //             : review.reviewMetadata;
 //           const sentiment = metadata?.sentiment;
 //           const keywords = metadata?.keywords;
-            
+
 //           console.log(`        Sentiment: ${sentiment || 'null'}`);
 //           console.log(`        Keywords: ${keywords ? keywords.length : 0} found`);
-          
+
 //           // Track data quality
 //           if (review.cleanlinessRating || review.facilitiesRating || review.locationRating || review.staffRating || review.wifiRating) {
 //             hasSubRatings = true;
@@ -143,7 +143,7 @@
 //             hasGuestTypes = true;
 //           }
 //         });
-        
+
 //         console.log(`   🔍 Data quality summary:`);
 //         console.log(`      Sub-ratings present: ${hasSubRatings ? '✅' : '❌'}`);
 //         console.log(`      Sentiment analysis: ${hasSentiment ? '✅' : '❌'}`);
@@ -153,11 +153,11 @@
 
 //       // Check if analytics needs to be run
 //       const needsAnalytics = !overview || (reviewsCount || 0) > 0 && (!overview.totalReviews || overview.totalReviews === 0);
-      
+
 //       if (needsAnalytics) {
 //         console.log(`   ⚠️  ISSUE DETECTED: ${!overview ? 'No overview data' : 'Overview has no review data despite reviews existing'}`);
 //         console.log(`   🔧 Attempting to fix by running analytics...`);
-        
+
 //         try {
 //           const analyticsService = new BookingReviewAnalyticsService();
 //           await analyticsService.processReviewsAndUpdateDashboard(profile.id);
@@ -168,7 +168,7 @@
 //       } else {
 //         console.log(`   ✅ Overview data looks good`);
 //       }
-      
+
 //       console.log('');
 //     }
 
@@ -184,4 +184,4 @@
 //   debugBookingAnalytics().catch(console.error);
 // }
 
-// export { debugBookingAnalytics }; 
+// export { debugBookingAnalytics };

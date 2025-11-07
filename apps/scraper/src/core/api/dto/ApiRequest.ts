@@ -1,4 +1,4 @@
-import { MarketPlatform } from '@prisma/client';
+import { MarketPlatform } from "@prisma/client";
 
 /**
  * Base API Request DTO

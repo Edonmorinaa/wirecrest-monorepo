@@ -6,7 +6,7 @@
 
 export interface ScheduleConfig {
   platform: string;
-  scheduleType: 'reviews' | 'overview';
+  scheduleType: "reviews" | "overview";
   intervalHours: number;
   cronExpression: string;
   maxReviewsPerRun: number;
@@ -37,7 +37,7 @@ export interface IScheduleOrchestrator {
     teamId: string,
     platform: string,
     identifier: string,
-    intervalHours: number
+    intervalHours: number,
   ): Promise<ScheduleResult>;
 
   /**
@@ -45,7 +45,7 @@ export interface IScheduleOrchestrator {
    */
   removeBusinessFromSchedule(
     businessProfileId: string,
-    platform: string
+    platform: string,
   ): Promise<ScheduleResult>;
 
   /**
@@ -55,7 +55,7 @@ export interface IScheduleOrchestrator {
     businessProfileId: string,
     platform: string,
     fromIntervalHours: number,
-    toIntervalHours: number
+    toIntervalHours: number,
   ): Promise<ScheduleResult>;
 
   /**
@@ -104,7 +104,7 @@ export interface ISubscriptionOrchestrator {
   handlePlatformAdded(
     teamId: string,
     platform: string,
-    identifier: string
+    identifier: string,
   ): Promise<{
     success: boolean;
     message: string;
@@ -112,4 +112,3 @@ export interface ISubscriptionOrchestrator {
     businessAdded: boolean;
   }>;
 }
-

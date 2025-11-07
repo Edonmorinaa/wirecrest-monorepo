@@ -1,6 +1,6 @@
-import { MarketPlatform } from '@prisma/client';
-import type { ReviewResult } from '../interfaces/IReviewService';
-import type { TikTokDataService } from '../../services/tiktokDataService';
+import { MarketPlatform } from "@prisma/client";
+import type { ReviewResult } from "../interfaces/IReviewService";
+import type { TikTokDataService } from "../../services/tiktokDataService";
 
 /**
  * TikTok Review Service (for snapshots)
@@ -8,10 +8,13 @@ import type { TikTokDataService } from '../../services/tiktokDataService';
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-import type { TikTokSnapshot } from '../repositories/TikTokReviewRepository';
+import type { TikTokSnapshot } from "../repositories/TikTokReviewRepository";
 
 export interface ITikTokReviewRepository {
-  getByTeamId(teamId: string, platform: MarketPlatform): Promise<TikTokSnapshot[]>;
+  getByTeamId(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<TikTokSnapshot[]>;
   getCount(businessId: string): Promise<number>;
 }
 
@@ -23,7 +26,7 @@ export class TikTokReviewService {
     this.reviewRepository = reviewRepository;
     const lamatokAccessKey = process.env.LAMATOK_ACCESS_KEY;
     if (!lamatokAccessKey) {
-      throw new Error('LAMATOK_ACCESS_KEY environment variable is required');
+      throw new Error("LAMATOK_ACCESS_KEY environment variable is required");
     }
     this.tiktokDataService = new TikTokDataService(lamatokAccessKey);
   }
@@ -34,47 +37,59 @@ export class TikTokReviewService {
   async triggerReviewScraping(
     teamId: string,
     platform: MarketPlatform,
-    identifier: string
+    identifier: string,
   ): Promise<ReviewResult> {
     try {
-      console.log(`[TikTokReviewService] Triggering snapshot for team ${teamId}, username: ${identifier}`);
+      console.log(
+        `[TikTokReviewService] Triggering snapshot for team ${teamId}, username: ${identifier}`,
+      );
 
       // Ensure business profile exists and get ID
       let businessProfileId: string | null = null;
-      const profileResult = await this.tiktokDataService.getBusinessProfileByTeamId(teamId);
+      const profileResult =
+        await this.tiktokDataService.getBusinessProfileByTeamId(teamId);
       if (profileResult.success && profileResult.profile?.id) {
         businessProfileId = profileResult.profile.id;
       } else {
-        const createResult = await this.tiktokDataService.createBusinessProfile(teamId, identifier);
+        const createResult = await this.tiktokDataService.createBusinessProfile(
+          teamId,
+          identifier,
+        );
         if (!createResult.success || !createResult.businessProfileId) {
-          return { success: false, error: createResult.error || 'Failed to prepare TikTok profile' };
+          return {
+            success: false,
+            error: createResult.error || "Failed to prepare TikTok profile",
+          };
         }
         businessProfileId = createResult.businessProfileId;
       }
 
       // Take snapshot using TikTokDataService
-      const result = await this.tiktokDataService.takeDailySnapshot(businessProfileId!, {
-        snapshotType: 'MANUAL',
-      });
-      
+      const result = await this.tiktokDataService.takeDailySnapshot(
+        businessProfileId!,
+        {
+          snapshotType: "MANUAL",
+        },
+      );
+
       if (!result.success) {
         return {
           success: false,
-          error: result.error || 'Failed to take TikTok snapshot'
+          error: result.error || "Failed to take TikTok snapshot",
         };
       }
 
       return {
         success: true,
         reviewsCount: 0,
-        message: 'TikTok snapshot completed successfully',
+        message: "TikTok snapshot completed successfully",
       };
-
     } catch (error) {
-      console.error('[TikTokReviewService] Error triggering snapshot:', error);
+      console.error("[TikTokReviewService] Error triggering snapshot:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -82,17 +97,22 @@ export class TikTokReviewService {
   /**
    * Get TikTok snapshots
    */
-  async getReviews(teamId: string, platform: MarketPlatform): Promise<TikTokSnapshot[]> {
+  async getReviews(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<TikTokSnapshot[]> {
     try {
       console.log(`[TikTokReviewService] Getting snapshots for team ${teamId}`);
 
       // Get snapshots from repository
-      const snapshots = await this.reviewRepository.getByTeamId(teamId, platform);
-      
-      return snapshots || [];
+      const snapshots = await this.reviewRepository.getByTeamId(
+        teamId,
+        platform,
+      );
 
+      return snapshots || [];
     } catch (error) {
-      console.error('[TikTokReviewService] Error getting snapshots:', error);
+      console.error("[TikTokReviewService] Error getting snapshots:", error);
       return [];
     }
   }
@@ -102,15 +122,19 @@ export class TikTokReviewService {
    */
   async getReviewCount(businessId: string): Promise<number> {
     try {
-      console.log(`[TikTokReviewService] Getting snapshot count for business ${businessId}`);
+      console.log(
+        `[TikTokReviewService] Getting snapshot count for business ${businessId}`,
+      );
 
       // Get snapshot count from repository
       const count = await this.reviewRepository.getCount(businessId);
-      
-      return count || 0;
 
+      return count || 0;
     } catch (error) {
-      console.error('[TikTokReviewService] Error getting snapshot count:', error);
+      console.error(
+        "[TikTokReviewService] Error getting snapshot count:",
+        error,
+      );
       return 0;
     }
   }

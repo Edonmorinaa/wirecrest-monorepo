@@ -16,7 +16,7 @@ export interface ApiResponse<T = any> {
 }
 
 export interface ApiRequestConfig {
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   endpoint: string;
   params?: Record<string, any>;
   body?: any;
@@ -50,12 +50,19 @@ export interface IFacebookGraphApiClient extends IExternalApiClient {
   /**
    * Get page ratings
    */
-  getPageRatings(pageId: string, accessToken: string): Promise<ApiResponse<any>>;
+  getPageRatings(
+    pageId: string,
+    accessToken: string,
+  ): Promise<ApiResponse<any>>;
 
   /**
    * Post to page
    */
-  postToPage(pageId: string, accessToken: string, message: string): Promise<ApiResponse<any>>;
+  postToPage(
+    pageId: string,
+    accessToken: string,
+    message: string,
+  ): Promise<ApiResponse<any>>;
 }
 
 export interface IHikerApiClient extends IExternalApiClient {
@@ -91,4 +98,3 @@ export interface ILamaTokApiClient extends IExternalApiClient {
    */
   getVideoComments(videoId: string): Promise<ApiResponse<any>>;
 }
-

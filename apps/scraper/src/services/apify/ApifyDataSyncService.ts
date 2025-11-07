@@ -3,9 +3,9 @@
  * Handles fetching data from Apify datasets and syncing to database
  */
 
-import { ApifyClient } from 'apify-client';
-import { prisma } from '@wirecrest/db';
-import type { Platform, SyncType, SyncResult } from '../../types/apify.types';
+import { ApifyClient } from "apify-client";
+import { prisma } from "@wirecrest/db";
+import type { Platform, SyncType, SyncResult } from "../../types/apify.types";
 
 export class ApifyDataSyncService {
   private apifyClient: ApifyClient;
@@ -31,7 +31,7 @@ export class ApifyDataSyncService {
     platform: Platform,
     syncType: SyncType,
     apifyRunId: string,
-    datasetId?: string
+    datasetId?: string,
   ): Promise<string> {
     const syncRecord = await prisma.syncRecord.create({
       data: {
@@ -40,7 +40,7 @@ export class ApifyDataSyncService {
         syncType,
         apifyRunId,
         apifyDatasetId: datasetId || null,
-        status: 'running',
+        status: "running",
         startedAt: new Date(),
       },
     });
@@ -53,7 +53,10 @@ export class ApifyDataSyncService {
    */
   async updateSyncRecord(
     syncRecordId: string,
-    result: Partial<SyncResult> & { status: 'completed' | 'failed'; errorMessage?: string }
+    result: Partial<SyncResult> & {
+      status: "completed" | "failed";
+      errorMessage?: string;
+    },
   ): Promise<void> {
     await prisma.syncRecord.update({
       where: { id: syncRecordId },
@@ -85,14 +88,14 @@ export class ApifyDataSyncService {
   async getTeamSyncHistory(
     teamId: string,
     platform?: Platform,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<any[]> {
     return prisma.syncRecord.findMany({
       where: {
         teamId,
         ...(platform && { platform }),
       },
-      orderBy: { startedAt: 'desc' },
+      orderBy: { startedAt: "desc" },
       take: limit,
     });
   }
@@ -103,7 +106,7 @@ export class ApifyDataSyncService {
   async updateScheduleLastRun(
     teamId: string,
     platform: Platform,
-    scheduleType: string
+    scheduleType: string,
   ): Promise<void> {
     await prisma.apifySchedule.updateMany({
       where: {
@@ -124,9 +127,9 @@ export class ApifyDataSyncService {
     await prisma.syncRecord.update({
       where: { id: syncRecordId },
       data: {
-        status: 'cancelled',
+        status: "cancelled",
         completedAt: new Date(),
-        errorMessage: 'Sync cancelled by user or system',
+        errorMessage: "Sync cancelled by user or system",
       },
     });
   }
@@ -138,10 +141,9 @@ export class ApifyDataSyncService {
     return prisma.syncRecord.findMany({
       where: {
         teamId,
-        status: { in: ['pending', 'running'] },
+        status: { in: ["pending", "running"] },
       },
-      orderBy: { startedAt: 'desc' },
+      orderBy: { startedAt: "desc" },
     });
   }
 }
-

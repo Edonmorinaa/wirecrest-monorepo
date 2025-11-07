@@ -28,7 +28,7 @@ export interface ISentimentAnalyzer {
   /**
    * Categorize sentiment score into positive/neutral/negative
    */
-  categorize(score: number): 'positive' | 'neutral' | 'negative';
+  categorize(score: number): "positive" | "neutral" | "negative";
 
   /**
    * Analyze multiple texts and aggregate sentiment
@@ -40,4 +40,3 @@ export interface ISentimentAnalyzer {
    */
   extractKeywords(text: string, limit?: number): string[];
 }
-

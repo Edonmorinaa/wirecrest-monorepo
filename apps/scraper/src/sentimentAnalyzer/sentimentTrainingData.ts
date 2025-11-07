@@ -1,29 +1,83 @@
 export interface TrainingUtterance {
   text: string;
-  sentiment: 'positive' | 'negative' | 'neutral';
+  sentiment: "positive" | "negative" | "neutral";
 }
 
 export const trainingData: TrainingUtterance[] = [
   // Positive Reviews (300)
-  { text: "Absolutely fantastic service, the staff were so friendly!", sentiment: "positive" },
-  { text: "The food was delicious, best restaurant in town!", sentiment: "positive" },
-  { text: "Amazing experience, highly recommend this place!", sentiment: "positive" },
-  { text: "Clean store, great selection, and quick checkout.", sentiment: "positive" },
-  { text: "The doctor was attentive and explained everything clearly.", sentiment: "positive" },
-  { text: "Loved the ambiance, perfect for a night out.", sentiment: "positive" },
-  { text: "Super fast delivery and excellent product quality!", sentiment: "positive" },
-  { text: "The barista made my coffee just right, great vibe!", sentiment: "positive" },
-  { text: "Wonderful customer service, they went above and beyond.", sentiment: "positive" },
-  { text: "The pizza was hot and fresh, kids loved it!", sentiment: "positive" },
-  { text: "Great value for money, will shop here again.", sentiment: "positive" },
-  { text: "The staff made my visit so pleasant, thank you!", sentiment: "positive" },
-  { text: "Top-notch quality, I’m impressed with this place.", sentiment: "positive" },
-  { text: "The dessert was to die for, can’t wait to return!", sentiment: "positive" },
-  { text: "Friendly team and a cozy atmosphere, loved it.", sentiment: "positive" },
-  { text: "The sushi was fresh and beautifully presented!", sentiment: "positive" },
+  {
+    text: "Absolutely fantastic service, the staff were so friendly!",
+    sentiment: "positive",
+  },
+  {
+    text: "The food was delicious, best restaurant in town!",
+    sentiment: "positive",
+  },
+  {
+    text: "Amazing experience, highly recommend this place!",
+    sentiment: "positive",
+  },
+  {
+    text: "Clean store, great selection, and quick checkout.",
+    sentiment: "positive",
+  },
+  {
+    text: "The doctor was attentive and explained everything clearly.",
+    sentiment: "positive",
+  },
+  {
+    text: "Loved the ambiance, perfect for a night out.",
+    sentiment: "positive",
+  },
+  {
+    text: "Super fast delivery and excellent product quality!",
+    sentiment: "positive",
+  },
+  {
+    text: "The barista made my coffee just right, great vibe!",
+    sentiment: "positive",
+  },
+  {
+    text: "Wonderful customer service, they went above and beyond.",
+    sentiment: "positive",
+  },
+  {
+    text: "The pizza was hot and fresh, kids loved it!",
+    sentiment: "positive",
+  },
+  {
+    text: "Great value for money, will shop here again.",
+    sentiment: "positive",
+  },
+  {
+    text: "The staff made my visit so pleasant, thank you!",
+    sentiment: "positive",
+  },
+  {
+    text: "Top-notch quality, I’m impressed with this place.",
+    sentiment: "positive",
+  },
+  {
+    text: "The dessert was to die for, can’t wait to return!",
+    sentiment: "positive",
+  },
+  {
+    text: "Friendly team and a cozy atmosphere, loved it.",
+    sentiment: "positive",
+  },
+  {
+    text: "The sushi was fresh and beautifully presented!",
+    sentiment: "positive",
+  },
   { text: "Quick and painless visit, great dentist!", sentiment: "positive" },
-  { text: "Best clothing store, everything fits perfectly!", sentiment: "positive" },
-  { text: "The hotel staff were so welcoming, amazing stay!", sentiment: "positive" },
+  {
+    text: "Best clothing store, everything fits perfectly!",
+    sentiment: "positive",
+  },
+  {
+    text: "The hotel staff were so welcoming, amazing stay!",
+    sentiment: "positive",
+  },
   { text: "Perfect haircut, the stylist nailed it!", sentiment: "positive" },
   { text: "Fantastic coffee, cozy cafe vibe!", sentiment: "positive" },
   { text: "Great return policy, hassle-free shopping!", sentiment: "positive" },
@@ -32,11 +86,17 @@ export const trainingData: TrainingUtterance[] = [
   { text: "The tacos were out of this world!", sentiment: "positive" },
   { text: "Quick service and amazing cocktails!", sentiment: "positive" },
   { text: "The staff helped me find the perfect gift!", sentiment: "positive" },
-  { text: "Doctor took time to answer all my questions.", sentiment: "positive" },
+  {
+    text: "Doctor took time to answer all my questions.",
+    sentiment: "positive",
+  },
   { text: "Best bakery, their cakes are heavenly!", sentiment: "positive" },
   { text: "The gym was clean and well-equipped!", sentiment: "positive" },
   { text: "Loved the live music at the restaurant!", sentiment: "positive" },
-  { text: "Fast shipping, product exceeded expectations!", sentiment: "positive" },
+  {
+    text: "Fast shipping, product exceeded expectations!",
+    sentiment: "positive",
+  },
   { text: "The spa treatment was so relaxing!", sentiment: "positive" },
   { text: "Great prices and friendly cashiers!", sentiment: "positive" },
   { text: "The chef’s special was a delight!", sentiment: "positive" },
@@ -59,7 +119,10 @@ export const trainingData: TrainingUtterance[] = [
   { text: "Doctor was thorough and caring!", sentiment: "positive" },
   { text: "The coffee shop had the best lattes!", sentiment: "positive" },
   { text: "Hotel breakfast was delicious!", sentiment: "positive" },
-  { text: "The store’s layout was so easy to navigate!", sentiment: "positive" },
+  {
+    text: "The store’s layout was so easy to navigate!",
+    sentiment: "positive",
+  },
   { text: "Great dental cleaning, very professional!", sentiment: "positive" },
   { text: "The restaurant’s patio was perfect!", sentiment: "positive" },
   { text: "Fast and friendly delivery service!", sentiment: "positive" },
@@ -67,29 +130,56 @@ export const trainingData: TrainingUtterance[] = [
   // ... (240 more positive utterances, following similar patterns, e.g., "Loved the friendly vibe!", "Amazing quality for the price!", "The staff were super attentive!", covering restaurants, retail, healthcare, hospitality)
 
   // Negative Reviews (300)
-  { text: "Terrible service, waited an hour for my food.", sentiment: "negative" },
-  { text: "The product was faulty and no one helped me.", sentiment: "negative" },
+  {
+    text: "Terrible service, waited an hour for my food.",
+    sentiment: "negative",
+  },
+  {
+    text: "The product was faulty and no one helped me.",
+    sentiment: "negative",
+  },
   { text: "Horrible experience, staff were so rude.", sentiment: "negative" },
   { text: "Food was cold and tasteless, never again.", sentiment: "negative" },
-  { text: "Overpriced and poor quality, very disappointed.", sentiment: "negative" },
+  {
+    text: "Overpriced and poor quality, very disappointed.",
+    sentiment: "negative",
+  },
   { text: "The doctor rushed me and didn’t listen.", sentiment: "negative" },
   { text: "Dirty tables and slow service, awful.", sentiment: "negative" },
   { text: "My order was wrong and they didn’t fix it.", sentiment: "negative" },
   { text: "Long wait time, not worth the hassle.", sentiment: "negative" },
-  { text: "Burnt coffee and unfriendly barista, terrible.", sentiment: "negative" },
-  { text: "The store was a mess, couldn’t find anything.", sentiment: "negative" },
-  { text: "Poor customer service, they ignored my complaint.", sentiment: "negative" },
+  {
+    text: "Burnt coffee and unfriendly barista, terrible.",
+    sentiment: "negative",
+  },
+  {
+    text: "The store was a mess, couldn’t find anything.",
+    sentiment: "negative",
+  },
+  {
+    text: "Poor customer service, they ignored my complaint.",
+    sentiment: "negative",
+  },
   { text: "Undercooked food, made me sick.", sentiment: "negative" },
-  { text: "The staff were arguing in front of customers.", sentiment: "negative" },
+  {
+    text: "The staff were arguing in front of customers.",
+    sentiment: "negative",
+  },
   { text: "Broken item delivered, no refund offered.", sentiment: "negative" },
-  { text: "Clothing fell apart after one wash, terrible.", sentiment: "negative" },
+  {
+    text: "Clothing fell apart after one wash, terrible.",
+    sentiment: "negative",
+  },
   { text: "Appointment was canceled without notice.", sentiment: "negative" },
   { text: "Room was dirty, worst hotel ever.", sentiment: "negative" },
   { text: "Moldy bread, absolutely disgusting.", sentiment: "negative" },
   { text: "No parking, made the visit a nightmare.", sentiment: "negative" },
   { text: "Waited forever for a table, not worth it.", sentiment: "negative" },
   { text: "Product broke in a day, total waste.", sentiment: "negative" },
-  { text: "Doctor ignored my concerns, unprofessional.", sentiment: "negative" },
+  {
+    text: "Doctor ignored my concerns, unprofessional.",
+    sentiment: "negative",
+  },
   { text: "Check-in took ages, staff were clueless.", sentiment: "negative" },
   { text: "The food was greasy and overcooked.", sentiment: "negative" },
   { text: "No response to my emails, awful service.", sentiment: "negative" },
@@ -141,7 +231,10 @@ export const trainingData: TrainingUtterance[] = [
   { text: "It was alright, might come back.", sentiment: "neutral" },
   { text: "Service was fine, food was just okay.", sentiment: "neutral" },
   { text: "Not bad, but not memorable either.", sentiment: "neutral" },
-  { text: "The staff were polite, but the wait was long.", sentiment: "neutral" },
+  {
+    text: "The staff were polite, but the wait was long.",
+    sentiment: "neutral",
+  },
   { text: "Okay quality, nothing to rave about.", sentiment: "neutral" },
   { text: "The coffee was decent, nothing more.", sentiment: "neutral" },
   { text: "Store was okay, found what I needed.", sentiment: "neutral" },
@@ -165,7 +258,10 @@ export const trainingData: TrainingUtterance[] = [
   { text: "The gym was alright, equipment was okay.", sentiment: "neutral" },
   { text: "Hotel breakfast was fine, standard fare.", sentiment: "neutral" },
   { text: "The salon was okay, decent job.", sentiment: "neutral" },
-  { text: "The restaurant’s decor was nice, food was okay.", sentiment: "neutral" },
+  {
+    text: "The restaurant’s decor was nice, food was okay.",
+    sentiment: "neutral",
+  },
   { text: "Shopping experience was fine, average.", sentiment: "neutral" },
   { text: "The clinic was okay, wait was long.", sentiment: "neutral" },
   { text: "Coffee was alright, nothing to write about.", sentiment: "neutral" },
@@ -190,18 +286,30 @@ export const trainingData: TrainingUtterance[] = [
 
   // Edge Cases (100)
   { text: "Great service, totally NOT sarcastic!", sentiment: "negative" }, // Sarcasm
-  { text: "Food was amazing, but the wait was ridiculous.", sentiment: "neutral" }, // Mixed
+  {
+    text: "Food was amazing, but the wait was ridiculous.",
+    sentiment: "neutral",
+  }, // Mixed
   { text: "It was okay.", sentiment: "neutral" }, // Short
-  { text: "Wow, such a wonderful experience... kidding!", sentiment: "negative" }, // Sarcasm
+  {
+    text: "Wow, such a wonderful experience... kidding!",
+    sentiment: "negative",
+  }, // Sarcasm
   { text: "The coffee was great, but staff were rude.", sentiment: "neutral" }, // Mixed
   { text: "Fine.", sentiment: "neutral" }, // Short
   { text: "Not bad, I guess, but could be better.", sentiment: "neutral" }, // Ambiguous
   { text: "Amazing food, if you like waiting forever!", sentiment: "negative" }, // Sarcasm
-  { text: "The product was okay, but shipping was slow.", sentiment: "neutral" }, // Mixed
+  {
+    text: "The product was okay, but shipping was slow.",
+    sentiment: "neutral",
+  }, // Mixed
   { text: "Meh.", sentiment: "neutral" }, // Short
   { text: "Gr8 food lol, but service sux.", sentiment: "neutral" }, // Slang, mixed
   { text: "Best pizza ever, just kidding!", sentiment: "negative" }, // Sarcasm
-  { text: "The doctor was nice, but the wait was awful.", sentiment: "neutral" }, // Mixed
+  {
+    text: "The doctor was nice, but the wait was awful.",
+    sentiment: "neutral",
+  }, // Mixed
   { text: "Ok I guess.", sentiment: "neutral" }, // Short, typo
   { text: "Such a great store... NOT!", sentiment: "negative" }, // Sarcasm
   { text: "The hotel was nice, but noisy at night.", sentiment: "neutral" }, // Mixed

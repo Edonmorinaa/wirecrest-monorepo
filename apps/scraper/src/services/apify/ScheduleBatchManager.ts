@@ -1,12 +1,12 @@
 /**
  * Schedule Batch Manager
- * 
+ *
  * Handles automatic batching and load balancing for global schedules.
  * Ensures no schedule exceeds platform-specific limits.
  */
 
-import { prisma } from '@wirecrest/db';
-import type { Platform, ScheduleType } from '../../types/apify.types';
+import { prisma } from "@wirecrest/db";
+import type { Platform, ScheduleType } from "../../types/apify.types";
 
 const MAX_BATCH_SIZE: Record<Platform, number> = {
   google_reviews: 50,
@@ -30,7 +30,7 @@ export class ScheduleBatchManager {
   async findBestScheduleForBusiness(
     platform: Platform,
     scheduleType: ScheduleType,
-    intervalHours: number
+    intervalHours: number,
   ): Promise<BatchAllocationResult | null> {
     const schedules = await prisma.apifyGlobalSchedule.findMany({
       where: {
@@ -39,14 +39,15 @@ export class ScheduleBatchManager {
         intervalHours,
       },
       orderBy: [
-        { businessCount: 'asc' }, // Prefer schedules with fewer businesses
-        { batchIndex: 'asc' },    // Prefer lower batch indices
+        { businessCount: "asc" }, // Prefer schedules with fewer businesses
+        { batchIndex: "asc" }, // Prefer lower batch indices
       ],
     });
 
     for (const schedule of schedules) {
-      const availableCapacity = MAX_BATCH_SIZE[platform] - schedule.businessCount;
-      
+      const availableCapacity =
+        MAX_BATCH_SIZE[platform] - schedule.businessCount;
+
       if (availableCapacity > 0) {
         return {
           scheduleId: schedule.id,
@@ -67,7 +68,7 @@ export class ScheduleBatchManager {
   async rebalanceBatches(
     platform: Platform,
     scheduleType: ScheduleType,
-    intervalHours: number
+    intervalHours: number,
   ): Promise<{
     success: boolean;
     businessesMoved: number;
@@ -85,19 +86,22 @@ export class ScheduleBatchManager {
             where: { isActive: true },
           },
         },
-        orderBy: { batchIndex: 'asc' },
+        orderBy: { batchIndex: "asc" },
       });
 
       if (schedules.length <= 1) {
         return {
           success: true,
           businessesMoved: 0,
-          message: 'No rebalancing needed (single schedule)',
+          message: "No rebalancing needed (single schedule)",
         };
       }
 
       // Calculate total businesses and target per batch
-      const totalBusinesses = schedules.reduce((sum, s) => sum + s.businessCount, 0);
+      const totalBusinesses = schedules.reduce(
+        (sum, s) => sum + s.businessCount,
+        0,
+      );
       const targetPerBatch = Math.ceil(totalBusinesses / schedules.length);
       const maxPerBatch = MAX_BATCH_SIZE[platform];
 
@@ -112,8 +116,8 @@ export class ScheduleBatchManager {
       let businessesMoved = 0;
 
       // Collect all businesses
-      const allBusinesses = schedules.flatMap(s => 
-        s.businessMappings.map(b => ({ ...b, currentScheduleId: s.id }))
+      const allBusinesses = schedules.flatMap((s) =>
+        s.businessMappings.map((b) => ({ ...b, currentScheduleId: s.id })),
       );
 
       // Redistribute evenly
@@ -146,7 +150,9 @@ export class ScheduleBatchManager {
         });
       }
 
-      console.log(`✓ Rebalanced ${businessesMoved} businesses across ${schedules.length} batches`);
+      console.log(
+        `✓ Rebalanced ${businessesMoved} businesses across ${schedules.length} batches`,
+      );
 
       return {
         success: true,
@@ -154,7 +160,7 @@ export class ScheduleBatchManager {
         message: `Rebalanced ${businessesMoved} businesses across ${schedules.length} batches`,
       };
     } catch (error: any) {
-      console.error('Error rebalancing batches:', error);
+      console.error("Error rebalancing batches:", error);
       return {
         success: false,
         businessesMoved: 0,
@@ -185,7 +191,7 @@ export class ScheduleBatchManager {
   async getScheduleStats(
     platform: Platform,
     scheduleType: ScheduleType,
-    intervalHours: number
+    intervalHours: number,
   ): Promise<{
     totalSchedules: number;
     totalBusinesses: number;
@@ -213,14 +219,17 @@ export class ScheduleBatchManager {
       };
     }
 
-    const totalBusinesses = schedules.reduce((sum, s) => sum + s.businessCount, 0);
-    const loads = schedules.map(s => s.businessCount);
+    const totalBusinesses = schedules.reduce(
+      (sum, s) => sum + s.businessCount,
+      0,
+    );
+    const loads = schedules.map((s) => s.businessCount);
     const maxLoad = Math.max(...loads);
     const minLoad = Math.min(...loads);
     const averageLoad = totalBusinesses / schedules.length;
 
     // Need rebalancing if difference between max and min is > 20% of average
-    const needsRebalancing = (maxLoad - minLoad) > (averageLoad * 0.2);
+    const needsRebalancing = maxLoad - minLoad > averageLoad * 0.2;
 
     return {
       totalSchedules: schedules.length,
@@ -240,7 +249,7 @@ export class ScheduleBatchManager {
     platform: Platform,
     scheduleType: ScheduleType,
     intervalHours: number,
-    threshold: number = 0.3 // Consolidate if < 30% full
+    threshold: number = 0.3, // Consolidate if < 30% full
   ): Promise<{
     success: boolean;
     batchesRemoved: number;
@@ -261,14 +270,14 @@ export class ScheduleBatchManager {
             where: { isActive: true },
           },
         },
-        orderBy: { businessCount: 'asc' }, // Start with smallest
+        orderBy: { businessCount: "asc" }, // Start with smallest
       });
 
       if (schedules.length <= 1) {
         return {
           success: true,
           batchesRemoved: 0,
-          message: 'No consolidation needed',
+          message: "No consolidation needed",
         };
       }
 
@@ -276,15 +285,16 @@ export class ScheduleBatchManager {
 
       for (let i = 0; i < schedules.length - 1; i++) {
         const smallSchedule = schedules[i];
-        
+
         if (smallSchedule.businessCount >= minSize) {
           continue; // Schedule is above threshold
         }
 
         // Find a schedule that can absorb these businesses
         const targetSchedule = schedules.find(
-          s => s.id !== smallSchedule.id && 
-               s.businessCount + smallSchedule.businessCount <= maxSize
+          (s) =>
+            s.id !== smallSchedule.id &&
+            s.businessCount + smallSchedule.businessCount <= maxSize,
         );
 
         if (!targetSchedule) {
@@ -301,7 +311,8 @@ export class ScheduleBatchManager {
         await prisma.apifyGlobalSchedule.update({
           where: { id: targetSchedule.id },
           data: {
-            businessCount: targetSchedule.businessCount + smallSchedule.businessCount,
+            businessCount:
+              targetSchedule.businessCount + smallSchedule.businessCount,
           },
         });
 
@@ -312,7 +323,9 @@ export class ScheduleBatchManager {
         });
 
         batchesRemoved++;
-        console.log(`✓ Consolidated batch ${smallSchedule.batchIndex} into batch ${targetSchedule.batchIndex}`);
+        console.log(
+          `✓ Consolidated batch ${smallSchedule.batchIndex} into batch ${targetSchedule.batchIndex}`,
+        );
       }
 
       return {
@@ -321,7 +334,7 @@ export class ScheduleBatchManager {
         message: `Consolidated ${batchesRemoved} underutilized batches`,
       };
     } catch (error: any) {
-      console.error('Error consolidating batches:', error);
+      console.error("Error consolidating batches:", error);
       return {
         success: false,
         batchesRemoved: 0,
@@ -341,7 +354,7 @@ export class ScheduleBatchManager {
       platform: string;
       scheduleType: string;
       intervalHours: number;
-      status: 'healthy' | 'warning' | 'critical';
+      status: "healthy" | "warning" | "critical";
       reason?: string;
     }>;
   }> {
@@ -362,22 +375,22 @@ export class ScheduleBatchManager {
       const maxSize = MAX_BATCH_SIZE[schedule.platform as Platform];
       const loadPercentage = (schedule.businessCount / maxSize) * 100;
 
-      let status: 'healthy' | 'warning' | 'critical' = 'healthy';
+      let status: "healthy" | "warning" | "critical" = "healthy";
       let reason: string | undefined;
 
       if (loadPercentage >= 95) {
-        status = 'critical';
+        status = "critical";
         reason = `At ${loadPercentage.toFixed(0)}% capacity, needs splitting`;
         critical++;
       } else if (loadPercentage >= 80) {
-        status = 'warning';
+        status = "warning";
         reason = `At ${loadPercentage.toFixed(0)}% capacity, approaching limit`;
         warning++;
       } else {
         healthy++;
       }
 
-      if (status !== 'healthy') {
+      if (status !== "healthy") {
         details.push({
           platform: schedule.platform,
           scheduleType: schedule.scheduleType,
@@ -391,4 +404,3 @@ export class ScheduleBatchManager {
     return { healthy, warning, critical, details };
   }
 }
-

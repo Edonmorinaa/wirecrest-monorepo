@@ -42,17 +42,17 @@
 // async function initializeServices(): Promise<void> {
 //   try {
 //     console.log('🔧 Initializing SOLID-compliant services...');
-    
+
 //     // Initialize service factory
 //     serviceFactory = new ServiceFactory();
 //     const container = serviceFactory.getContainer();
-    
+
 //     // Initialize controllers with dependency injection
 //     businessController = new BusinessApiController(container);
 //     reviewController = new ReviewApiController(container);
 //     analyticsController = new AnalyticsApiController(container);
 //     taskController = new TaskApiController(container);
-    
+
 //     console.log('✅ SOLID-compliant services initialized successfully');
 //   } catch (error) {
 //     console.error('❌ Failed to initialize services:', error);
@@ -74,9 +74,9 @@
 //       reviewController: reviewController ? 'ready' : 'initializing',
 //       analyticsController: analyticsController ? 'ready' : 'initializing'
 //     };
-    
+
 //     const allServicesReady = serviceFactory && businessController && reviewController && analyticsController;
-    
+
 //     const response: HealthCheckResponse = {
 //       success: true,
 //       status: allServicesReady ? 'healthy' : 'starting',
@@ -87,7 +87,7 @@
 //       services: servicesStatus,
 //       message: allServicesReady ? 'All SOLID-compliant services running' : 'Services are starting up'
 //     };
-    
+
 //     res.status(200).json(response);
 //   } catch (error) {
 //     const response: HealthCheckResponse = {
@@ -100,7 +100,7 @@
 //       error: error instanceof Error ? error.message : 'Unknown error',
 //       message: 'Service running but with errors'
 //     };
-    
+
 //     res.status(200).json(response);
 //   }
 // });
@@ -318,19 +318,19 @@
 //   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 //   console.log(`🚪 Port: ${PORT}`);
 //   console.log(`📦 Node version: ${process.version}`);
-  
+
 //   try {
 //     console.log('🔧 Initializing SOLID-compliant services...');
 //     await initializeServices();
 //     console.log('✅ SOLID-compliant services initialization complete');
-    
+
 //     app.listen(PORT, '0.0.0.0', () => {
 //       console.log('🎯 ===============================================');
 //       console.log(`🚀 Wirecrest Scraper Worker API v2.0 (SOLID Architecture)`);
 //       console.log(`📡 Server running on http://0.0.0.0:${PORT}`);
 //       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 //       console.log('🎯 ===============================================\n');
-      
+
 //       console.log('📋 Available endpoints:');
 //       console.log(`📊 Health check: GET http://localhost:${PORT}/health`);
 //       console.log(`📈 Memory stats: GET http://localhost:${PORT}/memory-stats`);
@@ -376,7 +376,7 @@
 //       console.log('📡 API Controllers: Segregated Interfaces');
 //       console.log('');
 //     });
-    
+
 //   } catch (error) {
 //     console.error('❌ Failed to start server:', error);
 //     process.exit(1);

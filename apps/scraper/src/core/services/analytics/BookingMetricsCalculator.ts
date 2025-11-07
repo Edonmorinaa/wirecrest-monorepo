@@ -48,12 +48,20 @@ export class BookingMetricsCalculator {
   /**
    * Build rating distribution from 1-10 scale ratings
    * Converts to 1-5 scale by rounding (matching legacy behavior)
-   * 
+   *
    * Example: 8.5 → rounds to 9 → bucket 5 (since 9-10 maps to 5)
    * Legacy formula: Math.max(1, Math.min(5, Math.round(rating)))
    */
-  static buildRatingDistribution10To5Scale(ratings: number[]): RatingDistribution {
-    const distribution: RatingDistribution = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+  static buildRatingDistribution10To5Scale(
+    ratings: number[],
+  ): RatingDistribution {
+    const distribution: RatingDistribution = {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+    };
 
     ratings.forEach((rating) => {
       // Round the 1-10 rating and clamp to 1-5 range
@@ -78,7 +86,7 @@ export class BookingMetricsCalculator {
    * Calculate average sub-ratings (all on 1-10 scale)
    */
   static calculateSubRatings(
-    reviews: Array<{ subRatings?: BookingSubRatings | null }>
+    reviews: Array<{ subRatings?: BookingSubRatings | null }>,
   ): BookingSubRatingAverages {
     const sums = {
       cleanliness: 0,
@@ -125,7 +133,10 @@ export class BookingMetricsCalculator {
         sums.staff += sr.staffRating;
         counts.staff++;
       }
-      if (sr.valueForMoneyRating !== null && sr.valueForMoneyRating !== undefined) {
+      if (
+        sr.valueForMoneyRating !== null &&
+        sr.valueForMoneyRating !== undefined
+      ) {
         sums.valueForMoney += sr.valueForMoneyRating;
         counts.valueForMoney++;
       }
@@ -136,12 +147,19 @@ export class BookingMetricsCalculator {
     });
 
     return {
-      averageCleanlinessRating: counts.cleanliness > 0 ? sums.cleanliness / counts.cleanliness : null,
-      averageComfortRating: counts.comfort > 0 ? sums.comfort / counts.comfort : null,
-      averageLocationRating: counts.location > 0 ? sums.location / counts.location : null,
-      averageFacilitiesRating: counts.facilities > 0 ? sums.facilities / counts.facilities : null,
+      averageCleanlinessRating:
+        counts.cleanliness > 0 ? sums.cleanliness / counts.cleanliness : null,
+      averageComfortRating:
+        counts.comfort > 0 ? sums.comfort / counts.comfort : null,
+      averageLocationRating:
+        counts.location > 0 ? sums.location / counts.location : null,
+      averageFacilitiesRating:
+        counts.facilities > 0 ? sums.facilities / counts.facilities : null,
       averageStaffRating: counts.staff > 0 ? sums.staff / counts.staff : null,
-      averageValueForMoneyRating: counts.valueForMoney > 0 ? sums.valueForMoney / counts.valueForMoney : null,
+      averageValueForMoneyRating:
+        counts.valueForMoney > 0
+          ? sums.valueForMoney / counts.valueForMoney
+          : null,
       averageWifiRating: counts.wifi > 0 ? sums.wifi / counts.wifi : null,
     };
   }
@@ -151,7 +169,7 @@ export class BookingMetricsCalculator {
    * Maps various guest type strings to standard categories
    */
   static calculateGuestTypeDistribution(
-    reviews: Array<{ guestType: string }>
+    reviews: Array<{ guestType: string }>,
   ): GuestTypeCounts {
     const counts: GuestTypeCounts = {
       soloTravelers: 0,
@@ -166,29 +184,29 @@ export class BookingMetricsCalculator {
       const guestType = review.guestType.toUpperCase();
 
       switch (guestType) {
-        case 'SOLO':
-        case 'SOLO_TRAVELER':
+        case "SOLO":
+        case "SOLO_TRAVELER":
           counts.soloTravelers++;
           break;
-        case 'COUPLE':
-        case 'COUPLES':
+        case "COUPLE":
+        case "COUPLES":
           counts.couples++;
           break;
-        case 'FAMILY_WITH_YOUNG_CHILDREN':
-        case 'FAMILY_YOUNG':
+        case "FAMILY_WITH_YOUNG_CHILDREN":
+        case "FAMILY_YOUNG":
           counts.familiesWithYoungChildren++;
           break;
-        case 'FAMILY_WITH_OLDER_CHILDREN':
-        case 'FAMILY_OLDER':
+        case "FAMILY_WITH_OLDER_CHILDREN":
+        case "FAMILY_OLDER":
           counts.familiesWithOlderChildren++;
           break;
-        case 'GROUP_OF_FRIENDS':
-        case 'GROUP':
-        case 'FRIENDS':
+        case "GROUP_OF_FRIENDS":
+        case "GROUP":
+        case "FRIENDS":
           counts.groupsOfFriends++;
           break;
-        case 'BUSINESS':
-        case 'BUSINESS_TRAVELER':
+        case "BUSINESS":
+        case "BUSINESS_TRAVELER":
           counts.businessTravelers++;
           break;
       }
@@ -202,11 +220,13 @@ export class BookingMetricsCalculator {
    * Short: < 3 nights, Medium: 3-7 nights, Long: > 7 nights
    */
   static calculateStayLengthMetrics(
-    reviews: Array<{ lengthOfStay?: number | null }>
+    reviews: Array<{ lengthOfStay?: number | null }>,
   ): StayLengthMetrics {
     const stayLengths = reviews
       .map((r) => r.lengthOfStay)
-      .filter((length): length is number => length !== null && length !== undefined);
+      .filter(
+        (length): length is number => length !== null && length !== undefined,
+      );
 
     if (stayLengths.length === 0) {
       return {
@@ -221,7 +241,9 @@ export class BookingMetricsCalculator {
     const averageLengthOfStay = totalNights / stayLengths.length;
 
     const shortStays = stayLengths.filter((length) => length < 3).length;
-    const mediumStays = stayLengths.filter((length) => length >= 3 && length <= 7).length;
+    const mediumStays = stayLengths.filter(
+      (length) => length >= 3 && length <= 7,
+    ).length;
     const longStays = stayLengths.filter((length) => length > 7).length;
 
     return {
@@ -269,14 +291,17 @@ export class BookingMetricsCalculator {
    */
   static getTopNationalities(
     reviews: Array<{ reviewerNationality?: string | null }>,
-    limit: number = 10
+    limit: number = 10,
   ): string[] {
     const nationalityCounts = new Map<string, number>();
 
     reviews.forEach((review) => {
       if (review.reviewerNationality) {
         const nationality = review.reviewerNationality.trim();
-        nationalityCounts.set(nationality, (nationalityCounts.get(nationality) || 0) + 1);
+        nationalityCounts.set(
+          nationality,
+          (nationalityCounts.get(nationality) || 0) + 1,
+        );
       }
     });
 
@@ -291,7 +316,7 @@ export class BookingMetricsCalculator {
    */
   static getMostPopularRoomTypes(
     reviews: Array<{ roomType?: string | null }>,
-    limit: number = 10
+    limit: number = 10,
   ): string[] {
     const roomTypeCounts = new Map<string, number>();
 
@@ -308,4 +333,3 @@ export class BookingMetricsCalculator {
       .map(([roomType]) => roomType);
   }
 }
-

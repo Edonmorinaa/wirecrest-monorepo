@@ -1,28 +1,36 @@
-import type { BookingReviewWithMetadata } from '../../types/extended-types';
-import type { IReviewService, ReviewResult } from '../interfaces/IReviewService';
-import type { IReviewRepository } from '../interfaces/IReviewRepository';
-import { randomUUID } from 'crypto';
+import type { BookingReviewWithMetadata } from "../../types/extended-types";
+import type {
+  IReviewService,
+  ReviewResult,
+} from "../interfaces/IReviewService";
+import type { IReviewRepository } from "../interfaces/IReviewRepository";
+import { randomUUID } from "crypto";
 
 /**
  * Booking Review Service
  * Follows Single Responsibility Principle (SRP) - only handles Booking review operations
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-export class BookingReviewService implements IReviewService<BookingReviewWithMetadata> {
+export class BookingReviewService
+  implements IReviewService<BookingReviewWithMetadata>
+{
   constructor(
-    private reviewRepository: IReviewRepository<BookingReviewWithMetadata>
+    private reviewRepository: IReviewRepository<BookingReviewWithMetadata>,
   ) {}
 
-  async saveReviews(businessId: string, reviews: BookingReviewWithMetadata[]): Promise<ReviewResult> {
+  async saveReviews(
+    businessId: string,
+    reviews: BookingReviewWithMetadata[],
+  ): Promise<ReviewResult> {
     try {
       // Delete existing reviews
       await this.reviewRepository.deleteByBusinessId(businessId);
 
       // Create review metadata for each review
-      const reviewsWithMetadata = reviews.map(review => ({
+      const reviewsWithMetadata = reviews.map((review) => ({
         ...review,
         reviewMetadataId: randomUUID(),
-        businessProfileId: businessId
+        businessProfileId: businessId,
       }));
 
       // Save reviews
@@ -31,12 +39,12 @@ export class BookingReviewService implements IReviewService<BookingReviewWithMet
       return {
         success: true,
         reviewsCount: reviews.length,
-        message: `Successfully saved ${reviews.length} reviews`
+        message: `Successfully saved ${reviews.length} reviews`,
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -45,7 +53,9 @@ export class BookingReviewService implements IReviewService<BookingReviewWithMet
     return await this.reviewRepository.findByBusinessId(businessId);
   }
 
-  async getReviewsWithMetadata(businessId: string): Promise<BookingReviewWithMetadata[]> {
+  async getReviewsWithMetadata(
+    businessId: string,
+  ): Promise<BookingReviewWithMetadata[]> {
     return await this.reviewRepository.findByBusinessIdWithMetadata(businessId);
   }
 

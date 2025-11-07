@@ -1,4 +1,4 @@
-import { MarketPlatform } from '@prisma/client';
+import { MarketPlatform } from "@prisma/client";
 
 /**
  * Apify Service Interface
@@ -23,18 +23,18 @@ export interface IApifyJob {
 }
 
 export enum ApifyJobPriority {
-  HIGH = 1,    // Initialization jobs
-  MEDIUM = 2,  // Polling jobs
-  LOW = 3      // Manual jobs
+  HIGH = 1, // Initialization jobs
+  MEDIUM = 2, // Polling jobs
+  LOW = 3, // Manual jobs
 }
 
 export enum ApifyJobStatus {
-  PENDING = 'PENDING',
-  RUNNING = 'RUNNING',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
-  RETRYING = 'RETRYING',
-  CANCELLED = 'CANCELLED'
+  PENDING = "PENDING",
+  RUNNING = "RUNNING",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+  RETRYING = "RETRYING",
+  CANCELLED = "CANCELLED",
 }
 
 export interface IApifyJobResult {
@@ -73,22 +73,27 @@ export interface IApifyDataProcessor {
 
 export interface IApifyService {
   // Job Management
-  createJob(platform: MarketPlatform, teamId: string, identifier: string, options?: ApifyJobOptions): Promise<IApifyJob>;
+  createJob(
+    platform: MarketPlatform,
+    teamId: string,
+    identifier: string,
+    options?: ApifyJobOptions,
+  ): Promise<IApifyJob>;
   executeJob(job: IApifyJob): Promise<IApifyJobResult>;
   getJobStatus(jobId: string): Promise<IApifyJob | null>;
   cancelJob(jobId: string): Promise<void>;
   retryJob(jobId: string): Promise<void>;
-  
+
   // Batch Operations
   executeBatchJobs(jobs: IApifyJob[]): Promise<IApifyJobResult[]>;
   scheduleBatchJobs(jobs: IApifyJob[]): Promise<void>;
-  
+
   // Monitoring
   getActiveJobs(): Promise<IApifyJob[]>;
   getJobsByTeam(teamId: string): Promise<IApifyJob[]>;
   getJobsByPlatform(platform: MarketPlatform): Promise<IApifyJob[]>;
   getJobStatistics(): Promise<ApifyJobStatistics>;
-  
+
   // Configuration
   setJobPriority(jobId: string, priority: ApifyJobPriority): Promise<void>;
   setMaxConcurrentJobs(maxJobs: number): void;

@@ -1,12 +1,12 @@
-import type { Request, Response } from 'express';
-import { BaseApiController } from './BaseApiController';
-import type { IBusinessApiController } from '../interfaces/IApiController';
-import type { BusinessProfileRequest } from '../dto/ApiRequest';
-import type { BusinessProfileResponse as BusinessProfileResponseDto } from '../dto/ApiResponse';
-import { MarketPlatform } from '@prisma/client';
-import type { IDependencyContainer } from '../../interfaces/IDependencyContainer';
-import type { IBusinessService } from '../../interfaces/IBusinessService';
-import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
+import type { Request, Response } from "express";
+import { BaseApiController } from "./BaseApiController";
+import type { IBusinessApiController } from "../interfaces/IApiController";
+import type { BusinessProfileRequest } from "../dto/ApiRequest";
+import type { BusinessProfileResponse as BusinessProfileResponseDto } from "../dto/ApiResponse";
+import { MarketPlatform } from "@prisma/client";
+import type { IDependencyContainer } from "../../interfaces/IDependencyContainer";
+import type { IBusinessService } from "../../interfaces/IBusinessService";
+import type { SERVICE_TOKENS } from "../../interfaces/IDependencyContainer";
 
 /**
  * Business API Controller
@@ -14,7 +14,10 @@ import type { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions via DI container
  */
-export class BusinessApiController extends BaseApiController implements IBusinessApiController {
+export class BusinessApiController
+  extends BaseApiController
+  implements IBusinessApiController
+{
   private container: IDependencyContainer;
 
   constructor(container: IDependencyContainer) {
@@ -27,20 +30,20 @@ export class BusinessApiController extends BaseApiController implements IBusines
    */
   async handleRequest(req: Request, res: Response): Promise<void> {
     switch (req.method) {
-      case 'POST':
+      case "POST":
         await this.createProfile(req, res);
         break;
-      case 'GET':
+      case "GET":
         await this.getProfile(req, res);
         break;
-      case 'PUT':
+      case "PUT":
         await this.updateProfile(req, res);
         break;
-      case 'DELETE':
+      case "DELETE":
         await this.deleteProfile(req, res);
         break;
       default:
-        this.sendErrorResponse(res, 405, 'Method not allowed');
+        this.sendErrorResponse(res, 405, "Method not allowed");
     }
   }
 
@@ -51,33 +54,41 @@ export class BusinessApiController extends BaseApiController implements IBusines
   async createProfile(req: Request, res: Response): Promise<void> {
     try {
       // Validate required fields
-      const validationError = this.validateRequiredFields(req, ['teamId', 'identifier']);
+      const validationError = this.validateRequiredFields(req, [
+        "teamId",
+        "identifier",
+      ]);
       if (validationError) {
         this.sendErrorResponse(res, 400, validationError);
         return;
       }
 
-      const { teamId, identifier, platform } = req.body as BusinessProfileRequest;
-      
+      const { teamId, identifier, platform } =
+        req.body as BusinessProfileRequest;
+
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(platform || "GOOGLE_MAPS");
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate business service
       const businessService = this.getBusinessService(marketPlatform);
-      
+
       // Create business profile
-      const result = await businessService.createProfile(teamId, marketPlatform, identifier);
-      
+      const result = await businessService.createProfile(
+        teamId,
+        marketPlatform,
+        identifier,
+      );
+
       if (result.success) {
         const response: BusinessProfileResponseDto = {
           success: true,
@@ -85,15 +96,18 @@ export class BusinessApiController extends BaseApiController implements IBusines
           platform: marketPlatform,
           businessId: result.businessId,
           profile: result.profileData,
-          message: 'Business profile created successfully'
+          message: "Business profile created successfully",
         };
         this.sendSuccessResponse(res, 200, response);
       } else {
-        this.sendErrorResponse(res, 400, result.error || 'Failed to create business profile');
+        this.sendErrorResponse(
+          res,
+          400,
+          result.error || "Failed to create business profile",
+        );
       }
-
     } catch (error) {
-      this.handleServiceError(error, res, 'create business profile');
+      this.handleServiceError(error, res, "create business profile");
     }
   }
 
@@ -108,35 +122,38 @@ export class BusinessApiController extends BaseApiController implements IBusines
 
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform as string || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(
+        (platform as string) || "GOOGLE_MAPS",
+      );
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate business service
       const businessService = this.getBusinessService(marketPlatform);
-      
+
       // Get business profile
       const result = await businessService.getProfile(teamId, marketPlatform);
-      
+
       const response: BusinessProfileResponseDto = {
         success: true,
         timestamp: new Date().toISOString(),
         platform: marketPlatform,
         profile: result.profileData,
-        message: result.success ? 'Business profile retrieved successfully' : 'No business profile found'
+        message: result.success
+          ? "Business profile retrieved successfully"
+          : "No business profile found",
       };
-      
-      this.sendSuccessResponse(res, 200, response);
 
+      this.sendSuccessResponse(res, 200, response);
     } catch (error) {
-      this.handleServiceError(error, res, 'get business profile');
+      this.handleServiceError(error, res, "get business profile");
     }
   }
 
@@ -151,23 +168,27 @@ export class BusinessApiController extends BaseApiController implements IBusines
 
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(platform || "GOOGLE_MAPS");
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate business service
       const businessService = this.getBusinessService(marketPlatform);
-      
+
       // Update business profile
-      const result = await businessService.updateProfile(teamId, marketPlatform, updateData);
-      
+      const result = await businessService.updateProfile(
+        teamId,
+        marketPlatform,
+        updateData,
+      );
+
       if (result.success) {
         const response: BusinessProfileResponseDto = {
           success: true,
@@ -175,15 +196,18 @@ export class BusinessApiController extends BaseApiController implements IBusines
           platform: marketPlatform,
           businessId: result.businessId,
           profile: result.profileData,
-          message: 'Business profile updated successfully'
+          message: "Business profile updated successfully",
         };
         this.sendSuccessResponse(res, 200, response);
       } else {
-        this.sendErrorResponse(res, 400, result.error || 'Failed to update business profile');
+        this.sendErrorResponse(
+          res,
+          400,
+          result.error || "Failed to update business profile",
+        );
       }
-
     } catch (error) {
-      this.handleServiceError(error, res, 'update business profile');
+      this.handleServiceError(error, res, "update business profile");
     }
   }
 
@@ -198,37 +222,39 @@ export class BusinessApiController extends BaseApiController implements IBusines
 
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
-        this.sendErrorResponse(res, 400, 'Invalid team ID format');
+        this.sendErrorResponse(res, 400, "Invalid team ID format");
         return;
       }
 
       // Validate platform
-      const marketPlatform = this.validatePlatform(platform || 'GOOGLE_MAPS');
+      const marketPlatform = this.validatePlatform(platform || "GOOGLE_MAPS");
       if (!marketPlatform) {
-        this.sendErrorResponse(res, 400, 'Invalid platform');
+        this.sendErrorResponse(res, 400, "Invalid platform");
         return;
       }
 
       // Get appropriate business service
       const businessService = this.getBusinessService(marketPlatform);
-      
+
       // Delete business profile
-      const result = await businessService.deleteProfile(teamId, marketPlatform);
-      
+      const result = await businessService.deleteProfile(
+        teamId,
+        marketPlatform,
+      );
+
       if (result.success) {
         const response: BusinessProfileResponseDto = {
           success: true,
           timestamp: new Date().toISOString(),
           platform: marketPlatform,
-          message: 'Business profile deleted successfully'
+          message: "Business profile deleted successfully",
         };
         this.sendSuccessResponse(res, 200, response);
       } else {
-        this.sendErrorResponse(res, 400, 'Failed to delete business profile');
+        this.sendErrorResponse(res, 400, "Failed to delete business profile");
       }
-
     } catch (error) {
-      this.handleServiceError(error, res, 'delete business profile');
+      this.handleServiceError(error, res, "delete business profile");
     }
   }
 

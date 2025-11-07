@@ -106,7 +106,7 @@ export interface TikTokDailySnapshot {
   businessProfileId: string;
   snapshotDate: string;
   snapshotTime: string;
-  snapshotType: 'DAILY' | 'MANUAL' | 'INITIAL';
+  snapshotType: "DAILY" | "MANUAL" | "INITIAL";
   followerCount: number;
   followingCount: number;
   heartCount: number;
@@ -162,7 +162,7 @@ export interface TikTokAnalytics {
 
 export interface TakeSnapshotRequest {
   businessProfileId: string;
-  snapshotType: 'DAILY' | 'MANUAL' | 'INITIAL';
+  snapshotType: "DAILY" | "MANUAL" | "INITIAL";
   includeVideos?: boolean;
   maxVideos?: number;
   includeComments?: boolean;
@@ -170,7 +170,7 @@ export interface TakeSnapshotRequest {
 }
 
 export interface GetAnalyticsRequest {
-  period: '7' | '30' | '90' | '365';
+  period: "7" | "30" | "90" | "365";
   includeCharts?: boolean;
   includeMetrics?: boolean;
 }
@@ -439,5 +439,7 @@ export interface LamaTokHashtagMediasResponse {
 
 // Legacy types for backward compatibility
 export interface ScrapeCreatorsTikTokUserResponse extends LamaTokUserResponse {}
-export interface ScrapeCreatorsTikTokVideoResponse extends LamaTokVideoResponse {}
-export interface ScrapeCreatorsTikTokCommentResponse extends LamaTokCommentResponse {} 
+export interface ScrapeCreatorsTikTokVideoResponse
+  extends LamaTokVideoResponse {}
+export interface ScrapeCreatorsTikTokCommentResponse
+  extends LamaTokCommentResponse {}

@@ -1,17 +1,17 @@
 /**
  * Admin Schedule Controller
- * 
+ *
  * Provides admin endpoints for managing global schedules, custom intervals,
  * and manual operations.
  */
 
-import { Request, Response } from 'express';
-import { prisma } from '@wirecrest/db';
-import { GlobalScheduleOrchestrator } from '../services/subscription/GlobalScheduleOrchestrator';
-import { FeatureExtractor } from '../services/subscription/FeatureExtractor';
-import { ScheduleBatchManager } from '../services/apify/ScheduleBatchManager';
-import { BusinessRetryService } from '../services/retry/BusinessRetryService';
-import type { Platform } from '../types/apify.types';
+import { Request, Response } from "express";
+import { prisma } from "@wirecrest/db";
+import { GlobalScheduleOrchestrator } from "../services/subscription/GlobalScheduleOrchestrator";
+import { FeatureExtractor } from "../services/subscription/FeatureExtractor";
+import { ScheduleBatchManager } from "../services/apify/ScheduleBatchManager";
+import { BusinessRetryService } from "../services/retry/BusinessRetryService";
+import type { Platform } from "../types/apify.types";
 
 export class AdminScheduleController {
   private globalOrchestrator: GlobalScheduleOrchestrator;
@@ -20,7 +20,10 @@ export class AdminScheduleController {
   private retryService: BusinessRetryService;
 
   constructor(apifyToken: string, webhookBaseUrl: string) {
-    this.globalOrchestrator = new GlobalScheduleOrchestrator(apifyToken, webhookBaseUrl);
+    this.globalOrchestrator = new GlobalScheduleOrchestrator(
+      apifyToken,
+      webhookBaseUrl,
+    );
     this.featureExtractor = new FeatureExtractor();
     this.batchManager = new ScheduleBatchManager();
     this.retryService = new BusinessRetryService(apifyToken, webhookBaseUrl);
@@ -39,16 +42,16 @@ export class AdminScheduleController {
           },
         },
         orderBy: [
-          { platform: 'asc' },
-          { intervalHours: 'asc' },
-          { batchIndex: 'asc' },
+          { platform: "asc" },
+          { intervalHours: "asc" },
+          { batchIndex: "asc" },
         ],
       });
 
       res.json({
         success: true,
         count: schedules.length,
-        schedules: schedules.map(s => ({
+        schedules: schedules.map((s) => ({
           id: s.id,
           platform: s.platform,
           scheduleType: s.scheduleType,
@@ -62,9 +65,9 @@ export class AdminScheduleController {
         })),
       });
     } catch (error: any) {
-      console.error('Error getting schedules:', error);
+      console.error("Error getting schedules:", error);
       res.status(500).json({
-        error: 'Failed to get schedules',
+        error: "Failed to get schedules",
         details: error.message,
       });
     }
@@ -97,7 +100,7 @@ export class AdminScheduleController {
       });
 
       if (!schedule) {
-        res.status(404).json({ error: 'Schedule not found' });
+        res.status(404).json({ error: "Schedule not found" });
         return;
       }
 
@@ -109,19 +112,20 @@ export class AdminScheduleController {
           intervalHours: schedule.intervalHours,
           businessCount: schedule.businessCount,
         },
-        businesses: schedule.businessMappings.map(m => ({
+        businesses: schedule.businessMappings.map((m) => ({
           id: m.id,
           businessProfileId: m.businessProfileId,
           teamId: m.teamId,
           platform: m.platform,
-          identifier: m.placeId || m.facebookUrl || m.tripAdvisorUrl || m.bookingUrl,
+          identifier:
+            m.placeId || m.facebookUrl || m.tripAdvisorUrl || m.bookingUrl,
           addedAt: m.addedAt,
         })),
       });
     } catch (error: any) {
-      console.error('Error getting schedule businesses:', error);
+      console.error("Error getting schedule businesses:", error);
       res.status(500).json({
-        error: 'Failed to get schedule businesses',
+        error: "Failed to get schedule businesses",
         details: error.message,
       });
     }
@@ -140,7 +144,7 @@ export class AdminScheduleController {
       });
 
       if (!schedule) {
-        res.status(404).json({ error: 'Schedule not found' });
+        res.status(404).json({ error: "Schedule not found" });
         return;
       }
 
@@ -155,9 +159,9 @@ export class AdminScheduleController {
         message: `Schedule ${schedule.platform}_${schedule.intervalHours}h triggered`,
       });
     } catch (error: any) {
-      console.error('Error triggering schedule:', error);
+      console.error("Error triggering schedule:", error);
       res.status(500).json({
-        error: 'Failed to trigger schedule',
+        error: "Failed to trigger schedule",
         details: error.message,
       });
     }
@@ -178,12 +182,12 @@ export class AdminScheduleController {
 
       res.json({
         success: true,
-        message: 'Schedule paused',
+        message: "Schedule paused",
       });
     } catch (error: any) {
-      console.error('Error pausing schedule:', error);
+      console.error("Error pausing schedule:", error);
       res.status(500).json({
-        error: 'Failed to pause schedule',
+        error: "Failed to pause schedule",
         details: error.message,
       });
     }
@@ -204,12 +208,12 @@ export class AdminScheduleController {
 
       res.json({
         success: true,
-        message: 'Schedule resumed',
+        message: "Schedule resumed",
       });
     } catch (error: any) {
-      console.error('Error resuming schedule:', error);
+      console.error("Error resuming schedule:", error);
       res.status(500).json({
-        error: 'Failed to resume schedule',
+        error: "Failed to resume schedule",
         details: error.message,
       });
     }
@@ -231,25 +235,27 @@ export class AdminScheduleController {
       });
 
       // Get custom intervals
-      const customIntervals = await this.featureExtractor.getTeamCustomIntervals(teamId);
+      const customIntervals =
+        await this.featureExtractor.getTeamCustomIntervals(teamId);
 
       res.json({
         success: true,
         teamId,
         businessCount: mappings.length,
-        mappings: mappings.map(m => ({
+        mappings: mappings.map((m) => ({
           businessProfileId: m.businessProfileId,
           platform: m.platform,
           intervalHours: m.intervalHours,
           scheduleId: m.scheduleId,
-          identifier: m.placeId || m.facebookUrl || m.tripAdvisorUrl || m.bookingUrl,
+          identifier:
+            m.placeId || m.facebookUrl || m.tripAdvisorUrl || m.bookingUrl,
         })),
         customIntervals,
       });
     } catch (error: any) {
-      console.error('Error getting team schedules:', error);
+      console.error("Error getting team schedules:", error);
       res.status(500).json({
-        error: 'Failed to get team schedules',
+        error: "Failed to get team schedules",
         details: error.message,
       });
     }
@@ -262,10 +268,13 @@ export class AdminScheduleController {
   async setCustomInterval(req: Request, res: Response): Promise<void> {
     try {
       const { teamId } = req.params;
-      const { platform, customIntervalHours, reason, setBy, expiresAt } = req.body;
+      const { platform, customIntervalHours, reason, setBy, expiresAt } =
+        req.body;
 
       if (!platform || !customIntervalHours) {
-        res.status(400).json({ error: 'platform and customIntervalHours are required' });
+        res
+          .status(400)
+          .json({ error: "platform and customIntervalHours are required" });
         return;
       }
 
@@ -274,9 +283,9 @@ export class AdminScheduleController {
         teamId,
         platform as Platform,
         customIntervalHours,
-        reason || 'Set by admin',
-        setBy || 'admin',
-        expiresAt ? new Date(expiresAt) : undefined
+        reason || "Set by admin",
+        setBy || "admin",
+        expiresAt ? new Date(expiresAt) : undefined,
       );
 
       if (!result.success) {
@@ -297,7 +306,7 @@ export class AdminScheduleController {
           mapping.businessProfileId,
           platform as Platform,
           mapping.intervalHours,
-          customIntervalHours
+          customIntervalHours,
         );
       }
 
@@ -307,9 +316,9 @@ export class AdminScheduleController {
         businessesMoved: mappings.length,
       });
     } catch (error: any) {
-      console.error('Error setting custom interval:', error);
+      console.error("Error setting custom interval:", error);
       res.status(500).json({
-        error: 'Failed to set custom interval',
+        error: "Failed to set custom interval",
         details: error.message,
       });
     }
@@ -325,7 +334,7 @@ export class AdminScheduleController {
       const { platform } = req.body;
 
       if (!platform) {
-        res.status(400).json({ error: 'platform is required' });
+        res.status(400).json({ error: "platform is required" });
         return;
       }
 
@@ -340,15 +349,18 @@ export class AdminScheduleController {
       });
 
       if (!mapping) {
-        res.status(404).json({ error: 'Business mapping not found' });
+        res.status(404).json({ error: "Business mapping not found" });
         return;
       }
 
-      const identifier = mapping.placeId || mapping.facebookUrl || 
-                         mapping.tripAdvisorUrl || mapping.bookingUrl;
+      const identifier =
+        mapping.placeId ||
+        mapping.facebookUrl ||
+        mapping.tripAdvisorUrl ||
+        mapping.bookingUrl;
 
       if (!identifier) {
-        res.status(400).json({ error: 'No identifier found for business' });
+        res.status(400).json({ error: "No identifier found for business" });
         return;
       }
 
@@ -358,17 +370,17 @@ export class AdminScheduleController {
         id,
         platform as Platform,
         identifier,
-        'Manual retry requested by admin'
+        "Manual retry requested by admin",
       );
 
       res.json({
         success: true,
-        message: 'Business added to retry queue',
+        message: "Business added to retry queue",
       });
     } catch (error: any) {
-      console.error('Error retrying business:', error);
+      console.error("Error retrying business:", error);
       res.status(500).json({
-        error: 'Failed to retry business',
+        error: "Failed to retry business",
         details: error.message,
       });
     }
@@ -409,9 +421,9 @@ export class AdminScheduleController {
         },
       });
     } catch (error: any) {
-      console.error('Error getting health:', error);
+      console.error("Error getting health:", error);
       res.status(500).json({
-        error: 'Failed to get health status',
+        error: "Failed to get health status",
         details: error.message,
       });
     }
@@ -426,8 +438,8 @@ export class AdminScheduleController {
       const { platform, scheduleType, intervalHours } = req.body;
 
       if (!platform || !scheduleType || !intervalHours) {
-        res.status(400).json({ 
-          error: 'platform, scheduleType, and intervalHours are required' 
+        res.status(400).json({
+          error: "platform, scheduleType, and intervalHours are required",
         });
         return;
       }
@@ -435,7 +447,7 @@ export class AdminScheduleController {
       const result = await this.batchManager.rebalanceBatches(
         platform as Platform,
         scheduleType,
-        intervalHours
+        intervalHours,
       );
 
       res.json({
@@ -444,12 +456,11 @@ export class AdminScheduleController {
         businessesMoved: result.businessesMoved,
       });
     } catch (error: any) {
-      console.error('Error rebalancing batches:', error);
+      console.error("Error rebalancing batches:", error);
       res.status(500).json({
-        error: 'Failed to rebalance batches',
+        error: "Failed to rebalance batches",
         details: error.message,
       });
     }
   }
 }
-

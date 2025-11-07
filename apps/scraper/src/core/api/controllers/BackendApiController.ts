@@ -1,10 +1,10 @@
-import { Request, Response } from 'express';
-import { BaseApiController } from './BaseApiController';
-import { BackendOrchestrator } from '../../services/BackendOrchestrator';
-import { IDependencyContainer } from '../../interfaces/IDependencyContainer';
-import { MarketPlatform } from '@prisma/client';
-import { SERVICE_TOKENS } from '../../interfaces/IDependencyContainer';
-import { logger } from '../../../utils/logger';
+import { Request, Response } from "express";
+import { BaseApiController } from "./BaseApiController";
+import { BackendOrchestrator } from "../../services/BackendOrchestrator";
+import { IDependencyContainer } from "../../interfaces/IDependencyContainer";
+import { MarketPlatform } from "@prisma/client";
+import { SERVICE_TOKENS } from "../../interfaces/IDependencyContainer";
+import { logger } from "../../../utils/logger";
 
 /**
  * Backend API Controller
@@ -24,35 +24,39 @@ export class BackendApiController extends BaseApiController {
     const action = req.query.action as string;
 
     if (!teamId || !platform) {
-      this.sendErrorResponse(res, 400, 'teamId and platform are required');
+      this.sendErrorResponse(res, 400, "teamId and platform are required");
       return;
     }
 
     const validatedPlatform = this.validatePlatform(platform);
     if (!validatedPlatform) {
-      this.sendErrorResponse(res, 400, 'Invalid platform');
+      this.sendErrorResponse(res, 400, "Invalid platform");
       return;
     }
 
     try {
       switch (action) {
-        case 'process':
+        case "process":
           await this.processBusinessData(req, res);
           break;
-        case 'get':
+        case "get":
           await this.getBusinessData(req, res);
           break;
-        case 'refresh':
+        case "refresh":
           await this.refreshBusinessData(req, res);
           break;
-        case 'batch':
+        case "batch":
           await this.processBatchData(req, res);
           break;
         default:
-          this.sendErrorResponse(res, 400, 'Invalid action. Supported actions: process, get, refresh, batch');
+          this.sendErrorResponse(
+            res,
+            400,
+            "Invalid action. Supported actions: process, get, refresh, batch",
+          );
       }
     } catch (error) {
-      this.handleServiceError(error, res, 'Backend operation');
+      this.handleServiceError(error, res, "Backend operation");
     }
   }
 
@@ -65,12 +69,12 @@ export class BackendApiController extends BaseApiController {
     const { identifier, isInitialization, maxReviews, forceRefresh } = req.body;
 
     if (!identifier) {
-      this.sendErrorResponse(res, 400, 'identifier is required');
+      this.sendErrorResponse(res, 400, "identifier is required");
       return;
     }
 
     const orchestrator = this.getBackendOrchestrator();
-    
+
     try {
       const result = await orchestrator.processBusinessData(
         teamId,
@@ -79,8 +83,8 @@ export class BackendApiController extends BaseApiController {
         {
           isInitialization: isInitialization || false,
           maxReviews: maxReviews || undefined,
-          forceRefresh: forceRefresh || false
-        }
+          forceRefresh: forceRefresh || false,
+        },
       );
 
       if (result.success) {
@@ -91,13 +95,17 @@ export class BackendApiController extends BaseApiController {
           businessId: result.businessId,
           reviewsProcessed: result.reviewsProcessed,
           analyticsGenerated: result.analyticsGenerated,
-          message: 'Business data processed successfully'
+          message: "Business data processed successfully",
         });
       } else {
-        this.sendErrorResponse(res, 400, result.error || 'Failed to process business data');
+        this.sendErrorResponse(
+          res,
+          400,
+          result.error || "Failed to process business data",
+        );
       }
     } catch (error) {
-      this.handleServiceError(error, res, 'Business data processing');
+      this.handleServiceError(error, res, "Business data processing");
     }
   }
 
@@ -109,9 +117,12 @@ export class BackendApiController extends BaseApiController {
     const { teamId, platform } = req.params;
 
     const orchestrator = this.getBackendOrchestrator();
-    
+
     try {
-      const result = await orchestrator.getBusinessData(teamId, platform as MarketPlatform);
+      const result = await orchestrator.getBusinessData(
+        teamId,
+        platform as MarketPlatform,
+      );
 
       if (result.success) {
         this.sendSuccessResponse(res, 200, {
@@ -121,13 +132,17 @@ export class BackendApiController extends BaseApiController {
           businessProfile: result.businessProfile,
           reviews: result.reviews,
           analytics: result.analytics,
-          message: 'Business data retrieved successfully'
+          message: "Business data retrieved successfully",
         });
       } else {
-        this.sendErrorResponse(res, 404, result.error || 'Business data not found');
+        this.sendErrorResponse(
+          res,
+          404,
+          result.error || "Business data not found",
+        );
       }
     } catch (error) {
-      this.handleServiceError(error, res, 'Business data retrieval');
+      this.handleServiceError(error, res, "Business data retrieval");
     }
   }
 
@@ -140,12 +155,16 @@ export class BackendApiController extends BaseApiController {
     const { maxReviews, forceRefresh } = req.body;
 
     const orchestrator = this.getBackendOrchestrator();
-    
+
     try {
-      const result = await orchestrator.refreshBusinessData(teamId, platform as MarketPlatform, {
-        maxReviews: maxReviews || undefined,
-        forceRefresh: forceRefresh || true
-      });
+      const result = await orchestrator.refreshBusinessData(
+        teamId,
+        platform as MarketPlatform,
+        {
+          maxReviews: maxReviews || undefined,
+          forceRefresh: forceRefresh || true,
+        },
+      );
 
       if (result.success) {
         this.sendSuccessResponse(res, 200, {
@@ -154,13 +173,17 @@ export class BackendApiController extends BaseApiController {
           platform: platform as MarketPlatform,
           reviewsProcessed: result.reviewsProcessed,
           analyticsUpdated: result.analyticsUpdated,
-          message: 'Business data refreshed successfully'
+          message: "Business data refreshed successfully",
         });
       } else {
-        this.sendErrorResponse(res, 400, result.error || 'Failed to refresh business data');
+        this.sendErrorResponse(
+          res,
+          400,
+          result.error || "Failed to refresh business data",
+        );
       }
     } catch (error) {
-      this.handleServiceError(error, res, 'Business data refresh');
+      this.handleServiceError(error, res, "Business data refresh");
     }
   }
 
@@ -172,25 +195,33 @@ export class BackendApiController extends BaseApiController {
     const { businesses } = req.body;
 
     if (!businesses || !Array.isArray(businesses)) {
-      this.sendErrorResponse(res, 400, 'businesses array is required');
+      this.sendErrorResponse(res, 400, "businesses array is required");
       return;
     }
 
     // Validate each business object
     for (const business of businesses) {
       if (!business.teamId || !business.platform || !business.identifier) {
-        this.sendErrorResponse(res, 400, 'Each business must have teamId, platform, and identifier');
+        this.sendErrorResponse(
+          res,
+          400,
+          "Each business must have teamId, platform, and identifier",
+        );
         return;
       }
 
       if (!this.validatePlatform(business.platform)) {
-        this.sendErrorResponse(res, 400, `Invalid platform: ${business.platform}`);
+        this.sendErrorResponse(
+          res,
+          400,
+          `Invalid platform: ${business.platform}`,
+        );
         return;
       }
     }
 
     const orchestrator = this.getBackendOrchestrator();
-    
+
     try {
       const results = await orchestrator.processBatchBusinessData(businesses);
 
@@ -199,16 +230,18 @@ export class BackendApiController extends BaseApiController {
         timestamp: new Date().toISOString(),
         results,
         totalProcessed: results.length,
-        successful: results.filter(r => r.success).length,
-        failed: results.filter(r => !r.success).length,
-        message: 'Batch processing completed'
+        successful: results.filter((r) => r.success).length,
+        failed: results.filter((r) => !r.success).length,
+        message: "Batch processing completed",
       });
     } catch (error) {
-      this.handleServiceError(error, res, 'Batch processing');
+      this.handleServiceError(error, res, "Batch processing");
     }
   }
 
   private getBackendOrchestrator(): BackendOrchestrator {
-    return this.container.getService<BackendOrchestrator>(SERVICE_TOKENS.BACKEND_ORCHESTRATOR);
+    return this.container.getService<BackendOrchestrator>(
+      SERVICE_TOKENS.BACKEND_ORCHESTRATOR,
+    );
   }
 }

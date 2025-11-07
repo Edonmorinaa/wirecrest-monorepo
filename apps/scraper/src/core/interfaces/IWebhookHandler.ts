@@ -51,12 +51,18 @@ export interface ISubscriptionWebhookHandler extends IWebhookHandler {
   /**
    * Handle subscription created
    */
-  handleSubscriptionCreated(teamId: string, subscriptionData: any): Promise<void>;
+  handleSubscriptionCreated(
+    teamId: string,
+    subscriptionData: any,
+  ): Promise<void>;
 
   /**
    * Handle subscription updated
    */
-  handleSubscriptionUpdated(teamId: string, subscriptionData: any): Promise<void>;
+  handleSubscriptionUpdated(
+    teamId: string,
+    subscriptionData: any,
+  ): Promise<void>;
 
   /**
    * Handle subscription cancelled
@@ -75,4 +81,3 @@ export interface IStripeWebhookHandler extends IWebhookHandler {
    */
   handlePaymentFailure(sessionId: string, error: string): Promise<void>;
 }
-

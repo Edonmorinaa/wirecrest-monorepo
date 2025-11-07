@@ -1,34 +1,40 @@
-import { prisma } from '@wirecrest/db';
-import type { GoogleBusinessProfile } from '@prisma/client';
-import { MarketPlatform } from '@wirecrest/db';
-import { BaseRepository } from './BaseRepository';
-import type { IBusinessRepository } from '../interfaces/IBusinessRepository';
+import { prisma } from "@wirecrest/db";
+import type { GoogleBusinessProfile } from "@prisma/client";
+import { MarketPlatform } from "@wirecrest/db";
+import { BaseRepository } from "./BaseRepository";
+import type { IBusinessRepository } from "../interfaces/IBusinessRepository";
 
 /**
  * Google Business Repository
  * Follows Single Responsibility Principle (SRP) - only handles Google business data
  */
-export class GoogleBusinessRepository extends BaseRepository<GoogleBusinessProfile, string> implements IBusinessRepository<GoogleBusinessProfile> {
+export class GoogleBusinessRepository
+  extends BaseRepository<GoogleBusinessProfile, string>
+  implements IBusinessRepository<GoogleBusinessProfile>
+{
   protected model = prisma.googleBusinessProfile;
 
   async findByTeamId(teamId: string): Promise<GoogleBusinessProfile[]> {
     return await this.model.findMany({
-      where: { teamId }
+      where: { teamId },
     });
   }
 
   async findByPlaceId(placeId: string): Promise<GoogleBusinessProfile | null> {
     return await this.model.findFirst({
-      where: { placeId }
+      where: { placeId },
     });
   }
 
-  async findByPlatform(teamId: string, platform: MarketPlatform): Promise<GoogleBusinessProfile | null> {
+  async findByPlatform(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<GoogleBusinessProfile | null> {
     return await this.model.findFirst({
-      where: { 
+      where: {
         teamId,
         // Google business profiles don't have platform field, they are implicitly Google
-      }
+      },
     });
   }
 
@@ -36,10 +42,10 @@ export class GoogleBusinessRepository extends BaseRepository<GoogleBusinessProfi
     return await this.model.findMany({
       where: {
         metadata: {
-          isActive: true
-        }
+          isActive: true,
+        },
       },
-      take: limit
+      take: limit,
     });
   }
 
@@ -50,16 +56,19 @@ export class GoogleBusinessRepository extends BaseRepository<GoogleBusinessProfi
       data: {
         metadata: {
           update: {
-            lastUpdateAt: scrapedAt
-          }
-        }
-      }
+            lastUpdateAt: scrapedAt,
+          },
+        },
+      },
     });
   }
 
-  async getBusinessCount(teamId: string, platform: MarketPlatform): Promise<number> {
+  async getBusinessCount(
+    teamId: string,
+    platform: MarketPlatform,
+  ): Promise<number> {
     return await this.model.count({
-      where: { teamId }
+      where: { teamId },
     });
   }
 }

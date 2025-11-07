@@ -3,31 +3,63 @@
  * Supabase has been removed. This service is deprecated.
  */
 
-import { MarketPlatform } from '@wirecrest/db';
-import { BusinessProfileCreationService } from './businessProfileCreationService';
+import { MarketPlatform } from "@wirecrest/db";
+import { BusinessProfileCreationService } from "./businessProfileCreationService";
 // Local interface for actor manager to avoid missing import
 interface ActorManager {
   schedule(job: any, queue: string): Promise<void>;
 }
-import { GoogleBusinessReviewsActorJob } from '../apifyService/actors/googleBusinessReviewsActor';
-import { FacebookBusinessReviewsActorJob } from '../apifyService/actors/facebookBusinessReviewsActor';
-import { TripAdvisorBusinessReviewsActorJob } from '../apifyService/actors/tripAdvisorBusinessReviewsActor';
-import { BookingBusinessReviewsActor } from '../apifyService/actors/bookingBusinessReviewsActor';
-import { TeamService } from '../supabase/teamService';
-import { apify } from '../apifyService/apifyService';
-import { GoogleBusinessReviewsActor } from '../apifyService/actors/googleBusinessReviewsActor';
-import { FacebookBusinessReviewsActor } from '../apifyService/actors/facebookBusinessReviewsActor';
-import { TripAdvisorBusinessReviewsActor } from '../apifyService/actors/tripAdvisorBusinessReviewsActor';
-import { ActorJob, ReviewActorJobFactory } from '../apifyService/actors/actor';
+import { GoogleBusinessReviewsActorJob } from "../apifyService/actors/googleBusinessReviewsActor";
+import { FacebookBusinessReviewsActorJob } from "../apifyService/actors/facebookBusinessReviewsActor";
+import { TripAdvisorBusinessReviewsActorJob } from "../apifyService/actors/tripAdvisorBusinessReviewsActor";
+import { BookingBusinessReviewsActor } from "../apifyService/actors/bookingBusinessReviewsActor";
+import { TeamService } from "../supabase/teamService";
+import { apify } from "../apifyService/apifyService";
+import { GoogleBusinessReviewsActor } from "../apifyService/actors/googleBusinessReviewsActor";
+import { FacebookBusinessReviewsActor } from "../apifyService/actors/facebookBusinessReviewsActor";
+import { TripAdvisorBusinessReviewsActor } from "../apifyService/actors/tripAdvisorBusinessReviewsActor";
+import { ActorJob, ReviewActorJobFactory } from "../apifyService/actors/actor";
 // Minimal task tracker to satisfy typing; replace with real implementation when available
-type TaskStatus = 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-export enum BusinessCreationStep { CREATING_PROFILE = 'CREATING_PROFILE', FETCHING_REVIEWS = 'FETCHING_REVIEWS' }
+type TaskStatus = "IN_PROGRESS" | "COMPLETED" | "FAILED";
+export enum BusinessCreationStep {
+  CREATING_PROFILE = "CREATING_PROFILE",
+  FETCHING_REVIEWS = "FETCHING_REVIEWS",
+}
 class NullBusinessTaskTracker {
-  async findOrCreateTask(_teamId: string, _platform: MarketPlatform, _identifier: string): Promise<void> {}
-  async startStep(_teamId: string, _platform: MarketPlatform, _step: BusinessCreationStep, _message: string): Promise<void> {}
-  async updateProgress(_teamId: string, _platform: MarketPlatform, _payload: { step: BusinessCreationStep; status: TaskStatus; message: string; progressPercent?: number }): Promise<void> {}
-  async failStep(_teamId: string, _platform: MarketPlatform, _step: BusinessCreationStep, _message: string): Promise<void> {}
-  async completeStep(_teamId: string, _platform: MarketPlatform, _step: BusinessCreationStep, _message: string, _meta?: Record<string, unknown>): Promise<void> {}
+  async findOrCreateTask(
+    _teamId: string,
+    _platform: MarketPlatform,
+    _identifier: string,
+  ): Promise<void> {}
+  async startStep(
+    _teamId: string,
+    _platform: MarketPlatform,
+    _step: BusinessCreationStep,
+    _message: string,
+  ): Promise<void> {}
+  async updateProgress(
+    _teamId: string,
+    _platform: MarketPlatform,
+    _payload: {
+      step: BusinessCreationStep;
+      status: TaskStatus;
+      message: string;
+      progressPercent?: number;
+    },
+  ): Promise<void> {}
+  async failStep(
+    _teamId: string,
+    _platform: MarketPlatform,
+    _step: BusinessCreationStep,
+    _message: string,
+  ): Promise<void> {}
+  async completeStep(
+    _teamId: string,
+    _platform: MarketPlatform,
+    _step: BusinessCreationStep,
+    _message: string,
+    _meta?: Record<string, unknown>,
+  ): Promise<void> {}
   async close(): Promise<void> {}
 }
 
@@ -189,16 +221,15 @@ export class SimpleBusinessService {
   private teamService: TeamService;
   private taskTracker: NullBusinessTaskTracker;
 
-  constructor(
-    apifyToken: string,
-    actorManager: ActorManager
-  ) {
+  constructor(apifyToken: string, actorManager: ActorManager) {
     // Initialize Supabase client
     const supabaseUrl = process.env.SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     this.supabase = createClient(supabaseUrl, supabaseKey);
 
-    this.businessProfileCreationService = new BusinessProfileCreationService(apifyToken);
+    this.businessProfileCreationService = new BusinessProfileCreationService(
+      apifyToken,
+    );
     this.actorManager = actorManager;
     this.teamService = new TeamService();
     this.taskTracker = new NullBusinessTaskTracker();
@@ -211,28 +242,38 @@ export class SimpleBusinessService {
    */
   async createOrUpdateGoogleProfile(
     teamId: string,
-    placeId: string
+    placeId: string,
   ): Promise<BusinessProfileResult> {
     try {
-      console.log(`🏢 Creating/updating Google business profile for team ${teamId} with placeId: ${placeId}`);
+      console.log(
+        `🏢 Creating/updating Google business profile for team ${teamId} with placeId: ${placeId}`,
+      );
 
       // Initialize task tracking
-      await this.taskTracker.findOrCreateTask(teamId, MarketPlatform.GOOGLE_MAPS, placeId);
+      await this.taskTracker.findOrCreateTask(
+        teamId,
+        MarketPlatform.GOOGLE_MAPS,
+        placeId,
+      );
 
       // Check if team can add a Google business (only if one doesn't exist)
       const existingBusiness = await this.getGoogleBusinessByPlaceId(placeId);
       if (!existingBusiness) {
-        const canAdd = await this.teamService.canTeamAddBusinessForPlatform(teamId, MarketPlatform.GOOGLE_MAPS);
+        const canAdd = await this.teamService.canTeamAddBusinessForPlatform(
+          teamId,
+          MarketPlatform.GOOGLE_MAPS,
+        );
         if (!canAdd) {
           await this.taskTracker.failStep(
             teamId,
             MarketPlatform.GOOGLE_MAPS,
             BusinessCreationStep.CREATING_PROFILE,
-            'Team already has a Google business profile. Only one business per platform is allowed.'
+            "Team already has a Google business profile. Only one business per platform is allowed.",
           );
           return {
             success: false,
-            error: 'Team already has a Google business profile. Only one business per platform is allowed.'
+            error:
+              "Team already has a Google business profile. Only one business per platform is allowed.",
           };
         }
       }
@@ -242,41 +283,51 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.GOOGLE_MAPS,
         BusinessCreationStep.CREATING_PROFILE,
-        'Creating/updating Google business profile...'
+        "Creating/updating Google business profile...",
       );
 
       let businessProfileResult;
-      
+
       if (existingBusiness) {
         console.log(`📝 Google business already exists, updating profile...`);
-        
-        await this.taskTracker.updateProgress(teamId, MarketPlatform.GOOGLE_MAPS, {
-          step: BusinessCreationStep.CREATING_PROFILE,
-          status: 'IN_PROGRESS' as any,
-          message: 'Updating existing Google business profile...',
-          progressPercent: 50
-        });
-        
-        businessProfileResult = await this.businessProfileCreationService.createBusinessProfile(
+
+        await this.taskTracker.updateProgress(
           teamId,
           MarketPlatform.GOOGLE_MAPS,
-          placeId
+          {
+            step: BusinessCreationStep.CREATING_PROFILE,
+            status: "IN_PROGRESS" as any,
+            message: "Updating existing Google business profile...",
+            progressPercent: 50,
+          },
         );
+
+        businessProfileResult =
+          await this.businessProfileCreationService.createBusinessProfile(
+            teamId,
+            MarketPlatform.GOOGLE_MAPS,
+            placeId,
+          );
       } else {
         console.log(`🆕 Creating new Google business profile...`);
-        
-        await this.taskTracker.updateProgress(teamId, MarketPlatform.GOOGLE_MAPS, {
-          step: BusinessCreationStep.CREATING_PROFILE,
-          status: 'IN_PROGRESS' as any,
-          message: 'Creating new Google business profile...',
-          progressPercent: 50
-        });
-        
-        businessProfileResult = await this.businessProfileCreationService.createBusinessProfile(
+
+        await this.taskTracker.updateProgress(
           teamId,
           MarketPlatform.GOOGLE_MAPS,
-          placeId
+          {
+            step: BusinessCreationStep.CREATING_PROFILE,
+            status: "IN_PROGRESS" as any,
+            message: "Creating new Google business profile...",
+            progressPercent: 50,
+          },
         );
+
+        businessProfileResult =
+          await this.businessProfileCreationService.createBusinessProfile(
+            teamId,
+            MarketPlatform.GOOGLE_MAPS,
+            placeId,
+          );
       }
 
       if (!businessProfileResult.success) {
@@ -284,11 +335,14 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.GOOGLE_MAPS,
           BusinessCreationStep.CREATING_PROFILE,
-          businessProfileResult.error || 'Failed to create/update Google business profile'
+          businessProfileResult.error ||
+            "Failed to create/update Google business profile",
         );
         return {
           success: false,
-          error: businessProfileResult.error || 'Failed to create/update Google business profile'
+          error:
+            businessProfileResult.error ||
+            "Failed to create/update Google business profile",
         };
       }
 
@@ -296,54 +350,67 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.GOOGLE_MAPS,
         BusinessCreationStep.CREATING_PROFILE,
-        'Google business profile created/updated successfully',
-        { businessProfileId: businessProfileResult.businessProfileId }
+        "Google business profile created/updated successfully",
+        { businessProfileId: businessProfileResult.businessProfileId },
       );
 
       // Step 2: Automatically trigger Google reviews collection
       console.log(`🔍 Triggering Google reviews collection...`);
-      
+
       try {
-        const reviewsResult = await this.getOrUpdateGoogleReviews(teamId, placeId, true); // Force refresh
-        
+        const reviewsResult = await this.getOrUpdateGoogleReviews(
+          teamId,
+          placeId,
+          true,
+        ); // Force refresh
+
         if (reviewsResult.success) {
-          console.log(`✅ Google reviews collection started: ${reviewsResult.message || 'Job scheduled'}`);
+          console.log(
+            `✅ Google reviews collection started: ${reviewsResult.message || "Job scheduled"}`,
+          );
         } else {
-          console.warn(`⚠️ Google reviews collection failed but continuing: ${reviewsResult.error}`);
+          console.warn(
+            `⚠️ Google reviews collection failed but continuing: ${reviewsResult.error}`,
+          );
           // Don't fail the entire flow if reviews fail - the profile creation was successful
         }
       } catch (reviewError) {
-        console.warn(`⚠️ Error triggering Google reviews (continuing anyway):`, reviewError);
+        console.warn(
+          `⚠️ Error triggering Google reviews (continuing anyway):`,
+          reviewError,
+        );
         // Don't fail the entire flow if reviews fail
       }
 
       // Return the business profile data
       const finalBusiness = await this.getGoogleBusinessByPlaceId(placeId);
-      
+
       return {
         success: true,
-        businessId: businessProfileResult.businessProfileId || existingBusiness?.businessId,
-        profileData: finalBusiness
+        businessId:
+          businessProfileResult.businessProfileId ||
+          existingBusiness?.businessId,
+        profileData: finalBusiness,
       };
-
     } catch (error) {
       console.error(`❌ Error in Google business setup flow:`, error);
-      
+
       // Try to mark current step as failed
       try {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.GOOGLE_MAPS,
           BusinessCreationStep.CREATING_PROFILE,
-          error instanceof Error ? error.message : 'Unknown error occurred'
+          error instanceof Error ? error.message : "Unknown error occurred",
         );
       } catch (trackingError) {
-        console.error('Failed to update task tracking:', trackingError);
+        console.error("Failed to update task tracking:", trackingError);
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -354,18 +421,19 @@ export class SimpleBusinessService {
   async getOrUpdateGoogleReviews(
     teamId: string,
     placeId: string,
-    forceRefresh: boolean = false
+    forceRefresh: boolean = false,
   ): Promise<ReviewsResult> {
-    
-    console.log(`🔍 Getting/updating Google reviews for team ${teamId}, placeId ${placeId}, forceRefresh: ${forceRefresh}`);
-    
+    console.log(
+      `🔍 Getting/updating Google reviews for team ${teamId}, placeId ${placeId}, forceRefresh: ${forceRefresh}`,
+    );
+
     try {
       // Start reviews fetching step
       await this.taskTracker.startStep(
         teamId,
         MarketPlatform.GOOGLE_MAPS,
         BusinessCreationStep.FETCHING_REVIEWS,
-        'Starting Google reviews collection...'
+        "Starting Google reviews collection...",
       );
 
       // Check if Google business exists
@@ -375,83 +443,99 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.GOOGLE_MAPS,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Google business not found. Create Google business profile first.'
+          "Google business not found. Create Google business profile first.",
         );
         return {
           success: false,
-          error: 'Google business not found. Create Google business profile first.'
+          error:
+            "Google business not found. Create Google business profile first.",
         };
       }
 
-      // Get team limits for this user 
+      // Get team limits for this user
       const teamLimits = await this.teamService.getTeamLimits(teamId);
       if (!teamLimits) {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.GOOGLE_MAPS,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Team not found or inactive'
+          "Team not found or inactive",
         );
         return {
           success: false,
-          error: 'Team not found or inactive'
+          error: "Team not found or inactive",
         };
       }
 
-      await this.taskTracker.updateProgress(teamId, MarketPlatform.GOOGLE_MAPS, {
-        step: BusinessCreationStep.FETCHING_REVIEWS,
-        status: 'IN_PROGRESS' as any,
-        message: 'Checking if reviews need to be refreshed...',
-        progressPercent: 25
-      });
+      await this.taskTracker.updateProgress(
+        teamId,
+        MarketPlatform.GOOGLE_MAPS,
+        {
+          step: BusinessCreationStep.FETCHING_REVIEWS,
+          status: "IN_PROGRESS" as any,
+          message: "Checking if reviews need to be refreshed...",
+          progressPercent: 25,
+        },
+      );
 
       // Check if we need to refresh reviews
-      const shouldRefresh = forceRefresh || await this.shouldRefreshGoogleReviews(business.businessId);
-      
+      const shouldRefresh =
+        forceRefresh ||
+        (await this.shouldRefreshGoogleReviews(business.businessId));
+
       if (!shouldRefresh) {
-        const currentReviewsCount = await this.getGoogleReviewsCount(business.businessId);
+        const currentReviewsCount = await this.getGoogleReviewsCount(
+          business.businessId,
+        );
         await this.taskTracker.completeStep(
           teamId,
           MarketPlatform.GOOGLE_MAPS,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Google reviews are up to date',
-          { reviewsCount: currentReviewsCount, refreshed: false }
+          "Google reviews are up to date",
+          { reviewsCount: currentReviewsCount, refreshed: false },
         );
         return {
           success: true,
           reviewsCount: currentReviewsCount,
-          message: 'Google reviews are up to date'
+          message: "Google reviews are up to date",
         };
       }
 
-      await this.taskTracker.updateProgress(teamId, MarketPlatform.GOOGLE_MAPS, {
-        step: BusinessCreationStep.FETCHING_REVIEWS,
-        status: 'IN_PROGRESS' as any,
-        message: 'Scheduling Google review scraping job...',
-        progressPercent: 50
-      });
+      await this.taskTracker.updateProgress(
+        teamId,
+        MarketPlatform.GOOGLE_MAPS,
+        {
+          step: BusinessCreationStep.FETCHING_REVIEWS,
+          status: "IN_PROGRESS" as any,
+          message: "Scheduling Google review scraping job...",
+          progressPercent: 50,
+        },
+      );
 
       // Create Google review scraping job
-      const job = new GoogleBusinessReviewsActorJob({
-        platform: MarketPlatform.GOOGLE_MAPS,
-        teamId: teamId,
-        placeId: placeId,
-        isInitialization: false,
-        maxReviews: teamLimits.maxReviewsPerBusiness
-      }, process.env.APIFY_TOKEN!);
+      const job = new GoogleBusinessReviewsActorJob(
+        {
+          platform: MarketPlatform.GOOGLE_MAPS,
+          teamId: teamId,
+          placeId: placeId,
+          isInitialization: false,
+          maxReviews: teamLimits.maxReviewsPerBusiness,
+        },
+        process.env.APIFY_TOKEN!,
+      );
 
       // Create proper ActorJob for scheduling
       const actor = new GoogleBusinessReviewsActor();
       actor.updateMemoryEstimate(false);
-      
+
       const jobData = {
         platform: MarketPlatform.GOOGLE_MAPS,
         teamId: teamId,
         placeID: placeId,
         isInitialization: false,
-        maxReviews: teamLimits.maxReviewsPerBusiness
+        maxReviews: teamLimits.maxReviewsPerBusiness,
       };
-      
+
       const actorJob = new ActorJob(
         `google-manual-${teamId}-${placeId}-${Date.now()}`,
         actor,
@@ -459,10 +543,10 @@ export class SimpleBusinessService {
         async () => {
           await job.run();
           return true;
-        }
+        },
       );
 
-      await this.actorManager.schedule(actorJob, 'manual');
+      await this.actorManager.schedule(actorJob, "manual");
 
       console.log(`📝 Google review scraping job scheduled: ${actorJob.id}`);
 
@@ -470,38 +554,38 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.GOOGLE_MAPS,
         BusinessCreationStep.FETCHING_REVIEWS,
-        'Google review scraping job scheduled successfully',
-        { 
-          jobId: actorJob.id, 
+        "Google review scraping job scheduled successfully",
+        {
+          jobId: actorJob.id,
           maxReviews: teamLimits.maxReviewsPerBusiness,
-          refreshed: true 
-        }
+          refreshed: true,
+        },
       );
 
       return {
         success: true,
         jobId: actorJob.id,
-        message: 'Google review scraping started'
+        message: "Google review scraping started",
       };
-
     } catch (error) {
       console.error(`❌ Error getting/updating Google reviews:`, error);
-      
+
       // Try to mark step as failed
       try {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.GOOGLE_MAPS,
           BusinessCreationStep.FETCHING_REVIEWS,
-          error instanceof Error ? error.message : 'Unknown error occurred'
+          error instanceof Error ? error.message : "Unknown error occurred",
         );
       } catch (trackingError) {
-        console.error('Failed to update task tracking:', trackingError);
+        console.error("Failed to update task tracking:", trackingError);
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -509,11 +593,14 @@ export class SimpleBusinessService {
   /**
    * Get Google business data for a team
    */
-  async getGoogleBusinessData(teamId: string): Promise<GoogleBusinessData | null> {
+  async getGoogleBusinessData(
+    teamId: string,
+  ): Promise<GoogleBusinessData | null> {
     try {
       const { data, error } = await this.supabase
-        .from('GoogleBusinessProfile')
-        .select(`
+        .from("GoogleBusinessProfile")
+        .select(
+          `
           id,
           teamId,
           displayName,
@@ -528,37 +615,45 @@ export class SimpleBusinessService {
             createdAt,
             updatedAt
           )
-        `)
-        .eq('teamId', teamId)
+        `,
+        )
+        .eq("teamId", teamId)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           // No rows returned
           return null;
         }
-        console.error('Error getting Google business data:', error);
+        console.error("Error getting Google business data:", error);
         return null;
       }
 
-      return data ? {
-        businessId: data.id,
-        teamId: data.teamId,
-        title: data.displayName || '', // Map displayName to title for backward compatibility
-        placeId: data.placeId || '',
-        address: data.formattedAddress,
-        rating: data.rating,
-        reviewsCount: data.userRatingCount, // Map userRatingCount to reviewsCount
-        categories: data.types || [],
-        phone: data.nationalPhoneNumber,
-        website: data.websiteUri,
-        scrapedAt: undefined, // No longer in main schema
-        createdAt: data.metadata && data.metadata[0]?.createdAt ? new Date(data.metadata[0].createdAt) : new Date(),
-        updatedAt: data.metadata && data.metadata[0]?.updatedAt ? new Date(data.metadata[0].updatedAt) : new Date()
-      } : null;
-
+      return data
+        ? {
+            businessId: data.id,
+            teamId: data.teamId,
+            title: data.displayName || "", // Map displayName to title for backward compatibility
+            placeId: data.placeId || "",
+            address: data.formattedAddress,
+            rating: data.rating,
+            reviewsCount: data.userRatingCount, // Map userRatingCount to reviewsCount
+            categories: data.types || [],
+            phone: data.nationalPhoneNumber,
+            website: data.websiteUri,
+            scrapedAt: undefined, // No longer in main schema
+            createdAt:
+              data.metadata && data.metadata[0]?.createdAt
+                ? new Date(data.metadata[0].createdAt)
+                : new Date(),
+            updatedAt:
+              data.metadata && data.metadata[0]?.updatedAt
+                ? new Date(data.metadata[0].updatedAt)
+                : new Date(),
+          }
+        : null;
     } catch (error) {
-      console.error('Error getting Google business data:', error);
+      console.error("Error getting Google business data:", error);
       return null;
     }
   }
@@ -567,14 +662,15 @@ export class SimpleBusinessService {
    * Get Google reviews for a team's business
    */
   async getGoogleReviews(
-    teamId: string, 
-    limit: number = 50, 
-    offset: number = 0
+    teamId: string,
+    limit: number = 50,
+    offset: number = 0,
   ): Promise<GoogleReviewData[]> {
     try {
       const { data, error } = await this.supabase
-        .from('GoogleReview')
-        .select(`
+        .from("GoogleReview")
+        .select(
+          `
           id,
           businessProfileId,
           reviewerId,
@@ -587,32 +683,36 @@ export class SimpleBusinessService {
           reviewImageUrls,
           scrapedAt,
           GoogleBusinessProfile!inner(teamId)
-        `)
-        .eq('GoogleBusinessProfile.teamId', teamId)
-        .order('publishedAtDate', { ascending: false })
+        `,
+        )
+        .eq("GoogleBusinessProfile.teamId", teamId)
+        .order("publishedAtDate", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) {
-        console.error('Error getting Google reviews:', error);
+        console.error("Error getting Google reviews:", error);
         return [];
       }
 
-      return data?.map(review => ({
-        id: review.id,
-        businessProfileId: review.businessProfileId,
-        reviewerId: review.reviewerId,
-        name: review.name,
-        rating: review.rating,
-        text: review.text,
-        publishedAtDate: new Date(review.publishedAtDate),
-        responseFromOwnerText: review.responseFromOwnerText,
-        responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : undefined,
-        reviewImageUrls: review.reviewImageUrls || [],
-        scrapedAt: new Date(review.scrapedAt)
-      })) || [];
-
+      return (
+        data?.map((review) => ({
+          id: review.id,
+          businessProfileId: review.businessProfileId,
+          reviewerId: review.reviewerId,
+          name: review.name,
+          rating: review.rating,
+          text: review.text,
+          publishedAtDate: new Date(review.publishedAtDate),
+          responseFromOwnerText: review.responseFromOwnerText,
+          responseFromOwnerDate: review.responseFromOwnerDate
+            ? new Date(review.responseFromOwnerDate)
+            : undefined,
+          reviewImageUrls: review.reviewImageUrls || [],
+          scrapedAt: new Date(review.scrapedAt),
+        })) || []
+      );
     } catch (error) {
-      console.error('Error getting Google reviews:', error);
+      console.error("Error getting Google reviews:", error);
       return [];
     }
   }
@@ -624,29 +724,38 @@ export class SimpleBusinessService {
    */
   async createOrUpdateFacebookProfile(
     teamId: string,
-    facebookUrl: string
+    facebookUrl: string,
   ): Promise<BusinessProfileResult> {
-    
-    console.log(`🏢 Creating/updating Facebook business profile for team ${teamId}, facebookUrl ${facebookUrl}`);
-    
+    console.log(
+      `🏢 Creating/updating Facebook business profile for team ${teamId}, facebookUrl ${facebookUrl}`,
+    );
+
     try {
       // Initialize task tracking
-      await this.taskTracker.findOrCreateTask(teamId, MarketPlatform.FACEBOOK, facebookUrl);
+      await this.taskTracker.findOrCreateTask(
+        teamId,
+        MarketPlatform.FACEBOOK,
+        facebookUrl,
+      );
 
       // Check if team can add a Facebook business (only if one doesn't exist)
       const existingBusiness = await this.getFacebookBusinessByUrl(facebookUrl);
       if (!existingBusiness) {
-        const canAdd = await this.teamService.canTeamAddBusinessForPlatform(teamId, MarketPlatform.FACEBOOK);
+        const canAdd = await this.teamService.canTeamAddBusinessForPlatform(
+          teamId,
+          MarketPlatform.FACEBOOK,
+        );
         if (!canAdd) {
           await this.taskTracker.failStep(
             teamId,
             MarketPlatform.FACEBOOK,
             BusinessCreationStep.CREATING_PROFILE,
-            'Team already has a Facebook business profile. Only one business per platform is allowed.'
+            "Team already has a Facebook business profile. Only one business per platform is allowed.",
           );
           return {
             success: false,
-            error: 'Team already has a Facebook business profile. Only one business per platform is allowed.'
+            error:
+              "Team already has a Facebook business profile. Only one business per platform is allowed.",
           };
         }
       }
@@ -656,41 +765,43 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.FACEBOOK,
         BusinessCreationStep.CREATING_PROFILE,
-        'Creating/updating Facebook business profile...'
+        "Creating/updating Facebook business profile...",
       );
 
       let businessProfileResult;
-      
+
       if (existingBusiness) {
         console.log(`📝 Facebook business already exists, updating profile...`);
-        
+
         await this.taskTracker.updateProgress(teamId, MarketPlatform.FACEBOOK, {
           step: BusinessCreationStep.CREATING_PROFILE,
-          status: 'IN_PROGRESS' as any,
-          message: 'Updating existing Facebook business profile...',
-          progressPercent: 50
+          status: "IN_PROGRESS" as any,
+          message: "Updating existing Facebook business profile...",
+          progressPercent: 50,
         });
-        
-        businessProfileResult = await this.businessProfileCreationService.createBusinessProfile(
-          teamId,
-          MarketPlatform.FACEBOOK,
-          facebookUrl
-        );
+
+        businessProfileResult =
+          await this.businessProfileCreationService.createBusinessProfile(
+            teamId,
+            MarketPlatform.FACEBOOK,
+            facebookUrl,
+          );
       } else {
         console.log(`🆕 Creating new Facebook business profile...`);
-        
+
         await this.taskTracker.updateProgress(teamId, MarketPlatform.FACEBOOK, {
           step: BusinessCreationStep.CREATING_PROFILE,
-          status: 'IN_PROGRESS' as any,
-          message: 'Creating new Facebook business profile...',
-          progressPercent: 50
+          status: "IN_PROGRESS" as any,
+          message: "Creating new Facebook business profile...",
+          progressPercent: 50,
         });
-        
-        businessProfileResult = await this.businessProfileCreationService.createBusinessProfile(
-          teamId,
-          MarketPlatform.FACEBOOK,
-          facebookUrl
-        );
+
+        businessProfileResult =
+          await this.businessProfileCreationService.createBusinessProfile(
+            teamId,
+            MarketPlatform.FACEBOOK,
+            facebookUrl,
+          );
       }
 
       if (!businessProfileResult.success) {
@@ -698,11 +809,14 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.FACEBOOK,
           BusinessCreationStep.CREATING_PROFILE,
-          businessProfileResult.error || 'Failed to create/update Facebook business profile'
+          businessProfileResult.error ||
+            "Failed to create/update Facebook business profile",
         );
         return {
           success: false,
-          error: businessProfileResult.error || 'Failed to create/update Facebook business profile'
+          error:
+            businessProfileResult.error ||
+            "Failed to create/update Facebook business profile",
         };
       }
 
@@ -710,54 +824,67 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.FACEBOOK,
         BusinessCreationStep.CREATING_PROFILE,
-        'Facebook business profile created/updated successfully',
-        { businessProfileId: businessProfileResult.businessProfileId }
+        "Facebook business profile created/updated successfully",
+        { businessProfileId: businessProfileResult.businessProfileId },
       );
 
       // Step 2: Automatically trigger Facebook reviews collection
       console.log(`🔍 Triggering Facebook reviews collection...`);
-      
+
       try {
-        const reviewsResult = await this.getOrUpdateFacebookReviews(teamId, facebookUrl, true); // Force refresh
-        
+        const reviewsResult = await this.getOrUpdateFacebookReviews(
+          teamId,
+          facebookUrl,
+          true,
+        ); // Force refresh
+
         if (reviewsResult.success) {
-          console.log(`✅ Facebook reviews collection started: ${reviewsResult.message || 'Job scheduled'}`);
+          console.log(
+            `✅ Facebook reviews collection started: ${reviewsResult.message || "Job scheduled"}`,
+          );
         } else {
-          console.warn(`⚠️ Facebook reviews collection failed but continuing: ${reviewsResult.error}`);
+          console.warn(
+            `⚠️ Facebook reviews collection failed but continuing: ${reviewsResult.error}`,
+          );
           // Don't fail the entire flow if reviews fail - the profile creation was successful
         }
       } catch (reviewError) {
-        console.warn(`⚠️ Error triggering Facebook reviews (continuing anyway):`, reviewError);
+        console.warn(
+          `⚠️ Error triggering Facebook reviews (continuing anyway):`,
+          reviewError,
+        );
         // Don't fail the entire flow if reviews fail
       }
 
       // Return the business profile data
       const finalBusiness = await this.getFacebookBusinessByUrl(facebookUrl);
-      
+
       return {
         success: true,
-        businessId: businessProfileResult.businessProfileId || existingBusiness?.businessId,
-        profileData: finalBusiness
+        businessId:
+          businessProfileResult.businessProfileId ||
+          existingBusiness?.businessId,
+        profileData: finalBusiness,
       };
-
     } catch (error) {
       console.error(`❌ Error in Facebook business setup flow:`, error);
-      
+
       // Try to mark current step as failed
       try {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.FACEBOOK,
           BusinessCreationStep.CREATING_PROFILE,
-          error instanceof Error ? error.message : 'Unknown error occurred'
+          error instanceof Error ? error.message : "Unknown error occurred",
         );
       } catch (trackingError) {
-        console.error('Failed to update task tracking:', trackingError);
+        console.error("Failed to update task tracking:", trackingError);
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -768,18 +895,19 @@ export class SimpleBusinessService {
   async getOrUpdateFacebookReviews(
     teamId: string,
     facebookUrl: string,
-    forceRefresh: boolean = false
+    forceRefresh: boolean = false,
   ): Promise<ReviewsResult> {
-    
-    console.log(`🔵 Getting/updating Facebook reviews for team ${teamId}, facebookUrl ${facebookUrl}, forceRefresh: ${forceRefresh}`);
-    
+    console.log(
+      `🔵 Getting/updating Facebook reviews for team ${teamId}, facebookUrl ${facebookUrl}, forceRefresh: ${forceRefresh}`,
+    );
+
     try {
       // Start reviews fetching step
       await this.taskTracker.startStep(
         teamId,
         MarketPlatform.FACEBOOK,
         BusinessCreationStep.FETCHING_REVIEWS,
-        'Starting Facebook reviews collection...'
+        "Starting Facebook reviews collection...",
       );
 
       // Check if Facebook business exists
@@ -789,11 +917,12 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.FACEBOOK,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Facebook business not found. Create Facebook business profile first.'
+          "Facebook business not found. Create Facebook business profile first.",
         );
         return {
           success: false,
-          error: 'Facebook business not found. Create Facebook business profile first.'
+          error:
+            "Facebook business not found. Create Facebook business profile first.",
         };
       }
 
@@ -804,82 +933,100 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.FACEBOOK,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Team not found or inactive'
+          "Team not found or inactive",
         );
         return {
           success: false,
-          error: 'Team not found or inactive'
+          error: "Team not found or inactive",
         };
       }
 
       await this.taskTracker.updateProgress(teamId, MarketPlatform.FACEBOOK, {
         step: BusinessCreationStep.FETCHING_REVIEWS,
-        status: 'IN_PROGRESS' as any,
-        message: 'Checking if reviews need to be refreshed...',
-        progressPercent: 25
+        status: "IN_PROGRESS" as any,
+        message: "Checking if reviews need to be refreshed...",
+        progressPercent: 25,
       });
 
       // Check if we need to refresh reviews
-      const shouldRefresh = forceRefresh || await this.shouldRefreshFacebookReviews(business.businessId);
-      
+      const shouldRefresh =
+        forceRefresh ||
+        (await this.shouldRefreshFacebookReviews(business.businessId));
+
       if (!shouldRefresh) {
-        const currentReviewsCount = await this.getFacebookReviewsCount(business.businessId);
-        
+        const currentReviewsCount = await this.getFacebookReviewsCount(
+          business.businessId,
+        );
+
         // Trigger analytics even when reviews are up to date (to ensure normalized tables are populated)
         try {
-          console.log(`📊 Triggering Facebook analytics for up-to-date reviews...`);
-          const { FacebookReviewAnalyticsService } = await import('./facebookReviewAnalyticsService.js');
+          console.log(
+            `📊 Triggering Facebook analytics for up-to-date reviews...`,
+          );
+          const { FacebookReviewAnalyticsService } = await import(
+            "./facebookReviewAnalyticsService.js"
+          );
           const analyticsService = new FacebookReviewAnalyticsService();
-          await analyticsService.processReviewsAndUpdateDashboard(business.businessId);
-          console.log(`✅ Facebook analytics completed for businessProfileId: ${business.businessId}`);
+          await analyticsService.processReviewsAndUpdateDashboard(
+            business.businessId,
+          );
+          console.log(
+            `✅ Facebook analytics completed for businessProfileId: ${business.businessId}`,
+          );
         } catch (analyticsError) {
-          console.error(`❌ Error processing Facebook analytics for up-to-date reviews:`, analyticsError);
+          console.error(
+            `❌ Error processing Facebook analytics for up-to-date reviews:`,
+            analyticsError,
+          );
           // Don't fail the whole request if analytics fails
         }
-        
+
         await this.taskTracker.completeStep(
           teamId,
           MarketPlatform.FACEBOOK,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Facebook reviews are up to date',
-          { reviewsCount: currentReviewsCount, refreshed: false }
+          "Facebook reviews are up to date",
+          { reviewsCount: currentReviewsCount, refreshed: false },
         );
-        
+
         return {
           success: true,
           reviewsCount: currentReviewsCount,
-          message: 'Facebook reviews are up to date'
+          message: "Facebook reviews are up to date",
         };
       }
 
       await this.taskTracker.updateProgress(teamId, MarketPlatform.FACEBOOK, {
         step: BusinessCreationStep.FETCHING_REVIEWS,
-        status: 'IN_PROGRESS' as any,
-        message: 'Scheduling Facebook review scraping job...',
-        progressPercent: 50
+        status: "IN_PROGRESS" as any,
+        message: "Scheduling Facebook review scraping job...",
+        progressPercent: 50,
       });
 
       // Create Facebook review scraping job
-      const job = new FacebookBusinessReviewsActorJob({
-        platform: MarketPlatform.FACEBOOK,
-        teamId: teamId,
-        pageUrl: facebookUrl,
-        isInitialization: false,
-        maxReviews: teamLimits.maxReviewsPerBusiness
-      }, process.env.APIFY_TOKEN!);
+      const job = new FacebookBusinessReviewsActorJob(
+        {
+          platform: MarketPlatform.FACEBOOK,
+          teamId: teamId,
+          pageUrl: facebookUrl,
+          isInitialization: false,
+          maxReviews: teamLimits.maxReviewsPerBusiness,
+        },
+        process.env.APIFY_TOKEN!,
+      );
 
       // Create proper ActorJob for scheduling
       const actor = new FacebookBusinessReviewsActor();
       actor.updateMemoryEstimate(false);
-      
+
       const jobData = {
         platform: MarketPlatform.FACEBOOK,
         teamId: teamId,
         pageUrl: facebookUrl,
         isInitialization: false,
-        maxReviews: teamLimits.maxReviewsPerBusiness
+        maxReviews: teamLimits.maxReviewsPerBusiness,
       };
-      
+
       const actorJob = new ActorJob(
         `facebook-manual-${teamId}-${Date.now()}`,
         actor,
@@ -887,49 +1034,49 @@ export class SimpleBusinessService {
         async () => {
           await job.run();
           return true;
-        }
+        },
       );
 
-      await this.actorManager.schedule(actorJob, 'manual');
-      
+      await this.actorManager.schedule(actorJob, "manual");
+
       console.log(`📝 Facebook review scraping job scheduled: ${actorJob.id}`);
 
       await this.taskTracker.completeStep(
         teamId,
         MarketPlatform.FACEBOOK,
         BusinessCreationStep.FETCHING_REVIEWS,
-        'Facebook review scraping job scheduled successfully',
-        { 
-          jobId: actorJob.id, 
+        "Facebook review scraping job scheduled successfully",
+        {
+          jobId: actorJob.id,
           maxReviews: teamLimits.maxReviewsPerBusiness,
-          refreshed: true 
-        }
+          refreshed: true,
+        },
       );
-      
+
       return {
         success: true,
         jobId: actorJob.id,
-        message: 'Facebook review scraping started'
+        message: "Facebook review scraping started",
       };
-
     } catch (error) {
       console.error(`❌ Error getting/updating Facebook reviews:`, error);
-      
+
       // Try to mark step as failed
       try {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.FACEBOOK,
           BusinessCreationStep.FETCHING_REVIEWS,
-          error instanceof Error ? error.message : 'Unknown error occurred'
+          error instanceof Error ? error.message : "Unknown error occurred",
         );
       } catch (trackingError) {
-        console.error('Failed to update task tracking:', trackingError);
+        console.error("Failed to update task tracking:", trackingError);
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -937,11 +1084,14 @@ export class SimpleBusinessService {
   /**
    * Get Facebook business data for a team
    */
-  async getFacebookBusinessData(teamId: string): Promise<FacebookBusinessData | null> {
+  async getFacebookBusinessData(
+    teamId: string,
+  ): Promise<FacebookBusinessData | null> {
     try {
       const { data, error } = await this.supabase
-        .from('FacebookBusinessProfile')
-        .select(`
+        .from("FacebookBusinessProfile")
+        .select(
+          `
           id,
           teamId,
           title,
@@ -951,37 +1101,42 @@ export class SimpleBusinessService {
           websites,
           scrapedAt,
           updatedAt
-        `)
-        .eq('teamId', teamId)
+        `,
+        )
+        .eq("teamId", teamId)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           // No rows returned
           return null;
         }
-        console.error('Error getting Facebook business data:', error);
+        console.error("Error getting Facebook business data:", error);
         return null;
       }
 
-      return data ? {
-        businessId: data.id,
-        teamId: data.teamId,
-        title: data.title || '',
-        facebookUrl: data.facebookUrl,
-        address: undefined, // Not available in new schema
-        rating: undefined, // Would need to be calculated from reviews
-        reviewsCount: undefined, // Would need to be calculated from reviews
-        categories: data.categories || [],
-        phone: data.phone,
-        website: data.websites && data.websites.length > 0 ? data.websites[0] : undefined,
-        scrapedAt: data.scrapedAt ? new Date(data.scrapedAt) : undefined,
-        createdAt: data.scrapedAt ? new Date(data.scrapedAt) : new Date(),
-        updatedAt: new Date(data.updatedAt)
-      } : null;
-
+      return data
+        ? {
+            businessId: data.id,
+            teamId: data.teamId,
+            title: data.title || "",
+            facebookUrl: data.facebookUrl,
+            address: undefined, // Not available in new schema
+            rating: undefined, // Would need to be calculated from reviews
+            reviewsCount: undefined, // Would need to be calculated from reviews
+            categories: data.categories || [],
+            phone: data.phone,
+            website:
+              data.websites && data.websites.length > 0
+                ? data.websites[0]
+                : undefined,
+            scrapedAt: data.scrapedAt ? new Date(data.scrapedAt) : undefined,
+            createdAt: data.scrapedAt ? new Date(data.scrapedAt) : new Date(),
+            updatedAt: new Date(data.updatedAt),
+          }
+        : null;
     } catch (error) {
-      console.error('Error getting Facebook business data:', error);
+      console.error("Error getting Facebook business data:", error);
       return null;
     }
   }
@@ -990,14 +1145,15 @@ export class SimpleBusinessService {
    * Get Facebook reviews for a team's business
    */
   async getFacebookReviews(
-    teamId: string, 
-    limit: number = 50, 
-    offset: number = 0
+    teamId: string,
+    limit: number = 50,
+    offset: number = 0,
   ): Promise<FacebookReviewData[]> {
     try {
       const { data, error } = await this.supabase
-        .from('FacebookReview')
-        .select(`
+        .from("FacebookReview")
+        .select(
+          `
           id,
           businessProfileId,
           userId,
@@ -1010,31 +1166,33 @@ export class SimpleBusinessService {
           tags,
           scrapedAt,
           FacebookBusinessProfile!inner(teamId)
-        `)
-        .eq('FacebookBusinessProfile.teamId', teamId)
-        .order('date', { ascending: false })
+        `,
+        )
+        .eq("FacebookBusinessProfile.teamId", teamId)
+        .order("date", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) {
-        console.error('Error getting Facebook reviews:', error);
+        console.error("Error getting Facebook reviews:", error);
         return [];
       }
 
-      return data?.map(review => ({
-        id: review.id,
-        businessProfileId: review.businessProfileId,
-        reviewerId: review.userId,
-        name: review.userName,
-        rating: review.isRecommended ? 5 : 1, // Convert Facebook recommendation to rating equivalent
-        text: review.text || '',
-        publishedAtDate: new Date(review.date),
-        responseFromOwnerText: undefined, // Facebook doesn't have direct owner responses like Google
-        responseFromOwnerDate: undefined,
-        scrapedAt: new Date(review.scrapedAt)
-      })) || [];
-
+      return (
+        data?.map((review) => ({
+          id: review.id,
+          businessProfileId: review.businessProfileId,
+          reviewerId: review.userId,
+          name: review.userName,
+          rating: review.isRecommended ? 5 : 1, // Convert Facebook recommendation to rating equivalent
+          text: review.text || "",
+          publishedAtDate: new Date(review.date),
+          responseFromOwnerText: undefined, // Facebook doesn't have direct owner responses like Google
+          responseFromOwnerDate: undefined,
+          scrapedAt: new Date(review.scrapedAt),
+        })) || []
+      );
     } catch (error) {
-      console.error('Error getting Facebook reviews:', error);
+      console.error("Error getting Facebook reviews:", error);
       return [];
     }
   }
@@ -1044,13 +1202,16 @@ export class SimpleBusinessService {
   /**
    * Get Google business by team (one-to-one relationship)
    */
-  private async getGoogleBusinessByPlaceId(placeId: string): Promise<GoogleBusinessData | null> {
+  private async getGoogleBusinessByPlaceId(
+    placeId: string,
+  ): Promise<GoogleBusinessData | null> {
     try {
       // Since we now have one-to-one team relationship, we need to find by placeId first
       // then check if it matches the expected structure
       const { data, error } = await this.supabase
-        .from('GoogleBusinessProfile')
-        .select(`
+        .from("GoogleBusinessProfile")
+        .select(
+          `
           id,
           teamId,
           displayName,
@@ -1065,37 +1226,45 @@ export class SimpleBusinessService {
             createdAt,
             updatedAt
           )
-        `)
-        .eq('placeId', placeId)
+        `,
+        )
+        .eq("placeId", placeId)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           // No rows returned
           return null;
         }
-        console.error('Error getting Google business by placeId:', error);
+        console.error("Error getting Google business by placeId:", error);
         return null;
       }
 
-      return data ? {
-        businessId: data.id,
-        teamId: data.teamId,
-        title: data.displayName || '',
-        placeId: data.placeId || '',
-        address: data.formattedAddress,
-        rating: data.rating,
-        reviewsCount: data.userRatingCount,
-        categories: data.types || [],
-        phone: data.nationalPhoneNumber,
-        website: data.websiteUri,
-        scrapedAt: undefined, // No longer in main schema
-        createdAt: data.metadata && data.metadata[0]?.createdAt ? new Date(data.metadata[0].createdAt) : new Date(),
-        updatedAt: data.metadata && data.metadata[0]?.updatedAt ? new Date(data.metadata[0].updatedAt) : new Date()
-      } : null;
-
+      return data
+        ? {
+            businessId: data.id,
+            teamId: data.teamId,
+            title: data.displayName || "",
+            placeId: data.placeId || "",
+            address: data.formattedAddress,
+            rating: data.rating,
+            reviewsCount: data.userRatingCount,
+            categories: data.types || [],
+            phone: data.nationalPhoneNumber,
+            website: data.websiteUri,
+            scrapedAt: undefined, // No longer in main schema
+            createdAt:
+              data.metadata && data.metadata[0]?.createdAt
+                ? new Date(data.metadata[0].createdAt)
+                : new Date(),
+            updatedAt:
+              data.metadata && data.metadata[0]?.updatedAt
+                ? new Date(data.metadata[0].updatedAt)
+                : new Date(),
+          }
+        : null;
     } catch (error) {
-      console.error('Error getting Google business by placeId:', error);
+      console.error("Error getting Google business by placeId:", error);
       return null;
     }
   }
@@ -1103,11 +1272,14 @@ export class SimpleBusinessService {
   /**
    * Get Facebook business by URL
    */
-  private async getFacebookBusinessByUrl(facebookUrl: string): Promise<FacebookBusinessData | null> {
+  private async getFacebookBusinessByUrl(
+    facebookUrl: string,
+  ): Promise<FacebookBusinessData | null> {
     try {
       const { data, error } = await this.supabase
-        .from('FacebookBusinessProfile')
-        .select(`
+        .from("FacebookBusinessProfile")
+        .select(
+          `
           id,
           teamId,
           title,
@@ -1117,37 +1289,42 @@ export class SimpleBusinessService {
           websites,
           scrapedAt,
           updatedAt
-        `)
-        .eq('facebookUrl', facebookUrl)
+        `,
+        )
+        .eq("facebookUrl", facebookUrl)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           // No rows returned
           return null;
         }
-        console.error('Error getting Facebook business by URL:', error);
+        console.error("Error getting Facebook business by URL:", error);
         return null;
       }
 
-      return data ? {
-        businessId: data.id,
-        teamId: data.teamId,
-        title: data.title || '',
-        facebookUrl: data.facebookUrl,
-        address: undefined,
-        rating: undefined,
-        reviewsCount: undefined,
-        categories: data.categories || [],
-        phone: data.phone,
-        website: data.websites && data.websites.length > 0 ? data.websites[0] : undefined,
-        scrapedAt: data.scrapedAt ? new Date(data.scrapedAt) : undefined,
-        createdAt: data.scrapedAt ? new Date(data.scrapedAt) : new Date(),
-        updatedAt: new Date(data.updatedAt)
-      } : null;
-
+      return data
+        ? {
+            businessId: data.id,
+            teamId: data.teamId,
+            title: data.title || "",
+            facebookUrl: data.facebookUrl,
+            address: undefined,
+            rating: undefined,
+            reviewsCount: undefined,
+            categories: data.categories || [],
+            phone: data.phone,
+            website:
+              data.websites && data.websites.length > 0
+                ? data.websites[0]
+                : undefined,
+            scrapedAt: data.scrapedAt ? new Date(data.scrapedAt) : undefined,
+            createdAt: data.scrapedAt ? new Date(data.scrapedAt) : new Date(),
+            updatedAt: new Date(data.updatedAt),
+          }
+        : null;
     } catch (error) {
-      console.error('Error getting Facebook business by URL:', error);
+      console.error("Error getting Facebook business by URL:", error);
       return null;
     }
   }
@@ -1155,12 +1332,14 @@ export class SimpleBusinessService {
   /**
    * Check if Google reviews need refreshing
    */
-  private async shouldRefreshGoogleReviews(businessId: string): Promise<boolean> {
+  private async shouldRefreshGoogleReviews(
+    businessId: string,
+  ): Promise<boolean> {
     try {
       const { data, error } = await this.supabase
-        .from('GoogleBusinessMetadata')
-        .select('lastUpdateAt')
-        .eq('businessProfileId', businessId)
+        .from("GoogleBusinessMetadata")
+        .select("lastUpdateAt")
+        .eq("businessProfileId", businessId)
         .single();
 
       if (error || !data) {
@@ -1173,10 +1352,10 @@ export class SimpleBusinessService {
 
       const lastScraped = new Date(data.lastUpdateAt);
       const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
-      
+
       return lastScraped < sixHoursAgo;
     } catch (error) {
-      console.error('Error checking if Google reviews need refresh:', error);
+      console.error("Error checking if Google reviews need refresh:", error);
       return true;
     }
   }
@@ -1184,12 +1363,14 @@ export class SimpleBusinessService {
   /**
    * Check if Facebook reviews need refreshing
    */
-  private async shouldRefreshFacebookReviews(businessId: string): Promise<boolean> {
+  private async shouldRefreshFacebookReviews(
+    businessId: string,
+  ): Promise<boolean> {
     try {
       const { data, error } = await this.supabase
-        .from('FacebookBusinessProfile')
-        .select('scrapedAt')
-        .eq('id', businessId)
+        .from("FacebookBusinessProfile")
+        .select("scrapedAt")
+        .eq("id", businessId)
         .single();
 
       if (error || !data) {
@@ -1202,10 +1383,10 @@ export class SimpleBusinessService {
 
       const lastScraped = new Date(data.scrapedAt);
       const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
-      
+
       return lastScraped < sixHoursAgo;
     } catch (error) {
-      console.error('Error checking if Facebook reviews need refresh:', error);
+      console.error("Error checking if Facebook reviews need refresh:", error);
       return true;
     }
   }
@@ -1216,18 +1397,18 @@ export class SimpleBusinessService {
   private async getGoogleReviewsCount(businessId: string): Promise<number> {
     try {
       const { count, error } = await this.supabase
-        .from('GoogleReview')
-        .select('*', { count: 'exact', head: true })
-        .eq('businessProfileId', businessId);
+        .from("GoogleReview")
+        .select("*", { count: "exact", head: true })
+        .eq("businessProfileId", businessId);
 
       if (error) {
-        console.error('Error getting Google reviews count:', error);
+        console.error("Error getting Google reviews count:", error);
         return 0;
       }
 
       return count || 0;
     } catch (error) {
-      console.error('Error getting Google reviews count:', error);
+      console.error("Error getting Google reviews count:", error);
       return 0;
     }
   }
@@ -1238,18 +1419,18 @@ export class SimpleBusinessService {
   private async getFacebookReviewsCount(businessId: string): Promise<number> {
     try {
       const { count, error } = await this.supabase
-        .from('FacebookReview')
-        .select('*', { count: 'exact', head: true })
-        .eq('businessProfileId', businessId);
+        .from("FacebookReview")
+        .select("*", { count: "exact", head: true })
+        .eq("businessProfileId", businessId);
 
       if (error) {
-        console.error('Error getting Facebook reviews count:', error);
+        console.error("Error getting Facebook reviews count:", error);
         return 0;
       }
 
       return count || 0;
     } catch (error) {
-      console.error('Error getting Facebook reviews count:', error);
+      console.error("Error getting Facebook reviews count:", error);
       return 0;
     }
   }
@@ -1259,31 +1440,41 @@ export class SimpleBusinessService {
    */
   async createOrUpdateTripAdvisorProfile(
     teamId: string,
-    tripAdvisorUrl: string
+    tripAdvisorUrl: string,
   ): Promise<BusinessProfileResult> {
-    
-    console.log(`🟠 Creating/updating TripAdvisor business profile for team ${teamId}, tripAdvisorUrl ${tripAdvisorUrl}`);
-    
+    console.log(
+      `🟠 Creating/updating TripAdvisor business profile for team ${teamId}, tripAdvisorUrl ${tripAdvisorUrl}`,
+    );
+
     try {
       // Initialize task tracking
-      await this.taskTracker.findOrCreateTask(teamId, MarketPlatform.TRIPADVISOR, tripAdvisorUrl);
+      await this.taskTracker.findOrCreateTask(
+        teamId,
+        MarketPlatform.TRIPADVISOR,
+        tripAdvisorUrl,
+      );
 
       // Check if business already exists
-      const existingBusiness = await this.getTripAdvisorBusinessByUrl(tripAdvisorUrl);
-      
+      const existingBusiness =
+        await this.getTripAdvisorBusinessByUrl(tripAdvisorUrl);
+
       // Check if team can add more businesses for TripAdvisor platform (only if business doesn't exist)
       if (!existingBusiness) {
-        const canAdd = await this.teamService.canTeamAddBusinessForPlatform(teamId, MarketPlatform.TRIPADVISOR);
+        const canAdd = await this.teamService.canTeamAddBusinessForPlatform(
+          teamId,
+          MarketPlatform.TRIPADVISOR,
+        );
         if (!canAdd) {
           await this.taskTracker.failStep(
             teamId,
             MarketPlatform.TRIPADVISOR,
             BusinessCreationStep.CREATING_PROFILE,
-            'Team already has a TripAdvisor business profile. Only one business per platform is allowed.'
+            "Team already has a TripAdvisor business profile. Only one business per platform is allowed.",
           );
           return {
             success: false,
-            error: 'Team already has a TripAdvisor business profile. Only one business per platform is allowed.'
+            error:
+              "Team already has a TripAdvisor business profile. Only one business per platform is allowed.",
           };
         }
       }
@@ -1293,41 +1484,53 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.TRIPADVISOR,
         BusinessCreationStep.CREATING_PROFILE,
-        'Creating/updating TripAdvisor business profile...'
+        "Creating/updating TripAdvisor business profile...",
       );
 
       let businessProfileResult;
-      
+
       if (existingBusiness) {
-        console.log(`📝 TripAdvisor business already exists, updating profile...`);
-        
-        await this.taskTracker.updateProgress(teamId, MarketPlatform.TRIPADVISOR, {
-          step: BusinessCreationStep.CREATING_PROFILE,
-          status: 'IN_PROGRESS' as any,
-          message: 'Updating existing TripAdvisor business profile...',
-          progressPercent: 50
-        });
-        
-        businessProfileResult = await this.businessProfileCreationService.createBusinessProfile(
+        console.log(
+          `📝 TripAdvisor business already exists, updating profile...`,
+        );
+
+        await this.taskTracker.updateProgress(
           teamId,
           MarketPlatform.TRIPADVISOR,
-          tripAdvisorUrl
+          {
+            step: BusinessCreationStep.CREATING_PROFILE,
+            status: "IN_PROGRESS" as any,
+            message: "Updating existing TripAdvisor business profile...",
+            progressPercent: 50,
+          },
         );
+
+        businessProfileResult =
+          await this.businessProfileCreationService.createBusinessProfile(
+            teamId,
+            MarketPlatform.TRIPADVISOR,
+            tripAdvisorUrl,
+          );
       } else {
         console.log(`🆕 Creating new TripAdvisor business profile...`);
-        
-        await this.taskTracker.updateProgress(teamId, MarketPlatform.TRIPADVISOR, {
-          step: BusinessCreationStep.CREATING_PROFILE,
-          status: 'IN_PROGRESS' as any,
-          message: 'Creating new TripAdvisor business profile...',
-          progressPercent: 50
-        });
-        
-        businessProfileResult = await this.businessProfileCreationService.createBusinessProfile(
+
+        await this.taskTracker.updateProgress(
           teamId,
           MarketPlatform.TRIPADVISOR,
-          tripAdvisorUrl
+          {
+            step: BusinessCreationStep.CREATING_PROFILE,
+            status: "IN_PROGRESS" as any,
+            message: "Creating new TripAdvisor business profile...",
+            progressPercent: 50,
+          },
         );
+
+        businessProfileResult =
+          await this.businessProfileCreationService.createBusinessProfile(
+            teamId,
+            MarketPlatform.TRIPADVISOR,
+            tripAdvisorUrl,
+          );
       }
 
       if (!businessProfileResult.success) {
@@ -1335,11 +1538,14 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.TRIPADVISOR,
           BusinessCreationStep.CREATING_PROFILE,
-          businessProfileResult.error || 'Failed to create/update TripAdvisor business profile'
+          businessProfileResult.error ||
+            "Failed to create/update TripAdvisor business profile",
         );
         return {
           success: false,
-          error: businessProfileResult.error || 'Failed to create/update TripAdvisor business profile'
+          error:
+            businessProfileResult.error ||
+            "Failed to create/update TripAdvisor business profile",
         };
       }
 
@@ -1347,54 +1553,68 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.TRIPADVISOR,
         BusinessCreationStep.CREATING_PROFILE,
-        'TripAdvisor business profile created/updated successfully',
-        { businessProfileId: businessProfileResult.businessProfileId }
+        "TripAdvisor business profile created/updated successfully",
+        { businessProfileId: businessProfileResult.businessProfileId },
       );
 
       // Step 2: Automatically trigger TripAdvisor reviews collection
       console.log(`🔍 Triggering TripAdvisor reviews collection...`);
-      
+
       try {
-        const reviewsResult = await this.getOrUpdateTripAdvisorReviews(teamId, tripAdvisorUrl, true); // Force refresh
-        
+        const reviewsResult = await this.getOrUpdateTripAdvisorReviews(
+          teamId,
+          tripAdvisorUrl,
+          true,
+        ); // Force refresh
+
         if (reviewsResult.success) {
-          console.log(`✅ TripAdvisor reviews collection started: ${reviewsResult.message || 'Job scheduled'}`);
+          console.log(
+            `✅ TripAdvisor reviews collection started: ${reviewsResult.message || "Job scheduled"}`,
+          );
         } else {
-          console.warn(`⚠️ TripAdvisor reviews collection failed but continuing: ${reviewsResult.error}`);
+          console.warn(
+            `⚠️ TripAdvisor reviews collection failed but continuing: ${reviewsResult.error}`,
+          );
           // Don't fail the entire flow if reviews fail - the profile creation was successful
         }
       } catch (reviewError) {
-        console.warn(`⚠️ Error triggering TripAdvisor reviews (continuing anyway):`, reviewError);
+        console.warn(
+          `⚠️ Error triggering TripAdvisor reviews (continuing anyway):`,
+          reviewError,
+        );
         // Don't fail the entire flow if reviews fail
       }
 
       // Return the business profile data
-      const finalBusiness = await this.getTripAdvisorBusinessByUrl(tripAdvisorUrl);
-      
+      const finalBusiness =
+        await this.getTripAdvisorBusinessByUrl(tripAdvisorUrl);
+
       return {
         success: true,
-        businessId: businessProfileResult.businessProfileId || existingBusiness?.businessId,
-        profileData: finalBusiness
+        businessId:
+          businessProfileResult.businessProfileId ||
+          existingBusiness?.businessId,
+        profileData: finalBusiness,
       };
-
     } catch (error) {
       console.error(`❌ Error in TripAdvisor business setup flow:`, error);
-      
+
       // Try to mark current step as failed
       try {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.TRIPADVISOR,
           BusinessCreationStep.CREATING_PROFILE,
-          error instanceof Error ? error.message : 'Unknown error occurred'
+          error instanceof Error ? error.message : "Unknown error occurred",
         );
       } catch (trackingError) {
-        console.error('Failed to update task tracking:', trackingError);
+        console.error("Failed to update task tracking:", trackingError);
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -1405,18 +1625,19 @@ export class SimpleBusinessService {
   async getOrUpdateTripAdvisorReviews(
     teamId: string,
     tripAdvisorUrl: string,
-    forceRefresh: boolean = false
+    forceRefresh: boolean = false,
   ): Promise<ReviewsResult> {
-    
-    console.log(`🟠 Getting/updating TripAdvisor reviews for team ${teamId}, tripAdvisorUrl ${tripAdvisorUrl}, forceRefresh: ${forceRefresh}`);
-    
+    console.log(
+      `🟠 Getting/updating TripAdvisor reviews for team ${teamId}, tripAdvisorUrl ${tripAdvisorUrl}, forceRefresh: ${forceRefresh}`,
+    );
+
     try {
       // Start reviews fetching step
       await this.taskTracker.startStep(
         teamId,
         MarketPlatform.TRIPADVISOR,
         BusinessCreationStep.FETCHING_REVIEWS,
-        'Starting TripAdvisor reviews collection...'
+        "Starting TripAdvisor reviews collection...",
       );
 
       // Find the business profile
@@ -1426,61 +1647,74 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.TRIPADVISOR,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'TripAdvisor business profile not found. Please create the profile first.'
+          "TripAdvisor business profile not found. Please create the profile first.",
         );
         return {
           success: false,
-          error: 'TripAdvisor business profile not found. Please create the profile first.'
+          error:
+            "TripAdvisor business profile not found. Please create the profile first.",
         };
       }
 
-      // Get team limits for this user 
+      // Get team limits for this user
       const teamLimits = await this.teamService.getTeamLimits(teamId);
       if (!teamLimits) {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.TRIPADVISOR,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Team not found or inactive'
+          "Team not found or inactive",
         );
         return {
           success: false,
-          error: 'Team not found or inactive'
+          error: "Team not found or inactive",
         };
       }
 
-      await this.taskTracker.updateProgress(teamId, MarketPlatform.TRIPADVISOR, {
-        step: BusinessCreationStep.FETCHING_REVIEWS,
-        status: 'IN_PROGRESS' as any,
-        message: 'Checking if reviews need to be refreshed...',
-        progressPercent: 25
-      });
+      await this.taskTracker.updateProgress(
+        teamId,
+        MarketPlatform.TRIPADVISOR,
+        {
+          step: BusinessCreationStep.FETCHING_REVIEWS,
+          status: "IN_PROGRESS" as any,
+          message: "Checking if reviews need to be refreshed...",
+          progressPercent: 25,
+        },
+      );
 
       // Check if we should refresh reviews
-      const shouldRefresh = forceRefresh || await this.shouldRefreshTripAdvisorReviews(business.businessId);
-      
+      const shouldRefresh =
+        forceRefresh ||
+        (await this.shouldRefreshTripAdvisorReviews(business.businessId));
+
       if (!shouldRefresh) {
-        const reviewCount = await this.getTripAdvisorReviewsCount(business.businessId);
+        const reviewCount = await this.getTripAdvisorReviewsCount(
+          business.businessId,
+        );
         await this.taskTracker.completeStep(
           teamId,
           MarketPlatform.TRIPADVISOR,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'TripAdvisor reviews are up to date',
-          { reviewsCount: reviewCount, refreshed: false }
+          "TripAdvisor reviews are up to date",
+          { reviewsCount: reviewCount, refreshed: false },
         );
         return {
           success: true,
           reviewsCount: reviewCount,
-          message: 'TripAdvisor reviews are up to date'
+          message: "TripAdvisor reviews are up to date",
         };
       }
 
-      await this.taskTracker.updateProgress(teamId, MarketPlatform.TRIPADVISOR, {
-        step: BusinessCreationStep.FETCHING_REVIEWS,
-        status: 'IN_PROGRESS' as any,
-        message: 'Scheduling TripAdvisor review scraping job...',
-        progressPercent: 50
-      });
+      await this.taskTracker.updateProgress(
+        teamId,
+        MarketPlatform.TRIPADVISOR,
+        {
+          step: BusinessCreationStep.FETCHING_REVIEWS,
+          status: "IN_PROGRESS" as any,
+          message: "Scheduling TripAdvisor review scraping job...",
+          progressPercent: 50,
+        },
+      );
 
       // Extract location ID from URL or use stored one
       let locationId = business.locationId;
@@ -1496,37 +1730,40 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.TRIPADVISOR,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Could not extract location ID from TripAdvisor URL'
+          "Could not extract location ID from TripAdvisor URL",
         );
         return {
           success: false,
-          error: 'Could not extract location ID from TripAdvisor URL'
+          error: "Could not extract location ID from TripAdvisor URL",
         };
       }
 
       // Create TripAdvisorBusinessReviewsActorJob instance
-      const job = new TripAdvisorBusinessReviewsActorJob({
-        platform: MarketPlatform.TRIPADVISOR,
-        teamId: teamId,
-        locationId: locationId,
-        tripAdvisorUrl: tripAdvisorUrl,
-        isInitialization: false,
-        maxReviews: teamLimits.maxReviewsPerBusiness
-      }, process.env.APIFY_TOKEN!);
+      const job = new TripAdvisorBusinessReviewsActorJob(
+        {
+          platform: MarketPlatform.TRIPADVISOR,
+          teamId: teamId,
+          locationId: locationId,
+          tripAdvisorUrl: tripAdvisorUrl,
+          isInitialization: false,
+          maxReviews: teamLimits.maxReviewsPerBusiness,
+        },
+        process.env.APIFY_TOKEN!,
+      );
 
       // Create proper ActorJob for scheduling
       const actor = new TripAdvisorBusinessReviewsActor();
       actor.updateMemoryEstimate(false);
-      
+
       const jobData = {
         platform: MarketPlatform.TRIPADVISOR,
         teamId: teamId,
         locationId: locationId,
         tripAdvisorUrl: tripAdvisorUrl,
         isInitialization: false,
-        maxReviews: teamLimits.maxReviewsPerBusiness
+        maxReviews: teamLimits.maxReviewsPerBusiness,
       };
-      
+
       const actorJob = new ActorJob(
         `tripadvisor-manual-${teamId}-${locationId}-${Date.now()}`,
         actor,
@@ -1534,49 +1771,51 @@ export class SimpleBusinessService {
         async () => {
           await job.run();
           return true;
-        }
+        },
       );
 
-      await this.actorManager.schedule(actorJob, 'manual');
-      
-      console.log(`📝 TripAdvisor review scraping job scheduled: ${actorJob.id}`);
+      await this.actorManager.schedule(actorJob, "manual");
+
+      console.log(
+        `📝 TripAdvisor review scraping job scheduled: ${actorJob.id}`,
+      );
 
       await this.taskTracker.completeStep(
         teamId,
         MarketPlatform.TRIPADVISOR,
         BusinessCreationStep.FETCHING_REVIEWS,
-        'TripAdvisor review scraping job scheduled successfully',
-        { 
-          jobId: actorJob.id, 
+        "TripAdvisor review scraping job scheduled successfully",
+        {
+          jobId: actorJob.id,
           maxReviews: teamLimits.maxReviewsPerBusiness,
-          refreshed: true 
-        }
+          refreshed: true,
+        },
       );
-      
+
       return {
         success: true,
         jobId: actorJob.id,
-        message: 'TripAdvisor review scraping job scheduled'
+        message: "TripAdvisor review scraping job scheduled",
       };
-
     } catch (error) {
       console.error(`❌ Error getting/updating TripAdvisor reviews:`, error);
-      
+
       // Try to mark step as failed
       try {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.TRIPADVISOR,
           BusinessCreationStep.FETCHING_REVIEWS,
-          error instanceof Error ? error.message : 'Unknown error occurred'
+          error instanceof Error ? error.message : "Unknown error occurred",
         );
       } catch (trackingError) {
-        console.error('Failed to update task tracking:', trackingError);
+        console.error("Failed to update task tracking:", trackingError);
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -1584,11 +1823,14 @@ export class SimpleBusinessService {
   /**
    * Get TripAdvisor business data for a team
    */
-  async getTripAdvisorBusinessData(teamId: string): Promise<TripAdvisorBusinessData | null> {
+  async getTripAdvisorBusinessData(
+    teamId: string,
+  ): Promise<TripAdvisorBusinessData | null> {
     try {
       const { data, error } = await this.supabase
-        .from('TripAdvisorBusinessProfile')
-        .select(`
+        .from("TripAdvisorBusinessProfile")
+        .select(
+          `
           id,
           teamId,
           name,
@@ -1605,19 +1847,20 @@ export class SimpleBusinessService {
           TripAdvisorBusinessSubcategory(
             subcategory
           )
-        `)
-        .eq('teamId', teamId)
+        `,
+        )
+        .eq("teamId", teamId)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           return null;
         }
         throw error;
       }
 
       // Extract subcategories from the related table
-      const subcategories = Array.isArray(data.TripAdvisorBusinessSubcategory) 
+      const subcategories = Array.isArray(data.TripAdvisorBusinessSubcategory)
         ? data.TripAdvisorBusinessSubcategory.map((sub: any) => sub.subcategory)
         : [];
 
@@ -1635,10 +1878,10 @@ export class SimpleBusinessService {
         website: data.website,
         scrapedAt: data.scrapedAt ? new Date(data.scrapedAt) : undefined,
         createdAt: new Date(data.createdAt),
-        updatedAt: new Date(data.updatedAt)
+        updatedAt: new Date(data.updatedAt),
       };
     } catch (error) {
-      console.error('Error fetching TripAdvisor business data:', error);
+      console.error("Error fetching TripAdvisor business data:", error);
       return null;
     }
   }
@@ -1647,14 +1890,15 @@ export class SimpleBusinessService {
    * Get TripAdvisor reviews for a team
    */
   async getTripAdvisorReviews(
-    teamId: string, 
-    limit: number = 50, 
-    offset: number = 0
+    teamId: string,
+    limit: number = 50,
+    offset: number = 0,
   ): Promise<TripAdvisorReviewData[]> {
     try {
       const { data, error } = await this.supabase
-        .from('TripAdvisorReview')
-        .select(`
+        .from("TripAdvisorReview")
+        .select(
+          `
           id,
           businessProfileId,
           reviewerId,
@@ -1669,41 +1913,47 @@ export class SimpleBusinessService {
           responseFromOwnerDate,
           scrapedAt,
           TripAdvisorBusinessProfile!inner(teamId)
-        `)
-        .eq('TripAdvisorBusinessProfile.teamId', teamId)
-        .order('publishedDate', { ascending: false })
+        `,
+        )
+        .eq("TripAdvisorBusinessProfile.teamId", teamId)
+        .order("publishedDate", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) {
         throw error;
       }
 
-      return data.map(review => ({
+      return data.map((review) => ({
         id: review.id,
         businessProfileId: review.businessProfileId,
         reviewerId: review.reviewerId,
         name: review.reviewerName,
         rating: review.rating,
-        text: review.text || '',
+        text: review.text || "",
         publishedAtDate: new Date(review.publishedDate),
         visitDate: review.visitDate ? new Date(review.visitDate) : undefined,
         tripType: review.tripType,
         helpfulVotes: review.helpfulVotes,
         responseFromOwnerText: review.responseFromOwnerText,
-        responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : undefined,
-        scrapedAt: new Date(review.scrapedAt)
+        responseFromOwnerDate: review.responseFromOwnerDate
+          ? new Date(review.responseFromOwnerDate)
+          : undefined,
+        scrapedAt: new Date(review.scrapedAt),
       }));
     } catch (error) {
-      console.error('Error fetching TripAdvisor reviews:', error);
+      console.error("Error fetching TripAdvisor reviews:", error);
       return [];
     }
   }
 
-  private async getTripAdvisorBusinessByUrl(tripAdvisorUrl: string): Promise<TripAdvisorBusinessData | null> {
+  private async getTripAdvisorBusinessByUrl(
+    tripAdvisorUrl: string,
+  ): Promise<TripAdvisorBusinessData | null> {
     try {
       const { data, error } = await this.supabase
-        .from('TripAdvisorBusinessProfile')
-        .select(`
+        .from("TripAdvisorBusinessProfile")
+        .select(
+          `
           id,
           teamId,
           name,
@@ -1720,19 +1970,20 @@ export class SimpleBusinessService {
           TripAdvisorBusinessSubcategory(
             subcategory
           )
-        `)
-        .eq('tripAdvisorUrl', tripAdvisorUrl)
+        `,
+        )
+        .eq("tripAdvisorUrl", tripAdvisorUrl)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           return null;
         }
         throw error;
       }
 
       // Extract subcategories from the related table
-      const subcategories = Array.isArray(data.TripAdvisorBusinessSubcategory) 
+      const subcategories = Array.isArray(data.TripAdvisorBusinessSubcategory)
         ? data.TripAdvisorBusinessSubcategory.map((sub: any) => sub.subcategory)
         : [];
 
@@ -1750,20 +2001,22 @@ export class SimpleBusinessService {
         website: data.website,
         scrapedAt: data.scrapedAt ? new Date(data.scrapedAt) : undefined,
         createdAt: new Date(data.createdAt),
-        updatedAt: new Date(data.updatedAt)
+        updatedAt: new Date(data.updatedAt),
       };
     } catch (error) {
-      console.error('Error fetching TripAdvisor business by URL:', error);
+      console.error("Error fetching TripAdvisor business by URL:", error);
       return null;
     }
   }
 
-  private async shouldRefreshTripAdvisorReviews(businessId: string): Promise<boolean> {
+  private async shouldRefreshTripAdvisorReviews(
+    businessId: string,
+  ): Promise<boolean> {
     try {
       const { data, error } = await this.supabase
-        .from('TripAdvisorBusinessProfile')
-        .select('scrapedAt')
-        .eq('id', businessId)
+        .from("TripAdvisorBusinessProfile")
+        .select("scrapedAt")
+        .eq("id", businessId)
         .single();
 
       if (error || !data) {
@@ -1777,21 +2030,24 @@ export class SimpleBusinessService {
       // Refresh if last scrape was more than 24 hours ago
       const lastScrape = new Date(data.scrapedAt);
       const now = new Date();
-      const hoursSinceLastScrape = (now.getTime() - lastScrape.getTime()) / (1000 * 60 * 60);
-      
+      const hoursSinceLastScrape =
+        (now.getTime() - lastScrape.getTime()) / (1000 * 60 * 60);
+
       return hoursSinceLastScrape > 24;
     } catch (error) {
-      console.error('Error checking TripAdvisor refresh status:', error);
+      console.error("Error checking TripAdvisor refresh status:", error);
       return true; // If error, refresh to be safe
     }
   }
 
-  private async getTripAdvisorReviewsCount(businessId: string): Promise<number> {
+  private async getTripAdvisorReviewsCount(
+    businessId: string,
+  ): Promise<number> {
     try {
       const { count, error } = await this.supabase
-        .from('TripAdvisorReview')
-        .select('*', { count: 'exact', head: true })
-        .eq('businessProfileId', businessId);
+        .from("TripAdvisorReview")
+        .select("*", { count: "exact", head: true })
+        .eq("businessProfileId", businessId);
 
       if (error) {
         throw error;
@@ -1799,7 +2055,7 @@ export class SimpleBusinessService {
 
       return count || 0;
     } catch (error) {
-      console.error('Error getting TripAdvisor reviews count:', error);
+      console.error("Error getting TripAdvisor reviews count:", error);
       return 0;
     }
   }
@@ -1811,31 +2067,40 @@ export class SimpleBusinessService {
    */
   async createOrUpdateBookingProfile(
     teamId: string,
-    bookingUrl: string
+    bookingUrl: string,
   ): Promise<BusinessProfileResult> {
-    
-    console.log(`🏨 Creating/updating Booking.com business profile for team ${teamId}, bookingUrl ${bookingUrl}`);
-    
+    console.log(
+      `🏨 Creating/updating Booking.com business profile for team ${teamId}, bookingUrl ${bookingUrl}`,
+    );
+
     try {
       // Initialize task tracking
-      await this.taskTracker.findOrCreateTask(teamId, MarketPlatform.BOOKING, bookingUrl);
+      await this.taskTracker.findOrCreateTask(
+        teamId,
+        MarketPlatform.BOOKING,
+        bookingUrl,
+      );
 
       // Check if business already exists
       const existingBusiness = await this.getBookingBusinessByUrl(bookingUrl);
-      
+
       // Check if team can add more businesses for Booking.com platform (only if business doesn't exist)
       if (!existingBusiness) {
-        const canAdd = await this.teamService.canTeamAddBusinessForPlatform(teamId, MarketPlatform.BOOKING);
+        const canAdd = await this.teamService.canTeamAddBusinessForPlatform(
+          teamId,
+          MarketPlatform.BOOKING,
+        );
         if (!canAdd) {
           await this.taskTracker.failStep(
             teamId,
             MarketPlatform.BOOKING,
             BusinessCreationStep.CREATING_PROFILE,
-            'Team already has a Booking.com business profile. Only one business per platform is allowed.'
+            "Team already has a Booking.com business profile. Only one business per platform is allowed.",
           );
           return {
             success: false,
-            error: 'Team already has a Booking.com business profile. Only one business per platform is allowed.'
+            error:
+              "Team already has a Booking.com business profile. Only one business per platform is allowed.",
           };
         }
       }
@@ -1845,41 +2110,45 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.BOOKING,
         BusinessCreationStep.CREATING_PROFILE,
-        'Creating/updating Booking.com business profile...'
+        "Creating/updating Booking.com business profile...",
       );
 
       let businessProfileResult;
-      
+
       if (existingBusiness) {
-        console.log(`📝 Booking.com business already exists, updating profile...`);
-        
+        console.log(
+          `📝 Booking.com business already exists, updating profile...`,
+        );
+
         await this.taskTracker.updateProgress(teamId, MarketPlatform.BOOKING, {
           step: BusinessCreationStep.CREATING_PROFILE,
-          status: 'IN_PROGRESS' as any,
-          message: 'Updating existing Booking.com business profile...',
-          progressPercent: 50
+          status: "IN_PROGRESS" as any,
+          message: "Updating existing Booking.com business profile...",
+          progressPercent: 50,
         });
-        
-        businessProfileResult = await this.businessProfileCreationService.createBusinessProfile(
-          teamId,
-          MarketPlatform.BOOKING,
-          bookingUrl
-        );
+
+        businessProfileResult =
+          await this.businessProfileCreationService.createBusinessProfile(
+            teamId,
+            MarketPlatform.BOOKING,
+            bookingUrl,
+          );
       } else {
         console.log(`🆕 Creating new Booking.com business profile...`);
-        
+
         await this.taskTracker.updateProgress(teamId, MarketPlatform.BOOKING, {
           step: BusinessCreationStep.CREATING_PROFILE,
-          status: 'IN_PROGRESS' as any,
-          message: 'Creating new Booking.com business profile...',
-          progressPercent: 50
+          status: "IN_PROGRESS" as any,
+          message: "Creating new Booking.com business profile...",
+          progressPercent: 50,
         });
-        
-        businessProfileResult = await this.businessProfileCreationService.createBusinessProfile(
-          teamId,
-          MarketPlatform.BOOKING,
-          bookingUrl
-        );
+
+        businessProfileResult =
+          await this.businessProfileCreationService.createBusinessProfile(
+            teamId,
+            MarketPlatform.BOOKING,
+            bookingUrl,
+          );
       }
 
       if (!businessProfileResult.success) {
@@ -1887,11 +2156,14 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.BOOKING,
           BusinessCreationStep.CREATING_PROFILE,
-          businessProfileResult.error || 'Failed to create/update Booking.com business profile'
+          businessProfileResult.error ||
+            "Failed to create/update Booking.com business profile",
         );
         return {
           success: false,
-          error: businessProfileResult.error || 'Failed to create/update Booking.com business profile'
+          error:
+            businessProfileResult.error ||
+            "Failed to create/update Booking.com business profile",
         };
       }
 
@@ -1899,54 +2171,67 @@ export class SimpleBusinessService {
         teamId,
         MarketPlatform.BOOKING,
         BusinessCreationStep.CREATING_PROFILE,
-        'Booking.com business profile created/updated successfully',
-        { businessProfileId: businessProfileResult.businessProfileId }
+        "Booking.com business profile created/updated successfully",
+        { businessProfileId: businessProfileResult.businessProfileId },
       );
 
       // Step 2: Automatically trigger Booking.com reviews collection
       console.log(`🔍 Triggering Booking.com reviews collection...`);
-      
+
       try {
-        const reviewsResult = await this.getOrUpdateBookingReviews(teamId, bookingUrl, true); // Force refresh
-        
+        const reviewsResult = await this.getOrUpdateBookingReviews(
+          teamId,
+          bookingUrl,
+          true,
+        ); // Force refresh
+
         if (reviewsResult.success) {
-          console.log(`✅ Booking.com reviews collection started: ${reviewsResult.message || 'Job scheduled'}`);
+          console.log(
+            `✅ Booking.com reviews collection started: ${reviewsResult.message || "Job scheduled"}`,
+          );
         } else {
-          console.warn(`⚠️ Booking.com reviews collection failed but continuing: ${reviewsResult.error}`);
+          console.warn(
+            `⚠️ Booking.com reviews collection failed but continuing: ${reviewsResult.error}`,
+          );
           // Don't fail the entire flow if reviews fail - the profile creation was successful
         }
       } catch (reviewError) {
-        console.warn(`⚠️ Error triggering Booking.com reviews (continuing anyway):`, reviewError);
+        console.warn(
+          `⚠️ Error triggering Booking.com reviews (continuing anyway):`,
+          reviewError,
+        );
         // Don't fail the entire flow if reviews fail
       }
 
       // Return the business profile data
       const finalBusiness = await this.getBookingBusinessByUrl(bookingUrl);
-      
+
       return {
         success: true,
-        businessId: businessProfileResult.businessProfileId || existingBusiness?.businessId,
-        profileData: finalBusiness
+        businessId:
+          businessProfileResult.businessProfileId ||
+          existingBusiness?.businessId,
+        profileData: finalBusiness,
       };
-
     } catch (error) {
       console.error(`❌ Error in Booking.com business setup flow:`, error);
-      
+
       // Try to mark current step as failed
       try {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.BOOKING,
           BusinessCreationStep.CREATING_PROFILE,
-          error instanceof Error ? error.message : 'Unknown error occurred'
+          error instanceof Error ? error.message : "Unknown error occurred",
         );
       } catch (trackingError) {
-        console.error('Failed to update task tracking:', trackingError);
+        console.error("Failed to update task tracking:", trackingError);
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -1957,18 +2242,19 @@ export class SimpleBusinessService {
   async getOrUpdateBookingReviews(
     teamId: string,
     bookingUrl: string,
-    forceRefresh: boolean = false
+    forceRefresh: boolean = false,
   ): Promise<ReviewsResult> {
-    
-    console.log(`🏨 Getting/updating Booking.com reviews for team ${teamId}, bookingUrl ${bookingUrl}, forceRefresh: ${forceRefresh}`);
-    
+    console.log(
+      `🏨 Getting/updating Booking.com reviews for team ${teamId}, bookingUrl ${bookingUrl}, forceRefresh: ${forceRefresh}`,
+    );
+
     try {
       // Start reviews fetching step
       await this.taskTracker.startStep(
         teamId,
         MarketPlatform.BOOKING,
         BusinessCreationStep.FETCHING_REVIEWS,
-        'Starting Booking.com reviews collection...'
+        "Starting Booking.com reviews collection...",
       );
 
       // Find the business profile
@@ -1978,74 +2264,90 @@ export class SimpleBusinessService {
           teamId,
           MarketPlatform.BOOKING,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Booking.com business profile not found. Please create the profile first.'
+          "Booking.com business profile not found. Please create the profile first.",
         );
         return {
           success: false,
-          error: 'Booking.com business profile not found. Please create the profile first.'
+          error:
+            "Booking.com business profile not found. Please create the profile first.",
         };
       }
 
-      // Get team limits for this user 
+      // Get team limits for this user
       const teamLimits = await this.teamService.getTeamLimits(teamId);
       if (!teamLimits) {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.BOOKING,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Team not found or inactive'
+          "Team not found or inactive",
         );
         return {
           success: false,
-          error: 'Team not found or inactive'
+          error: "Team not found or inactive",
         };
       }
 
       await this.taskTracker.updateProgress(teamId, MarketPlatform.BOOKING, {
         step: BusinessCreationStep.FETCHING_REVIEWS,
-        status: 'IN_PROGRESS' as any,
-        message: 'Checking if reviews need to be refreshed...',
-        progressPercent: 25
+        status: "IN_PROGRESS" as any,
+        message: "Checking if reviews need to be refreshed...",
+        progressPercent: 25,
       });
 
       // Check if we should refresh reviews
-      const shouldRefresh = forceRefresh || await this.shouldRefreshBookingReviews(business.businessId);
-      
+      const shouldRefresh =
+        forceRefresh ||
+        (await this.shouldRefreshBookingReviews(business.businessId));
+
       if (!shouldRefresh) {
-        const reviewCount = await this.getBookingReviewsCount(business.businessId);
-        
+        const reviewCount = await this.getBookingReviewsCount(
+          business.businessId,
+        );
+
         // Trigger analytics even when reviews are up to date (to ensure normalized tables are populated)
         try {
-          console.log(`📊 Triggering Booking.com analytics for up-to-date reviews...`);
-          const { BookingReviewAnalyticsService } = await import('./bookingReviewAnalyticsService.js');
+          console.log(
+            `📊 Triggering Booking.com analytics for up-to-date reviews...`,
+          );
+          const { BookingReviewAnalyticsService } = await import(
+            "./bookingReviewAnalyticsService.js"
+          );
           const analyticsService = new BookingReviewAnalyticsService();
-          await analyticsService.processReviewsAndUpdateDashboard(business.businessId);
-          console.log(`✅ Booking.com analytics completed for businessProfileId: ${business.businessId}`);
+          await analyticsService.processReviewsAndUpdateDashboard(
+            business.businessId,
+          );
+          console.log(
+            `✅ Booking.com analytics completed for businessProfileId: ${business.businessId}`,
+          );
         } catch (analyticsError) {
-          console.error(`❌ Error processing Booking.com analytics for up-to-date reviews:`, analyticsError);
+          console.error(
+            `❌ Error processing Booking.com analytics for up-to-date reviews:`,
+            analyticsError,
+          );
           // Don't fail the whole request if analytics fails
         }
-        
+
         await this.taskTracker.completeStep(
           teamId,
           MarketPlatform.BOOKING,
           BusinessCreationStep.FETCHING_REVIEWS,
-          'Booking.com reviews are up to date',
-          { reviewsCount: reviewCount, refreshed: false }
+          "Booking.com reviews are up to date",
+          { reviewsCount: reviewCount, refreshed: false },
         );
-        
+
         return {
           success: true,
           reviewsCount: reviewCount,
-          message: 'Booking.com reviews are up to date'
+          message: "Booking.com reviews are up to date",
         };
       }
 
       await this.taskTracker.updateProgress(teamId, MarketPlatform.BOOKING, {
         step: BusinessCreationStep.FETCHING_REVIEWS,
-        status: 'IN_PROGRESS' as any,
-        message: 'Scheduling Booking.com review scraping job...',
-        progressPercent: 50
+        status: "IN_PROGRESS" as any,
+        message: "Scheduling Booking.com review scraping job...",
+        progressPercent: 50,
       });
 
       // Create Booking.com review scraping job
@@ -2053,63 +2355,67 @@ export class SimpleBusinessService {
         bookingUrl,
         teamId,
         false, // Not initialization
-        teamLimits.maxReviewsPerBusiness
+        teamLimits.maxReviewsPerBusiness,
       );
 
       // Create proper ActorJob for scheduling
       const actor = new BookingBusinessReviewsActor();
       actor.updateMemoryEstimate(false);
-      
+
       const actorJob = new ActorJob(
         `booking-manual-${teamId}-${Date.now()}`,
         actor,
         jobData,
         async (actor, data) => {
-          const { handleBookingBusinessReviews } = await import('../apifyService/actors/bookingBusinessReviewsActor.js');
+          const { handleBookingBusinessReviews } = await import(
+            "../apifyService/actors/bookingBusinessReviewsActor.js"
+          );
           return await handleBookingBusinessReviews(data);
-        }
+        },
       );
 
-      await this.actorManager.schedule(actorJob, 'manual');
-      
-      console.log(`📝 Booking.com review scraping job scheduled: ${actorJob.id}`);
+      await this.actorManager.schedule(actorJob, "manual");
+
+      console.log(
+        `📝 Booking.com review scraping job scheduled: ${actorJob.id}`,
+      );
 
       await this.taskTracker.completeStep(
         teamId,
         MarketPlatform.BOOKING,
         BusinessCreationStep.FETCHING_REVIEWS,
-        'Booking.com review scraping job scheduled successfully',
-        { 
-          jobId: actorJob.id, 
+        "Booking.com review scraping job scheduled successfully",
+        {
+          jobId: actorJob.id,
           maxReviews: teamLimits.maxReviewsPerBusiness,
-          refreshed: true 
-        }
+          refreshed: true,
+        },
       );
-      
+
       return {
         success: true,
         jobId: actorJob.id,
-        message: 'Booking.com review scraping job scheduled'
+        message: "Booking.com review scraping job scheduled",
       };
-
     } catch (error) {
       console.error(`❌ Error getting/updating Booking.com reviews:`, error);
-      
+
       // Try to mark step as failed
       try {
         await this.taskTracker.failStep(
           teamId,
           MarketPlatform.BOOKING,
           BusinessCreationStep.FETCHING_REVIEWS,
-          error instanceof Error ? error.message : 'Unknown error occurred'
+          error instanceof Error ? error.message : "Unknown error occurred",
         );
       } catch (trackingError) {
-        console.error('Failed to update task tracking:', trackingError);
+        console.error("Failed to update task tracking:", trackingError);
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -2117,11 +2423,14 @@ export class SimpleBusinessService {
   /**
    * Get Booking.com business data for a team
    */
-  async getBookingBusinessData(teamId: string): Promise<BookingBusinessData | null> {
+  async getBookingBusinessData(
+    teamId: string,
+  ): Promise<BookingBusinessData | null> {
     try {
       const { data, error } = await this.supabase
-        .from('BookingBusinessProfile')
-        .select(`
+        .from("BookingBusinessProfile")
+        .select(
+          `
           id,
           teamId,
           name,
@@ -2136,12 +2445,13 @@ export class SimpleBusinessService {
           scrapedAt,
           createdAt,
           updatedAt
-        `)
-        .eq('teamId', teamId)
+        `,
+        )
+        .eq("teamId", teamId)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           return null;
         }
         throw error;
@@ -2161,10 +2471,10 @@ export class SimpleBusinessService {
         website: data.website,
         scrapedAt: data.scrapedAt ? new Date(data.scrapedAt) : undefined,
         createdAt: new Date(data.createdAt),
-        updatedAt: new Date(data.updatedAt)
+        updatedAt: new Date(data.updatedAt),
       };
     } catch (error) {
-      console.error('Error fetching Booking.com business data:', error);
+      console.error("Error fetching Booking.com business data:", error);
       return null;
     }
   }
@@ -2173,14 +2483,15 @@ export class SimpleBusinessService {
    * Get Booking.com reviews for a team
    */
   async getBookingReviews(
-    teamId: string, 
-    limit: number = 50, 
-    offset: number = 0
+    teamId: string,
+    limit: number = 50,
+    offset: number = 0,
   ): Promise<BookingReviewData[]> {
     try {
       const { data, error } = await this.supabase
-        .from('BookingReview')
-        .select(`
+        .from("BookingReview")
+        .select(
+          `
           id,
           businessProfileId,
           reviewerId,
@@ -2206,22 +2517,23 @@ export class SimpleBusinessService {
           isVerifiedStay,
           scrapedAt,
           BookingBusinessProfile!inner(teamId)
-        `)
-        .eq('BookingBusinessProfile.teamId', teamId)
-        .order('publishedDate', { ascending: false })
+        `,
+        )
+        .eq("BookingBusinessProfile.teamId", teamId)
+        .order("publishedDate", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) {
         throw error;
       }
 
-      return data.map(review => ({
+      return data.map((review) => ({
         id: review.id,
         businessProfileId: review.businessProfileId,
-        reviewerId: review.reviewerId || 'unknown',
+        reviewerId: review.reviewerId || "unknown",
         name: review.reviewerName,
         rating: review.rating,
-        text: review.text || '',
+        text: review.text || "",
         publishedAtDate: new Date(review.publishedDate),
         stayDate: review.stayDate ? new Date(review.stayDate) : undefined,
         lengthOfStay: review.lengthOfStay,
@@ -2237,21 +2549,26 @@ export class SimpleBusinessService {
         valueForMoneyRating: review.valueForMoneyRating,
         wifiRating: review.wifiRating,
         responseFromOwnerText: review.responseFromOwnerText,
-        responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : undefined,
+        responseFromOwnerDate: review.responseFromOwnerDate
+          ? new Date(review.responseFromOwnerDate)
+          : undefined,
         isVerifiedStay: review.isVerifiedStay,
-        scrapedAt: new Date(review.scrapedAt)
+        scrapedAt: new Date(review.scrapedAt),
       }));
     } catch (error) {
-      console.error('Error fetching Booking.com reviews:', error);
+      console.error("Error fetching Booking.com reviews:", error);
       return [];
     }
   }
 
-  private async getBookingBusinessByUrl(bookingUrl: string): Promise<BookingBusinessData | null> {
+  private async getBookingBusinessByUrl(
+    bookingUrl: string,
+  ): Promise<BookingBusinessData | null> {
     try {
       const { data, error } = await this.supabase
-        .from('BookingBusinessProfile')
-        .select(`
+        .from("BookingBusinessProfile")
+        .select(
+          `
           id,
           teamId,
           name,
@@ -2266,12 +2583,13 @@ export class SimpleBusinessService {
           scrapedAt,
           createdAt,
           updatedAt
-        `)
-        .eq('bookingUrl', bookingUrl)
+        `,
+        )
+        .eq("bookingUrl", bookingUrl)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           return null;
         }
         throw error;
@@ -2291,20 +2609,22 @@ export class SimpleBusinessService {
         website: data.website,
         scrapedAt: data.scrapedAt ? new Date(data.scrapedAt) : undefined,
         createdAt: new Date(data.createdAt),
-        updatedAt: new Date(data.updatedAt)
+        updatedAt: new Date(data.updatedAt),
       };
     } catch (error) {
-      console.error('Error fetching Booking.com business by URL:', error);
+      console.error("Error fetching Booking.com business by URL:", error);
       return null;
     }
   }
 
-  private async shouldRefreshBookingReviews(businessId: string): Promise<boolean> {
+  private async shouldRefreshBookingReviews(
+    businessId: string,
+  ): Promise<boolean> {
     try {
       const { data, error } = await this.supabase
-        .from('BookingBusinessProfile')
-        .select('scrapedAt')
-        .eq('id', businessId)
+        .from("BookingBusinessProfile")
+        .select("scrapedAt")
+        .eq("id", businessId)
         .single();
 
       if (error || !data) {
@@ -2318,11 +2638,12 @@ export class SimpleBusinessService {
       // Refresh if last scrape was more than 24 hours ago
       const lastScrape = new Date(data.scrapedAt);
       const now = new Date();
-      const hoursSinceLastScrape = (now.getTime() - lastScrape.getTime()) / (1000 * 60 * 60);
-      
+      const hoursSinceLastScrape =
+        (now.getTime() - lastScrape.getTime()) / (1000 * 60 * 60);
+
       return hoursSinceLastScrape > 24;
     } catch (error) {
-      console.error('Error checking Booking.com refresh status:', error);
+      console.error("Error checking Booking.com refresh status:", error);
       return true; // If error, refresh to be safe
     }
   }
@@ -2330,9 +2651,9 @@ export class SimpleBusinessService {
   private async getBookingReviewsCount(businessId: string): Promise<number> {
     try {
       const { count, error } = await this.supabase
-        .from('BookingReview')
-        .select('*', { count: 'exact', head: true })
-        .eq('businessProfileId', businessId);
+        .from("BookingReview")
+        .select("*", { count: "exact", head: true })
+        .eq("businessProfileId", businessId);
 
       if (error) {
         throw error;
@@ -2340,7 +2661,7 @@ export class SimpleBusinessService {
 
       return count || 0;
     } catch (error) {
-      console.error('Error getting Booking.com reviews count:', error);
+      console.error("Error getting Booking.com reviews count:", error);
       return 0;
     }
   }
@@ -2350,4 +2671,4 @@ export class SimpleBusinessService {
     await this.taskTracker.close();
     // Supabase client doesn't need explicit closing
   }
-} 
+}

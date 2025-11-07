@@ -1,13 +1,21 @@
-import { MarketPlatform } from '@prisma/client';
-import type { IDependencyContainer } from '../interfaces/IDependencyContainer';
-import type { IApifyService, ApifyJobPriority, ApifyJobStatus } from '../interfaces/IApifyService';
-import type { IBusinessService } from '../interfaces/IBusinessService';
-import type { IReviewService } from '../interfaces/IReviewService';
-import type { IAnalyticsService } from '../interfaces/IAnalyticsService';
-import type { ITaskTracker, TaskStep, TaskStatus } from '../interfaces/ITaskTracker';
-import { SERVICE_TOKENS } from '../interfaces/IDependencyContainer';
-import { logger } from '../../utils/logger';
-import { FeatureExtractor } from '../../services/subscription/FeatureExtractor';
+import { MarketPlatform } from "@prisma/client";
+import type { IDependencyContainer } from "../interfaces/IDependencyContainer";
+import type {
+  IApifyService,
+  ApifyJobPriority,
+  ApifyJobStatus,
+} from "../interfaces/IApifyService";
+import type { IBusinessService } from "../interfaces/IBusinessService";
+import type { IReviewService } from "../interfaces/IReviewService";
+import type { IAnalyticsService } from "../interfaces/IAnalyticsService";
+import type {
+  ITaskTracker,
+  TaskStep,
+  TaskStatus,
+} from "../interfaces/ITaskTracker";
+import { SERVICE_TOKENS } from "../interfaces/IDependencyContainer";
+import { logger } from "../../utils/logger";
+import { FeatureExtractor } from "../../services/subscription/FeatureExtractor";
 /**
  * Backend Orchestrator
  * Follows Single Responsibility Principle (SRP) - orchestrates the entire data flow
@@ -20,11 +28,17 @@ export class BackendOrchestrator {
   private taskTracker: ITaskTracker;
   private featureExtractor: FeatureExtractor;
 
-  constructor(container: IDependencyContainer, apifyService: IApifyService, featureExtractor: FeatureExtractor) {
+  constructor(
+    container: IDependencyContainer,
+    apifyService: IApifyService,
+    featureExtractor: FeatureExtractor,
+  ) {
     this.container = container;
     this.apifyService = apifyService;
     this.featureExtractor = featureExtractor;
-    this.taskTracker = container.getService<ITaskTracker>(SERVICE_TOKENS.TASK_TRACKER_SERVICE);
+    this.taskTracker = container.getService<ITaskTracker>(
+      SERVICE_TOKENS.TASK_TRACKER_SERVICE,
+    );
   }
 
   /**
@@ -39,7 +53,7 @@ export class BackendOrchestrator {
       isInitialization?: boolean;
       maxReviews?: number;
       forceRefresh?: boolean;
-    } = {}
+    } = {},
   ): Promise<{
     success: boolean;
     businessId?: string;
@@ -48,61 +62,101 @@ export class BackendOrchestrator {
     error?: string;
   }> {
     const startTime = Date.now();
-    
+
     try {
-      logger.info(`[BackendOrchestrator] Starting complete data flow for team ${teamId}, platform ${platform}, identifier ${identifier}`);
+      logger.info(
+        `[BackendOrchestrator] Starting complete data flow for team ${teamId}, platform ${platform}, identifier ${identifier}`,
+      );
 
       // Check feature flags before processing
       const platformKey = this.mapPlatformToKey(platform);
-      const platformEnabled = await this.featureExtractor.isPlatformEnabled(teamId, platformKey);
+      const platformEnabled = await this.featureExtractor.isPlatformEnabled(
+        teamId,
+        platformKey,
+      );
       if (!platformEnabled) {
-        logger.warn(`[BackendOrchestrator] Platform ${platform} is not enabled for team ${teamId}`);
+        logger.warn(
+          `[BackendOrchestrator] Platform ${platform} is not enabled for team ${teamId}`,
+        );
         return {
           success: false,
-          error: `Platform ${platform} is not enabled for this team`
+          error: `Platform ${platform} is not enabled for this team`,
         };
       }
 
       // Get scrape interval from features/config (for logging/visibility)
-      const scrapeInterval = await this.featureExtractor.getIntervalForTeamPlatform(teamId, platformKey, 'reviews');
-      logger.info(`[BackendOrchestrator] Scrape interval for team ${teamId}: ${scrapeInterval} hours`);
+      const scrapeInterval =
+        await this.featureExtractor.getIntervalForTeamPlatform(
+          teamId,
+          platformKey,
+          "reviews",
+        );
+      logger.info(
+        `[BackendOrchestrator] Scrape interval for team ${teamId}: ${scrapeInterval} hours`,
+      );
 
       // Step 1: Create or get business profile
-      const businessResult = await this.createOrGetBusinessProfile(teamId, platform, identifier);
+      const businessResult = await this.createOrGetBusinessProfile(
+        teamId,
+        platform,
+        identifier,
+      );
       if (!businessResult.success || !businessResult.businessId) {
         return {
           success: false,
-          error: businessResult.error || 'Failed to create/get business profile'
+          error:
+            businessResult.error || "Failed to create/get business profile",
         };
       }
 
       // Step 2: Create task for tracking
-      const task = await this.taskTracker.createTask(teamId, platform, identifier);
-      await this.taskTracker.startStep(teamId, platform, TaskStep.CREATING_PROFILE, 'Business profile ready, starting data collection...');
+      const task = await this.taskTracker.createTask(
+        teamId,
+        platform,
+        identifier,
+      );
+      await this.taskTracker.startStep(
+        teamId,
+        platform,
+        TaskStep.CREATING_PROFILE,
+        "Business profile ready, starting data collection...",
+      );
 
       // Step 3: Create and execute Apify job
-      const apifyJob = await this.apifyService.createJob(platform, teamId, identifier, {
-        isInitialization: options.isInitialization || false,
-        maxReviews: options.maxReviews,
-        priority: options.isInitialization ? ApifyJobPriority.HIGH : ApifyJobPriority.MEDIUM
-      });
+      const apifyJob = await this.apifyService.createJob(
+        platform,
+        teamId,
+        identifier,
+        {
+          isInitialization: options.isInitialization || false,
+          maxReviews: options.maxReviews,
+          priority: options.isInitialization
+            ? ApifyJobPriority.HIGH
+            : ApifyJobPriority.MEDIUM,
+        },
+      );
 
       await this.taskTracker.updateProgress(teamId, platform, {
         step: TaskStep.FETCHING_REVIEWS,
         status: TaskStatus.IN_PROGRESS,
-        message: 'Starting review data collection from Apify...',
-        messageType: 'info',
-        progressPercent: 25
+        message: "Starting review data collection from Apify...",
+        messageType: "info",
+        progressPercent: 25,
       });
 
       const apifyResult = await this.apifyService.executeJob(apifyJob);
-      
+
       if (!apifyResult.success) {
-        await this.taskTracker.failStep(teamId, platform, TaskStep.FETCHING_REVIEWS, apifyResult.error || 'Apify job failed');
+        await this.taskTracker.failStep(
+          teamId,
+          platform,
+          TaskStep.FETCHING_REVIEWS,
+          apifyResult.error || "Apify job failed",
+        );
         return {
           success: false,
           businessId: businessResult.businessId,
-          error: apifyResult.error || 'Failed to collect review data'
+          error: apifyResult.error || "Failed to collect review data",
         };
       }
 
@@ -110,43 +164,73 @@ export class BackendOrchestrator {
         step: TaskStep.FETCHING_REVIEWS,
         status: TaskStatus.IN_PROGRESS,
         message: `Successfully collected ${apifyResult.reviewsProcessed} reviews`,
-        messageType: 'success',
-        progressPercent: 75
+        messageType: "success",
+        progressPercent: 75,
       });
 
       // Step 4: Process analytics
-      await this.taskTracker.startStep(teamId, platform, TaskStep.PROCESSING_ANALYTICS, 'Processing review analytics...');
-      
-      const analyticsResult = await this.processAnalytics(businessResult.businessId, platform);
-      
+      await this.taskTracker.startStep(
+        teamId,
+        platform,
+        TaskStep.PROCESSING_ANALYTICS,
+        "Processing review analytics...",
+      );
+
+      const analyticsResult = await this.processAnalytics(
+        businessResult.businessId,
+        platform,
+      );
+
       if (analyticsResult) {
-        await this.taskTracker.completeStep(teamId, platform, TaskStep.PROCESSING_ANALYTICS, 'Analytics processed successfully');
+        await this.taskTracker.completeStep(
+          teamId,
+          platform,
+          TaskStep.PROCESSING_ANALYTICS,
+          "Analytics processed successfully",
+        );
       } else {
-        await this.taskTracker.failStep(teamId, platform, TaskStep.PROCESSING_ANALYTICS, 'Failed to process analytics');
+        await this.taskTracker.failStep(
+          teamId,
+          platform,
+          TaskStep.PROCESSING_ANALYTICS,
+          "Failed to process analytics",
+        );
       }
 
       // Step 5: Complete the task
-      await this.taskTracker.completeStep(teamId, platform, TaskStep.COMPLETED, 'Data processing completed successfully');
+      await this.taskTracker.completeStep(
+        teamId,
+        platform,
+        TaskStep.COMPLETED,
+        "Data processing completed successfully",
+      );
 
       const processingTime = Date.now() - startTime;
-      logger.info(`[BackendOrchestrator] Completed data flow in ${processingTime}ms. Reviews processed: ${apifyResult.reviewsProcessed}`);
+      logger.info(
+        `[BackendOrchestrator] Completed data flow in ${processingTime}ms. Reviews processed: ${apifyResult.reviewsProcessed}`,
+      );
 
       return {
         success: true,
         businessId: businessResult.businessId,
         reviewsProcessed: apifyResult.reviewsProcessed,
-        analyticsGenerated: !!analyticsResult
+        analyticsGenerated: !!analyticsResult,
       };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       logger.error(`[BackendOrchestrator] Error in data flow:`, error);
-      
-      await this.taskTracker.failStep(teamId, platform, TaskStep.CREATING_PROFILE, errorMessage);
-      
+
+      await this.taskTracker.failStep(
+        teamId,
+        platform,
+        TaskStep.CREATING_PROFILE,
+        errorMessage,
+      );
+
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -164,49 +248,55 @@ export class BackendOrchestrator {
         maxReviews?: number;
         forceRefresh?: boolean;
       };
+    }>,
+  ): Promise<
+    Array<{
+      teamId: string;
+      platform: MarketPlatform;
+      identifier: string;
+      success: boolean;
+      businessId?: string;
+      reviewsProcessed?: number;
+      error?: string;
     }>
-  ): Promise<Array<{
-    teamId: string;
-    platform: MarketPlatform;
-    identifier: string;
-    success: boolean;
-    businessId?: string;
-    reviewsProcessed?: number;
-    error?: string;
-  }>> {
-    logger.info(`[BackendOrchestrator] Starting batch processing of ${businesses.length} businesses`);
+  > {
+    logger.info(
+      `[BackendOrchestrator] Starting batch processing of ${businesses.length} businesses`,
+    );
 
     const results = [];
-    
+
     for (const business of businesses) {
       try {
         const result = await this.processBusinessData(
           business.teamId,
           business.platform,
           business.identifier,
-          business.options || {}
+          business.options || {},
         );
 
         results.push({
           teamId: business.teamId,
           platform: business.platform,
           identifier: business.identifier,
-          ...result
+          ...result,
         });
-
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         results.push({
           teamId: business.teamId,
           platform: business.platform,
           identifier: business.identifier,
           success: false,
-          error: errorMessage
+          error: errorMessage,
         });
       }
     }
 
-    logger.info(`[BackendOrchestrator] Batch processing completed. ${results.filter(r => r.success).length}/${results.length} successful`);
+    logger.info(
+      `[BackendOrchestrator] Batch processing completed. ${results.filter((r) => r.success).length}/${results.length} successful`,
+    );
     return results;
   }
 
@@ -215,7 +305,7 @@ export class BackendOrchestrator {
    */
   async getBusinessData(
     teamId: string,
-    platform: MarketPlatform
+    platform: MarketPlatform,
   ): Promise<{
     success: boolean;
     businessProfile?: any;
@@ -227,36 +317,40 @@ export class BackendOrchestrator {
       // Get business profile
       const businessService = this.getBusinessService(platform);
       const businessResult = await businessService.getProfile(teamId, platform);
-      
+
       if (!businessResult.success || !businessResult.businessId) {
         return {
           success: false,
-          error: 'Business profile not found'
+          error: "Business profile not found",
         };
       }
 
       // Get reviews
       const reviewService = this.getReviewService(platform);
-      const reviews = await reviewService.getReviewsWithMetadata(businessResult.businessId);
+      const reviews = await reviewService.getReviewsWithMetadata(
+        businessResult.businessId,
+      );
 
       // Get analytics
       const analyticsService = this.getAnalyticsService(platform);
-      const analytics = await analyticsService.getAnalytics(businessResult.businessId);
+      const analytics = await analyticsService.getAnalytics(
+        businessResult.businessId,
+      );
 
       return {
         success: true,
         businessProfile: businessResult.profileData,
         reviews,
-        analytics
+        analytics,
       };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       logger.error(`[BackendOrchestrator] Error getting business data:`, error);
-      
+
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -270,7 +364,7 @@ export class BackendOrchestrator {
     options: {
       maxReviews?: number;
       forceRefresh?: boolean;
-    } = {}
+    } = {},
   ): Promise<{
     success: boolean;
     reviewsProcessed?: number;
@@ -281,43 +375,54 @@ export class BackendOrchestrator {
       // Get existing business profile
       const businessService = this.getBusinessService(platform);
       const businessResult = await businessService.getProfile(teamId, platform);
-      
+
       if (!businessResult.success || !businessResult.businessId) {
         return {
           success: false,
-          error: 'Business profile not found'
+          error: "Business profile not found",
         };
       }
 
       // Get the identifier from the business profile
-      const identifier = this.extractIdentifierFromProfile(businessResult.profileData, platform);
+      const identifier = this.extractIdentifierFromProfile(
+        businessResult.profileData,
+        platform,
+      );
       if (!identifier) {
         return {
           success: false,
-          error: 'Could not extract identifier from business profile'
+          error: "Could not extract identifier from business profile",
         };
       }
 
       // Process the data with refresh flag
-      const result = await this.processBusinessData(teamId, platform, identifier, {
-        ...options,
-        forceRefresh: true
-      });
+      const result = await this.processBusinessData(
+        teamId,
+        platform,
+        identifier,
+        {
+          ...options,
+          forceRefresh: true,
+        },
+      );
 
       return {
         success: result.success,
         reviewsProcessed: result.reviewsProcessed,
         analyticsUpdated: result.analyticsGenerated,
-        error: result.error
+        error: result.error,
       };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error(`[BackendOrchestrator] Error refreshing business data:`, error);
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error(
+        `[BackendOrchestrator] Error refreshing business data:`,
+        error,
+      );
+
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -325,7 +430,7 @@ export class BackendOrchestrator {
   private async createOrGetBusinessProfile(
     teamId: string,
     platform: MarketPlatform,
-    identifier: string
+    identifier: string,
   ): Promise<{
     success: boolean;
     businessId?: string;
@@ -333,50 +438,67 @@ export class BackendOrchestrator {
   }> {
     try {
       const businessService = this.getBusinessService(platform);
-      
+
       // Try to get existing profile first
-      const existingProfile = await businessService.getProfile(teamId, platform);
-      
+      const existingProfile = await businessService.getProfile(
+        teamId,
+        platform,
+      );
+
       if (existingProfile.success && existingProfile.businessId) {
-        logger.info(`[BackendOrchestrator] Found existing business profile for team ${teamId}, platform ${platform}`);
+        logger.info(
+          `[BackendOrchestrator] Found existing business profile for team ${teamId}, platform ${platform}`,
+        );
         return {
           success: true,
-          businessId: existingProfile.businessId
+          businessId: existingProfile.businessId,
         };
       }
 
       // Create new profile if not found
-      const createResult = await businessService.createProfile(teamId, platform, identifier);
-      
+      const createResult = await businessService.createProfile(
+        teamId,
+        platform,
+        identifier,
+      );
+
       if (!createResult.success) {
         return {
           success: false,
-          error: createResult.error || 'Failed to create business profile'
+          error: createResult.error || "Failed to create business profile",
         };
       }
 
-      logger.info(`[BackendOrchestrator] Created new business profile for team ${teamId}, platform ${platform}`);
+      logger.info(
+        `[BackendOrchestrator] Created new business profile for team ${teamId}, platform ${platform}`,
+      );
       return {
         success: true,
-        businessId: createResult.businessId
+        businessId: createResult.businessId,
       };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error(`[BackendOrchestrator] Error creating/getting business profile:`, error);
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error(
+        `[BackendOrchestrator] Error creating/getting business profile:`,
+        error,
+      );
+
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
 
-  private async processAnalytics(businessId: string, platform: MarketPlatform): Promise<boolean> {
+  private async processAnalytics(
+    businessId: string,
+    platform: MarketPlatform,
+  ): Promise<boolean> {
     try {
       const analyticsService = this.getAnalyticsService(platform);
       const result = await analyticsService.processReviews(businessId);
-      
+
       return result.success;
     } catch (error) {
       logger.error(`[BackendOrchestrator] Error processing analytics:`, error);
@@ -384,7 +506,10 @@ export class BackendOrchestrator {
     }
   }
 
-  private extractIdentifierFromProfile(profile: any, platform: MarketPlatform): string | null {
+  private extractIdentifierFromProfile(
+    profile: any,
+    platform: MarketPlatform,
+  ): string | null {
     switch (platform) {
       case MarketPlatform.GOOGLE_MAPS:
         return profile.placeId;
@@ -414,18 +539,20 @@ export class BackendOrchestrator {
     return this.container.getService<IAnalyticsService>(serviceToken);
   }
 
-  private mapPlatformToKey(platform: MarketPlatform): 'google_reviews' | 'facebook' | 'tripadvisor' | 'booking' {
+  private mapPlatformToKey(
+    platform: MarketPlatform,
+  ): "google_reviews" | "facebook" | "tripadvisor" | "booking" {
     switch (platform) {
       case MarketPlatform.GOOGLE_MAPS:
-        return 'google_reviews';
+        return "google_reviews";
       case MarketPlatform.FACEBOOK:
-        return 'facebook';
+        return "facebook";
       case MarketPlatform.TRIPADVISOR:
-        return 'tripadvisor';
+        return "tripadvisor";
       case MarketPlatform.BOOKING:
-        return 'booking';
+        return "booking";
       default:
-        return 'google_reviews';
+        return "google_reviews";
     }
   }
 

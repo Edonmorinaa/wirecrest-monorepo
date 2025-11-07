@@ -32,7 +32,7 @@ export class HistogramBuilder {
       5: 0,
     };
 
-    ratings.forEach(rating => {
+    ratings.forEach((rating) => {
       const roundedRating = Math.round(rating);
       if (roundedRating >= 1 && roundedRating <= 5) {
         distribution[roundedRating as keyof RatingDistribution]++;
@@ -46,7 +46,7 @@ export class HistogramBuilder {
    * Build sentiment distribution
    */
   static buildSentimentDistribution(
-    sentiments: Array<'positive' | 'neutral' | 'negative'>
+    sentiments: Array<"positive" | "neutral" | "negative">,
   ): SentimentDistribution {
     const distribution: SentimentDistribution = {
       positive: 0,
@@ -55,7 +55,7 @@ export class HistogramBuilder {
       total: sentiments.length,
     };
 
-    sentiments.forEach(sentiment => {
+    sentiments.forEach((sentiment) => {
       distribution[sentiment]++;
     });
 
@@ -65,17 +65,19 @@ export class HistogramBuilder {
   /**
    * Categorize rating into sentiment
    */
-  static ratingToSentiment(rating: number): 'positive' | 'neutral' | 'negative' {
-    if (rating >= 4) return 'positive';
-    if (rating >= 3) return 'neutral';
-    return 'negative';
+  static ratingToSentiment(
+    rating: number,
+  ): "positive" | "neutral" | "negative" {
+    if (rating >= 4) return "positive";
+    if (rating >= 3) return "neutral";
+    return "negative";
   }
 
   /**
    * Build sentiment distribution from ratings
    */
   static buildSentimentFromRatings(ratings: number[]): SentimentDistribution {
-    const sentiments = ratings.map(rating => this.ratingToSentiment(rating));
+    const sentiments = ratings.map((rating) => this.ratingToSentiment(rating));
     return this.buildSentimentDistribution(sentiments);
   }
 
@@ -93,23 +95,28 @@ export class HistogramBuilder {
    */
   static calculateMedianRating(ratings: number[]): number | null {
     if (ratings.length === 0) return null;
-    
+
     const sorted = [...ratings].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    
+
     if (sorted.length % 2 === 0) {
       return (sorted[mid - 1] + sorted[mid]) / 2;
     }
-    
+
     return sorted[mid];
   }
 
   /**
    * Calculate rating percentages
    */
-  static calculateRatingPercentages(distribution: RatingDistribution): Record<string, number> {
-    const total = Object.values(distribution).reduce((sum, count) => sum + count, 0);
-    
+  static calculateRatingPercentages(
+    distribution: RatingDistribution,
+  ): Record<string, number> {
+    const total = Object.values(distribution).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+
     if (total === 0) {
       return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     }
@@ -132,7 +139,7 @@ export class HistogramBuilder {
     negative: number;
   } {
     const { total } = distribution;
-    
+
     if (total === 0) {
       return { positive: 0, neutral: 0, negative: 0 };
     }
@@ -144,4 +151,3 @@ export class HistogramBuilder {
     };
   }
 }
-

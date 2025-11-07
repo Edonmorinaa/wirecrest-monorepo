@@ -1,28 +1,36 @@
-import type { TripAdvisorReviewWithMetadata } from '../../types/extended-types';
-import type { IReviewService, ReviewResult } from '../interfaces/IReviewService';
-import type { IReviewRepository } from '../interfaces/IReviewRepository';
-import { randomUUID } from 'crypto';
+import type { TripAdvisorReviewWithMetadata } from "../../types/extended-types";
+import type {
+  IReviewService,
+  ReviewResult,
+} from "../interfaces/IReviewService";
+import type { IReviewRepository } from "../interfaces/IReviewRepository";
+import { randomUUID } from "crypto";
 
 /**
  * TripAdvisor Review Service
  * Follows Single Responsibility Principle (SRP) - only handles TripAdvisor review operations
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-export class TripAdvisorReviewService implements IReviewService<TripAdvisorReviewWithMetadata> {
+export class TripAdvisorReviewService
+  implements IReviewService<TripAdvisorReviewWithMetadata>
+{
   constructor(
-    private reviewRepository: IReviewRepository<TripAdvisorReviewWithMetadata>
+    private reviewRepository: IReviewRepository<TripAdvisorReviewWithMetadata>,
   ) {}
 
-  async saveReviews(businessId: string, reviews: TripAdvisorReviewWithMetadata[]): Promise<ReviewResult> {
+  async saveReviews(
+    businessId: string,
+    reviews: TripAdvisorReviewWithMetadata[],
+  ): Promise<ReviewResult> {
     try {
       // Delete existing reviews
       await this.reviewRepository.deleteByBusinessId(businessId);
 
       // Create review metadata for each review
-      const reviewsWithMetadata = reviews.map(review => ({
+      const reviewsWithMetadata = reviews.map((review) => ({
         ...review,
         reviewMetadataId: randomUUID(),
-        businessProfileId: businessId
+        businessProfileId: businessId,
       }));
 
       // Save reviews
@@ -31,21 +39,25 @@ export class TripAdvisorReviewService implements IReviewService<TripAdvisorRevie
       return {
         success: true,
         reviewsCount: reviews.length,
-        message: `Successfully saved ${reviews.length} reviews`
+        message: `Successfully saved ${reviews.length} reviews`,
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
 
-  async getReviews(businessId: string): Promise<TripAdvisorReviewWithMetadata[]> {
+  async getReviews(
+    businessId: string,
+  ): Promise<TripAdvisorReviewWithMetadata[]> {
     return await this.reviewRepository.findByBusinessId(businessId);
   }
 
-  async getReviewsWithMetadata(businessId: string): Promise<TripAdvisorReviewWithMetadata[]> {
+  async getReviewsWithMetadata(
+    businessId: string,
+  ): Promise<TripAdvisorReviewWithMetadata[]> {
     return await this.reviewRepository.findByBusinessIdWithMetadata(businessId);
   }
 

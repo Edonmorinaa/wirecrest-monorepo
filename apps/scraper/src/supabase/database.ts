@@ -1,7 +1,7 @@
-import type { 
-  GoogleBusinessProfile, 
-  GoogleReview, 
-  ReviewMetadata, 
+import type {
+  GoogleBusinessProfile,
+  GoogleReview,
+  ReviewMetadata,
   GoogleBusinessMetadata,
   FacebookBusinessProfile,
   FacebookReview,
@@ -10,20 +10,20 @@ import type {
   BookingBusinessProfile,
   BookingReview,
   InstagramBusinessProfile,
-  TikTokBusinessProfile
-} from '@prisma/client';
-import { MarketPlatform } from '@wirecrest/db';
-import { prisma } from '@wirecrest/db';
-import { TeamService } from './teamService';
-import { randomUUID } from 'crypto';
-import { logger } from '../utils/logger';
-import type { 
+  TikTokBusinessProfile,
+} from "@prisma/client";
+import { MarketPlatform } from "@wirecrest/db";
+import { prisma } from "@wirecrest/db";
+import { TeamService } from "./teamService";
+import { randomUUID } from "crypto";
+import { logger } from "../utils/logger";
+import type {
   GoogleReviewWithMetadata,
   FacebookReviewWithMetadata,
   TripAdvisorReviewWithMetadata,
-  BookingReviewWithMetadata
-} from '../types/extended-types';
-import { reviewAnalysisService } from '../services/analysis/ReviewAnalysisService';
+  BookingReviewWithMetadata,
+} from "../types/extended-types";
+import { reviewAnalysisService } from "../services/analysis/ReviewAnalysisService";
 
 // Type definitions for review metadata insertion
 type ReviewMetadataInsertData = {
@@ -43,7 +43,7 @@ type ReviewMetadataInsertData = {
   language?: string | null;
   scrapedAt: Date;
   sourceUrl?: string | null;
-  sentiment?: number | null; 
+  sentiment?: number | null;
   keywords?: string[];
   topics?: string[];
   emotional?: string | null;
@@ -56,7 +56,7 @@ type ReviewMetadataInsertData = {
   labels?: string[];
   createdAt: Date;
   updatedAt: Date;
-}
+};
 
 interface GoogleReviewInsertData {
   id: string;
@@ -87,7 +87,7 @@ interface GoogleReviewInsertData {
   translatedLanguage?: string | null;
   isAdvertisement?: boolean;
   placeId: string;
-  location?: string | null; 
+  location?: string | null;
   address?: string | null;
   neighborhood?: string | null;
   street?: string | null;
@@ -120,58 +120,64 @@ export class DatabaseService {
 
   // Input validation methods
   private validateBusinessProfileId(businessProfileId: string): void {
-    if (!businessProfileId || typeof businessProfileId !== 'string') {
-      throw new Error('businessProfileId is required and must be a string');
+    if (!businessProfileId || typeof businessProfileId !== "string") {
+      throw new Error("businessProfileId is required and must be a string");
     }
-    
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(businessProfileId)) {
-      throw new Error('businessProfileId must be a valid UUID');
+      throw new Error("businessProfileId must be a valid UUID");
     }
   }
 
   private validatePlaceId(placeId: string): void {
-    if (!placeId || typeof placeId !== 'string') {
-      throw new Error('placeId is required and must be a string');
+    if (!placeId || typeof placeId !== "string") {
+      throw new Error("placeId is required and must be a string");
     }
-    
+
     if (placeId.length < 10 || placeId.length > 255) {
-      throw new Error('placeId must be between 10 and 255 characters');
+      throw new Error("placeId must be between 10 and 255 characters");
     }
   }
 
-  private validateReviewData(review: unknown): asserts review is Record<string, unknown> {
-    if (!review || typeof review !== 'object') {
-      throw new Error('Review data must be an object');
+  private validateReviewData(
+    review: unknown,
+  ): asserts review is Record<string, unknown> {
+    if (!review || typeof review !== "object") {
+      throw new Error("Review data must be an object");
     }
-    
+
     const r = review as Record<string, unknown>;
-    
+
     // Validate required fields
     if (!r.id && !r.reviewId) {
-      throw new Error('Review must have either id or reviewId');
+      throw new Error("Review must have either id or reviewId");
     }
-    
+
     if (!r.name && !r.userName && !r.author) {
-      throw new Error('Review must have a name, userName, or author field');
+      throw new Error("Review must have a name, userName, or author field");
     }
 
     if (!r.publishedAtDate && !r.date) {
-      throw new Error('Review must have either publishedAtDate or date field');
+      throw new Error("Review must have either publishedAtDate or date field");
     }
 
     // Validate text length
-    if (r.text && typeof r.text === 'string' && r.text.length > 10000) {
-      throw new Error('Review text cannot exceed 10,000 characters');
+    if (r.text && typeof r.text === "string" && r.text.length > 10000) {
+      throw new Error("Review text cannot exceed 10,000 characters");
     }
   }
 
-  private sanitizeText(text: string | undefined | null, maxLength: number = 5000): string | null {
+  private sanitizeText(
+    text: string | undefined | null,
+    maxLength: number = 5000,
+  ): string | null {
     if (!text) return null;
-    
-    const sanitized = text.trim().replace(/[\x00-\x1F\x7F]/g, '');
-    return sanitized.length > maxLength 
-      ? sanitized.substring(0, maxLength) + '...'
+
+    const sanitized = text.trim().replace(/[\x00-\x1F\x7F]/g, "");
+    return sanitized.length > maxLength
+      ? sanitized.substring(0, maxLength) + "..."
       : sanitized;
   }
 
@@ -185,37 +191,37 @@ export class DatabaseService {
   /**
    * Get businesses needing review update in batches with team limits
    */
-  async getBusinessesNeedingReviewUpdateBatch(batchSize: number = 30, offset: number = 0): Promise<GoogleBusinessProfile[]> {
+  async getBusinessesNeedingReviewUpdateBatch(
+    batchSize: number = 30,
+    offset: number = 0,
+  ): Promise<GoogleBusinessProfile[]> {
     try {
       const businesses = await prisma.googleBusinessProfile.findMany({
         where: {
           userRatingCount: {
-            not: null
+            not: null,
           },
           metadata: {
             isActive: true,
-            OR: [
-              { nextUpdateAt: null },
-              { nextUpdateAt: { lte: new Date() } }
-            ]
-          }
+            OR: [{ nextUpdateAt: null }, { nextUpdateAt: { lte: new Date() } }],
+          },
         },
         include: {
           metadata: true,
-          team: true
+          team: true,
         },
         orderBy: {
           metadata: {
-            nextUpdateAt: 'asc'
-          }
+            nextUpdateAt: "asc",
+          },
         },
         take: batchSize,
-        skip: offset
+        skip: offset,
       });
 
       return businesses;
     } catch (error) {
-      console.error('Error getting businesses needing update:', error);
+      console.error("Error getting businesses needing update:", error);
       return [];
     }
   }
@@ -228,21 +234,18 @@ export class DatabaseService {
       const count = await prisma.googleBusinessProfile.count({
         where: {
           userRatingCount: {
-            not: null
+            not: null,
           },
           metadata: {
             isActive: true,
-            OR: [
-              { nextUpdateAt: null },
-              { nextUpdateAt: { lte: new Date() } }
-            ]
-          }
-        }
+            OR: [{ nextUpdateAt: null }, { nextUpdateAt: { lte: new Date() } }],
+          },
+        },
       });
 
       return count;
     } catch (error) {
-      console.error('Error getting businesses count:', error);
+      console.error("Error getting businesses count:", error);
       return 0;
     }
   }
@@ -250,28 +253,39 @@ export class DatabaseService {
   /**
    * Initialize a business for first-time review scraping
    */
-  async initializeBusiness(placeId: string, teamId: string): Promise<{ success: boolean; message: string; businessId?: string }> {
+  async initializeBusiness(
+    placeId: string,
+    teamId: string,
+  ): Promise<{ success: boolean; message: string; businessId?: string }> {
     try {
       // Check if team can add more businesses
       const canAdd = await this.teamService.canTeamAddBusiness(teamId);
       if (!canAdd) {
-        return { success: false, message: 'Team has reached maximum business limit or subscription is inactive' };
+        return {
+          success: false,
+          message:
+            "Team has reached maximum business limit or subscription is inactive",
+        };
       }
 
       // Check if business already exists
       const existingBusiness = await prisma.googleBusinessProfile.findFirst({
         where: { placeId },
-        select: { id: true }
+        select: { id: true },
       });
 
       if (existingBusiness) {
-        return { success: false, message: 'Business already exists', businessId: existingBusiness.id };
+        return {
+          success: false,
+          message: "Business already exists",
+          businessId: existingBusiness.id,
+        };
       }
 
       // Get team limits
       const teamLimits = await this.teamService.getTeamLimits(teamId);
       if (!teamLimits) {
-        return { success: false, message: 'Invalid team' };
+        return { success: false, message: "Invalid team" };
       }
 
       // Create business profile placeholder (will be filled by scraping)
@@ -279,9 +293,9 @@ export class DatabaseService {
         data: {
           teamId,
           placeId,
-          displayName: 'Pending Initialization'
+          displayName: "Pending Initialization",
         },
-        select: { id: true }
+        select: { id: true },
       });
 
       // Create metadata with tenant-specific frequency
@@ -291,15 +305,18 @@ export class DatabaseService {
           updateFrequencyMinutes: teamLimits.updateFrequencyMinutes,
           nextUpdateAt: new Date(),
           lastUpdateAt: new Date(),
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
-      return { success: true, message: 'Business initialized successfully', businessId: businessData.id };
-
+      return {
+        success: true,
+        message: "Business initialized successfully",
+        businessId: businessData.id,
+      };
     } catch (error) {
-      console.error('Error initializing business:', error);
-      return { success: false, message: 'Internal error occurred' };
+      console.error("Error initializing business:", error);
+      return { success: false, message: "Internal error occurred" };
     }
   }
 
@@ -310,26 +327,29 @@ export class DatabaseService {
     try {
       const business = await prisma.googleBusinessProfile.findFirst({
         where: { placeId },
-        select: { id: true, metadata: true }
+        select: { id: true, metadata: true },
       });
 
       if (!business || !business.metadata) {
-        throw new Error(`Business or metadata not found for placeId: ${placeId}`);
+        throw new Error(
+          `Business or metadata not found for placeId: ${placeId}`,
+        );
       }
 
       const now = new Date();
-      const nextUpdate = new Date(now.getTime() + (business.metadata.updateFrequencyMinutes * 60 * 1000));
+      const nextUpdate = new Date(
+        now.getTime() + business.metadata.updateFrequencyMinutes * 60 * 1000,
+      );
 
       await prisma.googleBusinessMetadata.update({
         where: { businessProfileId: business.id },
         data: {
           lastUpdateAt: now,
-          nextUpdateAt: nextUpdate
-        }
+          nextUpdateAt: nextUpdate,
+        },
       });
-
     } catch (error) {
-      console.error('Error updating business scrapedAt:', error);
+      console.error("Error updating business scrapedAt:", error);
       throw error;
     }
   }
@@ -341,7 +361,7 @@ export class DatabaseService {
     try {
       const business = await prisma.googleBusinessProfile.findFirst({
         where: { placeId },
-        select: { id: true }
+        select: { id: true },
       });
 
       if (!business) {
@@ -350,13 +370,13 @@ export class DatabaseService {
 
       const mostRecentReview = await prisma.googleReview.findFirst({
         where: { businessProfileId: business.id },
-        orderBy: { publishedAtDate: 'desc' },
-        select: { publishedAtDate: true }
+        orderBy: { publishedAtDate: "desc" },
+        select: { publishedAtDate: true },
       });
 
       return mostRecentReview?.publishedAtDate || null;
     } catch (error) {
-      console.error('Error getting most recent review date:', error);
+      console.error("Error getting most recent review date:", error);
       return null;
     }
   }
@@ -364,12 +384,16 @@ export class DatabaseService {
   /**
    * Save reviews with filtering for recent reviews (5 days) and tenant limits
    */
-  async saveReviews(placeId: string, reviews: GoogleReviewWithMetadata[], isInitialization: boolean = false): Promise<void> {
+  async saveReviews(
+    placeId: string,
+    reviews: GoogleReviewWithMetadata[],
+    isInitialization: boolean = false,
+  ): Promise<void> {
     try {
       // Get business and team info
       const businessData = await prisma.googleBusinessProfile.findFirst({
         where: { placeId },
-        select: { id: true, teamId: true }
+        select: { id: true, teamId: true },
       });
 
       if (!businessData) {
@@ -384,165 +408,187 @@ export class DatabaseService {
 
       // Filter reviews based on whether this is initialization or polling
       let filteredReviews = reviews;
-      
+
       if (!isInitialization) {
         // For polling, only get reviews from last 5 days
         const fiveDaysAgo = new Date();
         fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-        
-        filteredReviews = reviews.filter(review => 
-          review.publishedAtDate >= fiveDaysAgo
+
+        filteredReviews = reviews.filter(
+          (review) => review.publishedAtDate >= fiveDaysAgo,
         );
       }
 
       // Apply tenant limits
-      if (maxReviewsPerBusiness && filteredReviews.length > maxReviewsPerBusiness) {
+      if (
+        maxReviewsPerBusiness &&
+        filteredReviews.length > maxReviewsPerBusiness
+      ) {
         // Sort by date descending and take the most recent reviews
         filteredReviews = filteredReviews
-          .sort((a, b) => b.publishedAtDate.getTime() - a.publishedAtDate.getTime())
+          .sort(
+            (a, b) => b.publishedAtDate.getTime() - a.publishedAtDate.getTime(),
+          )
           .slice(0, maxReviewsPerBusiness);
       }
 
-      console.log(`Processing ${filteredReviews.length} reviews for business ${placeId} (${isInitialization ? 'initialization' : 'polling'})`);
+      console.log(
+        `Processing ${filteredReviews.length} reviews for business ${placeId} (${isInitialization ? "initialization" : "polling"})`,
+      );
 
       // Process each review
       for (const review of filteredReviews) {
         try {
-        // Check if review already exists
+          // Check if review already exists
           const existingReview = await prisma.googleReview.findFirst({
             where: {
               reviewerId: review.reviewerId,
-              placeId: placeId
+              placeId: placeId,
             },
-            select: { id: true, reviewMetadataId: true }
+            select: { id: true, reviewMetadataId: true },
           });
 
-        if (existingReview) {
-          // Review exists, update the metadata
+          if (existingReview) {
+            // Review exists, update the metadata
             await prisma.reviewMetadata.update({
               where: { id: existingReview.reviewMetadataId },
               data: {
-              text: review.text || '',
-              rating: review.stars || review.rating || 0,
-              reply: review.responseFromOwnerText || '',
+                text: review.text || "",
+                rating: review.stars || review.rating || 0,
+                reply: review.responseFromOwnerText || "",
                 replyDate: review.responseFromOwnerDate,
-              hasReply: !!review.responseFromOwnerText,
-              author: review.name,
-              authorImage: review.reviewerPhotoUrl,
+                hasReply: !!review.responseFromOwnerText,
+                author: review.name,
+                authorImage: review.reviewerPhotoUrl,
                 date: review.publishedAtDate,
-              photoCount: (review.reviewImageUrls || []).length,
-              photoUrls: review.reviewImageUrls || [],
-              sentiment: review.reviewMetadata?.sentiment || null,
-              keywords: review.reviewMetadata?.keywords || [],
-              topics: review.reviewMetadata?.topics || [],
-              emotional: review.reviewMetadata?.emotional || null,
-              actionable: review.reviewMetadata?.actionable || false,
-              responseUrgency: review.reviewMetadata?.responseUrgency || null,
-              competitorMentions: review.reviewMetadata?.competitorMentions || [],
-              comparativePositive: review.reviewMetadata?.comparativePositive || null,
-              isRead: review.reviewMetadata?.isRead || false,
-              isImportant: review.reviewMetadata?.isImportant || false,
-              labels: review.reviewMetadata?.labels || [],
-              language: review.language || 'en',
+                photoCount: (review.reviewImageUrls || []).length,
+                photoUrls: review.reviewImageUrls || [],
+                sentiment: review.reviewMetadata?.sentiment || null,
+                keywords: review.reviewMetadata?.keywords || [],
+                topics: review.reviewMetadata?.topics || [],
+                emotional: review.reviewMetadata?.emotional || null,
+                actionable: review.reviewMetadata?.actionable || false,
+                responseUrgency: review.reviewMetadata?.responseUrgency || null,
+                competitorMentions:
+                  review.reviewMetadata?.competitorMentions || [],
+                comparativePositive:
+                  review.reviewMetadata?.comparativePositive || null,
+                isRead: review.reviewMetadata?.isRead || false,
+                isImportant: review.reviewMetadata?.isImportant || false,
+                labels: review.reviewMetadata?.labels || [],
+                language: review.language || "en",
                 scrapedAt: review.scrapedAt,
-              sourceUrl: review.reviewUrl || '',
-                updatedAt: new Date()
-              }
+                sourceUrl: review.reviewUrl || "",
+                updatedAt: new Date(),
+              },
             });
 
-          // Update the existing review
+            // Update the existing review
             await prisma.googleReview.update({
               where: { id: existingReview.id },
               data: {
-              text: review.text || '',
-              rating: review.rating || null,
-              responseFromOwnerText: review.responseFromOwnerText || '',
+                text: review.text || "",
+                rating: review.rating || null,
+                responseFromOwnerText: review.responseFromOwnerText || "",
                 responseFromOwnerDate: review.responseFromOwnerDate,
-              reviewImageUrls: review.reviewImageUrls || [],
+                reviewImageUrls: review.reviewImageUrls || [],
                 scrapedAt: review.scrapedAt,
-              language: review.language || 'en'
-          }
+                language: review.language || "en",
+              },
             });
-        } else {
+          } else {
             // Review doesn't exist, create new metadata and review
             const metadataData = await prisma.reviewMetadata.create({
               data: {
-              id: randomUUID(),
-              externalId: review.reviewerId,
-              source: 'GOOGLE_MAPS',
-              author: review.name,
-              authorImage: review.reviewerPhotoUrl,
-              rating: review.stars || review.rating || 0,
-              text: review.text || '',
+                id: randomUUID(),
+                externalId: review.reviewerId,
+                source: "GOOGLE_MAPS",
+                author: review.name,
+                authorImage: review.reviewerPhotoUrl,
+                rating: review.stars || review.rating || 0,
+                text: review.text || "",
                 date: review.publishedAtDate,
-              photoCount: (review.reviewImageUrls || []).length,
-              photoUrls: review.reviewImageUrls || [],
-              reply: review.responseFromOwnerText || '',
+                photoCount: (review.reviewImageUrls || []).length,
+                photoUrls: review.reviewImageUrls || [],
+                reply: review.responseFromOwnerText || "",
                 replyDate: review.responseFromOwnerDate,
-              hasReply: !!review.responseFromOwnerText,
-              sentiment: review.reviewMetadata?.sentiment || null,
-              keywords: review.reviewMetadata?.keywords || [],
-              topics: review.reviewMetadata?.topics || [],
-              emotional: review.reviewMetadata?.emotional || null,
-              actionable: review.reviewMetadata?.actionable || false,
-              responseUrgency: review.reviewMetadata?.responseUrgency || null,
-              competitorMentions: review.reviewMetadata?.competitorMentions || [],
-              comparativePositive: review.reviewMetadata?.comparativePositive || null,
-              isRead: review.reviewMetadata?.isRead || false,
-              isImportant: review.reviewMetadata?.isImportant || false,
-              labels: review.reviewMetadata?.labels || [],
-              language: review.language || 'en',
+                hasReply: !!review.responseFromOwnerText,
+                sentiment: review.reviewMetadata?.sentiment || null,
+                keywords: review.reviewMetadata?.keywords || [],
+                topics: review.reviewMetadata?.topics || [],
+                emotional: review.reviewMetadata?.emotional || null,
+                actionable: review.reviewMetadata?.actionable || false,
+                responseUrgency: review.reviewMetadata?.responseUrgency || null,
+                competitorMentions:
+                  review.reviewMetadata?.competitorMentions || [],
+                comparativePositive:
+                  review.reviewMetadata?.comparativePositive || null,
+                isRead: review.reviewMetadata?.isRead || false,
+                isImportant: review.reviewMetadata?.isImportant || false,
+                labels: review.reviewMetadata?.labels || [],
+                language: review.language || "en",
                 scrapedAt: review.scrapedAt,
-              sourceUrl: review.reviewUrl || '',
+                sourceUrl: review.reviewUrl || "",
                 createdAt: new Date(),
-                updatedAt: new Date()
-              }
+                updatedAt: new Date(),
+              },
             });
 
-          // Create new review
+            // Create new review
             await prisma.googleReview.create({
               data: {
-              businessProfileId: businessId,
-              reviewMetadataId: metadataData.id,
-              reviewerId: review.reviewerId || `reviewer-${randomUUID()}`,
-              reviewerUrl: review.reviewerUrl || '',
-              name: review.name,
-              reviewerNumberOfReviews: review.reviewerNumberOfReviews || 0,
-              isLocalGuide: review.isLocalGuide || false,
-              reviewerPhotoUrl: review.reviewerPhotoUrl || '',
-              text: review.text || '',
-              textTranslated: review.textTranslated || '',
-              publishAt: review.publishAt || '',
+                businessProfileId: businessId,
+                reviewMetadataId: metadataData.id,
+                reviewerId: review.reviewerId || `reviewer-${randomUUID()}`,
+                reviewerUrl: review.reviewerUrl || "",
+                name: review.name,
+                reviewerNumberOfReviews: review.reviewerNumberOfReviews || 0,
+                isLocalGuide: review.isLocalGuide || false,
+                reviewerPhotoUrl: review.reviewerPhotoUrl || "",
+                text: review.text || "",
+                textTranslated: review.textTranslated || "",
+                publishAt: review.publishAt || "",
                 publishedAtDate: review.publishedAtDate,
-              likesCount: review.likesCount || 0,
-              reviewUrl: review.reviewUrl || '',
-              reviewOrigin: review.reviewOrigin || 'GOOGLE_MAPS',
-              stars: review.stars || 0,
-              rating: review.rating || null,
+                likesCount: review.likesCount || 0,
+                reviewUrl: review.reviewUrl || "",
+                reviewOrigin: review.reviewOrigin || "GOOGLE_MAPS",
+                stars: review.stars || 0,
+                rating: review.rating || null,
                 responseFromOwnerDate: review.responseFromOwnerDate,
-              responseFromOwnerText: review.responseFromOwnerText || '',
-              reviewImageUrls: review.reviewImageUrls || [],
-              reviewContext: review.reviewContext || {},
-              reviewDetailedRating: review.reviewDetailedRating || {},
-              visitedIn: review.visitedIn || null,
-              originalLanguage: review.originalLanguage || null,
-              translatedLanguage: review.translatedLanguage || null,
-              isAdvertisement: review.isAdvertisement || false,
-              placeId: review.placeId,
-              location: review.location ? JSON.stringify(review.location).substring(0, 500) : null,
-              address: this.sanitizeText(review.address as string, 255),
-              neighborhood: this.sanitizeText(review.neighborhood as string, 100),
-              street: this.sanitizeText(review.street as string, 255),
-              city: this.sanitizeText(review.city as string, 100),
-              postalCode: this.sanitizeText(review.postalCode as string, 20),
-              state: this.sanitizeText(review.state as string, 100),
-              countryCode: this.sanitizeText(review.countryCode as string, 10),
-              categoryName: this.sanitizeText(review.categoryName as string, 100),
-              categories: review.categories || [],
+                responseFromOwnerText: review.responseFromOwnerText || "",
+                reviewImageUrls: review.reviewImageUrls || [],
+                reviewContext: review.reviewContext || {},
+                reviewDetailedRating: review.reviewDetailedRating || {},
+                visitedIn: review.visitedIn || null,
+                originalLanguage: review.originalLanguage || null,
+                translatedLanguage: review.translatedLanguage || null,
+                isAdvertisement: review.isAdvertisement || false,
+                placeId: review.placeId,
+                location: review.location
+                  ? JSON.stringify(review.location).substring(0, 500)
+                  : null,
+                address: this.sanitizeText(review.address as string, 255),
+                neighborhood: this.sanitizeText(
+                  review.neighborhood as string,
+                  100,
+                ),
+                street: this.sanitizeText(review.street as string, 255),
+                city: this.sanitizeText(review.city as string, 100),
+                postalCode: this.sanitizeText(review.postalCode as string, 20),
+                state: this.sanitizeText(review.state as string, 100),
+                countryCode: this.sanitizeText(
+                  review.countryCode as string,
+                  10,
+                ),
+                categoryName: this.sanitizeText(
+                  review.categoryName as string,
+                  100,
+                ),
+                categories: review.categories || [],
                 title: this.sanitizeText(review.title as string, 255),
                 totalScore: review.totalScore || null,
-              permanentlyClosed: review.permanentlyClosed || false,
-              temporarilyClosed: review.temporarilyClosed || false,
+                permanentlyClosed: review.permanentlyClosed || false,
+                temporarilyClosed: review.temporarilyClosed || false,
                 reviewsCount: review.reviewsCount || null,
                 url: review.url || null,
                 price: this.sanitizeText(review.price as string, 50),
@@ -550,47 +596,50 @@ export class DatabaseService {
                 fid: this.sanitizeText(review.fid as string, 100),
                 imageUrl: this.sanitizeText(review.imageUrl as string, 500),
                 scrapedAt: review.scrapedAt,
-              language: review.language || 'en'
-              }
+                language: review.language || "en",
+              },
             });
           }
         } catch (reviewError) {
-          console.error('Error processing individual review:', reviewError);
+          console.error("Error processing individual review:", reviewError);
           // Continue with next review
         }
       }
 
       // Update business metadata after successful review processing
       await this.updateBusinessScrapedAt(placeId);
-
     } catch (error) {
-      console.error('Error saving reviews:', error);
+      console.error("Error saving reviews:", error);
       throw error;
     }
   }
 
-  async getBusinessById(businessId: string): Promise<GoogleBusinessProfile | null> {
+  async getBusinessById(
+    businessId: string,
+  ): Promise<GoogleBusinessProfile | null> {
     try {
       const data = await prisma.googleBusinessProfile.findUnique({
-        where: { id: businessId }
+        where: { id: businessId },
       });
 
       return data;
     } catch (error) {
-      console.error('Error getting business by id:', error);
+      console.error("Error getting business by id:", error);
       return null;
     }
   }
 
-  async getBusinessByPlaceId(placeId: string): Promise<GoogleBusinessProfile | null> {
+  async getBusinessByPlaceId(
+    placeId: string,
+  ): Promise<GoogleBusinessProfile | null> {
     try {
       const data = await prisma.googleBusinessProfile.findFirst({
-        where: { placeId }
+        where: { placeId },
       });
 
       return data;
     } catch (error) {
-      console.error('Error getting business by placeId:', error);
+      console.error("Error getting business by placeId:", error);
       return null;
     }
   }
@@ -603,38 +652,51 @@ export class DatabaseService {
     businessProfileId: string,
     placeId: string,
     reviewsFromPayload: unknown[],
-    isInitialization: boolean = false
-  ): Promise<{ savedCount: number; updatedCount: number; failedCount: number; errors: string[] }> {
+    isInitialization: boolean = false,
+  ): Promise<{
+    savedCount: number;
+    updatedCount: number;
+    failedCount: number;
+    errors: string[];
+  }> {
     const startTime = Date.now();
     const context = this.createRequestContext(businessProfileId, placeId);
     const childLogger = logger.child(context);
-    
+
     // Input validation
     try {
       this.validateBusinessProfileId(businessProfileId);
       this.validatePlaceId(placeId);
-      
+
       if (!Array.isArray(reviewsFromPayload)) {
-        throw new Error('reviewsFromPayload must be an array');
+        throw new Error("reviewsFromPayload must be an array");
       }
-      
+
       if (reviewsFromPayload.length === 0) {
-        childLogger.warn('No reviews provided to save');
+        childLogger.warn("No reviews provided to save");
         return { savedCount: 0, updatedCount: 0, failedCount: 0, errors: [] };
       }
-      
+
       if (reviewsFromPayload.length > 1000) {
-        throw new Error('Cannot process more than 1000 reviews at once');
+        throw new Error("Cannot process more than 1000 reviews at once");
       }
     } catch (error) {
-      childLogger.error('Input validation failed', error as Error);
-      return { savedCount: 0, updatedCount: 0, failedCount: 1, errors: [(error as Error).message] };
+      childLogger.error("Input validation failed", error as Error);
+      return {
+        savedCount: 0,
+        updatedCount: 0,
+        failedCount: 1,
+        errors: [(error as Error).message],
+      };
     }
 
-    childLogger.info(`Starting to save ${reviewsFromPayload.length} Google reviews`, {
-      reviewCount: reviewsFromPayload.length,
-      isInitialization
-    });
+    childLogger.info(
+      `Starting to save ${reviewsFromPayload.length} Google reviews`,
+      {
+        reviewCount: reviewsFromPayload.length,
+        isInitialization,
+      },
+    );
 
     let savedCount = 0;
     let updatedCount = 0;
@@ -645,17 +707,18 @@ export class DatabaseService {
     for (const [index, reviewPayload] of reviewsFromPayload.entries()) {
       try {
         this.validateReviewData(reviewPayload);
-        
+
         const review = reviewPayload as any;
-        const reviewId = review.reviewId || review.id || `review-${randomUUID()}`;
-        
+        const reviewId =
+          review.reviewId || review.id || `review-${randomUUID()}`;
+
         // Check if review already exists
         const existingReview = await prisma.googleReview.findFirst({
           where: {
             reviewerId: review.reviewerId || review.userId,
-            placeId: placeId
+            placeId: placeId,
           },
-          select: { id: true, reviewMetadataId: true }
+          select: { id: true, reviewMetadataId: true },
         });
 
         if (existingReview) {
@@ -666,7 +729,9 @@ export class DatabaseService {
               text: this.sanitizeText(review.text),
               rating: review.rating || review.stars || 0,
               reply: this.sanitizeText(review.responseFromOwnerText),
-              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+              replyDate: review.responseFromOwnerDate
+                ? new Date(review.responseFromOwnerDate)
+                : null,
               hasReply: !!review.responseFromOwnerText,
               author: this.sanitizeText(review.name || review.author, 255),
               authorImage: this.sanitizeText(review.reviewerPhotoUrl, 500),
@@ -684,11 +749,11 @@ export class DatabaseService {
               isRead: review.isRead || false,
               isImportant: review.isImportant || false,
               labels: review.labels || [],
-              language: review.language || 'en',
+              language: review.language || "en",
               scrapedAt: new Date(),
               sourceUrl: this.sanitizeText(review.reviewUrl, 500),
-              updatedAt: new Date()
-            }
+              updatedAt: new Date(),
+            },
           });
 
           // Update the review itself
@@ -697,12 +762,16 @@ export class DatabaseService {
             data: {
               text: this.sanitizeText(review.text),
               rating: review.rating || null,
-              responseFromOwnerText: this.sanitizeText(review.responseFromOwnerText),
-              responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+              responseFromOwnerText: this.sanitizeText(
+                review.responseFromOwnerText,
+              ),
+              responseFromOwnerDate: review.responseFromOwnerDate
+                ? new Date(review.responseFromOwnerDate)
+                : null,
               reviewImageUrls: review.reviewImageUrls || [],
               scrapedAt: new Date(),
-              language: review.language || 'en'
-            }
+              language: review.language || "en",
+            },
           });
 
           updatedCount++;
@@ -710,9 +779,10 @@ export class DatabaseService {
           // Review doesn't exist, create new metadata first
           const newMeta = await prisma.reviewMetadata.create({
             data: {
-          id: randomUUID(),
-              externalId: review.reviewerId || review.userId || `user-${randomUUID()}`,
-              source: 'GOOGLE_MAPS',
+              id: randomUUID(),
+              externalId:
+                review.reviewerId || review.userId || `user-${randomUUID()}`,
+              source: "GOOGLE_MAPS",
               author: this.sanitizeText(review.name || review.author, 255),
               authorImage: this.sanitizeText(review.reviewerPhotoUrl, 500),
               rating: review.rating || review.stars || 0,
@@ -721,7 +791,9 @@ export class DatabaseService {
               photoCount: (review.reviewImageUrls || []).length,
               photoUrls: review.reviewImageUrls || [],
               reply: this.sanitizeText(review.responseFromOwnerText),
-              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+              replyDate: review.responseFromOwnerDate
+                ? new Date(review.responseFromOwnerDate)
+                : null,
               hasReply: !!review.responseFromOwnerText,
               sentiment: review.sentiment || null,
               keywords: review.keywords || [],
@@ -734,20 +806,23 @@ export class DatabaseService {
               isRead: review.isRead || false,
               isImportant: review.isImportant || false,
               labels: review.labels || [],
-              language: review.language || 'en',
+              language: review.language || "en",
               scrapedAt: new Date(),
               sourceUrl: this.sanitizeText(review.reviewUrl, 500),
-          createdAt: new Date(),
-              updatedAt: new Date()
-            }
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
           });
 
           // Create the Google review
           await prisma.googleReview.create({
             data: {
-      businessProfileId,
+              businessProfileId,
               reviewMetadataId: newMeta.id,
-              reviewerId: review.reviewerId || review.userId || `reviewer-${randomUUID()}`,
+              reviewerId:
+                review.reviewerId ||
+                review.userId ||
+                `reviewer-${randomUUID()}`,
               reviewerUrl: this.sanitizeText(review.reviewerUrl, 500),
               name: this.sanitizeText(review.name || review.author, 255),
               reviewerNumberOfReviews: review.reviewerNumberOfReviews || 0,
@@ -759,20 +834,29 @@ export class DatabaseService {
               publishedAtDate: new Date(review.publishedAtDate || review.date),
               likesCount: review.likesCount || 0,
               reviewUrl: this.sanitizeText(review.reviewUrl, 500),
-              reviewOrigin: review.reviewOrigin || 'GOOGLE_MAPS',
+              reviewOrigin: review.reviewOrigin || "GOOGLE_MAPS",
               stars: review.stars || review.rating || 0,
               rating: review.rating || null,
-              responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-              responseFromOwnerText: this.sanitizeText(review.responseFromOwnerText),
+              responseFromOwnerDate: review.responseFromOwnerDate
+                ? new Date(review.responseFromOwnerDate)
+                : null,
+              responseFromOwnerText: this.sanitizeText(
+                review.responseFromOwnerText,
+              ),
               reviewImageUrls: review.reviewImageUrls || [],
               reviewContext: review.reviewContext || {},
               reviewDetailedRating: review.reviewDetailedRating || {},
               visitedIn: this.sanitizeText(review.visitedIn, 100),
               originalLanguage: this.sanitizeText(review.originalLanguage, 10),
-              translatedLanguage: this.sanitizeText(review.translatedLanguage, 10),
+              translatedLanguage: this.sanitizeText(
+                review.translatedLanguage,
+                10,
+              ),
               isAdvertisement: review.isAdvertisement || false,
               placeId,
-              location: review.location ? JSON.stringify(review.location).substring(0, 500) : null,
+              location: review.location
+                ? JSON.stringify(review.location).substring(0, 500)
+                : null,
               address: this.sanitizeText(review.address, 255),
               neighborhood: this.sanitizeText(review.neighborhood, 100),
               street: this.sanitizeText(review.street, 255),
@@ -793,26 +877,28 @@ export class DatabaseService {
               fid: this.sanitizeText(review.fid, 100),
               imageUrl: this.sanitizeText(review.imageUrl, 500),
               scrapedAt: new Date(),
-              language: review.language || 'en'
-            }
+              language: review.language || "en",
+            },
           });
 
           savedCount++;
         }
       } catch (error) {
-        childLogger.error('Error processing individual review', error as Error);
-        errors.push(`Error processing review at index ${index}: ${(error as Error).message}`);
+        childLogger.error("Error processing individual review", error as Error);
+        errors.push(
+          `Error processing review at index ${index}: ${(error as Error).message}`,
+        );
         failedCount++;
       }
     }
 
     const duration = Date.now() - startTime;
-    childLogger.info('Completed saving Google reviews', {
+    childLogger.info("Completed saving Google reviews", {
       savedCount,
       updatedCount,
       failedCount,
       totalProcessed: savedCount + updatedCount + failedCount,
-      duration: `${duration}ms`
+      duration: `${duration}ms`,
     });
 
     return { savedCount, updatedCount, failedCount, errors };

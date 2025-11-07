@@ -47,7 +47,6 @@ export interface IReviewDataProcessor {
     teamId: string | null,
     platform: string,
     rawData: any[],
-    isInitial: boolean
+    isInitial: boolean,
   ): Promise<SyncResult>;
 }
-

@@ -1,15 +1,15 @@
-import { MarketPlatform } from '@prisma/client';
+import { MarketPlatform } from "@prisma/client";
 
 /**
  * Task Status Enum
  * Follows Single Responsibility Principle (SRP) - defines task statuses
  */
 export enum TaskStatus {
-  PENDING = 'PENDING',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
-  RETRYING = 'RETRYING'
+  PENDING = "PENDING",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+  RETRYING = "RETRYING",
 }
 
 /**
@@ -17,10 +17,10 @@ export enum TaskStatus {
  * Follows Single Responsibility Principle (SRP) - defines task steps
  */
 export enum TaskStep {
-  CREATING_PROFILE = 'CREATING_PROFILE',
-  FETCHING_REVIEWS = 'FETCHING_REVIEWS',
-  PROCESSING_ANALYTICS = 'PROCESSING_ANALYTICS',
-  COMPLETED = 'COMPLETED'
+  CREATING_PROFILE = "CREATING_PROFILE",
+  FETCHING_REVIEWS = "FETCHING_REVIEWS",
+  PROCESSING_ANALYTICS = "PROCESSING_ANALYTICS",
+  COMPLETED = "COMPLETED",
 }
 
 /**
@@ -56,7 +56,7 @@ export interface TaskMessage {
   step: TaskStep;
   status: TaskStatus;
   message: string;
-  messageType: 'info' | 'success' | 'warning' | 'error';
+  messageType: "info" | "success" | "warning" | "error";
   progressPercent?: number;
   itemsProcessed?: number;
   totalItems?: number;
@@ -72,7 +72,7 @@ export interface TaskProgressUpdate {
   step: TaskStep;
   status: TaskStatus;
   message: string;
-  messageType?: 'info' | 'success' | 'warning' | 'error';
+  messageType?: "info" | "success" | "warning" | "error";
   progressPercent?: number;
   itemsProcessed?: number;
   totalItems?: number;
@@ -86,23 +86,63 @@ export interface TaskProgressUpdate {
  */
 export interface ITaskTracker {
   // Task Management
-  createTask(teamId: string, platform: MarketPlatform, identifier: string): Promise<Task>;
+  createTask(
+    teamId: string,
+    platform: MarketPlatform,
+    identifier: string,
+  ): Promise<Task>;
   getTask(teamId: string, platform: MarketPlatform): Promise<Task | null>;
-  updateTaskStatus(teamId: string, platform: MarketPlatform, status: TaskStatus): Promise<void>;
+  updateTaskStatus(
+    teamId: string,
+    platform: MarketPlatform,
+    status: TaskStatus,
+  ): Promise<void>;
   deleteTask(teamId: string, platform: MarketPlatform): Promise<void>;
 
   // Step Management
-  startStep(teamId: string, platform: MarketPlatform, step: TaskStep, message: string): Promise<void>;
-  updateProgress(teamId: string, platform: MarketPlatform, update: TaskProgressUpdate): Promise<void>;
-  completeStep(teamId: string, platform: MarketPlatform, step: TaskStep, message: string, result?: any): Promise<void>;
-  failStep(teamId: string, platform: MarketPlatform, step: TaskStep, errorMessage: string): Promise<void>;
+  startStep(
+    teamId: string,
+    platform: MarketPlatform,
+    step: TaskStep,
+    message: string,
+  ): Promise<void>;
+  updateProgress(
+    teamId: string,
+    platform: MarketPlatform,
+    update: TaskProgressUpdate,
+  ): Promise<void>;
+  completeStep(
+    teamId: string,
+    platform: MarketPlatform,
+    step: TaskStep,
+    message: string,
+    result?: any,
+  ): Promise<void>;
+  failStep(
+    teamId: string,
+    platform: MarketPlatform,
+    step: TaskStep,
+    errorMessage: string,
+  ): Promise<void>;
 
   // Message Management
-  addMessage(teamId: string, platform: MarketPlatform, message: TaskMessage): Promise<void>;
-  getMessages(teamId: string, platform: MarketPlatform, limit?: number): Promise<TaskMessage[]>;
+  addMessage(
+    teamId: string,
+    platform: MarketPlatform,
+    message: TaskMessage,
+  ): Promise<void>;
+  getMessages(
+    teamId: string,
+    platform: MarketPlatform,
+    limit?: number,
+  ): Promise<TaskMessage[]>;
 
   // Task Queries
   getTaskStatus(teamId: string, platform: MarketPlatform): Promise<Task | null>;
-  getRecentMessages(teamId: string, platform: MarketPlatform, limit?: number): Promise<TaskMessage[]>;
+  getRecentMessages(
+    teamId: string,
+    platform: MarketPlatform,
+    limit?: number,
+  ): Promise<TaskMessage[]>;
   retryTask(teamId: string, platform: MarketPlatform): Promise<void>;
 }

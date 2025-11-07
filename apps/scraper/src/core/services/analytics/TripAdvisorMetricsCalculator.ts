@@ -44,7 +44,7 @@ export class TripAdvisorMetricsCalculator {
    * Calculate trip type distribution from review trip types
    */
   static calculateTripTypeDistribution(
-    reviews: Array<{ tripType?: string | null }>
+    reviews: Array<{ tripType?: string | null }>,
   ): TripTypeCounts {
     const counts: TripTypeCounts = {
       familyReviews: 0,
@@ -59,15 +59,15 @@ export class TripAdvisorMetricsCalculator {
 
       const tripType = review.tripType.toLowerCase();
 
-      if (tripType.includes('family') || tripType.includes('families')) {
+      if (tripType.includes("family") || tripType.includes("families")) {
         counts.familyReviews++;
-      } else if (tripType.includes('couple')) {
+      } else if (tripType.includes("couple")) {
         counts.couplesReviews++;
-      } else if (tripType.includes('solo') || tripType.includes('alone')) {
+      } else if (tripType.includes("solo") || tripType.includes("alone")) {
         counts.soloReviews++;
-      } else if (tripType.includes('business')) {
+      } else if (tripType.includes("business")) {
         counts.businessReviews++;
-      } else if (tripType.includes('friend')) {
+      } else if (tripType.includes("friend")) {
         counts.friendsReviews++;
       }
     });
@@ -82,7 +82,7 @@ export class TripAdvisorMetricsCalculator {
   static calculateSubRatings(
     reviews: Array<{
       subRatings?: TripAdvisorSubRatings | null;
-    }>
+    }>,
   ): TripAdvisorSubRatingAverages {
     const sums = {
       service: 0,
@@ -146,14 +146,21 @@ export class TripAdvisorMetricsCalculator {
     });
 
     return {
-      averageServiceRating: counts.service > 0 ? sums.service / counts.service : null,
+      averageServiceRating:
+        counts.service > 0 ? sums.service / counts.service : null,
       averageFoodRating: counts.food > 0 ? sums.food / counts.food : null,
       averageValueRating: counts.value > 0 ? sums.value / counts.value : null,
-      averageAtmosphereRating: counts.atmosphere > 0 ? sums.atmosphere / counts.atmosphere : null,
-      averageCleanlinessRating: counts.cleanliness > 0 ? sums.cleanliness / counts.cleanliness : null,
-      averageLocationRating: counts.location > 0 ? sums.location / counts.location : null,
+      averageAtmosphereRating:
+        counts.atmosphere > 0 ? sums.atmosphere / counts.atmosphere : null,
+      averageCleanlinessRating:
+        counts.cleanliness > 0 ? sums.cleanliness / counts.cleanliness : null,
+      averageLocationRating:
+        counts.location > 0 ? sums.location / counts.location : null,
       averageRoomsRating: counts.rooms > 0 ? sums.rooms / counts.rooms : null,
-      averageSleepQualityRating: counts.sleepQuality > 0 ? sums.sleepQuality / counts.sleepQuality : null,
+      averageSleepQualityRating:
+        counts.sleepQuality > 0
+          ? sums.sleepQuality / counts.sleepQuality
+          : null,
     };
   }
 
@@ -161,7 +168,7 @@ export class TripAdvisorMetricsCalculator {
    * Calculate helpful votes metrics
    */
   static calculateHelpfulVotesMetrics(
-    reviews: Array<{ helpfulVotes?: number | null }>
+    reviews: Array<{ helpfulVotes?: number | null }>,
   ): HelpfulVotesMetrics {
     const totalReviews = reviews.length;
 
@@ -174,7 +181,7 @@ export class TripAdvisorMetricsCalculator {
 
     const totalHelpfulVotes = reviews.reduce(
       (sum, review) => sum + (review.helpfulVotes || 0),
-      0
+      0,
     );
 
     return {
@@ -187,7 +194,7 @@ export class TripAdvisorMetricsCalculator {
    * Count reviews with photos
    */
   static countReviewsWithPhotos(
-    reviews: Array<{ photoCount?: number | null }>
+    reviews: Array<{ photoCount?: number | null }>,
   ): number {
     return reviews.filter((review) => (review.photoCount || 0) > 0).length;
   }
@@ -196,11 +203,10 @@ export class TripAdvisorMetricsCalculator {
    * Count reviews with room tips
    */
   static countReviewsWithRoomTips(
-    reviews: Array<{ roomTip?: string | null }>
+    reviews: Array<{ roomTip?: string | null }>,
   ): number {
     return reviews.filter(
-      (review) => review.roomTip && review.roomTip.trim().length > 0
+      (review) => review.roomTip && review.roomTip.trim().length > 0,
     ).length;
   }
 }
-
