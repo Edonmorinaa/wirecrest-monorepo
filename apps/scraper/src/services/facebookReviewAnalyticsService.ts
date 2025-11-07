@@ -1,8 +1,10 @@
 /**
- * Facebook Review Analytics Service - Prisma Implementation
+ * Facebook Review Analytics Service - Hybrid Implementation (Prisma + Supabase)
  */
 
 import { prisma } from "@wirecrest/db";
+import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   FacebookReviewWithMetadata,
   ReviewMetadata,
@@ -68,8 +70,18 @@ const PERIOD_DEFINITIONS: Record<
 type PeriodKeys = keyof typeof PERIOD_DEFINITIONS;
 
 export class FacebookReviewAnalyticsService {
+  private supabase: SupabaseClient;
+
   constructor() {
-    // No initialization needed with Prisma - it's a singleton
+    // Initialize Supabase client for analytics dashboard
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Missing Supabase configuration for FacebookReviewAnalyticsService");
+    }
+    
+    this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
   /**
@@ -142,15 +154,9 @@ export class FacebookReviewAnalyticsService {
 
       if (!allReviewsData || allReviewsData.length === 0) {
         console.log(
-          `[Facebook Analytics] No reviews found for businessProfileId: ${businessProfileId}`,
+          `[Facebook Analytics] No reviews found for businessProfileId: ${businessProfileId}. Skipping analytics processing.`,
         );
-        // Still create empty analytics
-        const allReviews: FacebookReviewWithMetadata[] = [];
-        await this.calculateAndSaveAllPeriodMetrics(
-          businessProfile.id,
-          businessProfile.teamId,
-          allReviews,
-        );
+        // No reviews to process, skip analytics
         return;
       }
 

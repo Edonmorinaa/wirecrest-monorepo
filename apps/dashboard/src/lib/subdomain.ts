@@ -2,8 +2,6 @@
  * Subdomain utilities for multi-tenant routing
  */
 
-import { getMainDomainUrl } from "./subdomain-config";
-
 export interface SubdomainInfo {
   subdomain: string | null;
   domain: string;
@@ -158,4 +156,18 @@ export function getSubdomainUrlForSubdomain(subdomain: string, path: string): st
   
   // Fallback for server-side
   return `http://${subdomain}.wirecrest.local:3032${path}`;
+}
+
+/**
+ * Get URL for auth subdomain with given path
+ * Helper for authentication redirects
+ * 
+ * @param path - The path to append to the auth subdomain URL
+ * @returns Full URL to auth subdomain with path
+ * 
+ * @example
+ * getAuthUrl('/auth/sign-in') // http://auth.wirecrest.local:3032/auth/sign-in
+ */
+export function getAuthUrl(path: string): string {
+  return getSubdomainUrlForSubdomain('auth', path);
 }

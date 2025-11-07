@@ -87,32 +87,30 @@ export class FacebookApifyActor implements IApifyActor {
       return false;
     }
 
-    // Required fields for Facebook - either pageId or pageUrl
-    if (!input.pageId && !input.pageUrl) {
-      return false;
-    }
-
-    // Validate pageId format if provided
+    // Required field for Facebook Reviews Actor - startUrls
     if (
-      input.pageId &&
-      (typeof input.pageId !== "string" || input.pageId.length < 3)
+      !input.startUrls ||
+      !Array.isArray(input.startUrls) ||
+      input.startUrls.length === 0
     ) {
       return false;
     }
 
-    // Validate pageUrl format if provided
-    if (
-      input.pageUrl &&
-      (typeof input.pageUrl !== "string" ||
-        !input.pageUrl.includes("facebook.com"))
-    ) {
-      return false;
+    // Validate startUrls format
+    for (const urlObj of input.startUrls) {
+      if (
+        !urlObj.url ||
+        typeof urlObj.url !== "string" ||
+        !urlObj.url.includes("facebook.com")
+      ) {
+        return false;
+      }
     }
 
     // Optional fields validation
     if (
-      input.maxReviews &&
-      (typeof input.maxReviews !== "number" || input.maxReviews < 0)
+      input.resultsLimit &&
+      (typeof input.resultsLimit !== "number" || input.resultsLimit < 0)
     ) {
       return false;
     }
@@ -126,9 +124,9 @@ export class FacebookApifyActor implements IApifyActor {
     }
 
     // Calculate memory based on expected number of reviews
-    const maxReviews = input.maxReviews || 50;
+    const resultsLimit = input.resultsLimit || 50;
     const baseMemory = this.memoryEstimateMB;
-    const additionalMemory = Math.ceil(maxReviews / 50) * 25; // 25MB per 50 reviews
+    const additionalMemory = Math.ceil(resultsLimit / 50) * 25; // 25MB per 50 reviews
 
     return Math.min(baseMemory + additionalMemory, 1024); // Cap at 1GB
   }

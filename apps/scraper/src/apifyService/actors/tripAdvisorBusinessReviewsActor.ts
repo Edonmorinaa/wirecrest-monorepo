@@ -23,9 +23,9 @@ function validateTripType(tripType?: string): string {
 
 export class TripAdvisorBusinessReviewsActor extends Actor {
   constructor() {
-    // Use the TripAdvisor actor ID provided in the conversation
+    // Use the TripAdvisor Reviews actor ID
     const actorId =
-      process.env.APIFY_TRIPADVISOR_REVIEWS_ACTOR_ID || "dbEyMBriog95Fv8CW";
+      process.env.APIFY_TRIPADVISOR_REVIEWS_ACTOR_ID || "Hvp4YfFGyLM635Q2F";
     // Use 1GB for initialization jobs, 4GB for regular jobs
     super(actorId, 1024, MarketPlatform.TRIPADVISOR);
   }

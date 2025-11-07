@@ -168,40 +168,51 @@ export class ApifyService implements IApifyService {
   }
 
   private prepareActorInput(job: IApifyJob): any {
-    const baseInput = {
-      jobId: job.id,
-      maxReviews: job.maxReviews || (job.isInitialization ? 1000 : 100),
-    };
+    const maxReviews = job.maxReviews || (job.isInitialization ? 1000 : 100);
 
     switch (job.platform) {
       case MarketPlatform.GOOGLE_MAPS:
+        // Google Reviews Actor expects placeIds array
         return {
-          ...baseInput,
+          jobId: job.id,
           placeIds: [job.identifier],
+          maxReviews,
+          language: "en",
+          reviewsSort: "newest",
         };
 
       case MarketPlatform.FACEBOOK:
+        // Facebook Reviews Actor expects startUrls
+        const facebookUrl = job.identifier.startsWith("http")
+          ? job.identifier
+          : `https://www.facebook.com/${job.identifier}`;
         return {
-          ...baseInput,
-          pageId: job.identifier,
-          pageUrl: job.identifier.startsWith("http")
-            ? job.identifier
-            : undefined,
+          jobId: job.id,
+          startUrls: [{ url: `${facebookUrl}/reviews` }],
+          resultsLimit: maxReviews,
         };
 
       case MarketPlatform.TRIPADVISOR:
+        // TripAdvisor Reviews Actor expects startUrls
+        const tripadvisorUrl = job.identifier.startsWith("http")
+          ? job.identifier
+          : undefined;
+        if (!tripadvisorUrl) {
+          throw new Error("TripAdvisor requires full URL");
+        }
         return {
-          ...baseInput,
-          locationId: job.identifier,
-          tripAdvisorUrl: job.identifier.startsWith("http")
-            ? job.identifier
-            : undefined,
+          jobId: job.id,
+          startUrls: [{ url: tripadvisorUrl }],
+          maxItemsPerQuery: maxReviews,
+          scrapeReviewerInfo: true,
         };
 
       case MarketPlatform.BOOKING:
+        // Booking Reviews Actor expects startUrls
         return {
-          ...baseInput,
-          bookingUrl: job.identifier,
+          jobId: job.id,
+          startUrls: [{ url: job.identifier }],
+          maxReviewsPerHotel: maxReviews,
         };
 
       default:

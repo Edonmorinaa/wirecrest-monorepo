@@ -26,6 +26,8 @@ const envSchema = z.object({
   APIFY_GOOGLE_REVIEWS_ACTOR_ID: z.string().min(1),
   APIFY_FACEBOOK_PROFILE_ACTOR_ID: z.string().min(1),
   APIFY_FACEBOOK_REVIEWS_ACTOR_ID: z.string().min(1),
+  APIFY_TRIPADVISOR_PROFILE_ACTOR_ID: z.string().min(1),
+  APIFY_TRIPADVISOR_REVIEWS_ACTOR_ID: z.string().min(1),
   APIFY_BOOKING_PROFILE_ACTOR_ID: z.string().min(1),
   APIFY_BOOKING_REVIEWS_ACTOR_ID: z.string().min(1),
   APIFY_WEBHOOK_SECRET: z.string().min(1),

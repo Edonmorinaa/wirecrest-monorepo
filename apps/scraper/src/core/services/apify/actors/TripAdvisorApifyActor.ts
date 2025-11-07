@@ -22,7 +22,7 @@ export class TripAdvisorApifyActor implements IApifyActor {
     this.actorId =
       actorId ||
       process.env.APIFY_TRIPADVISOR_REVIEWS_ACTOR_ID ||
-      "tripadvisor-reviews-scraper";
+      "Hvp4YfFGyLM635Q2F";
     this.memoryEstimateMB = 512; // 512MB for TripAdvisor scraping
     this.apifyClient = new ApifyClient({ token: apifyToken });
   }
@@ -90,32 +90,30 @@ export class TripAdvisorApifyActor implements IApifyActor {
       return false;
     }
 
-    // Required fields for TripAdvisor - either locationId or tripAdvisorUrl
-    if (!input.locationId && !input.tripAdvisorUrl) {
-      return false;
-    }
-
-    // Validate locationId format if provided
+    // Required field for TripAdvisor Reviews Actor - startUrls
     if (
-      input.locationId &&
-      (typeof input.locationId !== "string" || input.locationId.length < 3)
+      !input.startUrls ||
+      !Array.isArray(input.startUrls) ||
+      input.startUrls.length === 0
     ) {
       return false;
     }
 
-    // Validate tripAdvisorUrl format if provided
-    if (
-      input.tripAdvisorUrl &&
-      (typeof input.tripAdvisorUrl !== "string" ||
-        !input.tripAdvisorUrl.includes("tripadvisor.com"))
-    ) {
-      return false;
+    // Validate startUrls format
+    for (const urlObj of input.startUrls) {
+      if (
+        !urlObj.url ||
+        typeof urlObj.url !== "string" ||
+        !urlObj.url.includes("tripadvisor.com")
+      ) {
+        return false;
+      }
     }
 
     // Optional fields validation
     if (
-      input.maxReviews &&
-      (typeof input.maxReviews !== "number" || input.maxReviews < 0)
+      input.maxItemsPerQuery &&
+      (typeof input.maxItemsPerQuery !== "number" || input.maxItemsPerQuery < 0)
     ) {
       return false;
     }
@@ -129,9 +127,9 @@ export class TripAdvisorApifyActor implements IApifyActor {
     }
 
     // Calculate memory based on expected number of reviews
-    const maxReviews = input.maxReviews || 100;
+    const maxItemsPerQuery = input.maxItemsPerQuery || 100;
     const baseMemory = this.memoryEstimateMB;
-    const additionalMemory = Math.ceil(maxReviews / 100) * 50; // 50MB per 100 reviews
+    const additionalMemory = Math.ceil(maxItemsPerQuery / 100) * 50; // 50MB per 100 reviews
 
     return Math.min(baseMemory + additionalMemory, 2048); // Cap at 2GB
   }

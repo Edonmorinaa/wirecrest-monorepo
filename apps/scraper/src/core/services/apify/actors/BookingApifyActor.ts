@@ -87,20 +87,31 @@ export class BookingApifyActor implements IApifyActor {
       return false;
     }
 
-    // Required field for Booking.com
-    if (!input.bookingUrl || typeof input.bookingUrl !== "string") {
+    // Required field for Booking Reviews Actor - startUrls
+    if (
+      !input.startUrls ||
+      !Array.isArray(input.startUrls) ||
+      input.startUrls.length === 0
+    ) {
       return false;
     }
 
-    // Validate bookingUrl format
-    if (!input.bookingUrl.includes("booking.com")) {
-      return false;
+    // Validate startUrls format
+    for (const urlObj of input.startUrls) {
+      if (
+        !urlObj.url ||
+        typeof urlObj.url !== "string" ||
+        !urlObj.url.includes("booking.com")
+      ) {
+        return false;
+      }
     }
 
     // Optional fields validation
     if (
-      input.maxReviews &&
-      (typeof input.maxReviews !== "number" || input.maxReviews < 0)
+      input.maxReviewsPerHotel &&
+      (typeof input.maxReviewsPerHotel !== "number" ||
+        input.maxReviewsPerHotel < 0)
     ) {
       return false;
     }
@@ -114,9 +125,9 @@ export class BookingApifyActor implements IApifyActor {
     }
 
     // Calculate memory based on expected number of reviews
-    const maxReviews = input.maxReviews || 50;
+    const maxReviewsPerHotel = input.maxReviewsPerHotel || 50;
     const baseMemory = this.memoryEstimateMB;
-    const additionalMemory = Math.ceil(maxReviews / 50) * 25; // 25MB per 50 reviews
+    const additionalMemory = Math.ceil(maxReviewsPerHotel / 50) * 25; // 25MB per 50 reviews
 
     return Math.min(baseMemory + additionalMemory, 1024); // Cap at 1GB
   }

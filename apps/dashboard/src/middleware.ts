@@ -1,10 +1,41 @@
-import { getToken } from 'next-auth/jwt';
+import { Team, SuperRole } from '@prisma/client';
+import { getToken, type JWT } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
+
+/**
+ * JWT token structure for middleware authentication
+ * Extends NextAuth JWT with application-specific fields
+ */
+interface MiddlewareJWT extends JWT {
+  superRole?: SuperRole;
+  team?: Pick<Team, 'slug'>;
+}
 
 const protocol =
   process.env.NODE_ENV === 'production' ? 'https' : 'http';
 const rootDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'wirecrest.local:3032';
 
+/**
+ * Validates if a string is a valid subdomain according to RFC 1123
+ * @param subdomain - The subdomain string to validate
+ * @returns true if valid, false otherwise
+ */
+function isValidSubdomain(subdomain: string): boolean {
+  return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain);
+}
+
+/**
+ * Extracts and validates the subdomain from the request host header
+ * Handles local development, production, and Vercel preview deployments
+ * 
+ * @param request - The Next.js request object
+ * @returns The subdomain string if valid and present, null otherwise
+ * 
+ * @example
+ * // Local: tenant.localhost:3032 -> "tenant"
+ * // Production: tenant.wirecrest.com -> "tenant"
+ * // Vercel Preview: tenant---branch.vercel.app -> "tenant"
+ */
 function extractSubdomain(request: NextRequest): string | null {
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
@@ -15,7 +46,8 @@ function extractSubdomain(request: NextRequest): string | null {
     if (hostname.includes('.localhost') || hostname.includes('.wirecrest.local')) {
       const parts = hostname.split('.');
       if (parts.length > 1 && parts[0] !== 'www') {
-        return parts[0];
+        const subdomain = parts[0];
+        return isValidSubdomain(subdomain) ? subdomain : null;
       }
     }
     return null;
@@ -27,7 +59,8 @@ function extractSubdomain(request: NextRequest): string | null {
   // Handle preview deployment URLs (tenant---branch-name.vercel.app)
   if (hostname.includes('---') && hostname.endsWith('.vercel.app')) {
     const parts = hostname.split('---');
-    return parts.length > 0 ? parts[0] : null;
+    const subdomain = parts.length > 0 ? parts[0] : null;
+    return subdomain && isValidSubdomain(subdomain) ? subdomain : null;
   }
 
   // Regular subdomain detection
@@ -36,9 +69,26 @@ function extractSubdomain(request: NextRequest): string | null {
     hostname !== `www.${rootDomainFormatted}` &&
     hostname.endsWith(`.${rootDomainFormatted}`);
 
-  return isSubdomain ? hostname.replace(`.${rootDomainFormatted}`, '') : null;
+  if (isSubdomain) {
+    const subdomain = hostname.replace(`.${rootDomainFormatted}`, '');
+    return isValidSubdomain(subdomain) ? subdomain : null;
+  }
+
+  return null;
 }
 
+/**
+ * Next.js middleware for subdomain-based routing and authentication
+ * 
+ * Handles routing logic for:
+ * - admin.domain.com -> Super admin dashboard
+ * - auth.domain.com -> Authentication pages
+ * - tenant.domain.com -> Tenant-specific dashboard
+ * - domain.com -> Public landing pages
+ * 
+ * @param request - The Next.js request object
+ * @returns NextResponse with appropriate routing/rewrite logic
+ */
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const { pathname } = request.nextUrl;
@@ -64,26 +114,52 @@ export async function middleware(request: NextRequest) {
     }
 
     if (subdomain === 'auth') {
+      // Prevent nested auth or dashboard paths
       if (pathname.startsWith('/auth') || pathname.startsWith('/dashboard')) {
         return new NextResponse('Not Found', { status: 404 });
       }
       
-      const token = await getToken({ 
-        req: request, 
-        secret: process.env.NEXTAUTH_SECRET 
-      });
+      // Validate required environment variable
+      if (!process.env.NEXTAUTH_SECRET) {
+        console.error('NEXTAUTH_SECRET is not defined');
+        return new NextResponse('Server configuration error', { status: 500 });
+      }
 
-      if (token) {
-        const { superRole, team } = token as { superRole: any; team: {slug: any} };
-        if (superRole === 'ADMIN') {
-          return NextResponse.redirect(new URL(`${protocol}://admin.${rootDomain}/`, request.url));
-        } else if (team?.slug) {
-          return NextResponse.redirect(new URL(`${protocol}://${team.slug}.${rootDomain}/`, request.url));
-        } else {
-          return NextResponse.redirect(new URL(`${protocol}://${rootDomain}/`, request.url));
+      try {
+        const token = await getToken({ 
+          req: request, 
+          secret: process.env.NEXTAUTH_SECRET 
+        }) as MiddlewareJWT | null;
+
+        // If user is authenticated, redirect them away from auth subdomain
+        if (token) {
+          const { superRole, team } = token;
+          
+          // Super admin users go to admin subdomain
+          if (superRole === 'ADMIN') {
+            return NextResponse.redirect(
+              new URL(`${protocol}://admin.${rootDomain}/`, request.url)
+            );
+          }
+          
+          // Tenant users go to their team's subdomain
+          if (team?.slug && isValidSubdomain(team.slug)) {
+            return NextResponse.redirect(
+              new URL(`${protocol}://${team.slug}.${rootDomain}/`, request.url)
+            );
+          }
+          
+          // Fallback: redirect authenticated users without team to main domain
+          return NextResponse.redirect(
+            new URL(`${protocol}://${rootDomain}/`, request.url)
+          );
         }
+      } catch (error) {
+        console.error('Error retrieving token:', error);
+        // Continue to auth page on token retrieval failure
       }
       
+      // No token or error - serve auth pages
       url.pathname = `/auth${pathname}`;
       return NextResponse.rewrite(url);
     }
