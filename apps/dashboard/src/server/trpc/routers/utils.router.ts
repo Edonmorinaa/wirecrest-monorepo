@@ -9,16 +9,19 @@
  * - Workflow retry
  */
 
-import { TRPCError } from '@trpc/server';
 import { prisma } from '@wirecrest/db';
+import { TRPCError } from '@trpc/server';
+import { getInvitation, isInvitationExpired } from '@/models/invitation';
+
+import { recordMetric } from 'src/actions/lib';
+
 import { router, publicProcedure, protectedProcedure } from '../trpc';
 import {
-  invitationTokenSchema,
-  teamSlugParamSchema,
+  syncStatusSchema,
   workflowIdSchema,
+  teamSlugParamSchema,
+  invitationTokenSchema,
 } from '../schemas/utils.schema';
-import { getInvitation, isInvitationExpired } from '@/models/invitation';
-import { recordMetric } from 'src/actions/lib';
 
 /**
  * Utils Router
@@ -27,9 +30,7 @@ export const utilsRouter = router({
   /**
    * Hello world endpoint
    */
-  hello: publicProcedure.query(() => {
-    return { message: 'Hello World!' };
-  }),
+  hello: publicProcedure.query(() => ({ message: 'Hello World!' })),
 
   /**
    * Get invitation by token (public, for accepting invitations)
@@ -131,6 +132,62 @@ export const utilsRouter = router({
         code: 'NOT_IMPLEMENTED',
         message: 'Workflow retry not implemented',
       });
+    }),
+
+  /**
+   * Get sync status for a team (protected)
+   * Fetches sync status from the scraper API
+   */
+  getSyncStatus: protectedProcedure
+    .input(syncStatusSchema)
+    .query(async ({ input }) => {
+      try {
+        // Fetch sync status from scraper API
+        const scraperUrl = process.env.SCRAPER_API_URL || process.env.NEXT_PUBLIC_SCRAPER_API_URL;
+        
+        if (!scraperUrl) {
+          console.warn('Scraper API URL not configured');
+          return {
+            recentSyncs: [],
+            activeSchedules: 0,
+            lastSync: null,
+          };
+        }
+
+        const response = await fetch(`${scraperUrl}/api/sync-status/${input.teamId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (!response.ok) {
+          console.error(`Failed to fetch sync status: ${response.status} ${response.statusText}`);
+          return {
+            recentSyncs: [],
+            activeSchedules: 0,
+            lastSync: null,
+          };
+        }
+
+        const syncStatus = await response.json();
+
+        recordMetric('utils.sync_status.fetched');
+
+        return {
+          recentSyncs: syncStatus.recentSyncs || [],
+          activeSchedules: syncStatus.activeSchedules || 0,
+          lastSync: syncStatus.lastSync || null,
+        };
+      } catch (error) {
+        console.error('Error fetching sync status:', error);
+        // Return empty status rather than throwing error
+        // This allows the UI to continue functioning even if scraper is unavailable
+        return {
+          recentSyncs: [],
+          activeSchedules: 0,
+          lastSync: null,
+        };
+      }
     }),
 });
 

@@ -6,21 +6,6 @@
 
 import { trpc } from 'src/lib/trpc/client';
 
-interface SyncStatus {
-  recentSyncs: Array<{
-    id: string;
-    platform: string;
-    syncType: string;
-    status: string;
-    reviewsNew: number;
-    reviewsDuplicate: number;
-    startedAt: Date;
-    completedAt: Date | null;
-  }>;
-  activeSchedules: number;
-  lastSync: Date | null;
-}
-
 interface UseSyncStatusOptions {
   /**
    * Team ID to monitor
@@ -56,12 +41,12 @@ export function useSyncStatus(options: UseSyncStatusOptions = {}) {
     { teamId: teamId! },
     {
       enabled: !!teamId,
-      refetchInterval: (data) => {
+      refetchInterval: (queryResult: any) => {
         // If onlyPollWhenActive is true, only poll when there are active syncs
-        if (onlyPollWhenActive && data) {
-          const hasActiveSyncs = data.recentSyncs.some(
-            (sync) => sync.status === 'running' || sync.status === 'pending'
-          );
+        if (onlyPollWhenActive && queryResult) {
+          const hasActiveSyncs = queryResult.recentSyncs?.some(
+            (sync: any) => sync.status === 'running' || sync.status === 'pending'
+          ) ?? false;
           return hasActiveSyncs ? refreshInterval : 0;
         }
         return refreshInterval;
@@ -72,13 +57,34 @@ export function useSyncStatus(options: UseSyncStatusOptions = {}) {
   );
 
   // Check if there are active syncs
-  const hasActiveSyncs = data?.recentSyncs.some(
-    (sync) => sync.status === 'running' || sync.status === 'pending'
+  const hasActiveSyncs = data?.recentSyncs?.some(
+    (sync: any) => sync.status === 'running' || sync.status === 'pending'
   ) || false;
 
   // Check if syncing is complete
   const isSyncing = hasActiveSyncs;
-  const isComplete = !hasActiveSyncs && (data?.recentSyncs.length ?? 0) > 0;
+  const isComplete = !hasActiveSyncs && (data?.recentSyncs?.length ?? 0) > 0;
+
+  /**
+   * Get sync status for a specific platform
+   */
+  const getPlatformSyncStatus = (platform: string) => {
+    if (!data?.recentSyncs) return null;
+    
+    const platformSyncs = data.recentSyncs.filter(
+      (sync: any) => sync.platform?.toLowerCase() === platform.toLowerCase()
+    );
+    
+    if (platformSyncs.length === 0) return null;
+    
+    const latestSync = platformSyncs[0];
+    return {
+      status: latestSync.status,
+      lastSync: latestSync.startedAt,
+      reviewsNew: latestSync.reviewsNew || 0,
+      reviewsDuplicate: latestSync.reviewsDuplicate || 0,
+    };
+  };
 
   return {
     data,
@@ -91,5 +97,6 @@ export function useSyncStatus(options: UseSyncStatusOptions = {}) {
     isLoading,
     error,
     refresh: refetch,
+    getPlatformSyncStatus,
   };
 }

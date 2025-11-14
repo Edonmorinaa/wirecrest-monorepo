@@ -100,7 +100,7 @@ export default function SuperAdminTenantDetailPage() {
   } = useSuperAdminTenant(tenantId);
 
   // Use sync status hook for real-time updates
-  const { syncStatus, getPlatformSyncStatus } = useSyncStatus({
+  const { getPlatformSyncStatus } = useSyncStatus({
     teamId: tenantId,
     refreshInterval: 5000, // Poll every 5 seconds
     onlyPollWhenActive: true,
@@ -115,9 +115,13 @@ export default function SuperAdminTenantDetailPage() {
         const platformData = platforms[platformKey];
         if (platformData?.identifier) {
           identifiers[platform] = platformData.identifier;
+          console.log(`✅ Loaded identifier for ${platform}:`, platformData.identifier);
+        } else {
+          console.log(`ℹ️ No identifier found for ${platform}`);
         }
       });
       setMarketIdentifiers(identifiers);
+      console.log('📋 Final market identifiers:', identifiers);
     }
   }, [platforms]);
 

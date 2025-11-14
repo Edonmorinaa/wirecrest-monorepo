@@ -676,6 +676,128 @@ export async function getTripAdvisorReviews(
   };
 }
 
+// Booking.com Reviews Actions
+export async function getBookingReviews(
+  teamSlug: string,
+  filters: ReviewFilters = {}
+): Promise<{
+  reviews: any[];
+  pagination: any;
+  stats: any;
+}> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { slug: teamSlug },
+  });
+
+  if (!team) {
+    throw new ApiError(404, 'Team not found');
+  }
+
+  // Check if user is a member of this team
+  const membership = await prisma.teamMember.findFirst({
+    where: {
+      teamId: team.id,
+      userId: session.user.id,
+    },
+  });
+
+  if (!membership) {
+    throw new ApiError(403, 'Access denied. You must be a member of this team.');
+  }
+
+  const page = filters.page || 1;
+  const limit = Math.min(filters.limit || 25, 100);
+  const offset = (page - 1) * limit;
+
+  // Build where clause
+  const whereClause: any = {
+    businessProfile: {
+      teamId: team.id,
+    },
+  };
+
+  if (filters.rating) {
+    if (Array.isArray(filters.rating)) {
+      whereClause.rating = { in: filters.rating };
+    } else {
+      whereClause.rating = filters.rating;
+    }
+  }
+
+  if (filters.search) {
+    whereClause.OR = [
+      { text: { contains: filters.search, mode: 'insensitive' } },
+      { title: { contains: filters.search, mode: 'insensitive' } },
+    ];
+  }
+
+  if (filters.startDate && filters.endDate) {
+    whereClause.publishedDate = {
+      gte: new Date(filters.startDate),
+      lte: new Date(filters.endDate),
+    };
+  }
+
+  // Build order by
+  const orderBy: any = {};
+  if (filters.sortBy) {
+    orderBy[filters.sortBy] = filters.sortOrder || 'desc';
+  } else {
+    orderBy.publishedDate = 'desc';
+  }
+
+  const [reviews, total] = await Promise.all([
+    prisma.bookingReview.findMany({
+      where: whereClause,
+      include: {
+        reviewMetadata: true,
+      },
+      orderBy,
+      skip: offset,
+      take: limit,
+    }),
+    prisma.bookingReview.count({ where: whereClause }),
+  ]);
+
+  // Calculate stats
+  const stats = await prisma.bookingReview.aggregate({
+    where: {
+      businessProfile: {
+        teamId: team.id,
+      },
+    },
+    _avg: {
+      rating: true,
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    reviews,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+    stats: {
+      total: stats._count._all,
+      averageRating: stats._avg.rating || 0,
+    },
+  };
+}
+
 // Generic review status update
 export async function updateReviewStatus(
   teamSlug: string,

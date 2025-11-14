@@ -98,4 +98,5 @@ const useBookingReviews = (slug?: string, filters: UseBookingReviewsFilters = {}
   };
 };
 
+export { useBookingReviews };
 export default useBookingReviews;

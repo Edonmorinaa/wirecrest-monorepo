@@ -147,7 +147,9 @@ export function useNotifications(
           // We'll need to call this directly since we're in useEffect
           const teamsResponse = await fetch('/api/trpc/teams.list');
           const teamsData = await teamsResponse.json();
-          const userTeamIds = teamsData.result?.data?.map((t: any) => t.id) || [];
+          // Handle both possible response formats from tRPC
+          const teams = teamsData.result?.data || teamsData.result || [];
+          const userTeamIds = (Array.isArray(teams) ? teams : []).map((t: any) => t.id);
           console.log(`📋 Found ${userTeamIds.length} team(s):`, userTeamIds);
           
           if (!isMounted) return;

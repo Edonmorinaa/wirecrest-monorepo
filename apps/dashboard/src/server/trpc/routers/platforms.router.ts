@@ -16,6 +16,7 @@
  */
 
 import { TRPCError } from '@trpc/server';
+
 import { router, protectedProcedure, requireFeature } from '../trpc';
 import {
   platformSlugSchema,
@@ -25,17 +26,14 @@ import {
   createFacebookProfileSchema,
   getFacebookReviewsSchema,
 } from '../schemas/platforms.schema';
-
-// Import server actions for complex logic
+import { getFacebookReviews as _getFacebookReviews } from 'src/actions/facebook-reviews';
 import {
-  getBusinessMarketIdentifiers as _getBusinessMarketIdentifiers,
   createBusinessMarketIdentifierAction as _createBusinessMarketIdentifierAction,
+  getBusinessMarketIdentifiers as _getBusinessMarketIdentifiers,
   getGoogleBusinessProfile as _getGoogleBusinessProfile,
   createGoogleProfile as _createGoogleProfile,
-  getGoogleReviewsAction as _getGoogleReviewsAction,
   getFacebookBusinessProfile as _getFacebookBusinessProfile,
   createFacebookProfile as _createFacebookProfile,
-  getFacebookReviewsAction as _getFacebookReviewsAction,
   getInstagramBusinessProfile as _getInstagramBusinessProfile,
   getTikTokBusinessProfile as _getTikTokBusinessProfile,
   getPlatformStatus as _getPlatformStatus,
@@ -45,6 +43,11 @@ import {
   triggerTikTokSnapshot as _triggerTikTokSnapshot,
   getBookingOverview as _getBookingOverview,
 } from 'src/actions/platforms';
+import {
+  getGoogleReviews as _getGoogleReviews,
+  getTripAdvisorReviews as _getTripAdvisorReviews,
+  getBookingReviews as _getBookingReviews,
+} from 'src/actions/reviews';
 
 /**
  * Platforms Router
@@ -76,8 +79,10 @@ export const platformsRouter = router({
       try {
         const result = await _createBusinessMarketIdentifierAction(
           input.teamSlug,
-          input.platform,
-          input.identifier
+          {
+            platform: input.platform,
+            identifier: input.identifier,
+          }
         );
         return result;
       } catch (error: any) {
@@ -129,7 +134,7 @@ export const platformsRouter = router({
     }),
 
   /**
-   * Get Google reviews
+   * Get Google reviews from database
    * Requires: google_reviews feature
    */
   googleReviews: protectedProcedure
@@ -137,7 +142,7 @@ export const platformsRouter = router({
     .use(requireFeature('google_reviews'))
     .query(async ({ input }) => {
       try {
-        const result = await _getGoogleReviewsAction(input.teamSlug, input.filters);
+        const result = await _getGoogleReviews(input.teamSlug, input.filters || {});
         return result;
       } catch (error: any) {
         throw new TRPCError({
@@ -207,7 +212,7 @@ export const platformsRouter = router({
     }),
 
   /**
-   * Get Facebook reviews
+   * Get Facebook reviews from database
    * Requires: facebook_reviews feature
    */
   facebookReviews: protectedProcedure
@@ -215,7 +220,7 @@ export const platformsRouter = router({
     .use(requireFeature('facebook_reviews'))
     .query(async ({ input }) => {
       try {
-        const result = await _getFacebookReviewsAction(input.teamSlug, input.filters);
+        const result = await _getFacebookReviews(input.teamSlug, input.filters || {});
         return result;
       } catch (error: any) {
         throw new TRPCError({
@@ -371,6 +376,44 @@ export const platformsRouter = router({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: error.message || 'Failed to trigger TikTok snapshot',
+        });
+      }
+    }),
+
+  /**
+   * Get TripAdvisor reviews from database
+   * Requires: tripadvisor_reviews feature
+   */
+  tripadvisorReviews: protectedProcedure
+    .input(getGoogleReviewsSchema) // Reuse the same schema structure
+    .use(requireFeature('tripadvisor_reviews'))
+    .query(async ({ input }) => {
+      try {
+        const result = await _getTripAdvisorReviews(input.teamSlug, input.filters || {});
+        return result;
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Failed to get TripAdvisor reviews',
+        });
+      }
+    }),
+
+  /**
+   * Get Booking reviews from database
+   * Requires: booking_reviews feature
+   */
+  bookingReviews: protectedProcedure
+    .input(getGoogleReviewsSchema) // Reuse the same schema structure
+    .use(requireFeature('booking_reviews'))
+    .query(async ({ input }) => {
+      try {
+        const result = await _getBookingReviews(input.teamSlug, input.filters || {});
+        return result;
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Failed to get Booking reviews',
         });
       }
     }),

@@ -16,3 +16,10 @@ export const workflowIdSchema = z.object({
   workflowId: z.string().min(1, 'Workflow ID is required'),
 });
 
+/**
+ * Schema for sync status by team ID
+ */
+export const syncStatusSchema = z.object({
+  teamId: z.string().min(1, 'Team ID is required'),
+});
+
