@@ -40,8 +40,6 @@ interface TripAdvisorReviewsListProps {
   reviews: Review[];
   pagination: any;
   filters: any;
-  isLoading: boolean;
-  isError: boolean;
   onPageChange: (page: number) => void;
   onUpdateMetadata: (reviewId: string, updates: any) => void;
   onRefresh: () => void;
@@ -51,8 +49,6 @@ export function TripAdvisorReviewsList({
   reviews,
   pagination,
   filters,
-  isLoading,
-  isError,
   onPageChange,
   onUpdateMetadata,
   onRefresh,
@@ -84,55 +80,6 @@ export function TripAdvisorReviewsList({
 
   const slides = allImages.map((src) => ({ src }));
   const { selected, open, onOpen, onClose } = useLightbox(slides);
-
-  if (isLoading) {
-    return (
-      <Stack spacing={2}>
-        {[...Array(5)].map((_, index) => (
-          <Card key={index}>
-            <CardContent>
-              <Stack spacing={2}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Skeleton variant="circular" width={48} height={48} />
-                  <Box sx={{ flex: 1 }}>
-                    <Skeleton variant="text" width="60%" />
-                    <Skeleton variant="text" width="40%" />
-                  </Box>
-                </Box>
-                <Skeleton variant="rectangular" height={60} />
-                <Skeleton variant="text" width="80%" />
-              </Stack>
-            </CardContent>
-          </Card>
-        ))}
-      </Stack>
-    );
-  }
-
-  if (isError) {
-    return (
-      <Card>
-        <CardContent sx={{ textAlign: 'center', py: 8 }}>
-          <Iconify
-            icon="eva:alert-circle-outline"
-            width={64}
-            height={64}
-            className=""
-            sx={{ mb: 2, opacity: 0.5 }}
-          />
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            Error Loading Reviews
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            There was an error loading the reviews. Please try again.
-          </Typography>
-          <Button variant="outlined" onClick={onRefresh}>
-            Retry
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   if (reviews.length === 0) {
     return (

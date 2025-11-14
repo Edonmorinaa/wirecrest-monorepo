@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getFacebookReviews } from 'src/actions/reviews';
+import { trpc } from 'src/lib/trpc/client';
 
 interface UseFacebookReviewsFilters {
   page?: number;
@@ -50,73 +49,28 @@ interface FacebookReviewsResponse {
   };
 }
 
+/**
+ * Hook for fetching Facebook reviews using tRPC
+ * Replaces manual state management with React Query (via tRPC)
+ */
 const useFacebookReviews = (teamSlug?: string, filters: UseFacebookReviewsFilters = {}) => {
-  const [data, setData] = useState<FacebookReviewsResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Build query parameters
-  const buildQueryParams = useCallback((filterParams: UseFacebookReviewsFilters) => {
-    const params = new URLSearchParams();
-
-    if (filterParams.page) params.set('page', filterParams.page.toString());
-    if (filterParams.limit) params.set('limit', filterParams.limit.toString());
-    if (filterParams.search) params.set('search', filterParams.search);
-    if (filterParams.isRecommended !== undefined)
-      params.set('isRecommended', filterParams.isRecommended.toString());
-    if (filterParams.hasLikes !== undefined)
-      params.set('hasLikes', filterParams.hasLikes.toString());
-    if (filterParams.hasComments !== undefined)
-      params.set('hasComments', filterParams.hasComments.toString());
-    if (filterParams.hasPhotos !== undefined)
-      params.set('hasPhotos', filterParams.hasPhotos.toString());
-    if (filterParams.hasTags !== undefined) params.set('hasTags', filterParams.hasTags.toString());
-    if (filterParams.sentiment) params.set('sentiment', filterParams.sentiment);
-    if (filterParams.sortBy) params.set('sortBy', filterParams.sortBy);
-    if (filterParams.sortOrder) params.set('sortOrder', filterParams.sortOrder);
-    if (filterParams.isRead !== undefined) params.set('isRead', filterParams.isRead.toString());
-    if (filterParams.isImportant !== undefined)
-      params.set('isImportant', filterParams.isImportant.toString());
-    if (filterParams.minLikes) params.set('minLikes', filterParams.minLikes.toString());
-    if (filterParams.maxLikes) params.set('maxLikes', filterParams.maxLikes.toString());
-    if (filterParams.minComments) params.set('minComments', filterParams.minComments.toString());
-    if (filterParams.maxComments) params.set('maxComments', filterParams.maxComments.toString());
-
-    return params.toString();
-  }, []);
-
-  const fetchReviews = useCallback(
-    async (filterParams: UseFacebookReviewsFilters = {}) => {
-      if (!teamSlug) return;
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const result = await getFacebookReviews(teamSlug, filterParams);
-        setData(result);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching Facebook reviews:', err);
-      } finally {
-        setIsLoading(false);
-      }
+  // Use tRPC query instead of manual state management
+  const { data, error, isLoading, refetch } = trpc.reviews.getFacebookReviews.useQuery(
+    {
+      slug: teamSlug!,
+      filters,
     },
-    [teamSlug, buildQueryParams]
+    {
+      enabled: !!teamSlug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 30000, // 30 seconds
+      keepPreviousData: true,
+    }
   );
 
-  const refreshReviews = useCallback(() => {
-    fetchReviews(filters);
-  }, [fetchReviews, filters]);
-
-  // Initial fetch
-  useEffect(() => {
-    if (teamSlug) {
-      fetchReviews(filters);
-    }
-  }, [teamSlug, filters, fetchReviews]);
-
   return {
+    data: data || null,
     reviews: data?.reviews || [],
     pagination: data?.pagination || {
       page: 1,
@@ -142,9 +96,8 @@ const useFacebookReviews = (teamSlug?: string, filters: UseFacebookReviewsFilter
       withTags: 0,
     },
     isLoading,
-    isError: !!error,
-    error,
-    refreshReviews,
+    error: error?.message || null,
+    refetch,
   };
 };
 

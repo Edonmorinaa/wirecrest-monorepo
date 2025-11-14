@@ -27,7 +27,6 @@ import {
   FacebookReviewsFilters,
   FacebookReviewsWelcome,
   FacebookReviewsAnalytics,
-  FacebookReviewsLoadingSkeleton,
 } from '../index';
 
 // Lazy load the heavy analytics component
@@ -69,8 +68,8 @@ export function FacebookReviewsView() {
   const slug = subdomainTeamSlug || params.slug;
 
   // Get team and business profile data
-  const { team, isLoading: teamLoading } = useTeam(slug);
-  const { businessProfile, isLoading: profileLoading } = useFacebookBusinessProfile(slug);
+  const { team } = useTeam(slug as string);
+  const { businessProfile } = useFacebookBusinessProfile(slug as string);
 
   // Memoize filters extraction to prevent unnecessary re-renders
   const filters = useMemo((): FacebookFilters => {
@@ -122,10 +121,8 @@ export function FacebookReviewsView() {
     reviews,
     pagination,
     stats,
-    isLoading: reviewsLoading,
-    isError,
-    refreshReviews,
-  } = useFacebookReviews(slug, hookFilters);
+    refetch,
+  } = useFacebookReviews(slug as string, hookFilters);
 
   const updateFilter = useCallback(
     (key: keyof FacebookFilters, value: any) => {
@@ -176,14 +173,14 @@ export function FacebookReviewsView() {
         }
 
         // Refresh the reviews data without causing full page reload
-        await refreshReviews();
+        await refetch();
       } catch (error) {
         console.error('Error updating review metadata:', error);
         // You might want to show a toast notification here
         // toast.error(error instanceof Error ? error.message : 'Failed to update review');
       }
     },
-    [slug, refreshReviews]
+    [slug, refetch]
   );
 
   // Memoize breadcrumbs to prevent unnecessary re-renders
@@ -196,35 +193,6 @@ export function FacebookReviewsView() {
     ],
     [team?.name, slug]
   );
-
-  if (teamLoading || profileLoading) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <FacebookReviewsLoadingSkeleton />
-      </DashboardContent>
-    );
-  }
-
-  if (!team || !businessProfile) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <Card sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="h6" color="text.secondary">
-            Team or Facebook Business Profile not found
-          </Typography>
-        </Card>
-      </DashboardContent>
-    );
-  }
-
-  // Show loading skeleton when reviews are loading
-  if (reviewsLoading) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <FacebookReviewsLoadingSkeleton />
-      </DashboardContent>
-    );
-  }
 
   return (
     <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
@@ -284,11 +252,9 @@ export function FacebookReviewsView() {
               reviews={reviews || []}
               pagination={pagination}
               filters={filters}
-              isLoading={reviewsLoading}
-              isError={isError}
               onUpdateMetadata={handleUpdateMetadata}
               onPageChange={(page) => updateFilter('page', page)}
-              onRefresh={refreshReviews}
+              onRefresh={refetch}
             />
           </Box>
         </Card>

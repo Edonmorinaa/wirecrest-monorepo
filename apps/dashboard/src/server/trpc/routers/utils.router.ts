@@ -1,0 +1,136 @@
+/**
+ * Utils Router
+ * 
+ * tRPC router for utility operations:
+ * - Hello world
+ * - Invitations by token
+ * - Review AI suggestions
+ * - SAML certificates
+ * - Workflow retry
+ */
+
+import { TRPCError } from '@trpc/server';
+import { prisma } from '@wirecrest/db';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
+import {
+  invitationTokenSchema,
+  teamSlugParamSchema,
+  workflowIdSchema,
+} from '../schemas/utils.schema';
+import { getInvitation, isInvitationExpired } from '@/models/invitation';
+import { recordMetric } from 'src/actions/lib';
+
+/**
+ * Utils Router
+ */
+export const utilsRouter = router({
+  /**
+   * Hello world endpoint
+   */
+  hello: publicProcedure.query(() => {
+    return { message: 'Hello World!' };
+  }),
+
+  /**
+   * Get invitation by token (public, for accepting invitations)
+   */
+  invitationByToken: publicProcedure
+    .input(invitationTokenSchema)
+    .query(async ({ input }) => {
+      const invitation = await getInvitation({ token: input.token });
+
+      if (!invitation) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Invitation not found',
+        });
+      }
+
+      if (await isInvitationExpired(invitation.expires)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invitation expired. Please request a new one.',
+        });
+      }
+
+      recordMetric('invitation.fetched');
+
+      return invitation;
+    }),
+
+  /**
+   * Get AI suggestions for reviews (protected)
+   */
+  reviewAISuggestions: protectedProcedure
+    .input(teamSlugParamSchema)
+    .query(async ({ ctx, input }) => {
+      // Check team access
+      const team = await prisma.team.findUnique({
+        where: { slug: input.teamSlug },
+        include: {
+          members: {
+            where: { userId: ctx.session.user.id },
+          },
+        },
+      });
+
+      if (!team || team.members.length === 0) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied',
+        });
+      }
+
+      // Simulate some processing time for a more realistic API
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Return mock suggestions data
+      // TODO: Implement actual AI suggestions logic
+      return {
+        suggestions: [
+          {
+            id: 'mock-review-1',
+            reason: 'Contains keyword "service" with negative sentiment',
+          },
+          {
+            id: 'mock-review-2',
+            reason: 'Recent 1-star review that needs attention',
+          },
+          {
+            id: 'mock-review-3',
+            reason: 'Trending keyword mention of "price" in multiple reviews',
+          },
+        ],
+      };
+    }),
+
+  /**
+   * Get SAML certificate (protected)
+   */
+  samlCertificate: protectedProcedure.query(async () => {
+    // Get SAML certificate from Jackson
+    // const { directorySync } = await jackson();
+
+    // This would typically return the public certificate
+    // Implementation depends on your Jackson configuration
+    throw new TRPCError({
+      code: 'NOT_IMPLEMENTED',
+      message: 'SAML certificate endpoint not implemented',
+    });
+  }),
+
+  /**
+   * Retry workflow (protected)
+   */
+  retryWorkflow: protectedProcedure
+    .input(workflowIdSchema)
+    .mutation(async ({ input }) => {
+      // TODO: Implement workflow retry logic
+      // This would depend on your workflow system implementation
+      throw new TRPCError({
+        code: 'NOT_IMPLEMENTED',
+        message: 'Workflow retry not implemented',
+      });
+    }),
+});
+

@@ -1,10 +1,10 @@
 /**
  * Hook to monitor scraper sync status for a team
  * Used to show loading states during initial data scraping
+ * Migrated to use tRPC instead of direct ScraperApiClient
  */
 
-import useSWR from 'swr';
-import { ScraperApiClient } from 'src/services/scraper-api';
+import { trpc } from 'src/lib/trpc/client';
 
 interface SyncStatus {
   recentSyncs: Array<{
@@ -41,6 +41,10 @@ interface UseSyncStatusOptions {
   onlyPollWhenActive?: boolean;
 }
 
+/**
+ * Hook for monitoring sync status using tRPC
+ * Replaces SWR with ScraperApiClient to React Query (via tRPC)
+ */
 export function useSyncStatus(options: UseSyncStatusOptions = {}) {
   const {
     teamId,
@@ -48,11 +52,11 @@ export function useSyncStatus(options: UseSyncStatusOptions = {}) {
     onlyPollWhenActive = true,
   } = options;
 
-  const { data, error, isLoading, mutate } = useSWR<SyncStatus>(
-    teamId ? `sync-status-${teamId}` : null,
-    () => ScraperApiClient.getSyncStatus(teamId!),
+  const { data, error, isLoading, refetch } = trpc.utils.getSyncStatus.useQuery(
+    { teamId: teamId! },
     {
-      refreshInterval: (data) => {
+      enabled: !!teamId,
+      refetchInterval: (data) => {
         // If onlyPollWhenActive is true, only poll when there are active syncs
         if (onlyPollWhenActive && data) {
           const hasActiveSyncs = data.recentSyncs.some(
@@ -62,51 +66,30 @@ export function useSyncStatus(options: UseSyncStatusOptions = {}) {
         }
         return refreshInterval;
       },
-      revalidateOnFocus: false,
-      dedupingInterval: 5000,
+      refetchOnWindowFocus: false,
+      staleTime: 5000,
     }
   );
 
-  // Helper to check if initial sync is complete
-  const isInitialSyncComplete = data?.lastSync !== null;
-
-  // Helper to check if there are active syncs
+  // Check if there are active syncs
   const hasActiveSyncs = data?.recentSyncs.some(
     (sync) => sync.status === 'running' || sync.status === 'pending'
-  ) ?? false;
+  ) || false;
 
-  // Helper to get sync status for a specific platform
-  const getPlatformSyncStatus = (platform: string) => {
-    if (!data) return null;
-    
-    const platformSyncs = data.recentSyncs.filter(
-      (sync) => sync.platform.toLowerCase() === platform.toLowerCase()
-    );
-    
-    if (platformSyncs.length === 0) return null;
-    
-    // Get the most recent sync
-    const latestSync = platformSyncs.sort((a, b) => 
-      new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
-    )[0];
-    
-    return {
-      status: latestSync.status,
-      isActive: latestSync.status === 'running' || latestSync.status === 'pending',
-      lastSync: latestSync.completedAt,
-      reviewsNew: latestSync.reviewsNew,
-      reviewsDuplicate: latestSync.reviewsDuplicate,
-    };
-  };
+  // Check if syncing is complete
+  const isSyncing = hasActiveSyncs;
+  const isComplete = !hasActiveSyncs && (data?.recentSyncs.length ?? 0) > 0;
 
   return {
-    syncStatus: data,
+    data,
+    recentSyncs: data?.recentSyncs || [],
+    activeSchedules: data?.activeSchedules || 0,
+    lastSync: data?.lastSync || null,
+    hasActiveSyncs,
+    isSyncing,
+    isComplete,
     isLoading,
     error,
-    isInitialSyncComplete,
-    hasActiveSyncs,
-    getPlatformSyncStatus,
-    refetch: mutate,
+    refresh: refetch,
   };
 }
-

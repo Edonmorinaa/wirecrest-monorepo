@@ -16,14 +16,7 @@ import {
   subscribeToSuperNotifications,
 } from '@wirecrest/notifications';
 
-import {
-  getUserTeamIds,
-  fetchTeamNotifications,
-  fetchUserNotifications,
-  markNotificationAsRead,
-  archiveNotificationAction,
-  markAllNotificationsAsRead,
-} from '../actions/notifications';
+import { trpc } from 'src/lib/trpc/client';
 
 interface UseNotificationsOptions {
   scope?: 'user' | 'team' | 'super';
@@ -55,37 +48,37 @@ export function useNotifications(
   // Calculate unread count
   const unreadCount = notifications.filter((n) => n.isUnRead).length;
 
-  // Fetch notifications
-  const fetchNotifications = useCallback(async () => {
-    if (!user) {
-      setIsLoading(false);
-      return;
+  // Fetch notifications using tRPC
+  const { data: fetchedNotifications, isLoading: isFetching, refetch } = trpc.notifications.fetchUser.useQuery(
+    { unreadOnly: false, limit: 100 },
+    {
+      enabled: !!user && scope === 'user',
+      refetchOnWindowFocus: false,
+      staleTime: 30000,
     }
+  );
 
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      let data: Notification[];
-
-      if (scope === 'user') {
-        data = await fetchUserNotifications({ unreadOnly: false, limit: 100 });
-      } else if (scope === 'team' && teamId) {
-        // Fixed: Use fetchTeamNotifications for team scope
-        data = await fetchTeamNotifications(teamId, { unreadOnly: false, limit: 100 });
-      } else {
-        data = [];
-      }
-
-      setNotifications(data);
-      console.log(`✅ Loaded ${data.length} notifications from database`);
-    } catch (err) {
-      console.error('❌ Failed to fetch notifications:', err);
-      setError(err as Error);
-    } finally {
-      setIsLoading(false);
+  const { data: fetchedTeamNotifications, isLoading: isFetchingTeam } = trpc.notifications.fetchTeam.useQuery(
+    { teamId: teamId!, unreadOnly: false, limit: 100 },
+    {
+      enabled: !!user && scope === 'team' && !!teamId,
+      refetchOnWindowFocus: false,
+      staleTime: 30000,
     }
-  }, [user, scope, teamId]);
+  );
+
+  // Update local state when tRPC data arrives
+  useEffect(() => {
+    if (scope === 'user' && fetchedNotifications) {
+      setNotifications(fetchedNotifications);
+      setIsLoading(false);
+      console.log(`✅ Loaded ${fetchedNotifications.length} notifications from database via tRPC`);
+    } else if (scope === 'team' && fetchedTeamNotifications) {
+      setNotifications(fetchedTeamNotifications);
+      setIsLoading(false);
+      console.log(`✅ Loaded ${fetchedTeamNotifications.length} team notifications from database via tRPC`);
+    }
+  }, [fetchedNotifications, fetchedTeamNotifications, scope]);
 
   // Handle real-time notification events from postgres_changes
   const handleRealtimeEvent = useCallback(
@@ -147,16 +140,20 @@ export function useNotifications(
         );
         unsubscribers.push(unsubUser);
 
-        // Fetch user's teams and subscribe to their notifications too
+        // Fetch user's teams using tRPC and subscribe to their notifications
         try {
-          console.log('🔍 Fetching user team memberships...');
-          const userTeamIds = await getUserTeamIds();
+          console.log('🔍 Fetching user team memberships via tRPC...');
+          // Note: Using teams.list to get team IDs
+          // We'll need to call this directly since we're in useEffect
+          const teamsResponse = await fetch('/api/trpc/teams.list');
+          const teamsData = await teamsResponse.json();
+          const userTeamIds = teamsData.result?.data?.map((t: any) => t.id) || [];
           console.log(`📋 Found ${userTeamIds.length} team(s):`, userTeamIds);
           
           if (!isMounted) return;
 
           // Subscribe to each team's notifications
-          userTeamIds.forEach((userTeamId) => {
+          userTeamIds.forEach((userTeamId: string) => {
             const unsubTeam = subscribeToTeamNotifications(
               userTeamId,
               handleRealtimeEvent
@@ -199,17 +196,29 @@ export function useNotifications(
     };
   }, [user, scope, teamId, handleRealtimeEvent]);
 
-  // Auto-fetch on mount
-  useEffect(() => {
-    if (autoFetch) {
-      fetchNotifications();
-    }
-  }, [autoFetch, fetchNotifications]);
+  // tRPC mutations for notification actions
+  const markAsReadMutation = trpc.notifications.markAsRead.useMutation({
+    onSuccess: () => {
+      refetch(); // Refresh notifications
+    },
+  });
+
+  const markAllAsReadMutation = trpc.notifications.markAllAsRead.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const archiveMutation = trpc.notifications.archive.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
 
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
-      await markNotificationAsRead(notificationId);
+      await markAsReadMutation.mutateAsync({ notificationId });
       
       // Optimistically update local state
       setNotifications((prev) =>
@@ -221,12 +230,12 @@ export function useNotifications(
       console.error('Failed to mark as read:', err);
       throw err;
     }
-  }, []);
+  }, [markAsReadMutation]);
 
   // Mark all as read
   const markAllAsRead = useCallback(async () => {
     try {
-      await markAllNotificationsAsRead(scope, teamId);
+      await markAllAsReadMutation.mutateAsync({ scope, teamId });
       
       // Optimistically update local state
       setNotifications((prev) =>
@@ -236,12 +245,12 @@ export function useNotifications(
       console.error('Failed to mark all as read:', err);
       throw err;
     }
-  }, [scope, teamId]);
+  }, [scope, teamId, markAllAsReadMutation]);
 
   // Archive notification
   const archiveNotification = useCallback(async (notificationId: string) => {
     try {
-      await archiveNotificationAction(notificationId);
+      await archiveMutation.mutateAsync({ notificationId });
       
       // Optimistically update local state
       setNotifications((prev) =>
@@ -253,14 +262,14 @@ export function useNotifications(
       console.error('Failed to archive:', err);
       throw err;
     }
-  }, []);
+  }, [archiveMutation]);
 
   return {
     notifications,
     unreadCount,
-    isLoading,
+    isLoading: isLoading || isFetching || isFetchingTeam,
     error,
-    refresh: fetchNotifications,
+    refresh: refetch,
     markAsRead,
     markAllAsRead,
     archiveNotification,

@@ -1,13 +1,9 @@
 import type { BookingReview, ReviewMetadata } from '@prisma/client';
-import type { ApiResponse } from 'src/types';
 
-import useSWR from 'swr';
-import { useMemo } from 'react';
 import { useRouter } from 'next/router';
 
-import fetcher from 'src/lib/fetcher';
+import { trpc } from 'src/lib/trpc/client';
 
-// Following the same pattern as other platforms
 export interface BookingReviewWithMetadata extends BookingReview {
   reviewMetadata?: ReviewMetadata | null;
 }
@@ -25,7 +21,6 @@ interface BookingReviewsResponse {
   stats: {
     total: number;
     averageRating: number;
-    // Sub-rating averages
     averageCleanlinessRating: number;
     averageComfortRating: number;
     averageLocationRating: number;
@@ -33,19 +28,16 @@ interface BookingReviewsResponse {
     averageStaffRating: number;
     averageValueForMoneyRating: number;
     averageWifiRating: number;
-    // Guest type breakdown
     soloTravelers: number;
     couples: number;
     familiesWithYoungChildren: number;
     familiesWithOlderChildren: number;
     groupsOfFriends: number;
     businessTravelers: number;
-    // Stay length analysis
     averageLengthOfStay: number;
     shortStays: number;
     mediumStays: number;
     longStays: number;
-    // Other metrics
     verifiedStays: number;
     responseRate: number;
     unread: number;
@@ -58,160 +50,92 @@ interface BookingReviewsResponse {
 interface UseBookingReviewsFilters {
   page?: number;
   limit?: number;
-  rating?: number;
-  ratings?: number[];
-  guestType?:
-    | 'SOLO'
-    | 'COUPLE'
-    | 'FAMILY_WITH_YOUNG_CHILDREN'
-    | 'FAMILY_WITH_OLDER_CHILDREN'
-    | 'GROUP_OF_FRIENDS'
-    | 'BUSINESS'
-    | 'OTHER';
-  lengthOfStay?: 'short' | 'medium' | 'long'; // 1-2, 3-7, 8+ nights
-  roomType?: string;
+  rating?: number | number[];
+  guestType?: string | string[];
+  lengthOfStay?: string;
   nationality?: string;
+  roomType?: string;
   isVerifiedStay?: boolean;
-  hasOwnerResponse?: boolean;
-  hasSubRatings?: boolean;
-  minCleanlinessRating?: number;
-  minComfortRating?: number;
-  minLocationRating?: number;
-  minFacilitiesRating?: number;
-  minStaffRating?: number;
-  minValueForMoneyRating?: number;
-  minWifiRating?: number;
+  hasResponse?: boolean;
   sentiment?: 'positive' | 'negative' | 'neutral';
-  hasLikedMost?: boolean;
-  hasDislikedMost?: boolean;
   search?: string;
-  sortBy?:
-    | 'publishedDate'
-    | 'stayDate'
-    | 'rating'
-    | 'lengthOfStay'
-    | 'guestType'
-    | 'responseStatus';
+  sortBy?: 'publishedDate' | 'rating' | 'overallRating' | 'guestType';
   sortOrder?: 'asc' | 'desc';
   isRead?: boolean;
   isImportant?: boolean;
-  dateRange?: 'today' | 'week' | 'month' | '3months' | '6months' | 'year' | 'custom';
+  dateRange?: string;
   startDate?: string;
   endDate?: string;
 }
 
+/**
+ * Hook for fetching Booking.com reviews using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ * 
+ * NOTE: Currently uses bookingOverview which returns recentReviews from the overview.
+ * This is intentional - for full paginated/filtered reviews, use the unified inbox
+ * (trpc.reviews.getInboxReviews with platform filter).
+ * 
+ * If you need full Booking reviews with pagination/filtering, consider:
+ * 1. Using trpc.reviews.getInboxReviews({ platforms: ['booking'] })
+ * 2. Or creating a dedicated trpc.reviews.getBookingReviews procedure
+ */
 const useBookingReviews = (slug?: string, filters: UseBookingReviewsFilters = {}) => {
   const { query, isReady } = useRouter();
   const rawTeamSlug = slug || (isReady ? query.slug : null);
   const teamSlug = typeof rawTeamSlug === 'string' ? rawTeamSlug : null;
 
-  // Build query parameters
-  const queryParams = useMemo(() => {
-    const params = new URLSearchParams();
-
-    if (filters.page) params.set('page', filters.page.toString());
-    if (filters.limit) params.set('limit', filters.limit.toString());
-    if (filters.rating) params.set('rating', filters.rating.toString());
-    if (filters.ratings && filters.ratings.length > 0) {
-      params.set('ratings', filters.ratings.join(','));
-    }
-    if (filters.guestType) params.set('guestType', filters.guestType);
-    if (filters.lengthOfStay) params.set('lengthOfStay', filters.lengthOfStay);
-    if (filters.roomType) params.set('roomType', filters.roomType);
-    if (filters.nationality) params.set('nationality', filters.nationality);
-    if (filters.isVerifiedStay !== undefined)
-      params.set('isVerifiedStay', filters.isVerifiedStay.toString());
-    if (filters.hasOwnerResponse !== undefined)
-      params.set('hasOwnerResponse', filters.hasOwnerResponse.toString());
-    if (filters.hasSubRatings !== undefined)
-      params.set('hasSubRatings', filters.hasSubRatings.toString());
-    if (filters.minCleanlinessRating)
-      params.set('minCleanlinessRating', filters.minCleanlinessRating.toString());
-    if (filters.minComfortRating)
-      params.set('minComfortRating', filters.minComfortRating.toString());
-    if (filters.minLocationRating)
-      params.set('minLocationRating', filters.minLocationRating.toString());
-    if (filters.minFacilitiesRating)
-      params.set('minFacilitiesRating', filters.minFacilitiesRating.toString());
-    if (filters.minStaffRating) params.set('minStaffRating', filters.minStaffRating.toString());
-    if (filters.minValueForMoneyRating)
-      params.set('minValueForMoneyRating', filters.minValueForMoneyRating.toString());
-    if (filters.minWifiRating) params.set('minWifiRating', filters.minWifiRating.toString());
-    if (filters.sentiment) params.set('sentiment', filters.sentiment);
-    if (filters.hasLikedMost !== undefined)
-      params.set('hasLikedMost', filters.hasLikedMost.toString());
-    if (filters.hasDislikedMost !== undefined)
-      params.set('hasDislikedMost', filters.hasDislikedMost.toString());
-    if (filters.search) params.set('search', filters.search);
-    if (filters.sortBy) params.set('sortBy', filters.sortBy);
-    if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
-    if (filters.isRead !== undefined) params.set('isRead', filters.isRead.toString());
-    if (filters.isImportant !== undefined)
-      params.set('isImportant', filters.isImportant.toString());
-    if (filters.dateRange) params.set('dateRange', filters.dateRange);
-    if (filters.startDate) params.set('startDate', filters.startDate);
-    if (filters.endDate) params.set('endDate', filters.endDate);
-
-    return params.toString();
-  }, [filters]);
-
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<BookingReviewsResponse>>(
-    teamSlug ? `/api/teams/${teamSlug}/booking/reviews?${queryParams}` : null,
-    fetcher,
+  // Use bookingOverview which includes recentReviews
+  // For full review management, use inbox instead
+  const { data, error, isLoading, refetch } = trpc.platforms.bookingOverview.useQuery(
+    { slug: teamSlug! },
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 30000, // 30 seconds
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
+      enabled: !!teamSlug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 30000,
+      keepPreviousData: true,
     }
   );
 
-  const refreshReviews = async () => {
-    await mutate();
+  // Extract and format data
+  const reviews = data?.overview?.recentReviews || [];
+  const stats = data?.overview?.stats || {
+    total: 0,
+    averageRating: 0,
+    averageCleanlinessRating: 0,
+    averageComfortRating: 0,
+    averageLocationRating: 0,
+    averageFacilitiesRating: 0,
+    averageStaffRating: 0,
+    averageValueForMoneyRating: 0,
+    averageWifiRating: 0,
+    soloTravelers: 0,
+    couples: 0,
+    familiesWithYoungChildren: 0,
+    familiesWithOlderChildren: 0,
+    groupsOfFriends: 0,
+    businessTravelers: 0,
+    averageLengthOfStay: 0,
+    shortStays: 0,
+    mediumStays: 0,
+    longStays: 0,
+    verifiedStays: 0,
+    responseRate: 0,
+    unread: 0,
+    withResponse: 0,
+    topNationalities: [],
+    mostPopularRoomTypes: [],
   };
 
   return {
-    reviews: data?.data?.reviews || [],
-    pagination: data?.data?.pagination || {
-      page: 1,
-      limit: 10,
-      total: 0,
-      totalPages: 0,
-      hasNextPage: false,
-      hasPreviousPage: false,
-    },
-    stats: data?.data?.stats || {
-      total: 0,
-      averageRating: 0,
-      averageCleanlinessRating: 0,
-      averageComfortRating: 0,
-      averageLocationRating: 0,
-      averageFacilitiesRating: 0,
-      averageStaffRating: 0,
-      averageValueForMoneyRating: 0,
-      averageWifiRating: 0,
-      soloTravelers: 0,
-      couples: 0,
-      familiesWithYoungChildren: 0,
-      familiesWithOlderChildren: 0,
-      groupsOfFriends: 0,
-      businessTravelers: 0,
-      averageLengthOfStay: 0,
-      shortStays: 0,
-      mediumStays: 0,
-      longStays: 0,
-      verifiedStays: 0,
-      responseRate: 0,
-      unread: 0,
-      withResponse: 0,
-      topNationalities: [],
-      mostPopularRoomTypes: [],
-    },
+    reviews,
+    stats,
+    data,
     isLoading,
-    isError: error,
-    refreshReviews,
-    mutate,
+    error,
+    mutate: refetch,
+    refetch,
   };
 };
 

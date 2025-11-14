@@ -1,10 +1,9 @@
 import type { ApiResponse } from 'src/types';
 
-import useSWR from 'swr';
 import { useRouter } from 'next/router';
 import { Prisma } from '@prisma/client';
 
-import { getBookingBusinessProfile } from 'src/actions/platforms';
+import { trpc } from 'src/lib/trpc/client';
 
 // Use the same type as the API
 type BookingProfileWithOverview = Prisma.BookingBusinessProfileGetPayload<{
@@ -41,23 +40,27 @@ type BookingProfileWithOverview = Prisma.BookingBusinessProfileGetPayload<{
   };
 }>;
 
+/**
+ * Hook for Booking.com Business Profile data using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useBookingOverview = (slug?: string) => {
   const { query, isReady } = useRouter();
   const rawTeamSlug = slug || (isReady ? query.slug : null);
   const teamSlug = typeof rawTeamSlug === 'string' ? rawTeamSlug : null;
 
-  const { data, error, isLoading, mutate } = useSWR<BookingProfileWithOverview | null>(
-    teamSlug ? `booking-overview-${teamSlug}` : null,
-    () => getBookingBusinessProfile(teamSlug!) as unknown as Promise<BookingProfileWithOverview | null>,
+  const { data, error, isLoading, refetch } = trpc.platforms.bookingProfile.useQuery(
+    { slug: teamSlug! },
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute
-      errorRetryCount: 0, // Don't retry on 404 errors
-      errorRetryInterval: 5000,
+      enabled: !!teamSlug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60000, // 1 minute
+      retry: 0, // Don't retry on 404 errors
+      retryDelay: 5000,
       onError: (error) => {
         // Silently handle 404 errors (profile not found) as this is expected
-        if (error instanceof Error && !error.message.includes('404')) {
+        if (!error.message.includes('404')) {
           console.error('Booking.com overview fetch error:', error);
         }
       },
@@ -65,7 +68,7 @@ const useBookingOverview = (slug?: string) => {
   );
 
   const refreshOverview = async () => {
-    await mutate();
+    await refetch();
   };
 
   // Extract data with proper fallbacks
@@ -86,9 +89,9 @@ const useBookingOverview = (slug?: string) => {
     ratingDistribution,
     periodicalMetrics,
     isLoading,
-    isError: error,
+    isError: error || null,
     refreshOverview,
-    mutate,
+    mutate: refetch, // Alias for backwards compatibility
   };
 };
 

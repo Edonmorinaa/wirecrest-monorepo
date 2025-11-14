@@ -4,12 +4,10 @@ import type {
   FacebookBusinessMetadata,
   FacebookRecommendationDistribution,
 } from '@prisma/client';
-import type { ApiResponse } from 'src/types';
 
-import useSWR from 'swr';
 import { useRouter } from 'next/router';
 
-import fetcher from 'src/lib/fetcher';
+import { trpc } from 'src/lib/trpc/client';
 
 interface FacebookProfileWithRelations extends FacebookBusinessProfile {
   overview?: FacebookOverview | null;
@@ -18,20 +16,25 @@ interface FacebookProfileWithRelations extends FacebookBusinessProfile {
   reviews?: any[];
 }
 
+/**
+ * Hook for fetching Facebook profile using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ * 
+ * Note: Profile creation is DEPRECATED and moved to scraper
+ */
 const useFacebookProfile = (slug?: string) => {
   const { query, isReady } = useRouter();
   const rawTeamSlug = slug || (isReady ? query.slug : null);
   const teamSlug = typeof rawTeamSlug === 'string' ? rawTeamSlug : null;
 
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<FacebookProfileWithRelations>>(
-    teamSlug ? `/api/teams/${teamSlug}/facebook-business-profile` : null,
-    fetcher,
+  const { data, error, isLoading, refetch } = trpc.platforms.facebookProfile.useQuery(
+    { slug: teamSlug! },
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
+      enabled: !!teamSlug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60000, // 1 minute
+      retry: 3,
     }
   );
 
@@ -58,20 +61,17 @@ const useFacebookProfile = (slug?: string) => {
 
     const response = await fetch(`/api/teams/${teamSlug}/facebook-business-profile`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updateData),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'Failed to update Facebook profile');
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || 'Failed to update Facebook profile');
     }
 
-    const result = await response.json();
-    await mutate();
-    return result;
+    await refetch();
+    return await response.json();
   };
 
   const deleteProfile = async () => {
@@ -82,26 +82,24 @@ const useFacebookProfile = (slug?: string) => {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || 'Failed to delete Facebook profile');
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || 'Failed to delete Facebook profile');
     }
 
-    await mutate();
-  };
-
-  const refreshProfile = async () => {
-    await mutate();
+    await refetch();
+    return await response.json();
   };
 
   return {
-    facebookProfile: data?.data || null,
+    profile: data as FacebookProfileWithRelations | undefined,
     isLoading,
-    isError: error,
-    createProfile,
-    updateProfile,
-    deleteProfile,
-    refreshProfile,
-    mutate,
+    error: error?.message || null,
+    mutate: refetch,
+    refetch,
+    // CRUD operations (create is deprecated)
+    createProfile, // Throws error
+    updateProfile, // Still uses API route
+    deleteProfile, // Still uses API route
   };
 };
 

@@ -5,9 +5,7 @@ import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
-import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -37,7 +35,6 @@ const TIME_PERIODS = [
 ];
 
 export function TripAdvisorOverviewView() {
-  const theme = useTheme();
   const params = useParams();
   const teamSlug = params?.slug;
 
@@ -52,8 +49,6 @@ export function TripAdvisorOverviewView() {
     recentReviews,
     ratingDistribution,
     periodicalMetrics,
-    isLoading,
-    isError,
   } = useTripAdvisorOverview(teamSlug);
 
   // Filter time periods to only show those with review data
@@ -225,57 +220,6 @@ export function TripAdvisorOverviewView() {
 
     return data;
   }, [displayMetrics]);
-
-  if (isLoading) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Container maxWidth="xl">
-          <Box sx={{ py: 3 }}>
-            <Typography variant="h4" sx={{ mb: 3 }}>
-              Loading TripAdvisor Overview...
-            </Typography>
-          </Box>
-        </Container>
-      </DashboardContent>
-    );
-  }
-
-  if (isError) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Container maxWidth="xl">
-          <Box sx={{ py: 3, textAlign: 'center' }}>
-            <Typography variant="h4" sx={{ mb: 2 }}>
-              Error Loading TripAdvisor Data
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              {isError?.message || 'An error occurred while loading the data.'}
-            </Typography>
-          </Box>
-        </Container>
-      </DashboardContent>
-    );
-  }
-
-  if (!businessProfile) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Container maxWidth="xl">
-          <Box sx={{ py: 3, textAlign: 'center' }}>
-            <Typography variant="h4" sx={{ mb: 2 }}>
-              TripAdvisor Profile Not Set Up
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              To view TripAdvisor reviews and analytics, you need to connect your TripAdvisor business profile first.
-            </Typography>
-            <Button variant="contained" size="large">
-              Set Up TripAdvisor Profile
-            </Button>
-          </Box>
-        </Container>
-      </DashboardContent>
-    );
-  }
 
   return (
     <DashboardContent maxWidth="xl">

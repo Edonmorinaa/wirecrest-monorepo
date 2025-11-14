@@ -1,6 +1,4 @@
-import useSWR from 'swr';
-
-import fetcher from 'src/lib/fetcher';
+import { trpc } from 'src/lib/trpc/client';
 
 interface DashboardFilters {
   page?: number;
@@ -13,131 +11,25 @@ interface DashboardFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
-interface BusinessCreationTaskWithDetails {
-  id: string;
-  teamId: string;
-  platform: string;
-  status: string;
-  currentStep: string | null;
-  googlePlaceId: string | null;
-  facebookUrl: string | null;
-  tripAdvisorUrl: string | null;
-  totalSteps: number;
-  completedSteps: number;
-  progressPercent: number;
-  startedAt: Date | null;
-  completedAt: Date | null;
-  lastActivityAt: Date;
-  errorCount: number;
-  lastError: string | null;
-  maxRetries: number;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string | null;
-  team: {
-    id: string;
-    name: string;
-    slug: string;
-    createdAt: Date;
-    updatedAt: Date;
-  };
-  statusMessages: Array<{
-    id: string;
-    step: string;
-    status: string;
-    message: string;
-    messageType: string;
-    timestamp: Date;
-  }>;
-  stepLogs: Array<{
-    id: string;
-    step: string;
-    status: string;
-    startedAt: Date;
-    completedAt: Date | null;
-    success: boolean;
-    errorMessage: string | null;
-  }>;
-}
-
-interface DashboardStats {
-  totalTasks: number;
-  pendingTasks: number;
-  inProgressTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  retryingTasks: number;
-
-  // Platform breakdown
-  googleTasks: {
-    total: number;
-    pending: number;
-    inProgress: number;
-    completed: number;
-    failed: number;
-  };
-  facebookTasks: {
-    total: number;
-    pending: number;
-    inProgress: number;
-    completed: number;
-    failed: number;
-  };
-  tripAdvisorTasks: {
-    total: number;
-    pending: number;
-    inProgress: number;
-    completed: number;
-    failed: number;
-  };
-
-  // Recent activity
-  tasksCreatedToday: number;
-  tasksCompletedToday: number;
-  recentErrorCount: number;
-  averageCompletionTime: number; // in minutes
-}
-
-interface SuperAdminDashboardResponse {
-  tasks: BusinessCreationTaskWithDetails[];
-  stats: DashboardStats;
-  recentMessages: any[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-}
-
+/**
+ * Hook for super admin dashboard data using tRPC
+ * Replaces SWR with React Query (via tRPC) - auto-refreshes every 30s
+ */
 export function useSuperAdminDashboard(filters: DashboardFilters = {}) {
-  // Build query string
-  const queryParams = new URLSearchParams();
-
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      queryParams.append(key, value.toString());
+  const { data, error, isLoading, isRefetching, refetch } = trpc.superadmin.dashboard.useQuery(
+    filters,
+    {
+      refetchInterval: 30000, // Refresh every 30 seconds
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      staleTime: 5000,
     }
-  });
-
-  const queryString = queryParams.toString();
-  const url = `/api/superadmin/dashboard${queryString ? `?${queryString}` : ''}`;
-
-  const { data, error, mutate, isLoading, isValidating } = useSWR<{
-    data: SuperAdminDashboardResponse;
-  }>(url, fetcher, {
-    refreshInterval: 30000, // Refresh every 30 seconds
-    revalidateOnFocus: true,
-    revalidateOnReconnect: true,
-    dedupingInterval: 5000,
-  });
+  );
 
   return {
-    data: data?.data,
-    tasks: data?.data?.tasks || [],
-    stats: data?.data?.stats || {
+    data,
+    tasks: data?.tasks || [],
+    stats: data?.stats || {
       totalTasks: 0,
       pendingTasks: 0,
       inProgressTasks: 0,
@@ -154,8 +46,8 @@ export function useSuperAdminDashboard(filters: DashboardFilters = {}) {
       recentErrorCount: 0,
       averageCompletionTime: 0,
     },
-    recentMessages: data?.data?.recentMessages || [],
-    pagination: data?.data?.pagination || {
+    recentMessages: data?.recentMessages || [],
+    pagination: data?.pagination || {
       page: 1,
       limit: 25,
       total: 0,
@@ -164,8 +56,8 @@ export function useSuperAdminDashboard(filters: DashboardFilters = {}) {
       hasPreviousPage: false,
     },
     isLoading,
-    isValidating,
+    isValidating: isRefetching,
     error,
-    refresh: mutate,
+    refresh: refetch,
   };
 }

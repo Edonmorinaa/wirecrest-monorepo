@@ -4,8 +4,12 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useOptimistic, useTransition } from 'react';
 
-import { createNewTeam, updateTeamBySlug, deleteTeamBySlug } from 'src/actions/teams';
+import { trpc } from 'src/lib/trpc/client';
 
+/**
+ * Hook for team operations using tRPC
+ * Provides optimistic updates for better UX
+ */
 export function useTeamsServerActions(initialTeams: TeamWithMemberCount[] = []) {
   const [isPending, startTransition] = useTransition();
   const [optimisticTeams, addOptimisticTeam] = useOptimistic(
@@ -13,6 +17,27 @@ export function useTeamsServerActions(initialTeams: TeamWithMemberCount[] = []) 
     (state, newTeam: TeamWithMemberCount) => [...state, newTeam]
   );
   const router = useRouter();
+  const utils = trpc.useUtils();
+
+  // tRPC mutations
+  const createMutation = trpc.teams.create.useMutation({
+    onSuccess: () => {
+      utils.teams.list.invalidate();
+    },
+  });
+
+  const updateMutation = trpc.teams.update.useMutation({
+    onSuccess: () => {
+      utils.teams.list.invalidate();
+      utils.teams.get.invalidate();
+    },
+  });
+
+  const deleteMutation = trpc.teams.delete.useMutation({
+    onSuccess: () => {
+      utils.teams.list.invalidate();
+    },
+  });
 
   const createTeam = (name: string) => {
     startTransition(async () => {
@@ -32,9 +57,9 @@ export function useTeamsServerActions(initialTeams: TeamWithMemberCount[] = []) 
       addOptimisticTeam(optimisticTeam);
 
       try {
-        const team = await createNewTeam({ name });
+        await createMutation.mutateAsync({ name });
         toast.success('Team created successfully');
-        router.refresh(); // Refresh to get updated data
+        router.refresh();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to create team');
       }
@@ -44,7 +69,7 @@ export function useTeamsServerActions(initialTeams: TeamWithMemberCount[] = []) 
   const updateTeam = (slug: string, data: { name?: string; domain?: string }) => {
     startTransition(async () => {
       try {
-        await updateTeamBySlug(slug, data);
+        await updateMutation.mutateAsync({ slug, ...data });
         toast.success('Team updated successfully');
         router.refresh();
       } catch (error) {
@@ -56,7 +81,7 @@ export function useTeamsServerActions(initialTeams: TeamWithMemberCount[] = []) 
   const deleteTeam = (slug: string) => {
     startTransition(async () => {
       try {
-        await deleteTeamBySlug(slug);
+        await deleteMutation.mutateAsync({ slug });
         toast.success('Team deleted successfully');
         router.refresh();
       } catch (error) {
@@ -70,6 +95,6 @@ export function useTeamsServerActions(initialTeams: TeamWithMemberCount[] = []) 
     createTeam,
     updateTeam,
     deleteTeam,
-    isPending,
+    isPending: isPending || createMutation.isPending || updateMutation.isPending || deleteMutation.isPending,
   };
 }

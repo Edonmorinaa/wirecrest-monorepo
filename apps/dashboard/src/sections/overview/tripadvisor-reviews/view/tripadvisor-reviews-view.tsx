@@ -24,7 +24,6 @@ import { TripAdvisorReviewsList } from '../tripadvisor-reviews-list';
 import { TripAdvisorReviewsStats } from '../tripadvisor-reviews-stats';
 import { TripAdvisorReviewsFilters } from '../tripadvisor-reviews-filters';
 import { TripAdvisorReviewsWelcome } from '../tripadvisor-reviews-welcome';
-import { TripAdvisorReviewsLoadingSkeleton } from '../tripadvisor-reviews-loading-skeleton';
 
 // Lazy load the heavy analytics component
 const TripAdvisorReviewsAnalytics = lazy(() => import('../tripadvisor-reviews-analytics').then(module => ({ default: module.TripAdvisorReviewsAnalytics })));
@@ -60,7 +59,7 @@ export function TripAdvisorReviewsView() {
   const slug = subdomainTeamSlug || params.slug;
 
   // Get team data
-  const { team, isLoading: teamLoading } = useTeam(slug);
+  const { team } = useTeam(slug as string);
 
   // Memoize filters extraction to prevent unnecessary re-renders
   const filters = useMemo((): Filters => {
@@ -99,10 +98,8 @@ export function TripAdvisorReviewsView() {
     reviews, 
     pagination, 
     stats,
-    isLoading: reviewsLoading, 
-    isError, 
-    refreshReviews
-  } = useTripAdvisorReviews(slug, hookFilters);
+    refetch,
+  } = useTripAdvisorReviews(slug as string, hookFilters);
 
   const updateFilter = useCallback((key: keyof Filters, value: any) => {
     const queryParams = new URLSearchParams(searchParams);
@@ -155,13 +152,13 @@ export function TripAdvisorReviewsView() {
       }
 
       // Refresh the reviews data without causing full page reload
-      await refreshReviews();
+      await refetch();
     } catch (error) {
       console.error('Error updating review metadata:', error);
       // You might want to show a toast notification here
       // toast.error(error instanceof Error ? error.message : 'Failed to update review');
     }
-  }, [slug, refreshReviews]);
+  }, [slug, refetch]);
 
   // Memoize breadcrumbs to prevent unnecessary re-renders
   const breadcrumbs = useMemo(() => [
@@ -170,35 +167,6 @@ export function TripAdvisorReviewsView() {
     { name: team?.name || '', href: paths.dashboard.teams.bySlug(slug) },
     { name: 'TripAdvisor Reviews' },
   ], [team?.name, slug]);
-
-  if (teamLoading) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <TripAdvisorReviewsLoadingSkeleton />
-      </DashboardContent>
-    );
-  }
-
-  if (!team) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <Card sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="h6" color="text.secondary">
-            Team not found
-          </Typography>
-        </Card>
-      </DashboardContent>
-    );
-  }
-
-  // Show loading skeleton when reviews are loading
-  if (reviewsLoading) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <TripAdvisorReviewsLoadingSkeleton />
-      </DashboardContent>
-    );
-  }
 
   return (
     <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>

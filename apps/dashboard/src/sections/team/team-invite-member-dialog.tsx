@@ -17,7 +17,7 @@ import {
   DialogActions,
 } from '@mui/material';
 
-import { createTeamInvitation } from 'src/actions/teams';
+import { trpc } from 'src/lib/trpc/client';
 
 import { toast } from 'src/components/snackbar';
 import LimitReachedModal from 'src/components/modals/LimitReachedModal';
@@ -38,34 +38,39 @@ export function TeamInviteMemberDialog({
 
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'MEMBER' | 'OWNER'>('MEMBER');
-  const [submitting, setSubmitting] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitInfo, setLimitInfo] = useState<{ used: number; limit: number } | null>(null);
 
-  const handleInvite = async () => {
-    setSubmitting(true);
-    try {
-      await createTeamInvitation(teamSlug, { email, role });
-      
+  // tRPC mutation for creating invitation
+  const utils = trpc.useUtils();
+  const createInvitation = trpc.teams.createInvitation.useMutation({
+    onSuccess: () => {
+      utils.teams.getInvitations.invalidate({ slug: teamSlug });
       toast.success('Invitation sent successfully!');
       setEmail('');
       setRole('MEMBER');
       onClose();
       onSuccess?.();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       console.error('Failed to send invitation:', error);
       
       // Check if it's a quota limit error
       if (error?.message?.includes('seat limit') || error?.message?.includes('quota')) {
-        // Extract limit info from error if available
-        setLimitInfo({ used: 0, limit: 0 }); // Will be populated from error details
+        setLimitInfo({ used: 0, limit: 0 });
         setShowLimitModal(true);
       } else {
         toast.error(error instanceof Error ? error.message : 'Failed to send invitation');
       }
-    } finally {
-      setSubmitting(false);
-    }
+    },
+  });
+
+  const handleInvite = async () => {
+    await createInvitation.mutateAsync({
+      slug: teamSlug,
+      email,
+      role,
+    });
   };
 
   return (
@@ -83,7 +88,7 @@ export function TeamInviteMemberDialog({
             placeholder="colleague@company.com"
             margin="normal"
             required
-            disabled={submitting}
+            disabled={createInvitation.isPending}
           />
 
           {/* Role Select */}
@@ -92,7 +97,7 @@ export function TeamInviteMemberDialog({
             <Select
               value={role}
               onChange={(e) => setRole(e.target.value as 'MEMBER' | 'OWNER')}
-              disabled={submitting}
+              disabled={createInvitation.isPending}
             >
               <MenuItem value="MEMBER">Member</MenuItem>
               <MenuItem value="OWNER">Owner</MenuItem>
@@ -104,15 +109,15 @@ export function TeamInviteMemberDialog({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose} disabled={submitting}>
+          <Button onClick={onClose} disabled={createInvitation.isPending}>
             Cancel
           </Button>
           <Button
             onClick={handleInvite}
             variant="contained"
-            disabled={!email || submitting}
+            disabled={!email || createInvitation.isPending}
           >
-            {submitting ? 'Sending...' : 'Send Invitation'}
+            {createInvitation.isPending ? 'Sending...' : 'Send Invitation'}
           </Button>
         </DialogActions>
       </Dialog>

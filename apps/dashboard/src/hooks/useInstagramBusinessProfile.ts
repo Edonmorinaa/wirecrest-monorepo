@@ -9,11 +9,11 @@ import type {
 } from '@prisma/client';
 import type { ApiResponse } from 'src/types';
 
-import useSWR, { mutate } from 'swr';
 import { useParams } from 'next/navigation';
 import { useRef, useState, useEffect } from 'react';
 
-import { getInstagramBusinessProfile } from 'src/actions/platforms';
+import { trpc } from 'src/lib/trpc/client';
+import { CACHE_TIMES } from 'src/lib/trpc/cache';
 
 import { useTeamSlug } from './use-subdomain';
 
@@ -27,6 +27,10 @@ export interface InstagramBusinessProfileWithRelations extends InstagramBusiness
   snapshotSchedule?: InstagramSnapshotSchedule | null;
 }
 
+/**
+ * Hook for Instagram Business Profile data using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useInstagramBusinessProfile = (slug?: string) => {
   const params = useParams();
   const subdomainTeamSlug = useTeamSlug();
@@ -39,17 +43,26 @@ const useInstagramBusinessProfile = (slug?: string) => {
   console.log('Instagram hook - teamSlug:', teamSlug);
   console.log('Instagram hook - params:', params);
   
-  const { data, error, isLoading } = useSWR<InstagramBusinessProfileWithRelations | null>(
-    teamSlug ? `instagram-business-profile-${teamSlug}` : null,
-    () => getInstagramBusinessProfile(teamSlug!),
+  // Use tRPC query instead of SWR
+  const { data, error, isLoading, refetch } = trpc.platforms.instagramProfile.useQuery(
+    { slug: teamSlug! },
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
+      suspense: true,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: CACHE_TIMES.PLATFORM_PROFILE.staleTime,
+      gcTime: CACHE_TIMES.PLATFORM_PROFILE.gcTime,
+      retry: 3,
+      retryDelay: 5000,
     }
   );
+
+  // Use tRPC mutation for taking snapshot
+  const triggerSnapshotMutation = trpc.platforms.triggerInstagramSnapshot.useMutation({
+    onSuccess: () => {
+      refetch(); // Refresh data after snapshot
+    },
+  });
 
   console.log('Instagram hook - data:', data);
   console.log('Instagram hook - error:', error);
@@ -99,7 +112,7 @@ const useInstagramBusinessProfile = (slug?: string) => {
 
   const mutateBusinessProfile = async () => {
     if (teamSlug) {
-      await mutate(`instagram-business-profile-${teamSlug}`);
+      await refetch();
     }
   };
 
@@ -107,20 +120,7 @@ const useInstagramBusinessProfile = (slug?: string) => {
     if (!teamSlug) return null;
 
     try {
-      const response = await fetch(`/api/teams/${teamSlug}/instagram/snapshot`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Failed to take snapshot');
-      }
-
-      const result = await response.json();
-      // Refresh data after taking snapshot
-      await mutateBusinessProfile();
-      return result;
+      return await triggerSnapshotMutation.mutateAsync({ slug: teamSlug });
     } catch (error) {
       console.error('Error taking Instagram snapshot:', error);
       throw error;
@@ -129,10 +129,11 @@ const useInstagramBusinessProfile = (slug?: string) => {
 
   return {
     isLoading,
-    isError: error,
+    isError: !!error,
     businessProfile: data || null,
     mutateBusinessProfile,
     takeSnapshot,
+    isSnapshotLoading: triggerSnapshotMutation.isPending,
   };
 };
 

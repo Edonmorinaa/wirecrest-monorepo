@@ -12,12 +12,8 @@ import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
-import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Skeleton from '@mui/material/Skeleton';
-import { useTheme } from '@mui/material/styles';
-import AlertTitle from '@mui/material/AlertTitle';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
@@ -53,12 +49,11 @@ const TIME_PERIODS = [
 
 export function GoogleOverviewView() {
   const params = useParams();
-  const theme = useTheme();
   const subdomainTeamSlug = useTeamSlug();
   const slug = subdomainTeamSlug || params.slug;
 
-  const { team, isLoading: teamLoading, error: teamError } = useTeam(slug);
-  const { businessProfile, isLoading: googleLoading, error: googleError } = useGoogleBusinessProfile(slug);
+  const { team } = useTeam(slug as string);
+  const { businessProfile } = useGoogleBusinessProfile(slug as string);
 
   const [selectedPeriod, setSelectedPeriod] = useState('30');
   const hasSetInitialPeriod = useRef(false);
@@ -152,57 +147,6 @@ export function GoogleOverviewView() {
       })(),
     };
   }, [businessProfile, currentPeriodMetrics]);
-
-  // Show loading state
-  if (teamLoading || googleLoading) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Box sx={{ p: 3 }}>
-          <Stack spacing={3}>
-            <Skeleton variant="rectangular" height={200} />
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={8}>
-                <Skeleton variant="rectangular" height={400} />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Skeleton variant="rectangular" height={400} />
-              </Grid>
-            </Grid>
-          </Stack>
-        </Box>
-      </DashboardContent>
-    );
-  }
-
-  // Show error state
-  if (teamError || googleError) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Box sx={{ p: 3 }}>
-          <Alert severity="error">
-            <AlertTitle>Error Loading Data</AlertTitle>
-            Failed to load Google Business Profile data. Please try refreshing the page.
-          </Alert>
-        </Box>
-      </DashboardContent>
-    );
-  }
-
-  // Show not found state
-  if (!team || !businessProfile) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Box sx={{ p: 3 }}>
-          <Alert severity="warning">
-            <AlertTitle>No Data Found</AlertTitle>
-            No Google Business Profile found for this tenant.
-          </Alert>
-        </Box>
-      </DashboardContent>
-    );
-  }
-
-  // businessProfile is already available from the hook
 
   return (
     <DashboardContent maxWidth="xl">

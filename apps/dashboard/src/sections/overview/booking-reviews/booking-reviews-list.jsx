@@ -16,63 +16,10 @@ export function BookingReviewsList({
   reviews,
   pagination,
   filters,
-  isLoading,
-  isError,
   onUpdateMetadata,
   onPageChange,
   onRefresh,
 }) {
-  if (isLoading) {
-    return (
-      <Card>
-        <Scrollbar>
-          <Box sx={{ p: 2 }}>
-            {[...Array(5)].map((_, index) => (
-              <Box key={index} sx={{ mb: 2 }}>
-                <Skeleton variant="rectangular" height={200} />
-              </Box>
-            ))}
-          </Box>
-        </Scrollbar>
-      </Card>
-    );
-  }
-
-  if (isError) {
-    return (
-      <Card>
-        <CardContent sx={{ textAlign: 'center', py: 8 }}>
-          <Iconify
-            icon="eva:alert-circle-outline"
-            width={64}
-            height={64}
-            sx={{ mb: 2, opacity: 0.5, color: 'error.main' }}
-          />
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            Failed to Load Reviews
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            There was an error loading the reviews. Please try again.
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
-            <button
-              onClick={onRefresh}
-              style={{
-                background: 'none',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                padding: '8px 16px',
-                cursor: 'pointer',
-              }}
-            >
-              Try Again
-            </button>
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (reviews.length === 0) {
     return (
       <Card>

@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { StripeServiceOption } from '@wirecrest/billing';
-import { useState, useEffect, useCallback } from 'react';
+import { trpc } from 'src/lib/trpc/client';
 
 export interface StripeData {
   products: Stripe.Product[];
@@ -14,42 +14,21 @@ export interface StripeData {
   };
 }
 
+/**
+ * Hook for fetching Stripe data using tRPC
+ * Replaces direct fetch calls with React Query (via tRPC)
+ */
 export function useStripeData() {
-  const [data, setData] = useState<StripeData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchStripeData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/stripe/data', {
-        cache: 'no-store', // Don't cache to ensure fresh data
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const stripeData = await response.json();
-      setData(stripeData);
-    } catch (err) {
-      console.error('Failed to fetch Stripe data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch Stripe data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStripeData();
-  }, [fetchStripeData]);
+  const { data, error, isLoading, refetch } = trpc.billing.getStripeData.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 3600000, // 1 hour
+  });
 
   return {
-    data,
-    loading,
-    error,
-    refetch: fetchStripeData,
+    data: data || null,
+    loading: isLoading,
+    error: error ? (error instanceof Error ? error.message : 'Failed to fetch Stripe data') : null,
+    refresh: refetch,
   };
 }

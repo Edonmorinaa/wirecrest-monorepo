@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
 import { TikTokBusinessProfile } from '@/types/tiktok-analytics';
-import { getTikTokBusinessProfile } from 'src/actions/platforms';
+
+import { trpc } from 'src/lib/trpc/client';
+import { CACHE_TIMES } from 'src/lib/trpc/cache';
 
 interface UseTikTokBusinessProfileReturn {
   businessProfile: TikTokBusinessProfile | null;
@@ -9,37 +10,29 @@ interface UseTikTokBusinessProfileReturn {
   refetch: () => Promise<void>;
 }
 
+/**
+ * Hook for TikTok Business Profile data using tRPC
+ * Replaces manual state management with React Query (via tRPC)
+ */
 export default function useTikTokBusinessProfile(teamSlug: string): UseTikTokBusinessProfileReturn {
-  const [businessProfile, setBusinessProfile] = useState<TikTokBusinessProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchBusinessProfile = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const data = await getTikTokBusinessProfile(teamSlug);
-      setBusinessProfile(data as any);
-    } catch (err) {
-      console.error('Error fetching TikTok business profile:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch business profile');
-      setBusinessProfile(null);
-    } finally {
-      setIsLoading(false);
+  // Use tRPC query for automatic caching and state management
+  const { data, error, isLoading, refetch } = trpc.platforms.tiktokProfile.useQuery(
+    { slug: teamSlug },
+    {
+      suspense: true,
+      refetchOnWindowFocus: false,
+      staleTime: CACHE_TIMES.PLATFORM_PROFILE.staleTime,
+      gcTime: CACHE_TIMES.PLATFORM_PROFILE.gcTime,
+      retry: 3,
     }
-  }, [teamSlug]);
-
-  useEffect(() => {
-    if (teamSlug) {
-      fetchBusinessProfile();
-    }
-  }, [teamSlug, fetchBusinessProfile]);
+  );
 
   return {
-    businessProfile,
+    businessProfile: (data as TikTokBusinessProfile) || null,
     isLoading,
-    error,
-    refetch: fetchBusinessProfile,
+    error: error?.message || null,
+    refetch: async () => {
+      await refetch();
+    },
   };
 }

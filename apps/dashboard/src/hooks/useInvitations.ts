@@ -1,29 +1,37 @@
-import type { ApiResponse } from 'src/types';
-
-import useSWR, { mutate } from 'swr';
 import { TeamInvitation } from '@/models/invitation';
 
-import fetcher from 'src/lib/fetcher';
+import { trpc } from 'src/lib/trpc/client';
 
 interface Props {
   slug: string;
   sentViaEmail: boolean;
 }
 
+/**
+ * Hook for fetching team invitations using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useInvitations = ({ slug, sentViaEmail }: Props) => {
-  const url = `/api/teams/${slug}/invitations?sentViaEmail=${sentViaEmail}`;
-
-  const { data, error, isLoading } = useSWR<ApiResponse<TeamInvitation[]>>(url, fetcher);
+  const { data, error, isLoading, refetch } = trpc.teams.getInvitations.useQuery(
+    { slug, sentViaEmail },
+    {
+      enabled: !!slug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 30000, // 30 seconds (invitations change more frequently)
+    }
+  );
 
   const mutateInvitation = async () => {
-    mutate(url);
+    await refetch();
   };
 
   return {
     isLoading,
     isError: error,
-    invitations: data?.data,
+    invitations: data as TeamInvitation[] | undefined,
     mutateInvitation,
+    refetch, // Additional alias
   };
 };
 

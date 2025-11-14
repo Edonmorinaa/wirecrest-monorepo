@@ -1,23 +1,28 @@
-import type { ApiResponse, TeamWithMemberCount } from 'src/types';
+import type { TeamWithMemberCount } from 'src/types';
 
-import useSWR, { mutate } from 'swr';
+import { trpc } from 'src/lib/trpc/client';
 
-import fetcher from 'src/lib/fetcher';
-
+/**
+ * Hook for fetching all teams using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useTeams = () => {
-  const url = `/api/teams`;
-
-  const { data, error, isLoading } = useSWR<ApiResponse<TeamWithMemberCount[]>>(url, fetcher);
+  const { data, error, isLoading, refetch } = trpc.teams.list.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 60000, // 1 minute
+  });
 
   const mutateTeams = async () => {
-    mutate(url);
+    await refetch();
   };
 
   return {
     isLoading,
     isError: error,
-    teams: data?.data,
+    teams: data as TeamWithMemberCount[] | undefined,
     mutateTeams,
+    refetch, // Additional alias
   };
 };
 

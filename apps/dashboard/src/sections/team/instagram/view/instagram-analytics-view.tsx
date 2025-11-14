@@ -50,7 +50,7 @@ export function InstagramAnalyticsView() {
   const teamSlug = params?.slug as string;
   
   const { team } = useTeam(teamSlug);
-  const { businessProfile, isLoading: profileLoading } = useInstagramBusinessProfile(teamSlug);
+  const { businessProfile } = useInstagramBusinessProfile(teamSlug);
 
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -168,29 +168,6 @@ export function InstagramAnalyticsView() {
       setEndDate(newEndDate);
     }
   };
-
-  if (profileLoading) {
-    return (
-      <DashboardContent maxWidth="xl" disablePadding={false} sx={{}} className="">
-        <Stack spacing={3}>
-          <Skeleton variant="rectangular" height={200} />
-          <Skeleton variant="rectangular" height={400} />
-        </Stack>
-      </DashboardContent>
-    );
-  }
-
-  if (!businessProfile && !profileLoading) {
-    return (
-      <DashboardContent maxWidth="xl" disablePadding={false} sx={{}} className="">
-        <Alert severity="error">
-          <Typography variant="body2">
-            No Instagram business profile found. Please set up your Instagram business profile first.
-          </Typography>
-        </Alert>
-      </DashboardContent>
-    );
-  }
 
   return (
     <DashboardContent maxWidth="xl" disablePadding={false} sx={{}} className="">

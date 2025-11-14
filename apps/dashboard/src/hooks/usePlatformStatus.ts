@@ -10,6 +10,11 @@ interface PlatformStatus {
   errorMessage?: string;
 }
 
+/**
+ * Hook for monitoring platform creation status via real-time updates
+ * NOTE: This hook uses Supabase real-time subscriptions (preserved as-is)
+ * Could be migrated to tRPC polling in the future if needed
+ */
 export function usePlatformStatus(teamId: string) {
   const [statuses, setStatuses] = useState<Record<string, PlatformStatus>>({});
   const [isConnected, setIsConnected] = useState(false);
@@ -58,30 +63,22 @@ export function usePlatformStatus(teamId: string) {
     };
     */
 
-    // For now, we'll simulate the connection
-    setIsConnected(true);
-
-    // Cleanup function
-    return () => {
-      setIsConnected(false);
-    };
+    // Temporary: Set not connected
+    setIsConnected(false);
   }, [teamId]);
 
-  const updateStatus = (platform: string, status: Partial<PlatformStatus>) => {
-    setStatuses(prev => ({
-      ...prev,
-      [platform]: {
-        ...prev[platform],
-        teamId,
-        platform,
-        ...status
-      }
-    }));
+  const getStatus = (platform: string): PlatformStatus | null => {
+    return statuses[platform] || null;
+  };
+
+  const getAllStatuses = (): PlatformStatus[] => {
+    return Object.values(statuses);
   };
 
   return {
     statuses,
     isConnected,
-    updateStatus
+    getStatus,
+    getAllStatuses,
   };
-} 
+}

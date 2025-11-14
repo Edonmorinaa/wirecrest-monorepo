@@ -1,26 +1,34 @@
 import type { User, TeamMember } from '@prisma/client';
-import type { ApiResponse } from 'src/types';
 
-import useSWR, { mutate } from 'swr';
-
-import fetcher from 'src/lib/fetcher';
+import { trpc } from 'src/lib/trpc/client';
 
 export type TeamMemberWithUser = TeamMember & { user: User };
 
+/**
+ * Hook for fetching team members using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useTeamMembers = (slug: string) => {
-  const url = `/api/teams/${slug}/members`;
-
-  const { data, error, isLoading } = useSWR<ApiResponse<TeamMemberWithUser[]>>(url, fetcher);
+  const { data, error, isLoading, refetch } = trpc.teams.getMembers.useQuery(
+    { slug },
+    {
+      enabled: !!slug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60000, // 1 minute
+    }
+  );
 
   const mutateTeamMembers = async () => {
-    mutate(url);
+    await refetch();
   };
 
   return {
     isLoading,
     isError: error,
-    members: data?.data,
+    members: data as TeamMemberWithUser[] | undefined,
     mutateTeamMembers,
+    refetch, // Additional alias
   };
 };
 

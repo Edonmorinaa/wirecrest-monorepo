@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { trpc } from 'src/lib/trpc/client';
 
 export interface UnifiedReview {
   id: string;
@@ -58,85 +58,36 @@ interface InboxReviewsResponse {
   };
 }
 
+/**
+ * Hook for fetching unified inbox reviews using tRPC
+ * Replaces manual state management with React Query (via tRPC)
+ */
 const useInboxReviews = (teamSlug?: string, filters: InboxFilters = {}) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [data, setData] = useState<InboxReviewsResponse | null>(null);
-
-  const fetchReviews = useCallback(async () => {
-    if (!teamSlug) return;
-
-    setIsLoading(true);
-    setIsError(false);
-
-    try {
-      const queryParams = new URLSearchParams();
-
-      // Add filter parameters
-      if (filters.page) queryParams.append('page', filters.page.toString());
-      if (filters.limit) queryParams.append('limit', filters.limit.toString());
-      if (filters.platforms?.length) queryParams.append('platforms', filters.platforms.join(','));
-      if (filters.ratings?.length) queryParams.append('ratings', filters.ratings.join(','));
-      if (filters.status) queryParams.append('status', filters.status);
-      if (filters.sentiment) queryParams.append('sentiment', filters.sentiment);
-      if (filters.search) queryParams.append('search', filters.search);
-      if (filters.sortBy) queryParams.append('sortBy', filters.sortBy);
-      if (filters.sortOrder) queryParams.append('sortOrder', filters.sortOrder);
-      if (filters.dateRange) queryParams.append('dateRange', filters.dateRange);
-
-      const response = await fetch(
-        `/api/teams/${teamSlug}/inbox/reviews?${queryParams.toString()}`
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch reviews');
-      }
-
-      const result = await response.json();
-      setData(result);
-    } catch (error) {
-      console.error('Error fetching inbox reviews:', error);
-      setIsError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [teamSlug, filters]);
-
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
-
-  const refreshReviews = useCallback(() => {
-    fetchReviews();
-  }, [fetchReviews]);
-
-  const updateReviewStatus = useCallback(
-    async (reviewId: string, platform: string, field: 'isRead' | 'isImportant', value: boolean) => {
-      if (!teamSlug) return;
-
-      try {
-        const response = await fetch(`/api/teams/${teamSlug}/inbox/reviews/${reviewId}/status`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ field, value, platform }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update review status');
-        }
-
-        // Refresh the data
-        await fetchReviews();
-      } catch (error) {
-        console.error('Error updating review status:', error);
-      }
+  // Use tRPC query to fetch all team reviews (unified)
+  const { data, error, isLoading, refetch } = trpc.reviews.getTeamReviews.useQuery(
+    {
+      slug: teamSlug!,
+      filters: {
+        page: filters.page,
+        limit: filters.limit,
+        rating: filters.ratings,
+        sentiment: filters.sentiment,
+        search: filters.search,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder,
+      },
     },
-    [teamSlug, fetchReviews]
+    {
+      enabled: !!teamSlug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 30000,
+      keepPreviousData: true,
+    }
   );
 
   return {
+    data: data || null,
     reviews: data?.reviews || [],
     pagination: data?.pagination || {
       page: 1,
@@ -160,9 +111,8 @@ const useInboxReviews = (teamSlug?: string, filters: InboxFilters = {}) => {
       },
     },
     isLoading,
-    isError,
-    refreshReviews,
-    updateReviewStatus,
+    error: error?.message || null,
+    refetch,
   };
 };
 

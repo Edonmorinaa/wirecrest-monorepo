@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-
-import { getBookingOverview } from 'src/actions/platforms';
+import { trpc } from 'src/lib/trpc/client';
+import { CACHE_TIMES } from 'src/lib/trpc/cache';
 
 import { useTeamSlug } from './use-subdomain';
 
@@ -14,47 +13,36 @@ interface UseTeamBookingDataReturn {
   recentReviews: any[];
   ratingDistribution: any;
   periodicalMetrics: any[];
-  isLoading: boolean;
-  isError: any;
   refreshData: () => Promise<void>;
 }
 
+/**
+ * Hook for fetching team Booking.com data using tRPC
+ * Replaces manual server action call with React Query (via tRPC)
+ */
 export function useTeamBookingData(slug?: string): UseTeamBookingDataReturn {
-  const [data, setData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState<any>(null);
   const subdomainTeamSlug = useTeamSlug();
-
+  
   // Use slug from props, subdomain, or fallback to null
   const teamSlug = slug || subdomainTeamSlug;
 
-  const fetchData = useCallback(async () => {
-    if (!teamSlug) return;
-    
-    try {
-      setIsLoading(true);
-      setIsError(null);
-      
-      const result = await getBookingOverview(teamSlug);
-      setData(result);
-    } catch (error) {
-      console.error('Error fetching team booking data:', error);
-      setIsError(error);
-    } finally {
-      setIsLoading(false);
+  const { data, error, isLoading, refetch } = trpc.platforms.bookingOverview.useQuery(
+    { slug: teamSlug! },
+    {
+      suspense: true,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: CACHE_TIMES.PLATFORM_OVERVIEW.staleTime,
+      gcTime: CACHE_TIMES.PLATFORM_OVERVIEW.gcTime,
     }
-  }, [teamSlug]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  );
 
   const refreshData = async () => {
-    await fetchData();
+    await refetch();
   };
 
   // Extract data with proper fallbacks
-  const businessProfile = data || null;
+  const businessProfile = data?.overview || null;
   const overview = businessProfile?.overview || null;
   const sentimentAnalysis = overview?.sentimentAnalysis || null;
   const topKeywords = overview?.topKeywords || [];
@@ -70,8 +58,6 @@ export function useTeamBookingData(slug?: string): UseTeamBookingDataReturn {
     recentReviews,
     ratingDistribution,
     periodicalMetrics,
-    isLoading,
-    isError,
     refreshData,
   };
 }

@@ -1,24 +1,32 @@
-import type { ApiResponse } from 'src/types';
-
-import useSWR, { mutate } from 'swr';
 import { ApiKey } from '@prisma/client';
 
-import fetcher from 'src/lib/fetcher';
+import { trpc } from 'src/lib/trpc/client';
 
+/**
+ * Hook for fetching team API keys using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useAPIKeys = (slug: string | undefined) => {
-  const url = `/api/teams/${slug}/api-keys`;
-
-  const { data, error, isLoading } = useSWR<ApiResponse<ApiKey[]>>(() => slug ? url : null, fetcher);
+  const { data, error, isLoading, refetch } = trpc.teams.getApiKeys.useQuery(
+    { slug: slug! },
+    {
+      enabled: !!slug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60000, // 1 minute
+    }
+  );
 
   const mutateAPIKeys = async () => {
-    mutate(url);
+    await refetch();
   };
 
   return {
-    data,
+    data: data as ApiKey[] | undefined,
     isLoading,
     error,
     mutate: mutateAPIKeys,
+    refetch, // Additional alias
   };
 };
 

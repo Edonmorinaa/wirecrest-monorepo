@@ -12,11 +12,8 @@ import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
-import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Skeleton from '@mui/material/Skeleton';
-import AlertTitle from '@mui/material/AlertTitle';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
@@ -59,8 +56,8 @@ export function FacebookOverviewView() {
   const subdomainTeamSlug = useTeamSlug();
   const slug = subdomainTeamSlug || params.slug;
 
-  const { team, isLoading: teamLoading, error: teamError } = useTeam(slug);
-  const { businessProfile, isLoading: facebookLoading, error: facebookError } = useFacebookBusinessProfile(slug);
+  const { team } = useTeam(slug);
+  const { businessProfile } = useFacebookBusinessProfile(slug);
 
   const [selectedPeriod, setSelectedPeriod] = useState('30');
   const hasSetInitialPeriod = useRef(false);
@@ -147,53 +144,6 @@ export function FacebookOverviewView() {
       ratingDistribution: currentPeriodMetrics.ratingDistribution,
     };
   }, [currentPeriodMetrics, businessProfile?.overview]);
-
-  // Loading state
-  if (teamLoading || facebookLoading) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12 }}>
-            <Skeleton variant="rectangular" height={200} />
-          </Grid>
-          {[...Array(4)].map((_, i) => (
-            <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
-              <Skeleton variant="rectangular" height={120} />
-            </Grid>
-          ))}
-          {[...Array(3)].map((_, i) => (
-            <Grid key={i} size={{ xs: 12, md: 4 }}>
-              <Skeleton variant="rectangular" height={300} />
-            </Grid>
-          ))}
-        </Grid>
-      </DashboardContent>
-    );
-  }
-
-  // Error state
-  if (teamError || facebookError) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Alert severity="error">
-          <AlertTitle>Error</AlertTitle>
-          {teamError?.message || facebookError?.message || 'Failed to load Facebook business profile'}
-        </Alert>
-      </DashboardContent>
-    );
-  }
-
-  // No data state
-  if (!businessProfile) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Alert severity="info">
-          <AlertTitle>No Data</AlertTitle>
-          Facebook business profile not found. Please ensure your Facebook business profile is connected.
-        </Alert>
-      </DashboardContent>
-    );
-  }
 
   return (
     <DashboardContent maxWidth="xl">

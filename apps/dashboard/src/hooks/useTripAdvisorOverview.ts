@@ -1,9 +1,9 @@
 import type { ApiResponse } from 'src/types';
 
-import useSWR from 'swr';
 import { Prisma } from '@prisma/client';
 
-import { getTripAdvisorBusinessProfile } from 'src/actions/platforms';
+import { trpc } from 'src/lib/trpc/client';
+import { CACHE_TIMES } from 'src/lib/trpc/cache';
 
 // Use the same type as the API
 type TripAdvisorProfileWithOverview = Prisma.TripAdvisorBusinessProfileGetPayload<{
@@ -63,21 +63,26 @@ type TripAdvisorProfileWithOverview = Prisma.TripAdvisorBusinessProfileGetPayloa
   };
 }>;
 
+/**
+ * Hook for TripAdvisor Business Profile data using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useTripAdvisorOverview = (slug?: string) => {
   const teamSlug = typeof slug === 'string' ? slug : null;
 
-  const { data, error, isLoading, mutate } = useSWR<TripAdvisorProfileWithOverview | null>(
-    teamSlug ? `tripadvisor-overview-${teamSlug}` : null,
-    () => getTripAdvisorBusinessProfile(teamSlug!) as unknown as Promise<TripAdvisorProfileWithOverview | null>,
+  const { data, error, isLoading, refetch } = trpc.platforms.tripadvisorProfile.useQuery(
+    { slug: teamSlug! },
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute
-      errorRetryCount: 0, // Don't retry on 404 errors
-      errorRetryInterval: 5000,
+      suspense: true,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: CACHE_TIMES.PLATFORM_PROFILE.staleTime,
+      gcTime: CACHE_TIMES.PLATFORM_PROFILE.gcTime,
+      retry: 0, // Don't retry on 404 errors
+      retryDelay: 5000,
       onError: (error) => {
         // Silently handle 404 errors (profile not found) as this is expected
-        if (error instanceof Error && !error.message.includes('404')) {
+        if (!error.message.includes('404')) {
           console.error('TripAdvisor overview fetch error:', error);
         }
       },
@@ -85,7 +90,7 @@ const useTripAdvisorOverview = (slug?: string) => {
   );
 
   const refreshOverview = async () => {
-    await mutate();
+    await refetch();
   };
 
   // Extract data with proper fallbacks
@@ -108,9 +113,9 @@ const useTripAdvisorOverview = (slug?: string) => {
     ratingDistribution,
     periodicalMetrics,
     isLoading,
-    isError: error,
+    isError: error || null,
     refreshOverview,
-    mutate,
+    mutate: refetch, // Alias for backwards compatibility
   };
 };
 

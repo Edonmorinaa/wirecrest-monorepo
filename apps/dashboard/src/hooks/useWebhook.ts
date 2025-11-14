@@ -1,24 +1,39 @@
 import type { EndpointOut } from 'svix';
-import type { ApiResponse } from 'src/types';
 
-import useSWR, { mutate } from 'swr';
+import { trpc } from 'src/lib/trpc/client';
 
-import fetcher from 'src/lib/fetcher';
-
+/**
+ * Hook for fetching single webhook using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ * 
+ * Note: Webhooks may be disabled in the current implementation
+ */
 const useWebhook = (slug: string, endpointId: string | null) => {
-  const url = `/api/teams/${slug}/webhooks/${endpointId}`;
+  const { data, error, isLoading, refetch } = trpc.teams.getWebhooks.useQuery(
+    { slug },
+    {
+      enabled: !!slug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60000, // 1 minute
+    }
+  );
 
-  const { data, error, isLoading } = useSWR<ApiResponse<EndpointOut>>(slug ? url : null, fetcher);
+  // Filter to find specific webhook by ID
+  const webhook = endpointId && data 
+    ? (data as EndpointOut[]).find((w: EndpointOut) => w.id === endpointId)
+    : null;
 
   const mutateWebhook = async () => {
-    mutate(url);
+    await refetch();
   };
 
   return {
     isLoading,
     isError: error,
-    webhook: data?.data,
+    webhook,
     mutateWebhook,
+    refetch, // Additional alias
   };
 };
 

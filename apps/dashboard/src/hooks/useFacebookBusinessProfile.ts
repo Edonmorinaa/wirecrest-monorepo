@@ -5,10 +5,10 @@ import type {
 } from '@prisma/client';
 import type { ApiResponse } from 'src/types';
 
-import useSWR from 'swr';
 import { useParams } from 'next/navigation';
 
-import { getFacebookBusinessProfile } from 'src/actions/platforms';
+import { trpc } from 'src/lib/trpc/client';
+import { CACHE_TIMES } from 'src/lib/trpc/cache';
 
 import { useTeamSlug } from './use-subdomain';
 
@@ -18,34 +18,40 @@ export interface FacebookBusinessProfileWithRelations extends FacebookBusinessPr
   reviews?: any[];
 }
 
+/**
+ * Hook for Facebook Business Profile data using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useFacebookBusinessProfile = (slug?: string) => {
   const params = useParams();
   const subdomainTeamSlug = useTeamSlug();
   const rawTeamSlug = slug || subdomainTeamSlug || (params?.slug as string);
   const teamSlug = typeof rawTeamSlug === 'string' ? rawTeamSlug : null;
 
-  const { data, error, isLoading, mutate } = useSWR<FacebookBusinessProfileWithRelations | null>(
-    teamSlug ? `facebook-business-profile-${teamSlug}` : null,
-    () => getFacebookBusinessProfile(teamSlug!),
+  // Use tRPC query instead of SWR
+  const { data, error, isLoading, refetch } = trpc.platforms.facebookProfile.useQuery(
+    { slug: teamSlug! },
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
+      suspense: true,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: CACHE_TIMES.PLATFORM_PROFILE.staleTime,
+      gcTime: CACHE_TIMES.PLATFORM_PROFILE.gcTime,
+      retry: 3,
+      retryDelay: 5000,
     }
   );
 
   const refreshProfile = async () => {
-    await mutate();
+    await refetch();
   };
 
   return {
     businessProfile: data || null,
     isLoading,
-    error,
+    error: error || null,
     refreshProfile,
-    mutate,
+    mutate: refetch, // Alias for backwards compatibility
   };
 };
 

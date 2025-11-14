@@ -25,7 +25,6 @@ import { BookingReviewsList } from '../booking-reviews-list';
 import { BookingReviewsStats } from '../booking-reviews-stats';
 import { BookingReviewsFilters } from '../booking-reviews-filters';
 import { BookingReviewsWelcome } from '../booking-reviews-welcome';
-import { BookingReviewsLoadingSkeleton } from '../booking-reviews-loading-skeleton';
 
 // Lazy load the heavy analytics component
 const BookingReviewsAnalytics = lazy(() =>
@@ -65,8 +64,8 @@ export function BookingReviewsView() {
 
 
   // Get team and business profile data
-  const { team, isLoading: teamLoading } = useTeam(slug);
-  const { businessProfile, isLoading: profileLoading } = useTeamBookingData(slug);
+  const { team } = useTeam(slug as string);
+  const { businessProfile } = useTeamBookingData(slug as string);
 
   // Memoize filters extraction to prevent unnecessary re-renders
   const filters = useMemo((): Filters => {
@@ -119,10 +118,8 @@ export function BookingReviewsView() {
     reviews,
     pagination,
     stats,
-    isLoading: reviewsLoading,
-    isError,
-    refreshReviews,
-  } = useBookingReviews(slug, hookFilters);
+    refetch,
+  } = useBookingReviews(slug as string, hookFilters);
 
   const updateFilter = useCallback(
     (key: keyof Filters, value: any) => {
@@ -180,14 +177,14 @@ export function BookingReviewsView() {
         }
 
         // Refresh the reviews data without causing full page reload
-        await refreshReviews();
+        await refetch();
       } catch (error) {
         console.error('Error updating review metadata:', error);
         // You might want to show a toast notification here
         // toast.error(error instanceof Error ? error.message : 'Failed to update review');
       }
     },
-    [slug, refreshReviews]
+    [slug, refetch]
   );
 
   // Memoize breadcrumbs to prevent unnecessary re-renders
@@ -200,35 +197,6 @@ export function BookingReviewsView() {
     ],
     [team?.name, slug]
   );
-
-  if (teamLoading || profileLoading) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <BookingReviewsLoadingSkeleton />
-      </DashboardContent>
-    );
-  }
-
-  if (!team || !businessProfile) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <Card sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="h6" color="text.secondary">
-            Team or Booking.com Business Profile not found
-          </Typography>
-        </Card>
-      </DashboardContent>
-    );
-  }
-
-  // Show loading skeleton when reviews are loading
-  if (reviewsLoading) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <BookingReviewsLoadingSkeleton />
-      </DashboardContent>
-    );
-  }
 
   return (
     <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
@@ -273,7 +241,7 @@ export function BookingReviewsView() {
               </Card>
             }
           >
-            <BookingReviewsAnalytics teamSlug={slug} />
+            <BookingReviewsAnalytics teamSlug={slug as string} />
           </Suspense>
         </Grid>
 
@@ -288,11 +256,9 @@ export function BookingReviewsView() {
               reviews={reviews || []}
               pagination={pagination}
               filters={filters}
-              isLoading={reviewsLoading}
-              isError={isError}
               onUpdateMetadata={handleUpdateMetadata}
               onPageChange={(page) => updateFilter('page', page)}
-              onRefresh={refreshReviews}
+              onRefresh={refetch}
             />
           </Box>
         </Card>

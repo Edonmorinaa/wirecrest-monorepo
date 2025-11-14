@@ -1,9 +1,8 @@
 import { useParams } from 'next/navigation';
-import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { useTeamSlug } from './use-subdomain';
 import { GoogleReviewWithMetadata } from 'src/actions/types/reviews';
-import { getGoogleReviews, ReviewFilters } from 'src/actions/reviews';
+import { trpc } from 'src/lib/trpc/client';
 
 interface UseGoogleReviewsFilters {
   page?: number;
@@ -38,6 +37,10 @@ interface GoogleReviewsResponse {
   };
 }
 
+/**
+ * Hook for fetching Google reviews using tRPC
+ * Replaces manual state management with React Query (via tRPC)
+ */
 const useGoogleReviews = (
   slug?: string,
   filters: UseGoogleReviewsFilters = {}

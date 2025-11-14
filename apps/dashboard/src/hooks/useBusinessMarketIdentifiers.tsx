@@ -1,24 +1,32 @@
-import type { ApiResponse } from 'src/types';
-
-import useSWR, { mutate } from 'swr';
 import { BusinessMarketIdentifier } from '@prisma/client';
 
-import fetcher from 'src/lib/fetcher';
+import { trpc } from 'src/lib/trpc/client';
 
+/**
+ * Hook for fetching business market identifiers using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useBusinessMarketIdentifiers = (params: { teamSlug: string }) => {
-  const url = `/api/business-market-identifiers/${params.teamSlug}`;
-
-  const { data, error, isLoading } = useSWR<ApiResponse<BusinessMarketIdentifier[]>>(url, fetcher);
+  const { data, error, isLoading, refetch } = trpc.teams.get.useQuery(
+    { slug: params.teamSlug },
+    {
+      enabled: !!params.teamSlug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60000, // 1 minute
+    }
+  );
 
   const mutateBusinessMarketIdentifiers = async () => {
-    mutate(url);
+    await refetch();
   };
 
   return {
     isLoading,
     isError: error,
-    businessMarketIdentifiers: data?.data,
+    businessMarketIdentifiers: data?.marketIdentifiers as BusinessMarketIdentifier[] | undefined,
     mutateBusinessMarketIdentifiers,
+    refetch, // Additional alias
   };
 };
 

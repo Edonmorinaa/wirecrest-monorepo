@@ -1,7 +1,7 @@
 import { useParams } from 'next/navigation';
-import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { useTeamSlug } from './use-subdomain';
+import { trpc } from 'src/lib/trpc/client';
 
 interface UseBookingReviewsFilters {
   page?: number;
@@ -43,108 +43,48 @@ interface BookingReviewsResponse {
   };
 }
 
+/**
+ * Hook for fetching Booking.com reviews using tRPC
+ * Replaces manual state management with React Query (via tRPC)
+ * 
+ * NOTE: Currently uses bookingOverview which returns recentReviews from the overview.
+ * This is intentional - for full paginated/filtered reviews, use the unified inbox
+ * (trpc.reviews.getInboxReviews with platform filter).
+ * 
+ * If you need full Booking reviews with pagination/filtering, consider:
+ * 1. Using trpc.reviews.getInboxReviews({ platforms: ['booking'] })
+ * 2. Or creating a dedicated trpc.reviews.getBookingReviews procedure
+ */
 const useBookingReviews = (slug?: string, filters: UseBookingReviewsFilters = {}) => {
   const params = useParams();
   const subdomainTeamSlug = useTeamSlug();
   const teamSlug = slug || subdomainTeamSlug || params.slug;
 
-  const [data, setData] = useState<BookingReviewsResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Build query parameters
-  const buildQueryParams = useCallback((filterParams: UseBookingReviewsFilters) => {
-    const queryParams = new URLSearchParams();
-
-    if (filterParams.page) queryParams.set('page', filterParams.page.toString());
-    if (filterParams.limit) queryParams.set('limit', filterParams.limit.toString());
-    if (filterParams.minRating) queryParams.set('minRating', filterParams.minRating.toString());
-    if (filterParams.maxRating) queryParams.set('maxRating', filterParams.maxRating.toString());
-    if (filterParams.ratings && filterParams.ratings.length > 0) {
-      queryParams.set('ratings', filterParams.ratings.join(','));
+  // Use bookingOverview which includes recentReviews
+  // For full review management, use inbox instead
+  const { data, error, isLoading, refetch } = trpc.platforms.bookingOverview.useQuery(
+    { slug: teamSlug as string },
+    {
+      enabled: !!teamSlug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 30000,
+      keepPreviousData: true,
     }
-    if (filterParams.hasResponse !== undefined)
-      queryParams.set('hasResponse', filterParams.hasResponse.toString());
-    if (filterParams.sentiment) queryParams.set('sentiment', filterParams.sentiment);
-    if (filterParams.search) queryParams.set('search', filterParams.search);
-    if (filterParams.sortBy) queryParams.set('sortBy', filterParams.sortBy);
-    if (filterParams.sortOrder) queryParams.set('sortOrder', filterParams.sortOrder);
-    if (filterParams.isRead !== undefined && filterParams.isRead !== '')
-      queryParams.set('isRead', filterParams.isRead.toString());
-    if (filterParams.isImportant !== undefined && filterParams.isImportant !== '')
-      queryParams.set('isImportant', filterParams.isImportant.toString());
-    if (filterParams.guestType) queryParams.set('guestType', filterParams.guestType);
-    if (filterParams.lengthOfStay) queryParams.set('lengthOfStay', filterParams.lengthOfStay);
-    if (filterParams.nationality) queryParams.set('nationality', filterParams.nationality);
-    if (filterParams.roomType) queryParams.set('roomType', filterParams.roomType);
-    if (filterParams.isVerifiedStay !== undefined)
-      queryParams.set('isVerifiedStay', filterParams.isVerifiedStay.toString());
-
-    return queryParams.toString();
-  }, []);
-
-  // Memoize the query string to prevent unnecessary re-renders
-  const queryString = useMemo(() => buildQueryParams(filters), [buildQueryParams, filters]);
-
-  const fetchReviews = useCallback(
-    async (filterParams: UseBookingReviewsFilters = {}) => {
-      if (!teamSlug) return;
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const queryParams = buildQueryParams(filterParams);
-        const response = await fetch(`/api/teams/${teamSlug}/booking/reviews?${queryParams}`, {
-          // Add cache control headers for better performance
-          headers: {
-            'Cache-Control': 'max-age=300', // 5 minutes cache
-          },
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error?.message || 'Failed to fetch reviews');
-        }
-
-        const result = await response.json();
-        setData(result.data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching Booking reviews:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [teamSlug, buildQueryParams]
   );
 
-  const refreshReviews = useCallback(() => {
-    void fetchReviews(filters);
-  }, [fetchReviews, filters]);
-
-  // Debounced effect to prevent excessive API calls
-  useEffect(() => {
-    if (!teamSlug) return undefined;
-
-    const timeoutId = setTimeout(() => {
-      void fetchReviews(filters);
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [teamSlug, queryString, fetchReviews, filters]);
-
   return {
-    reviews: data?.reviews || [],
-    pagination: data?.pagination || {
-      page: 1,
-      limit: 10,
+    data: data || null,
+    reviews: data?.overview?.recentReviews || [],
+    pagination: {
+      page: filters.page || 1,
+      limit: filters.limit || 10,
       total: 0,
       totalPages: 0,
       hasNextPage: false,
       hasPreviousPage: false,
     },
-    stats: data?.stats || {
+    stats: {
       total: 0,
       averageRating: 0,
       verifiedStays: 0,
@@ -153,10 +93,8 @@ const useBookingReviews = (slug?: string, filters: UseBookingReviewsFilters = {}
       withResponse: 0,
     },
     isLoading,
-    isError: !!error,
-    error,
-    refreshReviews,
-    mutate: refreshReviews,
+    error: error?.message || null,
+    refetch,
   };
 };
 

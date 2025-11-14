@@ -23,6 +23,7 @@ import { GlobalNotificationListener } from 'src/components/global-notification-l
 import { SettingsDrawer, defaultSettings, SettingsProvider } from 'src/components/settings';
 
 import { CheckoutProvider } from 'src/sections/checkout/context';
+import { TRPCReactProvider } from 'src/lib/trpc/client';
 
 // ----------------------------------------------------------------------
 
@@ -80,6 +81,7 @@ export default async function RootLayout({ children }) {
 
         <I18nProvider lang={appConfig.i18nLang}>
           <AuthProvider>
+            <TRPCReactProvider>
             <TeamProvider>
               <SubdomainRedirect>
                 <SettingsProvider
@@ -110,6 +112,7 @@ export default async function RootLayout({ children }) {
                 </SettingsProvider>
               </SubdomainRedirect>
             </TeamProvider>
+            </TRPCReactProvider>
           </AuthProvider>
         </I18nProvider>
       </body>

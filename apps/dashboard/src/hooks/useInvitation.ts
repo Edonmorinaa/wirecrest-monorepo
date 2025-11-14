@@ -1,25 +1,31 @@
-import type { ApiResponse } from 'src/types';
-
-import useSWR from 'swr';
 import { useRouter } from 'next/router';
 import { Team, Invitation } from '@prisma/client';
 
-import fetcher from 'src/lib/fetcher';
+import { trpc } from 'src/lib/trpc/client';
 
-type Response = ApiResponse<Invitation & { team: Team }>;
-
+/**
+ * Hook for fetching invitation by token using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useInvitation = (token?: string) => {
   const { query, isReady } = useRouter();
+  
+  const inviteToken = token || (isReady ? (query.token as string) : null);
 
-  const { data, error, isLoading } = useSWR<Response>(() => {
-    const inviteToken = token || (isReady ? query.token : null);
-    return inviteToken ? `/api/invitations/${inviteToken}` : null;
-  }, fetcher);
+  const { data, error, isLoading } = trpc.utils.getInvitationByToken.useQuery(
+    { token: inviteToken! },
+    {
+      enabled: !!inviteToken,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60000, // 1 minute
+    }
+  );
 
   return {
     isLoading,
     error,
-    invitation: data?.data,
+    invitation: data as (Invitation & { team: Team }) | undefined,
   };
 };
 

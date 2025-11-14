@@ -11,7 +11,6 @@ import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Skeleton from '@mui/material/Skeleton';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
@@ -25,7 +24,6 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { BookingErrorState } from '../components/booking-error-state';
 import { BookingTopKeywords } from '../components/booking-top-keywords';
 import { BookingBusinessInfo } from '../components/booking-business-info';
 import { BookingRecentReviews } from '../components/booking-recent-reviews';
@@ -61,8 +59,6 @@ export function TeamBookingView() {
     recentReviews,
     ratingDistribution,
     periodicalMetrics,
-    isLoading,
-    isError,
     refreshData,
   } = useTeamBookingData(slug);
 
@@ -151,121 +147,6 @@ export function TeamBookingView() {
   const handleRefresh = async () => {
     await refreshData();
   };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <DashboardContent>
-        <CustomBreadcrumbs
-          heading="Booking.com Overview"
-          links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Teams', href: paths.dashboard.teams.root },
-            { name: slug, href: paths.dashboard.teams.bySlug(slug) },
-            { name: 'Booking.com' },
-          ]}
-          sx={{ mb: { xs: 3, md: 5 } }}
-        />
-
-        <div style={{ marginBottom: '2rem' }}>
-          <Skeleton variant="text" width="60%" height={40} />
-          <Skeleton variant="text" width="40%" height={24} />
-        </div>
-
-        <Grid container spacing={3}>
-          {[...Array(4)].map((_, i) => (
-            <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card>
-                <CardContent>
-                  <Skeleton variant="text" width="40%" height={20} />
-                  <Skeleton variant="text" width="60%" height={32} />
-                  <Skeleton variant="text" width="80%" height={16} />
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-
-        <Grid container spacing={3} sx={{ mt: 3 }}>
-          {[...Array(4)].map((_, i) => (
-            <Grid key={i} size={{ xs: 12, lg: 6 }}>
-              <Card>
-                <CardContent>
-                  <Skeleton variant="text" width="50%" height={24} />
-                  <Skeleton variant="rectangular" width="100%" height={300} />
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </DashboardContent>
-    );
-  }
-
-  // Error state
-  if (isError) {
-    return (
-      <DashboardContent>
-        <CustomBreadcrumbs
-          heading="Booking.com Overview"
-          links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Teams', href: paths.dashboard.teams.root },
-            { name: slug, href: paths.dashboard.teams.bySlug(slug) },
-            { name: 'Booking.com' },
-          ]}
-          sx={{ mb: { xs: 3, md: 5 } }}
-        />
-
-        <BookingErrorState
-          error={isError}
-          onRefresh={handleRefresh}
-          onSettings={() => (window.location.href = `/dashboard/teams/${slug}/settings`)}
-        />
-      </DashboardContent>
-    );
-  }
-
-  // Empty state
-  if (!businessProfile) {
-    return (
-      <DashboardContent>
-        <CustomBreadcrumbs
-          heading="Booking.com Overview"
-          links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Teams', href: paths.dashboard.teams.root },
-            { name: slug, href: paths.dashboard.teams.bySlug(slug) },
-            { name: 'Booking.com' },
-          ]}
-          sx={{ mb: { xs: 3, md: 5 } }}
-        />
-
-        <Card sx={{ p: 6, textAlign: 'center' }}>
-          <Typography variant="h4" gutterBottom>
-            Welcome to Your Booking.com Analytics
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            Set up your Booking.com property to start tracking reviews, ratings, and guest insights.
-            Get detailed analytics to improve your hospitality business.
-          </Typography>
-
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button onClick={handleRefresh} variant="contained" size="large">
-              Refresh Data
-            </Button>
-            <Button variant="outlined" size="large">
-              Add Property
-            </Button>
-          </Box>
-
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
-            Analytics data updates automatically when reviews are available
-          </Typography>
-        </Card>
-      </DashboardContent>
-    );
-  }
 
   return (
     <DashboardContent maxWidth="xl">

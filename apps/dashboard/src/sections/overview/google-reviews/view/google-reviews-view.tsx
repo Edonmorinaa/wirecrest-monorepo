@@ -25,7 +25,6 @@ import { GoogleReviewsList } from '../google-reviews-list';
 import { GoogleReviewsStats } from '../google-reviews-stats';
 import { GoogleReviewsFilters } from '../google-reviews-filters';
 import { GoogleReviewsWelcome } from '../google-reviews-welcome';
-import { GoogleReviewsLoadingSkeleton } from '../google-reviews-loading-skeleton';
 
 // Lazy load the heavy analytics component
 const GoogleReviewsAnalytics2 = lazy(() => import('../google-reviews-analytics2').then(module => ({ default: module.GoogleReviewsAnalytics2 })));
@@ -55,8 +54,8 @@ export function GoogleReviewsView() {
   const slug = subdomainTeamSlug || params.slug;
 
   // Get team and business profile data
-  const { team, isLoading: teamLoading } = useTeam(slug);
-  const { businessProfile, isLoading: profileLoading } = useGoogleBusinessProfile(slug);
+  const { team } = useTeam(slug as string);
+  const { businessProfile } = useGoogleBusinessProfile(slug as string);
 
   // Memoize filters extraction to prevent unnecessary re-renders
   const filters = useMemo((): Filters => {
@@ -89,10 +88,8 @@ export function GoogleReviewsView() {
     reviews, 
     pagination, 
     stats,
-    isLoading: reviewsLoading, 
-    isError, 
-    refreshReviews
-  } = useGoogleReviews(slug, hookFilters);
+    refetch,
+  } = useGoogleReviews(slug as string, hookFilters);
 
   const updateFilter = useCallback((key: keyof Filters, value: any) => {
     const queryParams = new URLSearchParams(searchParams);
@@ -145,13 +142,13 @@ export function GoogleReviewsView() {
       }
 
       // Refresh the reviews data without causing full page reload
-      await refreshReviews();
+      await refetch();
     } catch (error) {
       console.error('Error updating review metadata:', error);
       // You might want to show a toast notification here
       // toast.error(error instanceof Error ? error.message : 'Failed to update review');
     }
-  }, [slug, refreshReviews]);
+  }, [slug, refetch]);
 
   // Memoize breadcrumbs to prevent unnecessary re-renders
   const breadcrumbs = useMemo(() => [
@@ -160,35 +157,6 @@ export function GoogleReviewsView() {
     { name: team?.name || '', href: paths.dashboard.teams.bySlug(slug) },
     { name: 'Google Reviews' },
   ], [team?.name, slug]);
-
-  if (teamLoading || profileLoading) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <GoogleReviewsLoadingSkeleton />
-      </DashboardContent>
-    );
-  }
-
-  if (!team || !businessProfile) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <Card sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="h6" color="text.secondary">
-            Team or Google Business Profile not found
-          </Typography>
-        </Card>
-      </DashboardContent>
-    );
-  }
-
-  // Show loading skeleton when reviews are loading
-  if (reviewsLoading) {
-    return (
-      <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
-        <GoogleReviewsLoadingSkeleton />
-      </DashboardContent>
-    );
-  }
 
   return (
     <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
@@ -245,11 +213,9 @@ export function GoogleReviewsView() {
               reviews={reviews || []}
               pagination={pagination}
               filters={filters}
-              isLoading={reviewsLoading}
-              isError={isError}
               onUpdateMetadata={handleUpdateMetadata}
               onPageChange={(page) => updateFilter('page', page)}
-              onRefresh={refreshReviews}
+              onRefresh={refetch}
             />
           </Box>
         </Card>

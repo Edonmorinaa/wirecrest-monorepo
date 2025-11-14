@@ -1,6 +1,5 @@
 import type { ApiResponse } from 'src/types';
 
-import useSWR, { mutate } from 'swr';
 import { useSearchParams } from 'next/navigation';
 import { useRef, useState, useEffect } from 'react';
 import {
@@ -27,7 +26,8 @@ import {
   GoogleBusinessMetadata,
 } from '@prisma/client';
 
-import { getGoogleBusinessProfile } from 'src/actions/platforms';
+import { trpc } from 'src/lib/trpc/client';
+import { CACHE_TIMES } from 'src/lib/trpc/cache';
 
 import { useTeamSlug } from './use-subdomain';
 
@@ -84,6 +84,10 @@ export interface QuestionsAndAnswersWithRelations extends QuestionsAndAnswers {
   answers?: Answer[];
 }
 
+/**
+ * Hook for Google Business Profile data using tRPC
+ * Replaces SWR with React Query (via tRPC)
+ */
 const useGoogleBusinessProfile = (slug?: string) => {
   const searchParams = useSearchParams();
   const subdomainTeamSlug = useTeamSlug();
@@ -94,15 +98,21 @@ const useGoogleBusinessProfile = (slug?: string) => {
   const previousTeamSlugRef = useRef<string | null>(null);
 
   console.log('teamSlug', teamSlug);
-  const { data, error, isLoading } = useSWR<GoogleBusinessProfileWithRelations | null>(
-    teamSlug ? `google-business-profile-${teamSlug}` : null,
-    () => getGoogleBusinessProfile(teamSlug!),
+  
+  // Use tRPC query instead of SWR
+  // Enable Suspense mode to trigger loading.tsx during data fetching
+  // NOTE: When using suspense, enabled must be true or Suspense won't trigger
+  // The component should handle the conditional logic before calling this hook
+  const { data, error, isLoading, refetch } = trpc.platforms.googleProfile.useQuery(
+    { slug: teamSlug! },
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
+      // enabled: true, // Must be enabled for Suspense to work
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: CACHE_TIMES.PLATFORM_PROFILE.staleTime,
+      gcTime: CACHE_TIMES.PLATFORM_PROFILE.gcTime,
+      retry: 1, // Reduced for faster feedback
+      suspense: true, // ← Enable Suspense mode
     }
   );
 
@@ -177,13 +187,13 @@ const useGoogleBusinessProfile = (slug?: string) => {
 
   const mutateBusinessProfile = async () => {
     if (teamSlug) {
-      await mutate(`google-business-profile-${teamSlug}`);
+      await refetch();
     }
   };
 
   return {
     isLoading,
-    isError: error,
+    isError: !!error,
     businessProfile: data || null,
     mutateBusinessProfile,
     // triggerWorkflow,
