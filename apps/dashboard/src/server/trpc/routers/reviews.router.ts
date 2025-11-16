@@ -566,6 +566,7 @@ export const reviewsRouter = router({
           where: whereClause,
           include: {
             reviewMetadata: true,
+            photos: true,
           },
           orderBy,
           skip: offset,

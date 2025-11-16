@@ -728,18 +728,45 @@ export async function getTripAdvisorBusinessProfile(slug: string) {
       teamId: team.id,
     },
     include: {
-      overview: true,
+      overview: {
+        include: {
+          tripAdvisorPeriodicalMetric: {
+            orderBy: {
+              periodKey: 'asc',
+            },
+            include: {
+              topKeywords: {
+                take: 20,
+                orderBy: {
+                  count: 'desc',
+                },
+              },
+            },
+          },
+          sentimentAnalysis: true,
+          topKeywords: {
+            take: 20,
+            orderBy: {
+              count: 'desc',
+            },
+          },
+          topTags: {
+            take: 20,
+            orderBy: {
+              count: 'desc',
+            },
+          },
+        },
+      },
       businessMetadata: true,
       addressObj: true,
       subcategories: true,
       amenities: true,
-      reviewTags: {
-        orderBy: { reviews: 'desc' },
-        take: 10,
-      },
+      ratingHistogram: true,
       photos: {
         take: 5,
       },
+      ratingDistribution: true,
     },
   });
 

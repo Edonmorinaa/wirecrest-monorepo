@@ -1,6 +1,6 @@
 import useSWR from 'swr';
 import { useMemo } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 import { getGoogleReviews } from 'src/actions/reviews';
 import type { GoogleReviewsResponse } from 'src/actions/types/reviews';

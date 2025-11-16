@@ -1,1 +1,0 @@
-export { TripAdvisorOverviewView } from './view';

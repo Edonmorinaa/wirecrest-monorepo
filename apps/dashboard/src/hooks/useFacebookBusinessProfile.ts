@@ -47,7 +47,7 @@ const useFacebookBusinessProfile = (slug?: string) => {
   };
 
   return {
-    businessProfile: data || null,
+    businessProfile: data,
     isLoading,
     error: error || null,
     refreshProfile,

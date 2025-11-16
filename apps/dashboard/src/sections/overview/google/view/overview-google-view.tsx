@@ -33,6 +33,7 @@ import { GoogleOverviewWelcome } from '../google-overview-welcome';
 import { GoogleMetricsOverview } from '../google-metrics-overview';
 import { GoogleSentimentAnalysis } from '../google-sentiment-analysis';
 import { GoogleRatingDistribution } from '../google-rating-distribution';
+import { useGoogleReviews } from '@/hooks';
 
 // Time period options for metrics
 const TIME_PERIODS = [
@@ -54,6 +55,11 @@ export function GoogleOverviewView() {
 
   const { team } = useTeam(slug as string);
   const { businessProfile } = useGoogleBusinessProfile(slug as string);
+  const { reviews } = useGoogleReviews(slug as string, {
+    limit: 5,
+    sortBy: 'publishedAtDate',
+    sortOrder: 'desc',
+  });
 
   const [selectedPeriod, setSelectedPeriod] = useState('30');
   const hasSetInitialPeriod = useRef(false);
@@ -236,7 +242,7 @@ export function GoogleOverviewView() {
           </Card>
         </Grid>
         <Grid size={{ xs: 12 }}>
-          <GoogleRecentReviews businessProfile={businessProfile} />
+          <GoogleRecentReviews reviews={reviews} />
         </Grid>
 
         {/* 2. ANALYTICS & CHARTS SECTION */}

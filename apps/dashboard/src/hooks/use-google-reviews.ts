@@ -1,8 +1,9 @@
 import { useParams } from 'next/navigation';
 
-import { useTeamSlug } from './use-subdomain';
-import { GoogleReviewWithMetadata } from 'src/actions/types/reviews';
 import { trpc } from 'src/lib/trpc/client';
+import { GoogleReviewWithMetadata } from 'src/actions/types/reviews';
+
+import { useTeamSlug } from './use-subdomain';
 
 interface UseGoogleReviewsFilters {
   page?: number;
@@ -49,68 +50,26 @@ const useGoogleReviews = (
   const subdomainTeamSlug = useTeamSlug();
   const teamSlug = slug || subdomainTeamSlug || params.slug;
 
-  const [data, setData] = useState<GoogleReviewsResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Build query parameters
-  const buildQueryParams = useCallback((filterParams: UseGoogleReviewsFilters) => {
-    const queryParams = new URLSearchParams();
-    
-    if (filterParams.page) queryParams.set('page', filterParams.page.toString());
-    if (filterParams.limit) queryParams.set('limit', filterParams.limit.toString());
-    if (filterParams.minRating) queryParams.set('minRating', filterParams.minRating.toString());
-    if (filterParams.maxRating) queryParams.set('maxRating', filterParams.maxRating.toString());
-    if (filterParams.ratings && filterParams.ratings.length > 0) {
-      queryParams.set('ratings', filterParams.ratings.join(','));
+  // Use tRPC query instead of manual state management
+  const { data, error, isLoading, refetch } = trpc.reviews.google.useQuery(
+    {
+      teamSlug: teamSlug as string,
+      filters: {
+        ...filters,
+        isRead: filters.isRead === '' ? undefined : (filters.isRead as boolean),
+        isImportant: filters.isImportant === '' ? undefined : (filters.isImportant as boolean),
+      },
+    },
+    {
+      enabled: !!teamSlug,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 30000, // 30 seconds
     }
-    if (filterParams.hasResponse !== undefined) queryParams.set('hasResponse', filterParams.hasResponse.toString());
-      if (filterParams.sentiment) queryParams.set('sentiment', filterParams.sentiment);
-    if (filterParams.search) queryParams.set('search', filterParams.search);
-    if (filterParams.sortBy) queryParams.set('sortBy', filterParams.sortBy);
-    if (filterParams.sortOrder) queryParams.set('sortOrder', filterParams.sortOrder);
-    if (filterParams.isRead !== undefined && filterParams.isRead !== '') queryParams.set('isRead', filterParams.isRead.toString());
-    if (filterParams.isImportant !== undefined && filterParams.isImportant !== '') queryParams.set('isImportant', filterParams.isImportant.toString());
-
-    return queryParams.toString();
-  }, []);
-
-  // Memoize the query string to prevent unnecessary re-renders
-  const queryString = useMemo(() => buildQueryParams(filters), [buildQueryParams, filters]);
-
-  const fetchReviews = useCallback(async (filterParams: UseGoogleReviewsFilters = {}) => {
-    if (!teamSlug) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await getGoogleReviews(teamSlug as string, filterParams as ReviewFilters);
-      setData(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching Google reviews:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [teamSlug, buildQueryParams]);
-
-  const refreshReviews = useCallback(() => {
-    fetchReviews(filters);
-  }, [fetchReviews, filters]);
-
-  // Debounced effect to prevent excessive API calls
-  useEffect(() => {
-    if (!teamSlug) return;
-
-    const timeoutId = setTimeout(() => {
-      fetchReviews(filters);
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [teamSlug, queryString, fetchReviews, filters]);
+  );
 
   return {
+    data: data || null,
     reviews: data?.reviews || [],
     pagination: data?.pagination || {
       page: 1,
@@ -129,9 +88,10 @@ const useGoogleReviews = (
     },
     isLoading,
     isError: !!error,
-    error,
-    refreshReviews,
-    mutate: refreshReviews
+    error: error?.message || null,
+    refetch,
+    refreshReviews: refetch,
+    mutate: refetch
   };
 };
 

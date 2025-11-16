@@ -42,9 +42,16 @@ export const createGoogleProfileSchema = z.object({
 export const getGoogleReviewsSchema = z.object({
   teamSlug: z.string().min(1, 'Team slug is required'),
   filters: z.object({
-    rating: z.number().min(1).max(5).optional(),
+    rating: z.union([z.number().int().min(1).max(5), z.array(z.number().int().min(1).max(5))]).optional(),
     hasResponse: z.boolean().optional(),
     status: z.enum(['pending', 'responded', 'ignored']).optional(),
+    sentiment: z.enum(['positive', 'negative', 'neutral']).optional(),
+    search: z.string().optional(),
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+    isRead: z.boolean().optional(),
+    isImportant: z.boolean().optional(),
+    dateRange: z.string().optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     page: z.number().int().positive().optional().default(1),

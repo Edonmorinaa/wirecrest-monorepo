@@ -30,15 +30,27 @@ interface FacebookReviewFilters {
  * Hook for fetching Facebook reviews using tRPC
  * Replaces manual state management with React Query (via tRPC)
  */
-export function useFacebookReviews(filters: FacebookReviewFilters = {}) {
+export function useFacebookReviews(slug?: string, filters: FacebookReviewFilters = {}) {
   const params = useParams();
-  const { slug } = params;
-
+  
   // Use tRPC query instead of manual state management
-  const { data, error, isLoading, refetch } = trpc.reviews.getFacebookReviews.useQuery(
+  const { data, error, isLoading, refetch } = trpc.reviews.facebook.useQuery(
     {
-      slug: slug as string,
-      filters,
+      teamSlug: slug!,
+      page: filters.page || 1,
+      limit: filters.limit || 10,
+      sortBy: filters.sortBy || 'date',
+      sortOrder: filters.sortOrder || 'desc',
+      startDate: filters.startDate || undefined,
+      endDate: filters.endDate || undefined,
+      isRead: filters.isRead || undefined,
+      isImportant: filters.isImportant || undefined,
+      sentiment: filters.sentiment || undefined,
+      search: filters.search || undefined,
+      hasLikes: filters.hasLikes || undefined,
+      hasComments: filters.hasComments || undefined,
+      hasPhotos: filters.hasPhotos || undefined,
+      hasTags: filters.hasTags || undefined,
     },
     {
       enabled: !!slug,
@@ -46,6 +58,9 @@ export function useFacebookReviews(filters: FacebookReviewFilters = {}) {
       refetchOnReconnect: false,
       staleTime: 30000, // 30 seconds
       keepPreviousData: true,
+      retry: 3,
+      retryDelay: 5000,
+      suspense: true,
     }
   );
 

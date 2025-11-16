@@ -3,34 +3,39 @@
 import { useParams } from 'next/navigation';
 import { useRef, useMemo, useState, useEffect } from 'react';
 
+import { useTripAdvisorReviews } from '@/hooks';
+import { useTeamSlug } from '@/hooks/use-subdomain';
+import useTripAdvisorOverview from '@/hooks/useTripAdvisorOverview';
+
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import AlertTitle from '@mui/material/AlertTitle';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
 import { paths } from 'src/routes/paths';
 
-import { useTeamBookingData } from 'src/hooks/use-team-booking-data';
-
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { BookingTopKeywords } from '../components/booking-top-keywords';
-import { BookingBusinessInfo } from '../components/booking-business-info';
-import { BookingRecentReviews } from '../components/booking-recent-reviews';
-import { BookingOverviewWelcome } from '../components/booking-overview-welcome';
-import { BookingMetricsOverview } from '../components/booking-metrics-overview';
-import { BookingSentimentAnalysis } from '../components/booking-sentiment-analysis';
-import { BookingRatingDistribution } from '../components/booking-rating-distribution';
+import { TripAdvisorTopKeywords } from '../components/tripadvisor-top-keywords';
+import { TripAdvisorBusinessInfo } from '../components/tripadvisor-business-info';
+import { TripAdvisorRecentReviews } from '../components/tripadvisor-recent-reviews';
+import { TripAdvisorOverviewWelcome } from '../components/tripadvisor-overview-welcome';
+import { TripAdvisorMetricsOverview } from '../components/tripadvisor-metrics-overview';
+import { TripAdvisorSentimentAnalysis } from '../components/tripadvisor-sentiment-analysis';
+import { TripAdvisorRatingDistribution } from '../components/tripadvisor-rating-distribution';
 
 // Time period options for metrics
 const TIME_PERIODS = [
@@ -45,26 +50,34 @@ const TIME_PERIODS = [
 
 // ----------------------------------------------------------------------
 
-export function TeamBookingView() {
+export function TripAdvisorOverviewView() {
   const params = useParams();
-  const { slug } = params;
-  const [selectedPeriod, setSelectedPeriod] = useState('30');
-  const hasSetInitialPeriod = useRef(false);
+  const subdomainTeamSlug = useTeamSlug();
+  const rawSlug = subdomainTeamSlug || params.slug;
+  const slug = typeof rawSlug === 'string' ? rawSlug : Array.isArray(rawSlug) ? rawSlug[0] : '';
 
   const {
     businessProfile,
     overview,
     sentimentAnalysis,
     topKeywords,
-    recentReviews,
-    ratingDistribution,
     periodicalMetrics,
-    refreshData,
-  } = useTeamBookingData(slug);
+    isLoading,
+    isError,
+  } = useTripAdvisorOverview(slug);
+
+  const { reviews } = useTripAdvisorReviews(slug, {
+    limit: 10,
+    sortBy: 'publishedDate',
+    sortOrder: 'desc',
+  });
+
+  const [selectedPeriod, setSelectedPeriod] = useState('30');
+  const hasSetInitialPeriod = useRef(false);
 
   // Filter time periods to only show those with review data
   const availableTimePeriods = useMemo(() => {
-    if (!periodicalMetrics) {
+    if (!periodicalMetrics || periodicalMetrics.length === 0) {
       return TIME_PERIODS.filter((period) => period.key === '0'); // Only show "All Time" if no metrics
     }
 
@@ -94,7 +107,7 @@ export function TeamBookingView() {
     return metrics;
   }, [periodicalMetrics, selectedPeriod]);
 
-  // Get periodic metrics for all time period
+  // Get periodic metrics for selected period
   const allTimePeriodMetrics = useMemo(() => {
     const metrics = periodicalMetrics?.find((metric) => metric.periodKey.toString() === '0');
     return metrics;
@@ -106,21 +119,27 @@ export function TeamBookingView() {
 
     return {
       averageRating:
-        currentPeriodMetrics?.averageRating ||
-        overview?.averageRating ||
-        businessProfile.averageRating,
+        currentPeriodMetrics?.averageRating || overview?.averageRating || businessProfile.rating,
       totalReviews:
-        currentPeriodMetrics?.reviewCount || overview?.totalReviews || businessProfile.totalReviews,
-      responseRate: currentPeriodMetrics?.responseRate || overview?.responseRate,
-      averageLengthOfStay:
-        currentPeriodMetrics?.averageLengthOfStay || overview?.averageLengthOfStay,
+        currentPeriodMetrics?.reviewCount ||
+        overview?.totalReviews ||
+        businessProfile.numberOfReviews ||
+        0,
+      responseRate: currentPeriodMetrics?.responseRatePercent,
+      averageResponseTime: currentPeriodMetrics?.avgResponseTimeHours,
       sentimentAnalysis: currentPeriodMetrics
         ? {
             positive: currentPeriodMetrics.sentimentPositive || 0,
             neutral: currentPeriodMetrics.sentimentNeutral || 0,
             negative: currentPeriodMetrics.sentimentNegative || 0,
           }
-        : sentimentAnalysis,
+        : sentimentAnalysis
+        ? {
+            positive: sentimentAnalysis.positiveCount || 0,
+            neutral: sentimentAnalysis.neutralCount || 0,
+            negative: sentimentAnalysis.negativeCount || 0,
+          }
+        : { positive: 0, neutral: 0, negative: 0 },
       topKeywords: (() => {
         const keywords = currentPeriodMetrics?.topKeywords || topKeywords;
         if (!keywords) return [];
@@ -144,31 +163,82 @@ export function TeamBookingView() {
     };
   }, [businessProfile, currentPeriodMetrics, overview, sentimentAnalysis, topKeywords]);
 
-  const handleRefresh = async () => {
-    await refreshData();
-  };
+  // Show loading state
+  if (isLoading) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <Box sx={{ p: 3 }}>
+          <Stack spacing={3}>
+            <Skeleton variant="rectangular" height={200} />
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 8 }}>
+                <Skeleton variant="rectangular" height={400} />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Skeleton variant="rectangular" height={400} />
+              </Grid>
+            </Grid>
+          </Stack>
+        </Box>
+      </DashboardContent>
+    );
+  }
+
+  // Show error state
+  if (isError) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <Box sx={{ p: 3 }}>
+          <Alert severity="error">
+            <AlertTitle>Error Loading Data</AlertTitle>
+            Failed to load TripAdvisor Business Profile data. Please try refreshing the page.
+          </Alert>
+        </Box>
+      </DashboardContent>
+    );
+  }
+
+  // Show not found state
+  // if (!businessProfile) {
+  //   return (
+  //     <DashboardContent maxWidth="xl">
+  //       <Box sx={{ p: 3 }}>
+  //         <Alert severity="warning">
+  //           <AlertTitle>No Data Found</AlertTitle>
+  //           No TripAdvisor Business Profile found for this tenant.
+  //         </Alert>
+  //       </Box>
+  //     </DashboardContent>
+  //   );
+  // }
 
   return (
     <DashboardContent maxWidth="xl">
       <Grid container spacing={3}>
         <Grid size={{ xs: 12 }}>
           <CustomBreadcrumbs
-            heading="Booking.com Overview"
+            heading="TripAdvisor Overview"
             links={[
               { name: 'Dashboard', href: paths.dashboard.root },
               { name: 'Teams', href: paths.dashboard.teams.root },
-              { name: slug, href: paths.dashboard.teams.bySlug(slug) },
-              { name: 'Booking.com' },
+              { name: slug || 'Team', href: paths.dashboard.teams.bySlug(slug || '') },
+              { name: 'TripAdvisor Overview', href: '' },
             ]}
             action={
-              businessProfile?.website && (
+              businessProfile && (
                 <Button
                   variant="contained"
-                  startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} />}
-                  target="_blank"
-                  href={businessProfile.website}
+                  startIcon={
+                    <Iconify
+                      icon="solar:arrow-right-up-linear"
+                      width={20}
+                      height={20}
+                      target="_blank"
+                      href={businessProfile.website}
+                    />
+                  }
                 >
-                  Visit Property
+                  Visit Website
                 </Button>
               )
             }
@@ -176,12 +246,12 @@ export function TeamBookingView() {
         </Grid>
 
         {/* 1. HEADER & OVERVIEW SECTION */}
-        {/* Booking.com Business Header */}
+        {/* TripAdvisor Business Header */}
         <Grid size={{ xs: 12 }}>
-          <BookingOverviewWelcome
-            businessProfile={businessProfile}
-            averageRating={allTimePeriodMetrics?.averageRating || overview?.averageRating}
-            totalReviews={allTimePeriodMetrics?.reviewCount || overview?.totalReviews}
+          <TripAdvisorOverviewWelcome
+            displayName={businessProfile?.name}
+            averageRating={allTimePeriodMetrics?.averageRating || overview?.averageRating || 0}
+            totalReviews={allTimePeriodMetrics?.reviewCount || overview?.totalReviews || 0}
           />
         </Grid>
 
@@ -192,7 +262,7 @@ export function TeamBookingView() {
               title={
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <Iconify icon="solar:chart-2-bold" />
-                  <Typography variant="h6">Property Metrics</Typography>
+                  <Typography variant="h6">Business Metrics</Typography>
                 </Stack>
               }
               subheader="Select a time period to view metrics for that specific timeframe"
@@ -231,9 +301,15 @@ export function TeamBookingView() {
                     />
                   </Stack>
 
-                  <BookingMetricsOverview
+                  <TripAdvisorMetricsOverview
                     metrics={displayMetrics}
-                    periodicalMetrics={periodicalMetrics}
+                    periodicalMetrics={periodicalMetrics?.filter((m: any) => m.periodKey != null).map((m: any) => ({
+                      periodKey: m.periodKey,
+                      averageRating: m.averageRating,
+                      responseRatePercent: m.responseRatePercent,
+                      avgResponseTimeHours: m.avgResponseTimeHours,
+                      reviewCount: m.reviewCount,
+                    })) || []}
                     currentPeriodKey={selectedPeriod}
                   />
                 </Box>
@@ -241,33 +317,54 @@ export function TeamBookingView() {
             </CardContent>
           </Card>
         </Grid>
-
         <Grid size={{ xs: 12 }}>
-          <BookingRecentReviews businessProfile={businessProfile} />
+          <TripAdvisorRecentReviews reviews={reviews} />
         </Grid>
 
         {/* 2. ANALYTICS & CHARTS SECTION */}
         {/* Rating Distribution - Full Width */}
         <Grid size={{ xs: 12 }}>
-          <BookingRatingDistribution
-            businessProfile={businessProfile}
-            currentPeriodMetrics={currentPeriodMetrics}
+          <TripAdvisorRatingDistribution
+            businessName={businessProfile?.name}
+            reviewCount={currentPeriodMetrics?.reviewCount || overview?.totalReviews || 0}
+            oneStarCount={currentPeriodMetrics?.oneStarCount || overview?.oneStarCount || 0}
+            twoStarCount={currentPeriodMetrics?.twoStarCount || overview?.twoStarCount || 0}
+            threeStarCount={currentPeriodMetrics?.threeStarCount || overview?.threeStarCount || 0}
+            fourStarCount={currentPeriodMetrics?.fourStarCount || overview?.fourStarCount || 0}
+            fiveStarCount={currentPeriodMetrics?.fiveStarCount || overview?.fiveStarCount || 0}
           />
         </Grid>
 
         {/* Sentiment Analysis and Top Keywords - Side by Side */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <BookingSentimentAnalysis metrics={displayMetrics} />
+          <TripAdvisorSentimentAnalysis metrics={displayMetrics} />
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <BookingTopKeywords keywords={displayMetrics?.topKeywords || []} />
+          <TripAdvisorTopKeywords 
+            keywords={(displayMetrics?.topKeywords || []).map((kw: any) => ({
+              keyword: kw.keyword || kw.key || kw,
+              count: kw.count || kw.value || 1
+            }))} 
+          />
         </Grid>
 
-        {/* Business Info */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <BookingBusinessInfo businessProfile={businessProfile} />
+          <TripAdvisorBusinessInfo
+            address={businessProfile?.address}
+            phone={businessProfile?.phone}
+            website={businessProfile?.website}
+            type={businessProfile?.type}
+            rankingPosition={businessProfile?.rankingPosition}
+            rankingString={businessProfile?.rankingString}
+          />
         </Grid>
+
+        {/* 3. BUSINESS DETAILS SECTION */}
+        {/* Business Information */}
+
+        {/* 4. CONTENT & REVIEWS SECTION */}
+        {/* Recent Reviews - Full Width */}
 
         {/* 5. FOOTER SECTION */}
         {/* Last Updated */}
@@ -275,8 +372,8 @@ export function TeamBookingView() {
           <Box sx={{ mt: 3, textAlign: 'right' }}>
             <Typography variant="caption" color="text.secondary">
               Last updated:{' '}
-              {overview?.lastRefreshedAt
-                ? new Date(overview.lastRefreshedAt).toLocaleString()
+              {overview?.lastUpdated
+                ? new Date(overview.lastUpdated).toLocaleString()
                 : 'Not available'}
             </Typography>
           </Box>

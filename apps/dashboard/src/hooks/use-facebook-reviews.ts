@@ -55,17 +55,16 @@ interface FacebookReviewsResponse {
  */
 const useFacebookReviews = (teamSlug?: string, filters: UseFacebookReviewsFilters = {}) => {
   // Use tRPC query instead of manual state management
-  const { data, error, isLoading, refetch } = trpc.reviews.getFacebookReviews.useQuery(
+  const { data, error, isLoading, refetch } = trpc.reviews.facebook.useQuery(
     {
-      slug: teamSlug!,
-      filters,
+      teamSlug: teamSlug!,
+      ...filters,
     },
     {
       enabled: !!teamSlug,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       staleTime: 30000, // 30 seconds
-      keepPreviousData: true,
     }
   );
 

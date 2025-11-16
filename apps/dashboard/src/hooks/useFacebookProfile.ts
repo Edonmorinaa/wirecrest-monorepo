@@ -5,11 +5,11 @@ import type {
   FacebookRecommendationDistribution,
 } from '@prisma/client';
 
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 import { trpc } from 'src/lib/trpc/client';
 
-interface FacebookProfileWithRelations extends FacebookBusinessProfile {
+export interface FacebookProfileWithRelations extends FacebookBusinessProfile {
   overview?: FacebookOverview | null;
   recommendationDistribution?: FacebookRecommendationDistribution | null;
   businessMetadata?: FacebookBusinessMetadata | null;

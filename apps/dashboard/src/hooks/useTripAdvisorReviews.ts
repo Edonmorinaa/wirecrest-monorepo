@@ -1,7 +1,6 @@
 import { useParams } from 'next/navigation';
 
 import { trpc } from 'src/lib/trpc/client';
-import type { TripAdvisorReviewsResponse } from 'src/actions/types/reviews';
 
 import { useTeamSlug } from './use-subdomain';
 
@@ -38,17 +37,16 @@ const useTripAdvisorReviews = (slug?: string, filters: UseTripAdvisorReviewsFilt
   const teamSlug = typeof rawTeamSlug === 'string' ? rawTeamSlug : null;
 
   // Use tRPC query instead of SWR
-  const { data, error, isLoading, refetch } = trpc.reviews.getTripAdvisorReviews.useQuery(
+  const { data, error, isLoading, refetch } = trpc.reviews.tripadvisor.useQuery(
     {
-      slug: teamSlug!,
-      filters,
+      teamSlug: teamSlug!,
+      ...filters,
     },
     {
       enabled: !!teamSlug,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       staleTime: 30000,
-      keepPreviousData: true,
     }
   );
 

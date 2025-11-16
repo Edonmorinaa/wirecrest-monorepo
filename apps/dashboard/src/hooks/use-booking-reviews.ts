@@ -1,7 +1,8 @@
 import { useParams } from 'next/navigation';
 
-import { useTeamSlug } from './use-subdomain';
 import { trpc } from 'src/lib/trpc/client';
+
+import { useTeamSlug } from './use-subdomain';
 
 interface UseBookingReviewsFilters {
   page?: number;
@@ -60,23 +61,28 @@ const useBookingReviews = (slug?: string, filters: UseBookingReviewsFilters = {}
   const subdomainTeamSlug = useTeamSlug();
   const teamSlug = slug || subdomainTeamSlug || params.slug;
 
-  // Use bookingOverview which includes recentReviews
-  // For full review management, use inbox instead
-  const { data, error, isLoading, refetch } = trpc.platforms.bookingOverview.useQuery(
-    { slug: teamSlug as string },
+  // Use bookingReviews for full review management with pagination and filtering
+  const { data, error, isLoading, refetch } = trpc.platforms.bookingReviews.useQuery(
+    {
+      teamSlug: teamSlug as string,
+      filters: {
+        ...filters,
+        isRead: filters.isRead === '' ? undefined : (filters.isRead as boolean),
+        isImportant: filters.isImportant === '' ? undefined : (filters.isImportant as boolean),
+      },
+    },
     {
       enabled: !!teamSlug,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       staleTime: 30000,
-      keepPreviousData: true,
     }
   );
 
   return {
     data: data || null,
-    reviews: data?.overview?.recentReviews || [],
-    pagination: {
+    reviews: data?.reviews || [],
+    pagination: data?.pagination || {
       page: filters.page || 1,
       limit: filters.limit || 10,
       total: 0,
@@ -84,7 +90,7 @@ const useBookingReviews = (slug?: string, filters: UseBookingReviewsFilters = {}
       hasNextPage: false,
       hasPreviousPage: false,
     },
-    stats: {
+    stats: data?.stats || {
       total: 0,
       averageRating: 0,
       verifiedStays: 0,
@@ -93,8 +99,10 @@ const useBookingReviews = (slug?: string, filters: UseBookingReviewsFilters = {}
       withResponse: 0,
     },
     isLoading,
+    isError: !!error,
     error: error?.message || null,
     refetch,
+    refreshReviews: refetch,
   };
 };
 
