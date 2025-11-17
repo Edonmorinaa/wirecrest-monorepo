@@ -81,7 +81,7 @@ export function NextAuthSignUpView() {
       } else {
         setSuccessMessage('Account created successfully! You can now sign in.');
         setTimeout(() => {
-          router.push(paths.auth.jwt.signIn);
+          router.push(paths.auth.nextauth.signIn);
         }, 2000);
       }
     } catch (error) {
@@ -154,7 +154,7 @@ export function NextAuthSignUpView() {
         description={
           <>
             {`Already have an account? `}
-            <Link component={RouterLink} href={paths.auth.jwt.signIn} variant="subtitle2">
+            <Link component={RouterLink} href={paths.auth.nextauth.signIn} variant="subtitle2">
               Sign in
             </Link>
           </>

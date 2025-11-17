@@ -242,7 +242,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderFont = () => (
     <LargeBlock title="Font" sx={{ gap: 2.5 }}>
-      {visibility.fontFamily && (
+      {/* {visibility.fontFamily && (
         <SmallBlock
           label="Family"
           canReset={settings.state.fontFamily !== defaultSettings.fontFamily}
@@ -264,7 +264,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
             icon={<SvgIcon sx={{ width: 28, height: 28 }}>{settingIcons.font}</SvgIcon>}
           />
         </SmallBlock>
-      )}
+      )} */}
       {visibility.fontSize && (
         <SmallBlock
           label="Size"
@@ -326,7 +326,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
           </Box>
 
           {(visibility.navColor || visibility.navLayout) && renderNav()}
-          {visibility.primaryColor && renderPresets()}
+          {/* {visibility.primaryColor && renderPresets()} */}
           {(visibility.fontFamily || visibility.fontSize) && renderFont()}
         </Box>
       </Scrollbar>

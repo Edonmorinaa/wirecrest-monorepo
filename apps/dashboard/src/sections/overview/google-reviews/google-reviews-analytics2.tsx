@@ -1,5 +1,6 @@
 import type { GoogleReview, ReviewMetadata } from '@prisma/client';
 
+import dayjs from 'dayjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
@@ -16,7 +17,6 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
 import { Alert, Snackbar } from '@mui/material';
-import TextField from '@mui/material/TextField';
 import CardHeader from '@mui/material/CardHeader';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
@@ -32,9 +32,12 @@ import { useOwnerResponse } from 'src/hooks/useOwnerResponse';
 
 import { fShortenNumber } from 'src/utils/format-number';
 
+import { trpc } from 'src/lib/trpc/client';
+
 import { Iconify } from 'src/components/iconify';
 import { Lightbox, useLightbox } from 'src/components/lightbox';
 import { Chart, useChart, ChartLegends } from 'src/components/chart';
+import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
 import { OwnerResponseModal } from 'src/components/owner-response-modal/owner-response-modal';
 
 // ----------------------------------------------------------------------
@@ -106,197 +109,6 @@ interface AnalyticsStats {
 
 
 // Enhanced Date Range Picker Component
-function EnhancedDateRangePicker({ 
-  value, 
-  onChange, 
-  minDate, 
-  maxDate, 
-  disabled 
-}: {
-  value?: CustomDateRange;
-  onChange: (value: CustomDateRange) => void;
-  minDate?: Date;
-  maxDate?: Date;
-  disabled?: boolean;
-}) {
-  const [fromDate, setFromDate] = useState<Date | null>(value?.from || null);
-  const [toDate, setToDate] = useState<Date | null>(value?.to || null);
-  const [aggregation, setAggregation] = useState<number>(value?.aggregation || 1);
-
-  const handleFromDateChange = (date: Date | null) => {
-    setFromDate(date);
-    if (date && toDate) {
-      onChange({ from: date, to: toDate, aggregation });
-    }
-  };
-
-  const handleToDateChange = (date: Date | null) => {
-    setToDate(date);
-    if (fromDate && date) {
-      onChange({ from: fromDate, to: date, aggregation });
-    }
-  };
-
-  const handleAggregationChange = (newValue: number) => {
-    setAggregation(newValue);
-    if (fromDate && toDate) {
-      onChange({ from: fromDate, to: toDate, aggregation: newValue });
-    }
-  };
-
-  const aggregationOptions = useMemo(() => [
-    { value: 1, label: 'Daily (1 day)' },
-    { value: 2, label: '2-day periods' },
-    { value: 3, label: '3-day periods' },
-    { value: 4, label: '4-day periods' },
-    { value: 7, label: 'Weekly (7 days)' },
-    { value: 14, label: 'Bi-weekly (14 days)' },
-    { value: 30, label: 'Monthly (30 days)' },
-    { value: 90, label: 'Quarterly (90 days)' },
-  ], []);
-
-  return (
-    <Card sx={{ 
-      p: 3, 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-      color: 'white',
-      borderRadius: 2,
-      boxShadow: 3
-    }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <Iconify icon="eva:calendar-fill" width={24} height={24} className="" sx={{ color: 'white' }} />
-        <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
-          Custom Date Range
-        </Typography>
-      </Box>
-      
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, 
-        gap: 3,
-        alignItems: 'end'
-      }}>
-        <TextField
-          label="From Date"
-          type="date"
-          value={fromDate ? fromDate.toISOString().split('T')[0] : ''}
-          onChange={(e) => handleFromDateChange(e.target.value ? new Date(e.target.value) : null)}
-          disabled={disabled}
-          fullWidth
-          size="small"
-          InputLabelProps={{ shrink: true }}
-          inputProps={{
-            min: minDate?.toISOString().split('T')[0],
-            max: toDate?.toISOString().split('T')[0] || maxDate?.toISOString().split('T')[0],
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: 2,
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 1)',
-              },
-              '&.Mui-focused': {
-                backgroundColor: 'rgba(255, 255, 255, 1)',
-              },
-            },
-            '& .MuiInputLabel-root': {
-              color: 'rgba(0, 0, 0, 0.6)',
-              '&.Mui-focused': {
-                color: 'rgba(0, 0, 0, 0.8)',
-              },
-            },
-          }}
-        />
-        
-        <TextField
-          label="To Date"
-          type="date"
-          value={toDate ? toDate.toISOString().split('T')[0] : ''}
-          onChange={(e) => handleToDateChange(e.target.value ? new Date(e.target.value) : null)}
-          disabled={disabled}
-          fullWidth
-          size="small"
-          InputLabelProps={{ shrink: true }}
-          inputProps={{
-            min: fromDate?.toISOString().split('T')[0] || minDate?.toISOString().split('T')[0],
-            max: maxDate?.toISOString().split('T')[0],
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: 2,
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 1)',
-              },
-              '&.Mui-focused': {
-                backgroundColor: 'rgba(255, 255, 255, 1)',
-              },
-            },
-            '& .MuiInputLabel-root': {
-              color: 'rgba(0, 0, 0, 0.6)',
-              '&.Mui-focused': {
-                color: 'rgba(0, 0, 0, 0.8)',
-              },
-            },
-          }}
-        />
-        
-        <FormControl fullWidth size="small" disabled={disabled}>
-          <InputLabel sx={{ 
-            color: 'rgba(0, 0, 0, 0.6)',
-            '&.Mui-focused': {
-              color: 'rgba(0, 0, 0, 0.8)',
-            },
-          }}>
-            Aggregation Period
-          </InputLabel>
-          <Select
-            value={aggregation}
-            onChange={(e) => handleAggregationChange(e.target.value as number)}
-            label="Aggregation Period"
-            sx={{
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: 2,
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 1)',
-              },
-              '&.Mui-focused': {
-                backgroundColor: 'rgba(255, 255, 255, 1)',
-              },
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255, 255, 255, 0.3)',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255, 255, 255, 0.5)',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255, 255, 255, 0.8)',
-              },
-            }}
-          >
-            {aggregationOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-      
-      {/* Date range summary */}
-      {fromDate && toDate && (
-        <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 1 }}>
-          <Typography variant="body2" sx={{ color: 'white', opacity: 0.9 }}>
-            <strong>Selected Range:</strong> {fromDate.toLocaleDateString()} to {toDate.toLocaleDateString()}
-            {' • '}
-            <strong>Period:</strong> {aggregationOptions.find(opt => opt.value === aggregation)?.label}
-          </Typography>
-        </Box>
-      )}
-    </Card>
-  );
-}
 
 // ReviewCard Component (extracted from google-reviews-list.tsx)
 interface ReviewCardProps {
@@ -706,68 +518,111 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
     }
   };
 
-  const fetchDateReviews = useCallback(async () => {
-    if (!date || !teamSlug) return;
+  // Calculate date range for the query
+  const dateRangeForQuery = useMemo(() => {
+    if (!date) return null;
+    
+    const startDate = new Date(date);
+    const endDate = dateEnd ? new Date(dateEnd) : new Date(date);
+    
+    // Set time to start and end of day
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    
+    return {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    };
+  }, [date, dateEnd]);
 
-    setIsLoading(true);
-    setError(null);
+  // Use tRPC to fetch reviews for this specific date
+  const { data: reviewsData, isLoading: isFetchingReviews, error: fetchError } = trpc.reviews.google.useQuery(
+    {
+      teamSlug: teamSlug || '',
+      page: 1,
+      limit: 100,
+      startDate: dateRangeForQuery?.startDate,
+      endDate: dateRangeForQuery?.endDate,
+    },
+    {
+      enabled: isOpen && !!teamSlug && !!dateRangeForQuery,
+      refetchOnWindowFocus: false,
+    }
+  );
 
-    try {
-      const params = new URLSearchParams({
-        startDate: date,
-        endDate: dateEnd || date,
-        limit: '100'
-      });
+  // Process and filter reviews based on sentiment
+  useEffect(() => {
+    if (!reviewsData?.reviews) {
+      setReviews([]);
+      return;
+    }
 
-      console.log('Modal fetching reviews with params:', { date, dateEnd, teamSlug, params: params.toString() });
-      const response = await fetch(`/api/teams/${teamSlug}/google/reviews?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch reviews');
-
-      const data = await response.json();
-      console.log('Modal API response:', data);
-      console.log('Reviews data:', data.data?.reviews);
-      console.log('Reviews count:', data.data?.reviews?.length);
-      const allReviews = data.data?.reviews || [];
-      
-      // Filter reviews by sentiment on the frontend
-      let filteredReviews = allReviews;
-      if (sentiment && sentiment !== 'all') {
-        filteredReviews = allReviews.filter((review: Review) => {
-          const reviewSentiment = review.reviewMetadata?.sentiment;
-          if (!reviewSentiment) return false;
-          
+    let filteredReviews = reviewsData.reviews as unknown as Review[];
+    
+    // Filter by sentiment if specified
+    if (sentiment && sentiment !== 'all') {
+      filteredReviews = filteredReviews.filter((review) => {
+        const reviewSentiment = review.reviewMetadata?.sentiment;
+        
+        // If no sentiment data, classify by star rating
+        if (reviewSentiment === null || reviewSentiment === undefined) {
           switch (sentiment) {
             case 'positive':
-              return reviewSentiment > 0.1;
+              return review.stars >= 4;
             case 'negative':
-              return reviewSentiment < -0.1;
+              return review.stars <= 2;
             case 'neutral':
-              return reviewSentiment >= -0.1 && reviewSentiment <= 0.1;
+              return review.stars === 3;
             default:
               return true;
           }
-        });
-      }
-      
-      console.log('Filtered reviews by sentiment:', sentiment, 'Count:', filteredReviews.length);
-      setReviews(filteredReviews);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch reviews');
-    } finally {
-      setIsLoading(false);
+        }
+        
+        // Use sentiment score
+        switch (sentiment) {
+          case 'positive':
+            return reviewSentiment >= 0.5;
+          case 'negative':
+            return reviewSentiment < -0.5;
+          case 'neutral':
+            return reviewSentiment >= -0.5 && reviewSentiment < 0.5;
+          default:
+            return true;
+        }
+      });
     }
-  }, [date, dateEnd, teamSlug, sentiment]);
+    
+    console.log('Modal reviews filtered:', {
+      total: reviewsData.reviews.length,
+      filtered: filteredReviews.length,
+      sentiment,
+      dateRange: dateRangeForQuery
+    });
+    
+    setReviews(filteredReviews);
+  }, [reviewsData, sentiment, dateRangeForQuery]);
+
+  // Update loading and error states
+  useEffect(() => {
+    setIsLoading(isFetchingReviews);
+  }, [isFetchingReviews]);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchDateReviews();
+    if (fetchError) {
+      setError(fetchError.message || 'Failed to fetch reviews');
     } else {
-      // Reset states when modal closes
+      setError(null);
+    }
+  }, [fetchError]);
+
+  // Reset states when modal closes
+  useEffect(() => {
+    if (!isOpen) {
       setReviews([]);
       setError(null);
       setIsLoading(false);
     }
-  }, [isOpen, fetchDateReviews]);
+  }, [isOpen]);
 
   // Debug: Monitor reviews state changes
   useEffect(() => {
@@ -817,33 +672,89 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
       }}
     >
       <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-          <Iconify icon="eva:calendar-fill" className="" height={20} sx={{}} />
-          <Typography variant="h6">
-            Reviews for {getFormattedDateRange()}
-          </Typography>
-          
-          {/* Sentiment Filter Indicator */}
-          {sentiment && sentiment !== 'all' && (
-            <Chip
-              label={`${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)} sentiment`}
-              size="small"
-              sx={{
-                backgroundColor: sentiment === 'positive' ? 'success.main' : 
-                                sentiment === 'negative' ? 'error.main' : 
-                                'warning.main',
-                color: 'white',
-                fontWeight: 600
-              }}
-            />
-          )}
-          
-          {reviews.length > 0 && (
-            <Chip 
-              label={`${reviews.length} reviews`} 
-              size="small" 
-              color="primary" 
-            />
+        <Stack spacing={2}>
+          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+            <Iconify icon="eva:calendar-fill" className="" height={20} sx={{}} />
+            <Typography variant="h6">
+              Reviews for {getFormattedDateRange()}
+            </Typography>
+            
+            {/* Sentiment Filter Indicator */}
+            {sentiment && sentiment !== 'all' && (
+              <Chip
+                label={`${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)} sentiment`}
+                size="small"
+                sx={{
+                  backgroundColor: sentiment === 'positive' ? 'success.main' : 
+                                  sentiment === 'negative' ? 'error.main' : 
+                                  'warning.main',
+                  color: 'white',
+                  fontWeight: 600
+                }}
+              />
+            )}
+            
+            {reviews.length > 0 && (
+              <Chip 
+                label={`${reviews.length} ${sentiment ? 'filtered' : 'total'} reviews`} 
+                size="small" 
+                color="primary" 
+              />
+            )}
+          </Stack>
+
+          {/* Sentiment Breakdown Summary */}
+          {reviewsData && !sentiment && (
+            <Stack direction="row" spacing={2} sx={{ pl: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'success.main',
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  {reviewsData.reviews.filter((r: any) => {
+                    const s = r.reviewMetadata?.sentiment;
+                    return s !== null && s !== undefined ? s >= 0.5 : r.stars >= 4;
+                  }).length} Positive
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'warning.main',
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  {reviewsData.reviews.filter((r: any) => {
+                    const s = r.reviewMetadata?.sentiment;
+                    return s !== null && s !== undefined ? (s >= -0.5 && s < 0.5) : r.stars === 3;
+                  }).length} Neutral
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'error.main',
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  {reviewsData.reviews.filter((r: any) => {
+                    const s = r.reviewMetadata?.sentiment;
+                    return s !== null && s !== undefined ? s < -0.5 : r.stars <= 2;
+                  }).length} Negative
+                </Typography>
+              </Box>
+            </Stack>
           )}
         </Stack>
       </DialogTitle>
@@ -1001,6 +912,11 @@ export function GoogleReviewsAnalytics2({
     sentiment: null
   });
 
+  // Custom date picker dialog state
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [tempFromDate, setTempFromDate] = useState<Date | null>(null);
+  const [tempToDate, setTempToDate] = useState<Date | null>(null);
+
   // Get state from URL - memoized to prevent infinite loops
   const timeRange = useMemo(() => searchParams.get('timeRange') || '90d', [searchParams]);
 
@@ -1095,108 +1011,235 @@ export function GoogleReviewsAnalytics2({
     }
   }, [teamSlug]);
 
-  // Enhanced fetch function with analytics stats
-  const debouncedFetchReviewsData = useCallback(async () => {
-    if (!teamSlug) return;
-    
-    setIsLoading(true);
-    try {
-      let apiUrl = `/api/google/${teamSlug}/reviews/analytics`;
-      
-      if (timeRange === 'custom' && customRange) {
-        const fromDate = customRange.from.toISOString().split('T')[0];
-        const toDate = customRange.to.toISOString().split('T')[0];
-        apiUrl += `?startDate=${fromDate}&endDate=${toDate}&aggregation=${customRange.aggregation}`;
-        console.log('Fetching custom range analytics:', { 
-          fromDate, 
-          toDate, 
-          aggregation: customRange.aggregation,
-          timeRange,
-          apiUrl
-        });
-      } else {
-        apiUrl += `?period=${timeRange}`;
-        console.log('Fetching analytics data for period:', timeRange, 'URL:', apiUrl);
-      }
-      
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        let errorText = '';
-        try {
-          errorText = await response.text();
-        } catch {
-          errorText = 'Unable to read error response';
-        }
-        
-        console.warn('Analytics API Error Response:', {
-          status: response.status,
-          statusText: response.statusText,
-          url: apiUrl,
-          errorText
-        });
-        
-        setChartData([]);
-        return;
-      }
-      
-      const data = await response.json();
-      console.log('Analytics data received:', data.data?.length, 'data points');
-      
-      setChartData(data.data || []);
-      
-      // Fetch analytics stats separately
-      try {
-        const statsResponse = await fetch(`/api/teams/${teamSlug}/google/reviews/analytics`);
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          setAnalyticsStats(statsData.data);
-        }
-      } catch (statsError) {
-        console.warn('Error fetching analytics stats:', statsError);
-      }
-      
-    } catch (error) {
-      console.warn('Error fetching reviews analytics:', error);
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.warn('Network error - check if the API endpoint is accessible');
-      }
-      setChartData([]);
-    } finally {
-      setIsLoading(false);
+  // Calculate date range based on timeRange or customRange
+  const { startDate, endDate } = useMemo(() => {
+    if (timeRange === 'custom' && customRange) {
+      return {
+        startDate: customRange.from.toISOString(),
+        endDate: customRange.to.toISOString(),
+      };
     }
-  }, [teamSlug, timeRange, customRange]);
-
-  // Debounced version of the fetch function
-  const debouncedFetch = useMemo(() => {
-    let timeoutId: NodeJS.Timeout;
     
-    return () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        debouncedFetchReviewsData();
-      }, 500);
+    // Calculate date range based on timeRange
+    const now = new Date();
+    const end = now.toISOString();
+    const selectedRange = timeRanges.find((r) => r.value === timeRange);
+    const days = selectedRange?.days || 90;
+    
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    
+    return {
+      startDate: start.toISOString(),
+      endDate: end,
     };
-  }, [debouncedFetchReviewsData]);
+  }, [timeRange, customRange, timeRanges]);
+
+  // Use tRPC to fetch analytics data
+  const { data: analyticsData, isLoading: isFetchingAnalytics, error: analyticsError } = trpc.reviews.googleEnhancedAnalytics.useQuery(
+    {
+      teamSlug,
+      startDate,
+      endDate,
+    },
+    {
+      enabled: !!teamSlug && !!startDate && !!endDate,
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    }
+  );
+
+  // Helper function to aggregate data by periods
+  const aggregateDataByPeriod = useCallback((dailyData: any[], periodDays: number) => {
+    if (!dailyData || dailyData.length === 0) return [];
+    
+    if (periodDays <= 1) {
+      // Return daily data as-is
+      return dailyData.map(day => ({
+        date: day.date,
+        dateEnd: day.date,
+        dateDisplay: new Date(day.date).toLocaleDateString(),
+        total: day.count || 0,
+        positive: day.positive || 0,
+        negative: day.negative || 0,
+        neutral: day.neutral || 0,
+      }));
+    }
+
+    // Sort data by date
+    const sortedData = [...dailyData].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Group data into fixed periods
+    const periods: ChartDataPoint[] = [];
+    const firstDate = new Date(sortedData[0].date);
+    
+    // Create a map for quick lookup
+    const dataMap = new Map(sortedData.map(d => [d.date, d]));
+    
+    // Start from the first date and create periods
+    let currentDate = new Date(firstDate);
+    currentDate.setHours(0, 0, 0, 0);
+    
+    const lastDate = new Date(sortedData[sortedData.length - 1].date);
+    lastDate.setHours(0, 0, 0, 0);
+    
+    while (currentDate <= lastDate) {
+      const periodStart = new Date(currentDate);
+      const periodEnd = new Date(currentDate);
+      periodEnd.setDate(periodEnd.getDate() + periodDays - 1);
+      
+      // Aggregate all days in this period
+      let total = 0;
+      let positive = 0;
+      let negative = 0;
+      let neutral = 0;
+      let actualEndDate = periodStart;
+      
+      for (let i = 0; i < periodDays; i++) {
+        const checkDate = new Date(periodStart);
+        checkDate.setDate(checkDate.getDate() + i);
+        
+        if (checkDate > lastDate) break;
+        
+        const dateKey = checkDate.toISOString().split('T')[0];
+        const dayData = dataMap.get(dateKey);
+        
+        if (dayData) {
+          total += dayData.count || 0;
+          positive += dayData.positive || 0;
+          negative += dayData.negative || 0;
+          neutral += dayData.neutral || 0;
+          actualEndDate = checkDate;
+        }
+      }
+      
+      // Only add periods that have data
+      if (total > 0) {
+        const periodStartDate = periodStart;
+        const periodEndDate = actualEndDate;
+        
+        let dateDisplay: string;
+        if (periodDays === 1) {
+          dateDisplay = periodStartDate.toLocaleDateString();
+        } else if (periodDays === 7) {
+          dateDisplay = `Week of ${periodStartDate.toLocaleDateString()}`;
+        } else if (periodDays === 30) {
+          dateDisplay = periodStartDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        } else if (periodDays === 14) {
+          dateDisplay = `${periodStartDate.toLocaleDateString()} - ${periodEndDate.toLocaleDateString()}`;
+        } else if (periodDays >= 90) {
+          dateDisplay = `${periodStartDate.toLocaleDateString('en-US', { month: 'short' })} - ${periodEndDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+        } else {
+          dateDisplay = `${periodStartDate.toLocaleDateString()} - ${periodEndDate.toLocaleDateString()}`;
+        }
+        
+        periods.push({
+          date: periodStartDate.toISOString().split('T')[0],
+          dateEnd: periodEndDate.toISOString().split('T')[0],
+          dateDisplay,
+          total,
+          positive,
+          negative,
+          neutral,
+        });
+      }
+      
+      // Move to next period
+      currentDate.setDate(currentDate.getDate() + periodDays);
+    }
+
+    console.log('Aggregation complete:', {
+      periodDays,
+      inputDays: sortedData.length,
+      outputPeriods: periods.length,
+      dateRange: `${firstDate.toISOString().split('T')[0]} to ${lastDate.toISOString().split('T')[0]}`,
+      firstPeriod: periods[0],
+      lastPeriod: periods[periods.length - 1],
+      samplePeriods: periods.slice(0, 3)
+    });
+
+    return periods;
+  }, []);
+
+  // Get aggregation period based on time range
+  const getAggregationPeriod = useCallback(() => {
+    if (timeRange === 'custom' && customRange) {
+      return customRange.aggregation;
+    }
+
+    const selectedRange = timeRanges.find(r => r.value === timeRange);
+    const days = selectedRange?.days || 90;
+    
+    if (days <= 7) {
+      return 1; // Daily
+    } else if (days <= 30) {
+      return 4; // 4-day periods
+    } else if (days <= 90) {
+      return 7; // 7-day periods (weekly)
+    } else if (days <= 365) {
+      return 7; // 7-day periods (weekly)
+    } else {
+      return 30; // 30-day periods (monthly)
+    }
+  }, [timeRange, customRange, timeRanges]);
+
+  // Transform analytics data to chart format
+  useEffect(() => {
+    if (!analyticsData) {
+      setChartData([]);
+      setAnalyticsStats(null);
+      return;
+    }
+
+    console.log('Analytics data received from tRPC:', analyticsData);
+
+    // Get the aggregation period
+    const aggregationPeriod = getAggregationPeriod();
+    console.log('Aggregating data by period:', aggregationPeriod, 'days');
+
+    // Aggregate the daily data
+    const aggregatedData = aggregateDataByPeriod(analyticsData.trends.daily, aggregationPeriod);
+    
+    console.log('Aggregated chart data:', aggregatedData);
+    setChartData(aggregatedData);
+
+    // Transform to analytics stats format
+    const stats: AnalyticsStats = {
+      totalReviews: analyticsData.overview.totalReviews,
+      averageRating: analyticsData.overview.averageRating,
+      ratingDistribution: analyticsData.ratingDistribution.breakdown,
+      sentimentAnalysis: {
+        positive: analyticsData.sentiment.distribution.positive,
+        neutral: analyticsData.sentiment.distribution.neutral,
+        negative: analyticsData.sentiment.distribution.negative,
+      },
+      responseRate: analyticsData.responses.responseRate,
+      recentReviews: analyticsData.overview.totalReviews, // Use total reviews count
+    };
+
+    setAnalyticsStats(stats);
+  }, [analyticsData, aggregateDataByPeriod, getAggregationPeriod]);
+
+  // Update loading state
+  useEffect(() => {
+    setIsLoading(isFetchingAnalytics);
+  }, [isFetchingAnalytics]);
+
+  // Handle errors
+  useEffect(() => {
+    if (analyticsError) {
+      console.error('Error fetching analytics:', analyticsError);
+      setChartData([]);
+      setAnalyticsStats(null);
+    }
+  }, [analyticsError]);
 
   // Load constraints on mount
   useEffect(() => {
     fetchConstraints();
   }, [fetchConstraints]);
-
-  // Handle URL parameter changes
-  useEffect(() => {
-    console.log('URL parameters changed - timeRange:', timeRange, 'customRange:', customRange);
-  }, [timeRange, customRange]);
-
-  // Load data when parameters change
-  useEffect(() => {
-    console.log('useEffect triggered for data fetching - timeRange:', timeRange, 'customRange:', customRange);
-    debouncedFetch();
-    
-    return () => {
-      // The debounced function will handle its own cleanup
-    };
-  }, [debouncedFetch, timeRange, customRange]);
 
   const updateURL = useCallback((updates: { 
     timeRange?: string; 
@@ -1271,24 +1314,27 @@ export function GoogleReviewsAnalytics2({
 
   // Get the appropriate description based on time range
   const getChartDescription = useCallback(() => {
+    const aggregationPeriod = getAggregationPeriod();
+    
     if (timeRange === 'custom' && customRange) {
-      return `Showing ${customRange.aggregation}-day aggregation for your custom date range. Click on a data point to see reviews for that period.`;
+      if (aggregationPeriod === 1) {
+        return 'Showing daily review data for your custom date range. Click on a data point to see reviews for that specific day.';
+      }
+      return `Showing ${aggregationPeriod}-day period review data for your custom date range. Click on a data point to see reviews for that period.`;
     }
 
-    const days = timeRanges.find(range => range.value === timeRange)?.days || 90;
-    
-    if (days <= 7) {
+    if (aggregationPeriod === 1) {
       return 'Showing daily review data. Click on a data point to see reviews for that specific day.';
-    } else if (days <= 30) {
+    } else if (aggregationPeriod === 4) {
       return 'Showing 4-day period review data. Click on a data point to see reviews for that 4-day period.';
-    } else if (days <= 90) {
-      return 'Showing 7-day period review data. Click on a data point to see reviews for that 7-day period.';
-    } else if (days <= 365) {
-      return 'Showing 7-day period review data. Click on a data point to see reviews for that 7-day period.';
+    } else if (aggregationPeriod === 7) {
+      return 'Showing weekly review data (7-day periods). Click on a data point to see reviews for that week.';
+    } else if (aggregationPeriod === 30) {
+      return 'Showing monthly review data (30-day periods). Click on a data point to see reviews for that month.';
     } else {
-      return 'Showing 30-day period review data. Click on a data point to see reviews for that 30-day period.';
+      return `Showing ${aggregationPeriod}-day period review data. Click on a data point to see reviews for that period.`;
     }
-  }, [timeRange, customRange, timeRanges]);
+  }, [timeRange, customRange, getAggregationPeriod]);
 
   // Dynamic chart colors based on selected sentiment
   const getChartColors = useMemo(() => {
@@ -1398,8 +1444,59 @@ export function GoogleReviewsAnalytics2({
       theme: theme.palette.mode,
       shared: true,
       intersect: false,
-      y: {
-        formatter: (value) => `${value} reviews`,
+      custom: ({ series, seriesIndex, dataPointIndex, w }) => {
+        const dataPoint = safeChartData[dataPointIndex];
+        if (!dataPoint) return '';
+
+        const date = dataPoint.dateDisplay || new Date(dataPoint.date).toLocaleDateString();
+        const total = dataPoint.total || 0;
+        const positive = dataPoint.positive || 0;
+        const neutral = dataPoint.neutral || 0;
+        const negative = dataPoint.negative || 0;
+
+        return `
+          <div style="padding: 12px; min-width: 200px;">
+            <div style="font-weight: 600; margin-bottom: 8px; font-size: 13px;">
+              ${date}
+            </div>
+            <div style="border-top: 1px solid rgba(0,0,0,0.1); padding-top: 8px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="color: #666; font-size: 12px;">Total Reviews:</span>
+                <span style="font-weight: 600; font-size: 12px;">${total}</span>
+              </div>
+              ${selectedSeries === 'all' || selectedSeries === 'positive' ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
+                  <span style="display: flex; align-items: center; font-size: 12px;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background-color: ${theme.palette.success.main}; display: inline-block; margin-right: 6px;"></span>
+                    Positive:
+                  </span>
+                  <span style="font-weight: 600; color: ${theme.palette.success.main}; font-size: 12px;">${positive}</span>
+                </div>
+              ` : ''}
+              ${selectedSeries === 'all' || selectedSeries === 'neutral' ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
+                  <span style="display: flex; align-items: center; font-size: 12px;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background-color: ${theme.palette.warning.main}; display: inline-block; margin-right: 6px;"></span>
+                    Neutral:
+                  </span>
+                  <span style="font-weight: 600; color: ${theme.palette.warning.main}; font-size: 12px;">${neutral}</span>
+                </div>
+              ` : ''}
+              ${selectedSeries === 'all' || selectedSeries === 'negative' ? `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="display: flex; align-items: center; font-size: 12px;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background-color: ${theme.palette.error.main}; display: inline-block; margin-right: 6px;"></span>
+                    Negative:
+                  </span>
+                  <span style="font-weight: 600; color: ${theme.palette.error.main}; font-size: 12px;">${negative}</span>
+                </div>
+              ` : ''}
+            </div>
+            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); font-size: 11px; color: #999; text-align: center;">
+              Click to view reviews
+            </div>
+          </div>
+        `;
       },
     },
     legend: {
@@ -1474,10 +1571,40 @@ export function GoogleReviewsAnalytics2({
     <>
       <Card sx={sx} {...other}>
         <CardHeader
-          title={title}
+          title={
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Typography variant="h6">{title}</Typography>
+              {(() => {
+                const aggregationPeriod = getAggregationPeriod();
+                let label = '';
+                if (aggregationPeriod === 1) label = 'Daily';
+                else if (aggregationPeriod === 4) label = '4-Day';
+                else if (aggregationPeriod === 7) label = 'Weekly';
+                else if (aggregationPeriod === 14) label = 'Bi-Weekly';
+                else if (aggregationPeriod === 30) label = 'Monthly';
+                else if (aggregationPeriod === 90) label = 'Quarterly';
+                else label = `${aggregationPeriod}-Day`;
+                
+                return (
+                  <Chip 
+                    label={label}
+                    size="small"
+                    icon={<Iconify icon="eva:pie-chart-2-fill" width={14} height={14} className="" sx={{}} />}
+                    sx={{ 
+                      height: 24,
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      bgcolor: alpha(theme.palette.primary.main, 0.12),
+                      color: theme.palette.primary.main,
+                    }}
+                  />
+                );
+              })()}
+            </Stack>
+          }
           subheader={subheader || getChartDescription()}
           action={
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
               <FormControl size="small" sx={{ minWidth: 160 }}>
                 <InputLabel>Time Range</InputLabel>
                 <Select
@@ -1492,6 +1619,53 @@ export function GoogleReviewsAnalytics2({
                   ))}
                 </Select>
               </FormControl>
+
+              {/* Custom Date Range Controls */}
+              {timeRange === 'custom' && (
+                <>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<Iconify icon="eva:calendar-outline" />}
+                    onClick={() => {
+                      setTempFromDate(customRange?.from || null);
+                      setTempToDate(customRange?.to || null);
+                      setDatePickerOpen(true);
+                    }}
+                    sx={{ minWidth: 180 }}
+                  >
+                    {customRange?.from && customRange?.to
+                      ? `${customRange.from.toLocaleDateString()} - ${customRange.to.toLocaleDateString()}`
+                      : 'Select dates'}
+                  </Button>
+
+                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <InputLabel>Period</InputLabel>
+                    <Select
+                      value={customRange?.aggregation || 7}
+                      onChange={(e) => {
+                        const newAgg = e.target.value as number;
+                        if (customRange?.from && customRange?.to) {
+                          handleCustomRangeChange({
+                            from: customRange.from,
+                            to: customRange.to,
+                            aggregation: newAgg
+                          });
+                        }
+                      }}
+                      label="Period"
+                    >
+                      <MenuItem value={1}>Daily</MenuItem>
+                      <MenuItem value={4}>4-Day</MenuItem>
+                      <MenuItem value={7}>Weekly</MenuItem>
+                      <MenuItem value={14}>Bi-Weekly</MenuItem>
+                      <MenuItem value={30}>Monthly</MenuItem>
+                      <MenuItem value={90}>Quarterly</MenuItem>
+                    </Select>
+                  </FormControl>
+                </>
+              )}
               
               <FormControl size="small" sx={{ minWidth: 140 }}>
                 <Select
@@ -1551,9 +1725,23 @@ export function GoogleReviewsAnalytics2({
         <CardContent>
           {isLoading ? (
             <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                Loading analytics...
-              </Typography>
+              <Stack spacing={2} alignItems="center">
+                <Typography variant="body2" color="text.secondary">
+                  Loading analytics...
+                </Typography>
+              </Stack>
+            </Box>
+          ) : analyticsError ? (
+            <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Stack spacing={2} alignItems="center">
+                <Iconify icon="eva:alert-circle-outline" className="" height={48} sx={{ opacity: 0.5, color: 'error.main' }} />
+                <Typography variant="body2" color="error.main">
+                  Error loading analytics data
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {analyticsError.message || 'Please try again later'}
+                </Typography>
+              </Stack>
             </Box>
           ) : safeChartData.length > 0 ? (
             <Box>
@@ -1595,7 +1783,10 @@ export function GoogleReviewsAnalytics2({
               <Stack spacing={2} alignItems="center">
                 <Iconify icon="eva:bar-chart-2-outline" className="" height={48} sx={{ opacity: 0.5 }} />
                 <Typography variant="body2" color="text.secondary">
-                  No analytics data available
+                  No analytics data available for the selected period
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Try selecting a different time range
                 </Typography>
               </Stack>
             </Box>
@@ -1603,24 +1794,34 @@ export function GoogleReviewsAnalytics2({
         </CardContent>
       </Card>
 
-      {/* Custom Date Range Picker */}
-      {timeRange === 'custom' && (
-        <Box sx={{ mt: 2 }}>
-          <EnhancedDateRangePicker
-            value={customRange || undefined}
-            onChange={handleCustomRangeChange}
-            minDate={constraints.minDate || undefined}
-            maxDate={constraints.maxDate || undefined}
-            disabled={constraints.totalReviews === 0}
-          />
-          
-          {constraints.totalReviews === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
-              No reviews available for custom date range selection.
-            </Typography>
-          )}
-        </Box>
-      )}
+      {/* Custom Date Picker Dialog */}
+      <CustomDateRangePicker
+        variant="calendar"
+        title="Select Custom Date Range"
+        open={datePickerOpen}
+        onClose={() => setDatePickerOpen(false)}
+        startDate={tempFromDate ? dayjs(tempFromDate) : null}
+        endDate={tempToDate ? dayjs(tempToDate) : null}
+        onChangeStartDate={(date) => setTempFromDate(date ? date.toDate() : null)}
+        onChangeEndDate={(date) => setTempToDate(date ? date.toDate() : null)}
+        error={tempFromDate && tempToDate ? tempFromDate > tempToDate : false}
+        onSubmit={() => {
+          if (tempFromDate && tempToDate && tempFromDate <= tempToDate) {
+            handleCustomRangeChange({
+              from: tempFromDate,
+              to: tempToDate,
+              aggregation: customRange?.aggregation || 7
+            });
+          }
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              zIndex: 1401,
+            }
+          }
+        }}
+      />
 
       {/* Enhanced Date Reviews Modal */}
       <EnhancedDateReviewsModal

@@ -33,8 +33,8 @@ export function InboxView() {
   const [filters, setFilters] = useState<InboxFilters>({
     page: 1,
     limit: 20,
-    platforms: [],
-    ratings: [],
+    platforms: undefined, // undefined means "all platforms"
+    ratings: undefined, // undefined means "all ratings"
     status: 'all',
     sentiment: undefined,
     search: '',
@@ -139,7 +139,7 @@ export function InboxView() {
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Teams', href: paths.dashboard.teams.root },
             { name: team?.name || 'Team', href: paths.dashboard.teams.bySlug(team?.slug || '') },
-            { name: 'Inbox' },
+            { name: 'Inbox', href: '' },
           ]}
           action={null}
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -169,7 +169,7 @@ export function InboxView() {
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Teams', href: paths.dashboard.teams.root },
           { name: team.name, href: paths.dashboard.teams.bySlug(team.slug) },
-          { name: 'Inbox' },
+          { name: 'Inbox', href: '' },
         ]}
         action={null}
         sx={{ mb: 3 }}
@@ -187,7 +187,7 @@ export function InboxView() {
         {/* Review List - Mobile: full width, Desktop: 4 columns */}
         <Grid size={{ xs: 12, lg: 4 }}>
           <InboxList
-            reviews={reviews}
+            reviews={reviews as UnifiedReview[]}
             selectedReview={selectedReview}
             onSelectReview={setSelectedReview}
             isLoading={isLoading}

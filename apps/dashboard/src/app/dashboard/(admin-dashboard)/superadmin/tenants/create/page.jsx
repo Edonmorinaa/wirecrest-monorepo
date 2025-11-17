@@ -23,6 +23,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { RoleGuard } from 'src/components/guards';
 
+import { NextAuthSignUpView } from 'src/auth/view/nextauth/nextauth-sign-up-view';
+
 const StyledCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(3),
   marginBottom: theme.spacing(3),
@@ -142,76 +144,7 @@ export default function CreateTenantPage() {
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <Card sx={{ p: 3, mb: 3 }}>
-            <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-              <Avatar sx={{ bgcolor: 'primary.main' }}>
-                <Iconify icon="solar:buildings-bold" />
-              </Avatar>
-              <Typography variant="h6">
-                Tenant Information
-              </Typography>
-            </Stack>
-
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  label="Tenant Name"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  error={!!errors.name}
-                  helperText={errors.name}
-                  placeholder="Enter tenant organization name"
-                  disabled={isSubmitting}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  label="Tenant Slug"
-                  value={formData.slug}
-                  onChange={(e) => handleInputChange('slug', e.target.value)}
-                  error={!!errors.slug}
-                  helperText={errors.slug || 'This will be used as the unique identifier for the tenant'}
-                  placeholder="tenant-slug"
-                  disabled={isSubmitting}
-                  InputProps={{
-                    startAdornment: <Typography variant="body2" sx={{ mr: 1 }}>@</Typography>
-                  }}
-                />
-                <Button
-                  size="small"
-                  onClick={generateSlug}
-                  disabled={!formData.name || isSubmitting}
-                  sx={{ mt: 1 }}
-                >
-                  Generate from name
-                </Button>
-              </Grid>
-            </Grid>
-          </Card>
-
-          {/* Action Buttons */}
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button
-              variant="outlined"
-              onClick={() => router.back()}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              startIcon={isSubmitting ? <CircularProgress size={16} /> : <Iconify icon="solar:check-circle-bold" />}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating...' : 'Create Tenant'}
-            </Button>
-          </Stack>
-        </form>
+        <NextAuthSignUpView />
       </DashboardContent>
     </RoleGuard>
   );

@@ -103,7 +103,7 @@ export function InboxDetail({ review, onUpdateStatus, onOpenReplyModal, sx }: In
       const reviewData = {
         text: review.text || '',
         rating: review.rating,
-        reviewerName: review.author,
+        reviewerName: review.author || 'Anonymous',
         businessName: 'our business', // This could be passed as a prop or from context
         reviewDate: review.date,
       };
@@ -194,13 +194,13 @@ export function InboxDetail({ review, onUpdateStatus, onOpenReplyModal, sx }: In
         <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar src={review.authorImage} alt={review.author} sx={{ width: 48, height: 48 }}>
-                {review.author.charAt(0).toUpperCase()}
+              <Avatar src={review.authorImage} alt={review.author || 'Anonymous'} sx={{ width: 48, height: 48 }}>
+                {(review.author || 'A').charAt(0).toUpperCase()}
               </Avatar>
 
               <Box>
                 <Typography variant="h6" gutterBottom>
-                  {review.author}
+                  {review.author || 'Anonymous'}
                 </Typography>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">

@@ -70,7 +70,7 @@ export const marketIdentifierEnhancedSchema = z.object({
  */
 export const deletePlatformDataSchema = z.object({
   teamId: z.string().min(1, 'Team ID is required'),
-  platform: z.enum(['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'TIKTOK']),
+  platform: z.enum(['GOOGLE_MAPS', 'FACEBOOK', 'TRIPADVISOR', 'TIKTOK']),
 });
 
 /**

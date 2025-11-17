@@ -89,7 +89,7 @@ export function ReplyModal({
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Bot size={20} />
-            <Typography variant="h6">Reply to {review.author}</Typography>
+            <Typography variant="h6">Reply to {review.author || 'Anonymous'}</Typography>
           </Box>
           <IconButton onClick={handleClose} size="small">
             <X size={20} />

@@ -33,31 +33,6 @@ export interface InboxFilters {
   dateRange?: 'all' | 'today' | 'week' | 'month' | 'year';
 }
 
-interface InboxReviewsResponse {
-  reviews: UnifiedReview[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-  stats: {
-    total: number;
-    unread: number;
-    important: number;
-    withReply: number;
-    averageRating: number;
-    platformBreakdown: {
-      google: number;
-      facebook: number;
-      tripadvisor: number;
-      booking: number;
-    };
-  };
-}
-
 /**
  * Hook for fetching unified inbox reviews using tRPC
  * Replaces manual state management with React Query (via tRPC)
@@ -70,11 +45,15 @@ const useInboxReviews = (teamSlug?: string, filters: InboxFilters = {}) => {
       filters: {
         page: filters.page,
         limit: filters.limit,
-        rating: filters.ratings,
+        platforms: filters.platforms as ('google' | 'facebook' | 'tripadvisor' | 'booking')[] | undefined,
+        // Convert empty arrays to undefined to avoid "in []" queries
+        rating: filters.ratings && filters.ratings.length > 0 ? filters.ratings : undefined,
+        status: filters.status,
         sentiment: filters.sentiment,
         search: filters.search,
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder,
+        dateRange: filters.dateRange,
       },
     },
     {
@@ -82,9 +61,27 @@ const useInboxReviews = (teamSlug?: string, filters: InboxFilters = {}) => {
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       staleTime: 30000,
-      keepPreviousData: true,
     }
   );
+
+  // Mutation for updating review status
+  const updateStatusMutation = trpc.reviews.updateStatus.useMutation();
+
+  const updateReviewStatus = async (
+    reviewId: string,
+    platform: 'google' | 'facebook' | 'tripadvisor' | 'booking',
+    field: 'isRead' | 'isImportant',
+    value: boolean
+  ) => {
+    await updateStatusMutation.mutateAsync({
+      teamSlug: teamSlug!,
+      reviewId,
+      field,
+      value,
+    });
+    // Refetch reviews after update
+    await refetch();
+  };
 
   return {
     data: data || null,
@@ -111,8 +108,10 @@ const useInboxReviews = (teamSlug?: string, filters: InboxFilters = {}) => {
       },
     },
     isLoading,
+    isError: !!error,
     error: error?.message || null,
-    refetch,
+    refreshReviews: refetch,
+    updateReviewStatus,
   };
 };
 

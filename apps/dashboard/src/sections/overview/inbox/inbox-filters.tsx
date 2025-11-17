@@ -65,7 +65,7 @@ export function InboxFiltersComponent({ filters, onFiltersChange, sx }: InboxFil
               <InputLabel>Platform</InputLabel>
               <Select
                 value={filters.platforms?.length ? filters.platforms[0] : 'all'}
-                onChange={(e) => handleFilterChange('platforms', e.target.value === 'all' ? [] : [e.target.value])}
+                onChange={(e) => handleFilterChange('platforms', e.target.value === 'all' ? undefined : [e.target.value])}
                 label="Platform"
               >
                 <MenuItem value="all">All Platforms</MenuItem>

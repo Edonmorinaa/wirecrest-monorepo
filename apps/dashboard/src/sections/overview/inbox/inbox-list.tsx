@@ -132,8 +132,8 @@ const ReviewListItem = ({
         }}
       >
         <ListItemAvatar>
-          <Avatar src={review.authorImage} alt={review.author} sx={{ width: 40, height: 40 }}>
-            {review.author.charAt(0).toUpperCase()}
+          <Avatar src={review.authorImage} alt={review.author || 'Anonymous'} sx={{ width: 40, height: 40 }}>
+            {(review.author || 'A').charAt(0).toUpperCase()}
           </Avatar>
         </ListItemAvatar>
 
@@ -141,7 +141,7 @@ const ReviewListItem = ({
           primary={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
               <Typography variant="subtitle2" noWrap>
-                {review.author}
+                {review.author || 'Anonymous'}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 {[...Array(5)].map((_, i) => (
