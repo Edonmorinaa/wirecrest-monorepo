@@ -1,11 +1,10 @@
 'use client';
 
-import { useRef, useMemo, useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { useFacebookReviews } from '@/hooks';
-import useFacebookBusinessProfile from '@/hooks/useFacebookBusinessProfile';
-import { useTeamSlug } from '@/hooks/use-subdomain';
+import dayjs from 'dayjs';
+import { useMemo, useState, useCallback } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import useTeam from '@/hooks/useTeam';
+import { useLocationBySlug, useFacebookProfile, useFacebookAnalytics, useFacebookReviews } from '@/hooks/useLocations';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -15,6 +14,7 @@ import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
@@ -24,15 +24,14 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
 
 import { FacebookMap, 
         FacebookContactInfo,
         FacebookTopKeywords,
         FacebookBusinessInfo,
         FacebookRecentReviews,
-        FacebookReviewQuality,
         FacebookRecentActivity,
-        FacebookContentAnalysis,
         FacebookMetricsOverview,
         FacebookOverviewWelcome,
         FacebookEmotionalAnalysis,
@@ -43,113 +42,167 @@ import { FacebookMap,
 
 // Time period options for metrics
 const TIME_PERIODS = [
+  { key: '1', label: 'Last 24 Hours', shortLabel: '24h' },
   { key: '3', label: 'Last 3 Days', shortLabel: '3d' },
   { key: '7', label: 'Last 7 Days', shortLabel: '7d' },
   { key: '30', label: 'Last 30 Days', shortLabel: '30d' },
   { key: '180', label: 'Last 6 Months', shortLabel: '6m' },
   { key: '365', label: 'Last Year', shortLabel: '1y' },
-  { key: '0', label: 'All Time', shortLabel: 'All' },
+  { key: '7300', label: 'All Time', shortLabel: 'All' },
+  { key: 'custom', label: 'Custom Range', shortLabel: 'Custom' },
 ];
 
 // ----------------------------------------------------------------------
 
 export function FacebookOverviewView() {
   const params = useParams();
-  const subdomainTeamSlug = useTeamSlug();
-  const slug = (subdomainTeamSlug || params.slug) as string;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const teamSlug = params.slug as string;
+  const locationSlug = params.locationSlug as string;
 
-  const { team } = useTeam(slug);
-  const { businessProfile } = useFacebookBusinessProfile(slug);
-  const { reviews } = useFacebookReviews(slug, {
-    limit: 5,
-    sortBy: 'date',
-    sortOrder: 'desc',
-  });
+  const { team } = useTeam(teamSlug);
+  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
 
-  const [selectedPeriod, setSelectedPeriod] = useState('30');
-  const hasSetInitialPeriod = useRef(false);
+  // Validate locationId
+  const locationId = location?.id || '';
+  const isValidLocationId = locationId && locationId.length > 20;
 
-  // Filter time periods to only show those with review data
-  const availableTimePeriods = useMemo(() => {
-    if (!businessProfile?.overview?.facebookPeriodicalMetric) {
-      return TIME_PERIODS.filter((period) => period.key === '0'); // Only show "All Time" if no metrics
-    }
+  // Get period from URL or default to '7300'
+  const selectedPeriod = searchParams.get('period') || '7300';
 
-    const metrics = businessProfile.overview.facebookPeriodicalMetric;
-    return TIME_PERIODS.filter((period) => {
-      const metric = metrics.find((m) => m.periodKey.toString() === period.key);
-      // Always include "All Time" period, and include others only if they have reviews
-      return period.key === '0' || (metric && metric.reviewCount > 0);
-    });
-  }, [businessProfile?.overview?.facebookPeriodicalMetric]);
+  // Custom date picker state
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [tempFromDate, setTempFromDate] = useState<Date | null>(null);
+  const [tempToDate, setTempToDate] = useState<Date | null>(null);
 
-  // Auto-select first available period if current selection is not available
-  useEffect(() => {
-    if (availableTimePeriods.length > 0 && !hasSetInitialPeriod.current) {
-      setSelectedPeriod(availableTimePeriods[0].key);
-      hasSetInitialPeriod.current = true;
-    }
-  }, [availableTimePeriods]);
-
-  // Get current period metrics
-  const currentPeriodMetrics = useMemo(() => {
-    if (!businessProfile?.overview?.facebookPeriodicalMetric) return null;
+  // Get custom date range from URL
+  const customRange = useMemo(() => {
+    const customFrom = searchParams.get('customFrom');
+    const customTo = searchParams.get('customTo');
     
-    const currentPeriod = businessProfile.overview.facebookPeriodicalMetric.find(
-      (metric) => metric.periodKey.toString() === selectedPeriod
-    );
-    
-    return currentPeriod || null;
-  }, [businessProfile?.overview?.facebookPeriodicalMetric, selectedPeriod]);
-
-  // Get all-time metrics for header
-  const allTimePeriodMetrics = useMemo(() => {
-    if (!businessProfile?.overview) return { recommendationRate: 0, reviewCount: 0 };
-    
-    const allTimeMetric = businessProfile.overview.facebookPeriodicalMetric?.find(
-      (metric) => metric.periodKey === 0
-    );
-    
-    if (allTimeMetric) {
+    if (customFrom && customTo) {
       return {
-        recommendationRate: Number(allTimeMetric.recommendationRate) || 0,
-        reviewCount: Number(allTimeMetric.reviewCount) || 0,
+        from: new Date(customFrom),
+        to: new Date(customTo),
+      };
+    }
+    return null;
+  }, [searchParams]);
+
+  // Calculate date ranges based on selected period or custom range
+  const { startDate, endDate } = useMemo(() => {
+    if (selectedPeriod === 'custom' && customRange) {
+      return {
+        startDate: customRange.from.toISOString(),
+        endDate: customRange.to.toISOString(),
       };
     }
     
-    // Fallback to overview data
-    return {
-      recommendationRate: Number(businessProfile.overview.recommendationRate) || 0,
-      reviewCount: Number(businessProfile.overview.totalReviews) || 0,
-    };
-  }, [businessProfile?.overview]);
+    const end = new Date();
+    const start = new Date();
+    const days = parseInt(selectedPeriod) || 30;
+    start.setDate(end.getDate() - days);
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  }, [selectedPeriod, customRange]);
+
+  // Update URL with new period
+  const updatePeriod = useCallback((newPeriod: string) => {
+    const urlParams = new URLSearchParams(searchParams);
+    urlParams.set('period', newPeriod);
+    
+    // Clear custom range if switching away from custom
+    if (newPeriod !== 'custom') {
+      urlParams.delete('customFrom');
+      urlParams.delete('customTo');
+    }
+    
+    router.replace(`?${urlParams.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+  
+  // Update URL with custom range
+  const updateCustomRange = useCallback((from: Date, to: Date) => {
+    const urlParams = new URLSearchParams(searchParams);
+    urlParams.set('period', 'custom');
+    urlParams.set('customFrom', from.toISOString().split('T')[0]);
+    urlParams.set('customTo', to.toISOString().split('T')[0]);
+    
+    router.replace(`?${urlParams.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+
+  // Get all-time analytics (for header/welcome section)
+  const allTimeStart = useMemo(() => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 10);
+    return date.toISOString();
+  }, []);
+
+  const { profile: businessProfile } = useFacebookProfile(locationId, !!location && isValidLocationId);
+  const { analytics: allTimeAnalytics } = useFacebookAnalytics(
+    locationId,
+    allTimeStart,
+    new Date().toISOString(),
+    !!location && isValidLocationId
+  );
+  const { analytics: currentAnalytics } = useFacebookAnalytics(
+    locationId,
+    startDate,
+    endDate,
+    !!location && isValidLocationId
+  );
+  const { reviews } = useFacebookReviews(
+    locationId,
+    {},
+    { page: 1, limit: 5 },
+    !!location && isValidLocationId
+  );
+
+  // Available time periods (simplified - show all)
+  const availableTimePeriods = TIME_PERIODS;
+
+  // Get all-time metrics for header
+  const allTimePeriodMetrics = useMemo(() => ({
+    recommendationRate: allTimeAnalytics?.recommendations?.recommendationRate || 0,
+    reviewCount: allTimeAnalytics?.reviewCount || 0,
+  }), [allTimeAnalytics]);
 
   // Get display metrics for current period
   const displayMetrics = useMemo(() => {
-    if (!currentPeriodMetrics) return null;
+    if (!currentAnalytics) return null;
 
     return {
       // Facebook-specific metrics
-      totalReviews: Number(currentPeriodMetrics.reviewCount) || 0,
-      recommendedCount: Number(currentPeriodMetrics.recommendedCount) || 0,
-      notRecommendedCount: Number(currentPeriodMetrics.notRecommendedCount) || 0,
-      recommendationRate: Number(currentPeriodMetrics.recommendationRate) || 0,
-      totalLikes: Number(currentPeriodMetrics.totalLikes) || 0,
-      totalComments: Number(currentPeriodMetrics.totalComments) || 0,
-      totalPhotos: Number(currentPeriodMetrics.totalPhotos) || 0,
-      engagementRate: Number(currentPeriodMetrics.engagementRate) || 0,
-      responseRate: Number(currentPeriodMetrics.responseRatePercent) || 0,
-      avgResponseTime: Number(currentPeriodMetrics.avgResponseTimeHours) || 0,
+      totalReviews: currentAnalytics.reviewCount || 0,
+      recommendedCount: currentAnalytics.recommendations?.recommendedCount || 0,
+      notRecommendedCount: currentAnalytics.recommendations?.notRecommendedCount || 0,
+      recommendationRate: currentAnalytics.recommendations?.recommendationRate || 0,
+      totalLikes: currentAnalytics.engagement?.totalLikes || 0,
+      totalComments: currentAnalytics.engagement?.totalComments || 0,
+      totalPhotos: currentAnalytics.engagement?.totalPhotos || 0,
+      engagementRate: currentAnalytics.engagement?.engagementRate || 0,
+      averageLikesPerReview: currentAnalytics.engagement?.averageLikesPerReview || 0,
+      averageCommentsPerReview: currentAnalytics.engagement?.averageCommentsPerReview || 0,
+      responseRate: currentAnalytics.responseRate || 0,
+      avgResponseTime: currentAnalytics.averageResponseTime || 0,
       
       // Analysis data
-      sentimentAnalysis: businessProfile?.overview?.sentimentAnalysis,
-      emotionalAnalysis: businessProfile?.overview?.emotionalAnalysis,
-      reviewQuality: businessProfile?.overview?.reviewQuality,
-      contentLength: businessProfile?.overview?.contentLength,
-      topKeywords: businessProfile?.overview?.keywords || [],
-      recentReviews: businessProfile?.overview?.recentReviews || [],
+      sentimentAnalysis: currentAnalytics.sentiment,
+      emotionalAnalysis: currentAnalytics.emotions,
+      reviewQuality: currentAnalytics.reviewQuality,
+      contentLength: currentAnalytics.contentLength,
+      topKeywords: currentAnalytics.keywords || [],
+      recentReviews: reviews || [],
     };
-  }, [currentPeriodMetrics, businessProfile?.overview]);
+  }, [currentAnalytics, reviews]);
+
+  // Show loading state
+  if (locationLoading || !location) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <Typography>Loading location...</Typography>
+      </DashboardContent>
+    );
+  }
 
   return (
     <DashboardContent maxWidth="xl">
@@ -161,7 +214,8 @@ export function FacebookOverviewView() {
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Teams', href: paths.dashboard.teams.root },
-            { name: team?.name || '', href: paths.dashboard.teams.bySlug(slug as string) },
+            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+            { name: location?.name || locationSlug, href: paths.dashboard.locations.bySlug(teamSlug, locationSlug) },
             { name: 'Facebook Overview', href: '#' },
           ]}
           action={
@@ -182,24 +236,36 @@ export function FacebookOverviewView() {
         {/* 1. HEADER & OVERVIEW SECTION */}
         {/* Facebook Business Header */}
         <Grid size={{ xs: 12 }}>
-        <FacebookOverviewWelcome displayName={businessProfile.pageName || businessProfile.title} recommendationRate={allTimePeriodMetrics.recommendationRate} totalReviews={allTimePeriodMetrics.reviewCount} sx={{}} />
+        <FacebookOverviewWelcome displayName={businessProfile?.pageName || businessProfile?.title || location.name} recommendationRate={allTimePeriodMetrics.recommendationRate} totalReviews={allTimePeriodMetrics.reviewCount} sx={{}} />
       </Grid>
 
         {/* Time Period Selector and Key Metrics */}
         <Grid size={{ xs: 12 }}>
           <Card>
-            <CardContent sx={{ p: 3 }}>
+            <CardHeader
+              title={
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Iconify icon="solar:chart-2-bold" />
+                  <Typography variant="h6">Business Metrics</Typography>
+                </Stack>
+              }
+              subheader="Select a time period to view metrics for that specific timeframe"
+            />
+            <CardContent>
               {availableTimePeriods.length > 1 && (
                 <Tabs
                   value={selectedPeriod}
-                  onChange={(event, newValue) => setSelectedPeriod(newValue)}
+                  onChange={(e, newValue) => updatePeriod(newValue)}
+                  variant="scrollable"
+                  scrollButtons="auto"
                   sx={{ mb: 3 }}
                 >
                   {availableTimePeriods.map((period) => (
                     <Tab
                       key={period.key}
-                      label={period.shortLabel}
                       value={period.key}
+                      label={period.shortLabel}
+                      sx={{ minWidth: 'auto' }}
                     />
                   ))}
                 </Tabs>
@@ -214,11 +280,29 @@ export function FacebookOverviewView() {
                       size="small"
                       color="primary"
                     />
+                    {selectedPeriod === 'custom' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={<Iconify icon="eva:calendar-outline" />}
+                        onClick={() => {
+                          setTempFromDate(customRange?.from || null);
+                          setTempToDate(customRange?.to || null);
+                          setDatePickerOpen(true);
+                        }}
+                        sx={{ ml: 2 }}
+                      >
+                        {customRange?.from && customRange?.to
+                          ? `${customRange.from.toLocaleDateString()} - ${customRange.to.toLocaleDateString()}`
+                          : 'Select Dates'}
+                      </Button>
+                    )}
                   </Stack>
 
                   <FacebookMetricsOverview 
                     metrics={displayMetrics} 
-                    periodicalMetrics={businessProfile?.overview?.facebookPeriodicalMetric}
+                    periodicalMetrics={(businessProfile as any)?.overview?.facebookPeriodicalMetric}
                     currentPeriodKey={selectedPeriod}
                   />
                 </Box>
@@ -226,6 +310,8 @@ export function FacebookOverviewView() {
             </CardContent>
           </Card>
         </Grid>
+        
+        {/* Recent Reviews - Full Width */}
         <Grid size={{ xs: 12 }}>
           <FacebookRecentReviews reviews={reviews} />
         </Grid>
@@ -233,7 +319,13 @@ export function FacebookOverviewView() {
         {/* 2. ANALYTICS & CHARTS SECTION */}
         {/* Rating Distribution - Full Width */}
         <Grid size={{ xs: 12 }}>
-          <FacebookRatingDistribution businessProfile={businessProfile as any} currentPeriodMetrics={currentPeriodMetrics as any} />
+          <FacebookRatingDistribution 
+            businessProfile={businessProfile as any} 
+            currentPeriodMetrics={{
+              recommendedCount: displayMetrics?.recommendedCount || 0,
+              notRecommendedCount: displayMetrics?.notRecommendedCount || 0,
+            } as any} 
+          />
         </Grid>
 
         {/* Sentiment Analysis and Emotional Analysis - Side by Side */}
@@ -245,22 +337,13 @@ export function FacebookOverviewView() {
           <FacebookEmotionalAnalysis emotionalAnalysis={displayMetrics?.emotionalAnalysis} sx={{}} />
         </Grid>
 
-        {/* Top Keywords and Review Quality - Side by Side */}
+        {/* Top Keywords and Engagement Metrics - Side by Side */}
         <Grid size={{ xs: 12, md: 6 }}>
           <FacebookTopKeywords keywords={displayMetrics?.topKeywords || []} />
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
-          <FacebookReviewQuality reviewQuality={displayMetrics?.reviewQuality} sx={{}} />
-        </Grid>
-
-        {/* Content Analysis and Engagement Metrics - Side by Side */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <FacebookContentAnalysis contentLength={displayMetrics?.contentLength} sx={{}} />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
-          <FacebookEngagementMetrics overview={businessProfile?.overview} sx={{}} />
+          <FacebookEngagementMetrics overview={(businessProfile as any)?.overview} sx={{}} />
         </Grid>
 
         {/* Recent Review Activity - Full Width */}
@@ -268,8 +351,13 @@ export function FacebookOverviewView() {
           <FacebookRecentActivity recentReviews={displayMetrics?.recentReviews || []} sx={{}} />
         </Grid>
 
+        {/* Contact Info and Business Details */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <FacebookContactInfo businessProfile={businessProfile} sx={{}} />
+          <FacebookContactInfo businessProfile={businessProfile as any} sx={{}} />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <FacebookBusinessInfo businessProfile={businessProfile as any} />
         </Grid>
 
         {/* Facebook Map - Full Width */}
@@ -277,6 +365,26 @@ export function FacebookOverviewView() {
           <FacebookMap businessProfile={businessProfile} />
         </Grid>
       </Grid>
+
+      {/* Custom Date Picker Dialog */}
+      <CustomDateRangePicker
+        variant="calendar"
+        title="Select Custom Date Range"
+        open={datePickerOpen}
+        onClose={() => setDatePickerOpen(false)}
+        startDate={tempFromDate ? dayjs(tempFromDate) : null}
+        endDate={tempToDate ? dayjs(tempToDate) : null}
+        onChangeStartDate={(date) => setTempFromDate(date ? date.toDate() : null)}
+        onChangeEndDate={(date) => setTempToDate(date ? date.toDate() : null)}
+        error={tempFromDate && tempToDate ? tempFromDate > tempToDate : false}
+        onSubmit={() => {
+          if (tempFromDate && tempToDate && tempFromDate <= tempToDate) {
+            updateCustomRange(tempFromDate, tempToDate);
+            setDatePickerOpen(false);
+          }
+        }}
+        slotProps={{}}
+      />
     </DashboardContent>
   );
 }

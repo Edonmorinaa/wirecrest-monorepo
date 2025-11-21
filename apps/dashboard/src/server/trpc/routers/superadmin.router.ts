@@ -15,8 +15,11 @@ import { recordMetric } from 'src/actions/lib';
 
 import { router, superAdminProcedure } from '../trpc';
 import {
-  superadminTeamIdSchema,
+  createTeamWithLocationSchema,
+  getLocationPlatformDataSchema,
+  getTeamWithLocationsSchema,
   superadminCreateTeamSchema,
+  superadminTeamIdSchema,
   superadminUpdateTeamSchema,
 } from '../schemas/superadmin.schema';
 
@@ -179,15 +182,20 @@ export const superadminRouter = router({
 
   /**
    * Get comprehensive platform data for a team (superadmin only)
-   * This is an alias for backward compatibility
+   * DEPRECATED: This is an alias for backward compatibility
+   * Use getTeamWithLocations or getLocationPlatformData instead
    */
   teamPlatformData: superAdminProcedure
     .input(superadminTeamIdSchema)
     .query(async ({ input }) => {
       try {
-        // Fetch market identifiers
+        // Fetch market identifiers (now location-based)
         const identifiers = await prisma.businessMarketIdentifier.findMany({
-          where: { teamId: input.teamId },
+          where: { 
+            location: {
+              teamId: input.teamId,
+            },
+          },
           select: {
             id: true,
             platform: true,
@@ -197,153 +205,80 @@ export const superadminRouter = router({
           },
         });
 
-        // Fetch platform profiles and counts in parallel
-        const [google, facebook, tripadvisor, booking, instagram, tiktok] =
-          await Promise.all([
-            prisma.googleBusinessProfile.findFirst({
+        // Fetch team-level social platforms
+        const [instagram, tiktok] = await Promise.all([
+          prisma.instagramBusinessProfile.findFirst({
               where: { teamId: input.teamId },
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              _count: { select: { dailySnapshots: true } },
+            },
+          }),
+          prisma.tikTokBusinessProfile.findFirst({
+            where: { teamId: input.teamId },
+            select: {
+              id: true,
+              username: true,
+              _count: { select: { dailySnapshots: true } },
+            },
+          }),
+        ]);
+
+        // Fetch locations with their platform profiles
+        const locations = await prisma.businessLocation.findMany({
+          where: { teamId: input.teamId },
+          include: {
+            googleBusinessProfile: {
               select: {
                 id: true,
                 placeId: true,
                 rating: true,
-                lastScrapedAt: true,
                 _count: { select: { reviews: true } },
               },
-            }),
-            prisma.facebookBusinessProfile.findFirst({
-              where: { teamId: input.teamId },
+            },
+            facebookBusinessProfile: {
               select: {
                 id: true,
                 facebookUrl: true,
                 _count: { select: { reviews: true } },
               },
-            }),
-            prisma.tripAdvisorBusinessProfile.findFirst({
-              where: { teamId: input.teamId },
+            },
+            tripAdvisorBusinessProfile: {
               select: {
                 id: true,
                 tripAdvisorUrl: true,
                 rating: true,
                 _count: { select: { reviews: true } },
               },
-            }),
-            prisma.bookingBusinessProfile.findFirst({
-              where: { teamId: input.teamId },
+            },
+            bookingBusinessProfile: {
               select: {
                 id: true,
                 bookingUrl: true,
                 rating: true,
                 _count: { select: { reviews: true } },
               },
-            }),
-            prisma.instagramBusinessProfile.findFirst({
-              where: { teamId: input.teamId },
-              select: {
-                id: true,
-                username: true,
-                fullName: true,
-                _count: { select: { dailySnapshots: true } },
-              },
-            }),
-            prisma.tikTokBusinessProfile.findFirst({
-              where: { teamId: input.teamId },
-              select: {
-                id: true,
-                username: true,
-                _count: { select: { dailySnapshots: true } },
-              },
-            }),
-          ]);
+            },
+          },
+        });
 
-        // Fetch sync status from scraper API
-        let syncStatus = null;
-        try {
-          const scraperUrl =
-            process.env.SCRAPER_API_URL || process.env.NEXT_PUBLIC_SCRAPER_API_URL;
-          if (scraperUrl) {
-            const response = await fetch(`${scraperUrl}/api/sync-status/${input.teamId}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              signal: AbortSignal.timeout(5000),
-            });
-
-            if (response.ok) {
-              syncStatus = await response.json();
-            }
-          }
-        } catch (error) {
-          console.error('Failed to fetch sync status:', error);
-          // Continue without sync status - it's not critical
-        }
-
-        // Get last review dates for each platform
-        const [
-          googleLastReview,
-          facebookLastReview,
-          tripadvisorLastReview,
-          bookingLastReview,
-        ] = await Promise.all([
-          google
-            ? prisma.googleReview.findFirst({
-                where: { businessProfileId: google.id },
-                orderBy: { publishedAtDate: 'desc' },
-                select: { publishedAtDate: true },
-              })
-            : null,
-          facebook
-            ? prisma.facebookReview.findFirst({
-                where: { businessProfileId: facebook.id },
-                orderBy: { date: 'desc' },
-                select: { date: true },
-              })
-            : null,
-          tripadvisor
-            ? prisma.tripAdvisorReview.findFirst({
-                where: { businessProfileId: tripadvisor.id },
-                orderBy: { publishedDate: 'desc' },
-                select: { publishedDate: true },
-              })
-            : null,
-          booking
-            ? prisma.bookingReview.findFirst({
-                where: { businessProfileId: booking.id },
-                orderBy: { publishedDate: 'desc' },
-                select: { publishedDate: true },
-              })
-            : null,
-        ]);
+        // Return aggregated data from first location for backward compatibility
+        const firstLocation = locations[0];
 
         return {
           identifiers,
           profiles: {
-            google: google
-              ? {
-                  ...google,
-                  lastReviewDate: googleLastReview?.publishedAtDate || null,
-                }
-              : null,
-            facebook: facebook
-              ? {
-                  ...facebook,
-                  lastReviewDate: facebookLastReview?.date || null,
-                }
-              : null,
-            tripadvisor: tripadvisor
-              ? {
-                  ...tripadvisor,
-                  lastReviewDate: tripadvisorLastReview?.publishedDate || null,
-                }
-              : null,
-            booking: booking
-              ? {
-                  ...booking,
-                  lastReviewDate: bookingLastReview?.publishedDate || null,
-                }
-              : null,
+            google: firstLocation?.googleBusinessProfile || null,
+            facebook: firstLocation?.facebookBusinessProfile || null,
+            tripadvisor: firstLocation?.tripAdvisorBusinessProfile || null,
+            booking: firstLocation?.bookingBusinessProfile || null,
             instagram,
             tiktok,
           },
-          syncStatus,
+          locations,
+          syncStatus: null, // Deprecated
         };
       } catch (error) {
         console.error('Error fetching team platform data:', error);
@@ -355,8 +290,424 @@ export const superadminRouter = router({
     }),
 
   /**
+   * Create a team with first location (superadmin only)
+   */
+  createTeamWithLocation: superAdminProcedure
+    .input(createTeamWithLocationSchema)
+    .mutation(async ({ input }) => {
+      try {
+        // Check if team slug already exists
+        const existingTeam = await prisma.team.findUnique({
+          where: { slug: input.teamSlug },
+        });
+
+        if (existingTeam) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Team slug already exists',
+          });
+        }
+
+        // Create team and location in a transaction
+        const result = await prisma.$transaction(async (tx) => {
+          // Create team
+          const team = await tx.team.create({
+            data: {
+              name: input.teamName,
+              slug: input.teamSlug,
+            },
+          });
+
+          // Create first location
+          const location = await tx.businessLocation.create({
+            data: {
+              teamId: team.id,
+              name: input.locationName,
+              slug: input.locationSlug,
+              address: input.address,
+              city: input.city,
+              country: input.country,
+              timezone: input.timezone,
+            },
+          });
+
+          return { team, location };
+        });
+
+        recordMetric('superadmin.team_with_location.created');
+
+        return result;
+      } catch (error) {
+        console.error('Error creating team with location:', error);
+        
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create team with location',
+        });
+      }
+    }),
+
+  /**
+   * Get team with all locations and platform counts (superadmin only)
+   */
+  getTeamWithLocations: superAdminProcedure
+    .input(getTeamWithLocationsSchema)
+    .query(async ({ input }) => {
+      try {
+        const team = await prisma.team.findUnique({
+          where: { id: input.teamId },
+          include: {
+            members: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    image: true,
+                  },
+                },
+              },
+            },
+            locations: {
+              include: {
+                googleBusinessProfile: {
+                  select: {
+                    id: true,
+                    placeId: true,
+                    rating: true,
+                    _count: { select: { reviews: true } },
+                  },
+                },
+                facebookBusinessProfile: {
+                  select: {
+                    id: true,
+                    facebookUrl: true,
+                    _count: { select: { reviews: true } },
+                  },
+                },
+                tripAdvisorBusinessProfile: {
+                  select: {
+                    id: true,
+                    tripAdvisorUrl: true,
+                    rating: true,
+                    _count: { select: { reviews: true } },
+                  },
+                },
+                bookingBusinessProfile: {
+                  select: {
+                    id: true,
+                    bookingUrl: true,
+                    rating: true,
+                    _count: { select: { reviews: true } },
+                  },
+                },
+              },
+            },
+            instagramBusinessProfile: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                _count: { select: { dailySnapshots: true } },
+              },
+            },
+            tiktokBusinessProfile: {
+              select: {
+                id: true,
+                username: true,
+                _count: { select: { dailySnapshots: true } },
+              },
+            },
+          },
+        });
+
+        if (!team) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Team not found',
+          });
+        }
+
+        // Calculate platform counts per location
+        const locationsWithPlatformCounts = team.locations.map((location) => {
+          let platformCount = 0;
+          let totalReviews = 0;
+
+          if (location.googleBusinessProfile) {
+            platformCount++;
+            totalReviews += location.googleBusinessProfile._count.reviews;
+          }
+          if (location.facebookBusinessProfile) {
+            platformCount++;
+            totalReviews += location.facebookBusinessProfile._count.reviews;
+          }
+          if (location.tripAdvisorBusinessProfile) {
+            platformCount++;
+            totalReviews += location.tripAdvisorBusinessProfile._count.reviews;
+          }
+          if (location.bookingBusinessProfile) {
+            platformCount++;
+            totalReviews += location.bookingBusinessProfile._count.reviews;
+          }
+
+          return {
+            id: location.id,
+            name: location.name,
+            slug: location.slug,
+            address: location.address,
+            city: location.city,
+            country: location.country,
+            timezone: location.timezone,
+            platformCount,
+            totalReviews,
+            hasGoogle: !!location.googleBusinessProfile,
+            hasFacebook: !!location.facebookBusinessProfile,
+            hasTripadvisor: !!location.tripAdvisorBusinessProfile,
+            hasBooking: !!location.bookingBusinessProfile,
+          };
+        });
+
+        // Calculate total integrations
+        const totalPlatformIntegrations = locationsWithPlatformCounts.reduce(
+          (sum, loc) => sum + loc.platformCount,
+          0
+        );
+
+        // Add social platforms count
+        const socialPlatformsCount =
+          (team.instagramBusinessProfile ? 1 : 0) +
+          (team.tiktokBusinessProfile ? 1 : 0);
+
+        recordMetric('superadmin.team_with_locations.fetched');
+
+        return {
+          team: {
+            id: team.id,
+            name: team.name,
+            slug: team.slug,
+            createdAt: team.createdAt,
+            updatedAt: team.updatedAt,
+            membersCount: team.members.length,
+          },
+          locations: locationsWithPlatformCounts,
+          socialPlatforms: {
+            instagram: team.instagramBusinessProfile,
+            tiktok: team.tiktokBusinessProfile,
+            count: socialPlatformsCount,
+          },
+          stats: {
+            locationsCount: team.locations.length,
+            totalPlatformIntegrations,
+            totalSocialPlatforms: socialPlatformsCount,
+            totalReviews: locationsWithPlatformCounts.reduce(
+              (sum, loc) => sum + loc.totalReviews,
+              0
+            ),
+          },
+        };
+        } catch (error) {
+        console.error('Error fetching team with locations:', error);
+        
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch team with locations',
+        });
+      }
+    }),
+
+  /**
+   * Get platform data for a specific location (superadmin only)
+   */
+  getLocationPlatformData: superAdminProcedure
+    .input(getLocationPlatformDataSchema)
+    .query(async ({ input }) => {
+      try {
+        // Verify location belongs to team
+        const location = await prisma.businessLocation.findFirst({
+          where: {
+            id: input.locationId,
+            teamId: input.teamId,
+          },
+          include: {
+            googleBusinessProfile: {
+              include: {
+                reviews: {
+                  select: {
+                    id: true,
+                    publishedAtDate: true,
+                    rating: true,
+                  },
+                orderBy: { publishedAtDate: 'desc' },
+                  take: 1,
+                },
+                _count: { select: { reviews: true } },
+              },
+            },
+            facebookBusinessProfile: {
+              include: {
+                reviews: {
+                  select: {
+                    id: true,
+                    date: true,
+                    isRecommended: true,
+                  },
+                orderBy: { date: 'desc' },
+                  take: 1,
+                },
+                _count: { select: { reviews: true } },
+              },
+            },
+            tripAdvisorBusinessProfile: {
+              include: {
+                reviews: {
+                  select: {
+                    id: true,
+                    publishedDate: true,
+                    rating: true,
+                  },
+                orderBy: { publishedDate: 'desc' },
+                  take: 1,
+                },
+                _count: { select: { reviews: true } },
+              },
+            },
+            bookingBusinessProfile: {
+              include: {
+                reviews: {
+                  select: {
+                    id: true,
+                    publishedDate: true,
+                    rating: true,
+                  },
+                orderBy: { publishedDate: 'desc' },
+                  take: 1,
+                },
+                _count: { select: { reviews: true } },
+              },
+            },
+          },
+        });
+
+        if (!location) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Location not found',
+          });
+        }
+
+        // Get market identifiers for this location
+        const marketIdentifiers = await prisma.businessMarketIdentifier.findMany({
+          where: { locationId: input.locationId },
+        });
+
+        // Helper to process platform data
+        const processPlatformData = (platform: string, profile: any) => {
+          const platformMapping: Record<string, string> = {
+            'GOOGLE': 'GOOGLE_MAPS',
+            'FACEBOOK': 'FACEBOOK',
+            'TRIPADVISOR': 'TRIPADVISOR',
+            'BOOKING': 'BOOKING',
+          };
+          
+          const dbPlatform = platformMapping[platform] || platform;
+          const marketIdentifier = marketIdentifiers.find(
+            (mi) => mi.platform === dbPlatform
+          );
+
+          let reviewsCount = 0;
+          let lastReviewDate = null;
+          let status = 'not_started';
+
+          if (profile) {
+            if (profile.reviews && profile.reviews.length > 0) {
+              const review = profile.reviews[0];
+              lastReviewDate = review.publishedAtDate || review.date || review.publishedDate;
+            }
+            if (profile._count) {
+              reviewsCount = profile._count.reviews;
+            }
+            status = 'completed';
+          } else if (marketIdentifier) {
+            status = 'identifier_set';
+          }
+
+          return {
+            identifier: marketIdentifier?.identifier || null,
+            profile: profile || null,
+            reviewsCount,
+            lastReviewDate,
+            status,
+            canCreateProfile: !!marketIdentifier && !profile,
+            canGetReviews: !!profile,
+          };
+        };
+
+        const platforms = {
+          google: processPlatformData('GOOGLE', location.googleBusinessProfile),
+          facebook: processPlatformData('FACEBOOK', location.facebookBusinessProfile),
+          tripadvisor: processPlatformData('TRIPADVISOR', location.tripAdvisorBusinessProfile),
+          booking: processPlatformData('BOOKING', location.bookingBusinessProfile),
+        };
+
+        // Calculate stats
+        const totalReviews = Object.values(platforms).reduce(
+          (sum, p) => sum + (p.reviewsCount || 0),
+          0
+        );
+        
+        const completedPlatforms = Object.values(platforms).filter(
+          (p) => p.status === 'completed'
+        ).length;
+        
+        const completionPercentage = (completedPlatforms / 4) * 100; // 4 business platforms
+
+        recordMetric('superadmin.location_platform_data.fetched');
+
+        return {
+          location: {
+            id: location.id,
+            name: location.name,
+            slug: location.slug,
+            address: location.address,
+            city: location.city,
+            country: location.country,
+            timezone: location.timezone,
+          },
+          platforms,
+          stats: {
+            totalReviews,
+            completionPercentage,
+            completedPlatforms,
+            totalPlatforms: 4,
+          },
+        };
+      } catch (error) {
+        console.error('Error fetching location platform data:', error);
+        
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch location platform data',
+        });
+      }
+    }),
+
+  /**
    * Get comprehensive team platform data with stats and activity (superadmin only)
    * Used by the tenant detail page
+   * UPDATED: Now separates team-level (social) and location-level (business) platforms
    */
   getTeamPlatformData: superAdminProcedure
     .input(superadminTeamIdSchema)
@@ -377,8 +728,9 @@ export const superadminRouter = router({
                 },
               },
             },
-            marketIdentifiers: true,
-            businessProfile: {
+            locations: {
+              include: {
+                googleBusinessProfile: {
               include: {
                 reviews: {
                   select: {
@@ -389,9 +741,10 @@ export const superadminRouter = router({
                   orderBy: { publishedAtDate: 'desc' },
                   take: 1,
                 },
+                    _count: { select: { reviews: true } },
               },
             },
-            facebookBusinessProfiles: {
+                facebookBusinessProfile: {
               include: {
                 reviews: {
                   select: {
@@ -402,6 +755,7 @@ export const superadminRouter = router({
                   orderBy: { date: 'desc' },
                   take: 1,
                 },
+                    _count: { select: { reviews: true } },
               },
             },
             tripAdvisorBusinessProfile: {
@@ -415,6 +769,7 @@ export const superadminRouter = router({
                   orderBy: { publishedDate: 'desc' },
                   take: 1,
                 },
+                    _count: { select: { reviews: true } },
               },
             },
             bookingBusinessProfile: {
@@ -427,6 +782,9 @@ export const superadminRouter = router({
                   },
                   orderBy: { publishedDate: 'desc' },
                   take: 1,
+                    },
+                    _count: { select: { reviews: true } },
+                  },
                 },
               },
             },
@@ -479,79 +837,31 @@ export const superadminRouter = router({
           });
         }
 
-        // Helper to process platform data
-        const processPlatformData = (platform: string) => {
-          // Map platform names to match database format
-          const platformMapping: Record<string, string> = {
-            'GOOGLE': 'GOOGLE_MAPS',
-            'FACEBOOK': 'FACEBOOK',
-            'TRIPADVISOR': 'TRIPADVISOR',
-            'BOOKING': 'BOOKING',
-            'INSTAGRAM': 'INSTAGRAM',
-            'TIKTOK': 'TIKTOK'
-          };
-          
-          const dbPlatform = platformMapping[platform] || platform;
-          
-          const marketIdentifier = tenant.marketIdentifiers.find(
-            (mi: any) => mi.platform === dbPlatform
-          );
+        // Process social platforms (team-level: Instagram, TikTok)
+        // Note: Social platforms don't use market identifiers
+        const processSocialPlatformData = (platform: string) => {
+          const marketIdentifier = null;
 
           const task = tenant.businessCreationTasks.find(
             (t: any) => t.platform === platform
           );
 
           let profile = null;
-          let reviewsCount = 0;
-          let lastReviewDate = null;
+          let snapshotsCount = 0;
+          let lastSnapshotDate = null;
 
-          // Get platform-specific profile and reviews
-          switch (platform) {
-            case 'GOOGLE':
-              profile = tenant.businessProfile;
-              if (profile?.reviews) {
-                reviewsCount = profile.reviews.length;
-                lastReviewDate = profile.reviews[0]?.publishedAtDate || null;
-              }
-              break;
-            case 'FACEBOOK':
-              profile = tenant.facebookBusinessProfiles;
-              if (profile?.reviews) {
-                reviewsCount = profile.reviews.length;
-                lastReviewDate = profile.reviews[0]?.date || null;
-              }
-              break;
-            case 'TRIPADVISOR':
-              profile = tenant.tripAdvisorBusinessProfile;
-              if (profile?.reviews) {
-                reviewsCount = profile.reviews.length;
-                lastReviewDate = profile.reviews[0]?.publishedDate || null;
-              }
-              break;
-            case 'BOOKING':
-              profile = tenant.bookingBusinessProfile;
-              if (profile?.reviews) {
-                reviewsCount = profile.reviews.length;
-                lastReviewDate = profile.reviews[0]?.publishedDate || null;
-              }
-              break;
-            case 'INSTAGRAM':
+          if (platform === 'INSTAGRAM') {
               profile = tenant.instagramBusinessProfile;
               if (profile?.dailySnapshots) {
-                reviewsCount = profile.dailySnapshots.length;
-                lastReviewDate = profile.dailySnapshots[0]?.snapshotDate || null;
+              snapshotsCount = profile.dailySnapshots.length;
+              lastSnapshotDate = profile.dailySnapshots[0]?.snapshotDate || null;
               }
-              break;
-            case 'TIKTOK':
+          } else if (platform === 'TIKTOK') {
               profile = tenant.tiktokBusinessProfile;
               if (profile?.dailySnapshots) {
-                reviewsCount = profile.dailySnapshots.length;
-                lastReviewDate = profile.dailySnapshots[0]?.snapshotDate || null;
+              snapshotsCount = profile.dailySnapshots.length;
+              lastSnapshotDate = profile.dailySnapshots[0]?.snapshotDate || null;
               }
-              break;
-            default:
-              // Handle unknown platform
-              break;
           }
 
           // Determine status
@@ -561,7 +871,7 @@ export const superadminRouter = router({
               if (task.status === 'COMPLETED') {
                 status = 'completed';
               } else if (task.status === 'IN_PROGRESS') {
-                status = task.currentStep === 'CREATING_PROFILE' ? 'profile_in_progress' : 'reviews_in_progress';
+                status = 'in_progress';
               } else if (task.status === 'FAILED') {
                 status = 'failed';
               }
@@ -573,12 +883,11 @@ export const superadminRouter = router({
           return {
             identifier: marketIdentifier?.identifier || null,
             profile,
-            reviewsCount,
-            lastReviewDate,
+            snapshotsCount,
+            lastSnapshotDate,
             task,
             status,
             canCreateProfile: !!marketIdentifier && (status === 'not_started' || status === 'identifier_set' || status === 'failed'),
-            canGetReviews: status === 'completed' || status === 'profile_completed',
             canRetry: status === 'failed',
             statusMessage: task?.lastError || '',
             isProcessing: task?.status === 'IN_PROGRESS',
@@ -586,52 +895,90 @@ export const superadminRouter = router({
           };
         };
 
-        // Process platform data
-        const platforms = {
-          google: processPlatformData('GOOGLE'),
-          facebook: processPlatformData('FACEBOOK'),
-          tripadvisor: processPlatformData('TRIPADVISOR'),
-          booking: processPlatformData('BOOKING'),
-          instagram: processPlatformData('INSTAGRAM'),
-          tiktok: processPlatformData('TIKTOK'),
+        // Process social platforms
+        const socialPlatforms = {
+          instagram: processSocialPlatformData('INSTAGRAM'),
+          tiktok: processSocialPlatformData('TIKTOK'),
         };
 
-        // Calculate stats
+        // Aggregate location data for overall stats
         let totalReviews = 0;
-        let totalPhotos = 0;
         let totalRating = 0;
         let ratingCount = 0;
-        let activeTasksCount = 0;
-        let failedTasksCount = 0;
+        let completedLocations = 0;
 
-        Object.values(platforms).forEach((platform: any) => {
-          totalReviews += platform.reviewsCount || 0;
-          
-          if (platform.task) {
-            if (platform.task.status === 'IN_PROGRESS') {
-              activeTasksCount++;
-            } else if (platform.task.status === 'FAILED') {
-              failedTasksCount++;
+        tenant.locations.forEach((location) => {
+          let locationCompletedCount = 0;
+
+          if (location.googleBusinessProfile) {
+            if (location.googleBusinessProfile._count) {
+              totalReviews += location.googleBusinessProfile._count.reviews;
             }
+            if (location.googleBusinessProfile.rating) {
+              totalRating += location.googleBusinessProfile.rating;
+              ratingCount++;
+            }
+            locationCompletedCount++;
           }
 
-          if (platform.profile?.rating) {
-            totalRating += platform.profile.rating;
+          if (location.facebookBusinessProfile) {
+            if (location.facebookBusinessProfile._count) {
+              totalReviews += location.facebookBusinessProfile._count.reviews;
+            }
+            locationCompletedCount++;
+          }
+
+          if (location.tripAdvisorBusinessProfile) {
+            if (location.tripAdvisorBusinessProfile._count) {
+              totalReviews += location.tripAdvisorBusinessProfile._count.reviews;
+            }
+            if (location.tripAdvisorBusinessProfile.rating) {
+              totalRating += location.tripAdvisorBusinessProfile.rating;
             ratingCount++;
+          }
+            locationCompletedCount++;
+          }
+
+          if (location.bookingBusinessProfile) {
+            if (location.bookingBusinessProfile._count) {
+              totalReviews += location.bookingBusinessProfile._count.reviews;
+            }
+            if (location.bookingBusinessProfile.rating) {
+              totalRating += location.bookingBusinessProfile.rating;
+              ratingCount++;
+            }
+            locationCompletedCount++;
+          }
+
+          // Consider location complete if it has at least 1 platform configured
+          if (locationCompletedCount > 0) {
+            completedLocations++;
           }
         });
 
-        const totalPlatforms = Object.keys(platforms).length;
-        const completedPlatforms = Object.values(platforms).filter((p: any) => p.status === 'completed').length;
-        const completionPercentage = (completedPlatforms / totalPlatforms) * 100;
+        // Calculate completion percentage based on locations
+        const totalLocations = tenant.locations.length;
+        const completionPercentage = totalLocations > 0 
+          ? (completedLocations / totalLocations) * 100 
+          : 0;
+
+        // Count active tasks
+        const activeTasksCount = tenant.businessCreationTasks.filter(
+          (task: any) => task.status === 'IN_PROGRESS'
+        ).length;
+        const failedTasksCount = tenant.businessCreationTasks.filter(
+          (task: any) => task.status === 'FAILED'
+        ).length;
 
         const stats = {
           totalReviews,
-          totalPhotos,
+          totalPhotos: 0, // Deprecated
           averageRating: ratingCount > 0 ? totalRating / ratingCount : 0,
           completionPercentage,
           activeTasksCount,
           failedTasksCount,
+          locationsCount: totalLocations,
+          completedLocations,
         };
 
         // Get recent activity
@@ -665,6 +1012,46 @@ export const superadminRouter = router({
           },
         }));
 
+        // Format locations with their platform data
+        const locationsWithPlatforms = tenant.locations.map((location) => ({
+          id: location.id,
+          name: location.name,
+          slug: location.slug,
+          address: location.address,
+          city: location.city,
+          country: location.country,
+          timezone: location.timezone,
+          platforms: {
+            google: location.googleBusinessProfile ? {
+              id: location.googleBusinessProfile.id,
+              placeId: location.googleBusinessProfile.placeId,
+              rating: location.googleBusinessProfile.rating,
+              reviewsCount: location.googleBusinessProfile._count.reviews,
+              lastReviewDate: location.googleBusinessProfile.reviews[0]?.publishedAtDate || null,
+            } : null,
+            facebook: location.facebookBusinessProfile ? {
+              id: location.facebookBusinessProfile.id,
+              facebookUrl: location.facebookBusinessProfile.facebookUrl,
+              reviewsCount: location.facebookBusinessProfile._count.reviews,
+              lastReviewDate: location.facebookBusinessProfile.reviews[0]?.date || null,
+            } : null,
+            tripadvisor: location.tripAdvisorBusinessProfile ? {
+              id: location.tripAdvisorBusinessProfile.id,
+              tripAdvisorUrl: location.tripAdvisorBusinessProfile.tripAdvisorUrl,
+              rating: location.tripAdvisorBusinessProfile.rating,
+              reviewsCount: location.tripAdvisorBusinessProfile._count.reviews,
+              lastReviewDate: location.tripAdvisorBusinessProfile.reviews[0]?.publishedDate || null,
+            } : null,
+            booking: location.bookingBusinessProfile ? {
+              id: location.bookingBusinessProfile.id,
+              bookingUrl: location.bookingBusinessProfile.bookingUrl,
+              rating: location.bookingBusinessProfile.rating,
+              reviewsCount: location.bookingBusinessProfile._count.reviews,
+              lastReviewDate: location.bookingBusinessProfile.reviews[0]?.publishedDate || null,
+            } : null,
+          },
+        }));
+
         recordMetric('superadmin.team_platform_data.fetched');
 
         return {
@@ -680,7 +1067,8 @@ export const superadminRouter = router({
               user: member.user,
             })),
           },
-          platforms,
+          locations: locationsWithPlatforms,
+          socialPlatforms,
           stats,
           recentActivity,
         };

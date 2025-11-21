@@ -4,7 +4,8 @@ import { GoogleReview, ReviewMetadata, MarketPlatform } from "@prisma/client";
 import { GoogleOverviewService } from "../../supabase/googleOverviewService";
 import { SentimentAnalyzer } from "../../sentimentAnalyzer/sentimentAnalyzer";
 import { ApifyClient } from "apify-client";
-import { GoogleReviewAnalyticsService } from "../../services/googleReviewAnalyticsService";
+// Analytics service removed - analytics now computed on-demand via tRPC
+// import { GoogleReviewAnalyticsService } from "../../services/googleReviewAnalyticsService";
 
 export interface GoogleBusinessBatchJobPayload {
   platform: "GOOGLE_MAPS";
@@ -35,14 +36,16 @@ export class GoogleBusinessReviewsBatchActor extends Actor {
 export class GoogleBusinessReviewsBatchJob {
   private apifyClient: ApifyClient;
   private databaseService: DatabaseService;
-  private analyticsService: GoogleReviewAnalyticsService;
+  // Analytics service removed - analytics now computed on-demand via tRPC
+  // private analyticsService: GoogleReviewAnalyticsService;
   private jobPayload: GoogleBusinessBatchJobPayload;
 
   constructor(jobPayload: GoogleBusinessBatchJobPayload, apifyToken: string) {
     this.jobPayload = jobPayload;
     this.apifyClient = new ApifyClient({ token: apifyToken });
     this.databaseService = new DatabaseService();
-    this.analyticsService = new GoogleReviewAnalyticsService();
+    // Analytics service removed - analytics now computed on-demand via tRPC
+    // this.analyticsService = new GoogleReviewAnalyticsService();
   }
 
   public async run(): Promise<void> {
@@ -128,10 +131,8 @@ export class GoogleBusinessReviewsBatchJob {
           // Update business timestamp
           await this.databaseService.updateBusinessScrapedAt(business.placeId);
 
-          // Trigger analytics processing
-          await this.analyticsService.processReviewsAndUpdateDashboard(
-            business.businessProfileId,
-          );
+          // Analytics update removed - analytics now computed on-demand via tRPC
+          // await this.analyticsService.processReviewsAndUpdateDashboard(business.businessProfileId);
 
           results.push({
             placeId: business.placeId,

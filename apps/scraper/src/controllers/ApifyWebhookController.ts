@@ -624,29 +624,29 @@ export class ApifyWebhookController {
         case "google_reviews":
           const google = await prisma.googleBusinessProfile.findFirst({
             where: { placeId: identifier },
-            select: { teamId: true },
+            select: { businessLocation: { select: { teamId: true } } },
           });
-          return google?.teamId || null;
+          return google?.businessLocation?.teamId || null;
         case "facebook":
           const facebook = await prisma.facebookBusinessProfile.findFirst({
             where: { facebookUrl: identifier },
-            select: { teamId: true },
+            select: { businessLocation: { select: { teamId: true } } },
           });
-          return facebook?.teamId || null;
+          return facebook?.businessLocation?.teamId || null;
         case "tripadvisor":
           const tripadvisor = await prisma.tripAdvisorBusinessProfile.findFirst(
             {
               where: { tripAdvisorUrl: identifier },
-              select: { teamId: true },
+              select: { businessLocation: { select: { teamId: true } } },
             },
           );
-          return tripadvisor?.teamId || null;
+          return tripadvisor?.businessLocation?.teamId || null;
         case "booking":
           const booking = await prisma.bookingBusinessProfile.findFirst({
             where: { bookingUrl: identifier },
-            select: { teamId: true },
+            select: { businessLocation: { select: { teamId: true } } },
           });
-          return booking?.teamId || null;
+          return booking?.businessLocation?.teamId || null;
         default:
           return null;
       }

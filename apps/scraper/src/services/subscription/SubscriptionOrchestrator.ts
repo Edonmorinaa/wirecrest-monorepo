@@ -98,17 +98,18 @@ export class SubscriptionOrchestrator {
         );
 
         // Ensure profiles exist for all identifiers (create if missing)
-        for (const identifier of platformIdentifiers) {
+        for (const item of platformIdentifiers) {
           const profileResult =
             await profileService.ensureBusinessProfileExists(
               teamId,
+              item.locationId,
               this.mapPlatformToMarketPlatform(platform),
-              identifier,
+              item.identifier,
             );
 
           if (!profileResult.exists) {
             console.error(
-              `Failed to create profile for ${platform}:${identifier}`,
+              `Failed to create profile for ${platform}:${item.identifier}`,
               profileResult.error,
             );
             continue;
@@ -116,14 +117,14 @@ export class SubscriptionOrchestrator {
 
           if (profileResult.created) {
             profilesCreated++;
-            console.log(`    ✓ Created business profile for ${identifier}`);
+            console.log(`    ✓ Created business profile for ${item.identifier}`);
           }
         }
 
         // Trigger initial data fetch - get ALL reviews for initial sync
         const taskConfig: TaskRunConfig = {
           platform: platform as Platform,
-          identifiers: platformIdentifiers,
+          identifiers: platformIdentifiers.map((item) => item.identifier),
           isInitial: true,
           maxReviews: 99999, // Unlimited for initial sync - get all historical reviews
           webhookUrl: "",
@@ -149,12 +150,12 @@ export class SubscriptionOrchestrator {
         );
 
         // Add each business to the appropriate global schedule
-        for (const identifier of platformIdentifiers) {
+        for (const item of platformIdentifiers) {
           // Get business profile ID from identifier
           const businessProfileId = await this.getBusinessProfileId(
             teamId,
             platform as Platform,
-            identifier,
+            item.identifier,
           );
 
           if (businessProfileId) {
@@ -162,18 +163,18 @@ export class SubscriptionOrchestrator {
               businessProfileId,
               teamId,
               platform as Platform,
-              identifier,
+              item.identifier,
               interval,
             );
 
             if (result.success) {
               businessesAdded++;
               console.log(
-                `    ✓ Added ${identifier} to global schedule (${interval}h)`,
+                `    ✓ Added ${item.identifier} to global schedule (${interval}h)`,
               );
             } else {
               console.error(
-                `    ✗ Failed to add ${identifier}: ${result.message}`,
+                `    ✗ Failed to add ${item.identifier}: ${result.message}`,
               );
             }
           }
@@ -520,7 +521,7 @@ export class SubscriptionOrchestrator {
       switch (platform) {
         case "google_reviews":
           const googleProfile = await prisma.googleBusinessProfile.findFirst({
-            where: { teamId, placeId: identifier },
+            where: { businessLocation: { teamId }, placeId: identifier },
             select: { id: true },
           });
           return googleProfile?.id || null;
@@ -528,7 +529,7 @@ export class SubscriptionOrchestrator {
         case "facebook":
           const facebookProfile =
             await prisma.facebookBusinessProfile.findFirst({
-              where: { teamId, facebookUrl: identifier },
+              where: { businessLocation: { teamId }, facebookUrl: identifier },
               select: { id: true },
             });
           return facebookProfile?.id || null;
@@ -536,14 +537,14 @@ export class SubscriptionOrchestrator {
         case "tripadvisor":
           const tripAdvisorProfile =
             await prisma.tripAdvisorBusinessProfile.findFirst({
-              where: { teamId, tripAdvisorUrl: identifier },
+              where: { businessLocation: { teamId }, tripAdvisorUrl: identifier },
               select: { id: true },
             });
           return tripAdvisorProfile?.id || null;
 
         case "booking":
           const bookingProfile = await prisma.bookingBusinessProfile.findFirst({
-            where: { teamId, bookingUrl: identifier },
+            where: { businessLocation: { teamId }, bookingUrl: identifier },
             select: { id: true },
           });
           return bookingProfile?.id || null;
@@ -563,26 +564,27 @@ export class SubscriptionOrchestrator {
   /**
    * Get business identifiers for team across platforms
    * 🔄 FULLY DYNAMIC: Supports multiple businesses per platform
+   * Now returns locationId along with identifier for location-based platforms
    */
   private async getTeamBusinessIdentifiers(
     teamId: string,
     platforms: string[],
-  ): Promise<Record<string, string[]>> {
-    const identifiers: Record<string, string[]> = {};
+  ): Promise<Record<string, Array<{ identifier: string; locationId: string }>>> {
+    const identifiers: Record<string, Array<{ identifier: string; locationId: string }>> = {};
 
     for (const platform of platforms) {
       switch (platform) {
         case "google_reviews":
           // Get ALL Google business profiles for this team
           const googleProfiles = await prisma.googleBusinessProfile.findMany({
-            where: { teamId },
-            select: { placeId: true },
+            where: { businessLocation: { teamId } },
+            select: { placeId: true, locationId: true },
           });
-          const placeIds = googleProfiles
-            .map((p) => p.placeId)
-            .filter(Boolean) as string[];
-          if (placeIds.length > 0) {
-            identifiers["google_reviews"] = placeIds;
+          const googleData = googleProfiles
+            .filter((p) => p.placeId)
+            .map((p) => ({ identifier: p.placeId!, locationId: p.locationId }));
+          if (googleData.length > 0) {
+            identifiers["google_reviews"] = googleData;
           }
           break;
 
@@ -590,14 +592,14 @@ export class SubscriptionOrchestrator {
           // Get ALL Facebook pages for this team
           const facebookProfiles =
             await prisma.facebookBusinessProfile.findMany({
-              where: { teamId },
-              select: { facebookUrl: true },
+              where: { businessLocation: { teamId } },
+              select: { facebookUrl: true, locationId: true },
             });
-          const facebookUrls = facebookProfiles
-            .map((p) => p.facebookUrl)
-            .filter(Boolean) as string[];
-          if (facebookUrls.length > 0) {
-            identifiers["facebook"] = facebookUrls;
+          const facebookData = facebookProfiles
+            .filter((p) => p.facebookUrl)
+            .map((p) => ({ identifier: p.facebookUrl, locationId: p.locationId }));
+          if (facebookData.length > 0) {
+            identifiers["facebook"] = facebookData;
           }
           break;
 
@@ -605,28 +607,28 @@ export class SubscriptionOrchestrator {
           // Get ALL TripAdvisor locations for this team
           const tripAdvisorProfiles =
             await prisma.tripAdvisorBusinessProfile.findMany({
-              where: { teamId },
-              select: { tripAdvisorUrl: true },
+              where: { businessLocation: { teamId } },
+              select: { tripAdvisorUrl: true, businessLocationId: true },
             });
-          const tripAdvisorUrls = tripAdvisorProfiles
-            .map((p) => p.tripAdvisorUrl)
-            .filter(Boolean) as string[];
-          if (tripAdvisorUrls.length > 0) {
-            identifiers["tripadvisor"] = tripAdvisorUrls;
+          const tripAdvisorData = tripAdvisorProfiles
+            .filter((p) => p.tripAdvisorUrl)
+            .map((p) => ({ identifier: p.tripAdvisorUrl, locationId: p.businessLocationId }));
+          if (tripAdvisorData.length > 0) {
+            identifiers["tripadvisor"] = tripAdvisorData;
           }
           break;
 
         case "booking":
           // Get ALL Booking.com properties for this team
           const bookingProfiles = await prisma.bookingBusinessProfile.findMany({
-            where: { teamId },
-            select: { bookingUrl: true },
+            where: { businessLocation: { teamId } },
+            select: { bookingUrl: true, businessLocationId: true },
           });
-          const bookingUrls = bookingProfiles
-            .map((p) => p.bookingUrl)
-            .filter(Boolean) as string[];
-          if (bookingUrls.length > 0) {
-            identifiers["booking"] = bookingUrls;
+          const bookingData = bookingProfiles
+            .filter((p) => p.bookingUrl)
+            .map((p) => ({ identifier: p.bookingUrl, locationId: p.businessLocationId }));
+          if (bookingData.length > 0) {
+            identifiers["booking"] = bookingData;
           }
           break;
       }

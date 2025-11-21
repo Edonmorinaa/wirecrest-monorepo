@@ -1,6 +1,7 @@
 'use client';
 
 import { merge } from 'es-toolkit';
+import { useParams } from 'next/navigation';
 import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -16,29 +17,30 @@ import { useSettingsContext } from 'src/components/settings';
 
 import { useUser } from 'src/auth/hooks';
 
-import { NavMobile } from './nav-mobile';
-import { VerticalDivider } from './content';
-import { NavVertical } from './nav-vertical';
-import { NavHorizontal } from './nav-horizontal';
-import { _account } from '../nav-config-account';
-import { Searchbar } from '../components/searchbar';
-import { _workspaces } from '../nav-config-workspace';
-import { MenuButton } from '../components/menu-button';
-import { getSuperAdminNavData } from '../nav-config-admin';
 import { AccountDrawer } from '../components/account-drawer';
-import { SettingsButton } from '../components/settings-button';
-import { LanguagePopover } from '../components/language-popover';
 import { ContactsPopover } from '../components/contacts-popover';
-import { WorkspacesPopover } from '../components/workspaces-popover';
-import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
+import { LanguagePopover } from '../components/language-popover';
+import { MenuButton } from '../components/menu-button';
+import { LocationsPopover } from '../components/locations-popover';
+import { Searchbar } from '../components/searchbar';
 import { NotificationsDrawer } from '../components/notifications-drawer';
-import { getNavData as getDashboardNavData } from '../nav-config-dashboard';
+import { TeamsPopover } from '../components/teams-popover';
+import { SettingsButton } from '../components/settings-button';
+import { _account } from '../nav-config-account';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
+import { getSuperAdminNavData } from '../nav-config-admin';
+import { getNavData as getDashboardNavData } from '../nav-config-dashboard';
+import { VerticalDivider } from './content';
+import { NavMobile } from './nav-mobile';
+import { NavHorizontal } from './nav-horizontal';
+import { NavVertical } from './nav-vertical';
+import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 
 // ----------------------------------------------------------------------
 
 export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }) {
   const theme = useTheme();
+  const params = useParams();
 
   const { user } = useUser();
 
@@ -51,14 +53,14 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   // Determine navigation data based on user role
   const isSuperAdmin = user?.superRole === 'ADMIN';
   
-  // Get team slug from current path for regular users
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-  const teamSlugMatch = pathname.match(/\/dashboard\/teams\/([^\/]+)/);
-  const teamSlug = teamSlugMatch ? teamSlugMatch[1] : null;
+  // Extract team slug and location slug from URL params
+  // URL structure: /dashboard/teams/[slug]/[locationSlug]/...
+  const teamSlug = params?.slug || null;
+  const locationSlug = params?.locationSlug || null;
   
   const navData = isSuperAdmin 
     ? getSuperAdminNavData() 
-    : (slotProps?.nav?.data ?? getDashboardNavData(teamSlug));
+    : (slotProps?.nav?.data ?? getDashboardNavData(teamSlug, locationSlug));
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';
@@ -125,9 +127,16 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
             <VerticalDivider sx={{ [theme.breakpoints.up(layoutQuery)]: { display: 'flex' } }} />
           )}
 
-          {/** @slot Workspace popover */}
-          <WorkspacesPopover
-            data={_workspaces}
+          {/** @slot Team popover */}
+          <TeamsPopover
+            sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
+          />
+
+          {/** @slot Divider between Team and Location */}
+          <VerticalDivider sx={{ display: { xs: 'none', sm: 'flex' } }} />
+
+          {/** @slot Location popover */}
+          <LocationsPopover
             sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
           />
         </>

@@ -56,6 +56,7 @@ export class BusinessApiController
       // Validate required fields
       const validationError = this.validateRequiredFields(req, [
         "teamId",
+        "locationId",
         "identifier",
       ]);
       if (validationError) {
@@ -63,12 +64,18 @@ export class BusinessApiController
         return;
       }
 
-      const { teamId, identifier, platform } =
+      const { teamId, locationId, identifier, platform } =
         req.body as BusinessProfileRequest;
 
       // Validate team ID
       if (!this.validateTeamId(teamId)) {
         this.sendErrorResponse(res, 400, "Invalid team ID format");
+        return;
+      }
+
+      // Validate location ID
+      if (!locationId || typeof locationId !== 'string') {
+        this.sendErrorResponse(res, 400, "Invalid location ID format");
         return;
       }
 
@@ -85,6 +92,7 @@ export class BusinessApiController
       // Create business profile
       const result = await businessService.createProfile(
         teamId,
+        locationId,
         marketPlatform,
         identifier,
       );

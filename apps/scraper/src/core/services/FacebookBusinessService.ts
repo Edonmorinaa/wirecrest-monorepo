@@ -28,6 +28,7 @@ export class FacebookBusinessService implements IBusinessService {
 
   async createProfile(
     teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     identifier: string,
   ): Promise<BusinessProfileResult> {
@@ -36,6 +37,7 @@ export class FacebookBusinessService implements IBusinessService {
       const result =
         await this.legacyCreationService.ensureBusinessProfileExists(
           teamId,
+          locationId,
           platform,
           identifier,
         );

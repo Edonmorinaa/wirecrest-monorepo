@@ -1,4 +1,14 @@
 /**
+ * @deprecated This file is kept for reference only
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This utility extracted and ranked keywords from review text
+ * for updating PeriodicalMetric tables (now removed from schema)
+ * 
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ * 
+ * Original description:
  * Keyword Extractor Utility
  * Extracts and ranks keywords from review text
  * Follows Single Responsibility Principle (SRP)

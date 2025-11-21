@@ -3,7 +3,8 @@ import { DatabaseService } from "../../supabase/database";
 import { GoogleReview, ReviewMetadata, MarketPlatform } from "@prisma/client";
 import { GoogleOverviewService } from "../../supabase/googleOverviewService";
 import { ApifyClient } from "apify-client";
-import { GoogleReviewAnalyticsService } from "../../services/googleReviewAnalyticsService";
+// Analytics service removed - analytics now computed on-demand via tRPC
+// import { GoogleReviewAnalyticsService } from "../../services/googleReviewAnalyticsService";
 
 export class GoogleBusinessReviewsActor extends Actor {
   constructor() {
@@ -34,7 +35,8 @@ export interface GoogleBusinessReviewsActorJobPayload {
 export class GoogleBusinessReviewsActorJob {
   private apifyClient: ApifyClient;
   private databaseService: DatabaseService;
-  private analyticsService: GoogleReviewAnalyticsService;
+  // Analytics service removed - analytics now computed on-demand via tRPC
+  // private analyticsService: GoogleReviewAnalyticsService;
   private jobPayload: GoogleBusinessReviewsActorJobPayload;
 
   constructor(
@@ -44,7 +46,8 @@ export class GoogleBusinessReviewsActorJob {
     this.jobPayload = jobPayload;
     this.apifyClient = new ApifyClient({ token: apifyToken });
     this.databaseService = new DatabaseService(); // Assumes DatabaseService constructor is parameterless now
-    this.analyticsService = new GoogleReviewAnalyticsService();
+    // Analytics service removed - analytics now computed on-demand via tRPC
+    // this.analyticsService = new GoogleReviewAnalyticsService();
   }
 
   public async run(): Promise<void> {
@@ -111,10 +114,8 @@ export class GoogleBusinessReviewsActorJob {
         );
         // Still might be worth updating the 'scrapedAt' timestamp for the business profile
         await this.databaseService.updateBusinessScrapedAt(placeId); // Method only needs placeId
-        // And potentially trigger analytics for snapshot update even with 0 new reviews for the period
-        await this.analyticsService.processReviewsAndUpdateDashboard(
-          businessProfileId,
-        );
+        // Analytics update removed - analytics now computed on-demand via tRPC
+        // await this.analyticsService.processReviewsAndUpdateDashboard(businessProfileId);
         return;
       }
 
@@ -138,16 +139,11 @@ export class GoogleBusinessReviewsActorJob {
       // The teamId is retrieved internally by updateBusinessScrapedAt from the database
       await this.databaseService.updateBusinessScrapedAt(placeId);
 
+      // Analytics update removed - analytics now computed on-demand via tRPC
       // Step 5: Trigger review analytics processing for the dashboard
-      console.log(
-        `[ActorJob] Triggering dashboard analytics update for businessProfileId: ${businessProfileId}`,
-      );
-      await this.analyticsService.processReviewsAndUpdateDashboard(
-        businessProfileId,
-      );
-      console.log(
-        `[ActorJob] Dashboard analytics update complete for businessProfileId: ${businessProfileId}`,
-      );
+      // console.log(`[ActorJob] Triggering dashboard analytics update for businessProfileId: ${businessProfileId}`);
+      // await this.analyticsService.processReviewsAndUpdateDashboard(businessProfileId);
+      // console.log(`[ActorJob] Dashboard analytics update complete for businessProfileId: ${businessProfileId}`);
 
       console.log(
         `[ActorJob] Google Reviews scrape and processing finished successfully for placeId: ${placeId}.`,

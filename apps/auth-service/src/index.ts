@@ -16,17 +16,42 @@ const PORT = process.env.PORT || 3000;
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: [
-    'https://*.wirecrest.com',
-    'https://www.wirecrest.com',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3032',
-    'http://auth.wirecrest.local:3032'
-  ],
+
+// CORS configuration with proper wildcard support
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like curl, mobile apps, or Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow any localhost origin with any port
+    if (origin.startsWith('http://localhost:') || origin === 'http://localhost') {
+      return callback(null, true);
+    }
+    
+    // Allow wirecrest.local with any subdomain and port (dev environment)
+    if (origin.match(/^https?:\/\/[^\/]+\.wirecrest\.local(:\d+)?$/)) {
+      return callback(null, true);
+    }
+    
+    // Allow wirecrest.com with any subdomain (production)
+    if (origin.match(/^https:\/\/[^\/]+\.wirecrest\.com$/)) {
+      return callback(null, true);
+    }
+    
+    // Allow main domain
+    if (origin === 'https://www.wirecrest.com' || origin === 'https://wirecrest.com') {
+      return callback(null, true);
+    }
+    
+    console.log(`❌ CORS blocked origin: ${origin}`);
+    callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({

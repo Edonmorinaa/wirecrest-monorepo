@@ -51,7 +51,7 @@ export const executePlatformActionSchema = z.object({
  * Schema for enhanced market identifier creation
  */
 export const marketIdentifierEnhancedSchema = z.object({
-  teamId: z.string().min(1, 'Team ID is required'),
+  locationId: z.string().min(1, 'Location ID is required'),
   platform: z.enum([
     'GOOGLE_MAPS',
     'FACEBOOK',
@@ -70,6 +70,7 @@ export const marketIdentifierEnhancedSchema = z.object({
  */
 export const deletePlatformDataSchema = z.object({
   teamId: z.string().min(1, 'Team ID is required'),
+  locationId: z.string().min(1, 'Location ID is required'),
   platform: z.enum(['GOOGLE_MAPS', 'FACEBOOK', 'TRIPADVISOR', 'TIKTOK']),
 });
 

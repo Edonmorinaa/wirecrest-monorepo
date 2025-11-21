@@ -17,7 +17,7 @@ import CardContent from '@mui/material/CardContent';
 
 import { paths } from 'src/routes/paths';
 
-import { useTeamBookingData } from 'src/hooks/use-team-booking-data';
+import { useLocationBySlug, useBookingProfile, useBookingAnalytics, useBookingReviews } from 'src/hooks/useLocations';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -47,33 +47,78 @@ const TIME_PERIODS = [
 
 export function TeamBookingView() {
   const params = useParams();
-  const { slug } = params;
+  const teamSlug = params.slug;
+  const locationSlug = params.locationSlug;
   const [selectedPeriod, setSelectedPeriod] = useState('30');
   const hasSetInitialPeriod = useRef(false);
 
-  const {
-    businessProfile,
-    overview,
-    sentimentAnalysis,
-    topKeywords,
-    recentReviews,
-    ratingDistribution,
-    periodicalMetrics,
-    refreshData,
-  } = useTeamBookingData(slug);
+  // Get location data
+  const { data: location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
+
+  // Get business profile
+  const { data: businessProfile, isLoading: profileLoading } = useBookingProfile(
+    location?.id,
+    !!location
+  );
+
+  // Calculate date ranges based on selected period
+  const dateRanges = useMemo(() => {
+    const now = new Date();
+    const ranges = {};
+    
+    TIME_PERIODS.forEach((period) => {
+      if (period.key === '0') {
+        ranges[period.key] = { startDate: null, endDate: null };
+      } else {
+        const days = parseInt(period.key, 10);
+        const startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - days);
+        ranges[period.key] = {
+          startDate: startDate.toISOString(),
+          endDate: now.toISOString(),
+        };
+      }
+    });
+    
+    return ranges;
+  }, []);
+
+  // Get analytics for current period
+  const currentRange = dateRanges[selectedPeriod];
+  const { data: currentAnalytics, isLoading: currentAnalyticsLoading } = useBookingAnalytics(
+    location?.id,
+    currentRange.startDate,
+    currentRange.endDate,
+    !!location
+  );
+
+  // Get analytics for all time
+  const { data: allTimeAnalytics, isLoading: allTimeAnalyticsLoading } = useBookingAnalytics(
+    location?.id,
+    null,
+    null,
+    !!location
+  );
+
+  // Get recent reviews (5 most recent)
+  const { data: reviewsData, isLoading: reviewsLoading } = useBookingReviews(
+    location?.id,
+    {},
+    { page: 1, limit: 5 },
+    !!location
+  );
+
+  const recentReviews = reviewsData?.reviews || [];
+  const overview = currentAnalytics;
+  const sentimentAnalysis = currentAnalytics?.sentimentAnalysis;
+  const topKeywords = currentAnalytics?.topKeywords;
+  const ratingDistribution = currentAnalytics?.ratingDistribution;
 
   // Filter time periods to only show those with review data
   const availableTimePeriods = useMemo(() => {
-    if (!periodicalMetrics) {
-      return TIME_PERIODS.filter((period) => period.key === '0'); // Only show "All Time" if no metrics
-    }
-
-    return TIME_PERIODS.filter((period) => {
-      const metric = periodicalMetrics.find((m) => m.periodKey.toString() === period.key);
-      // Always include "All Time" period, and include others only if they have reviews
-      return period.key === '0' || (metric && metric.reviewCount > 0);
-    });
-  }, [periodicalMetrics]);
+    // For now, show all time periods
+    return TIME_PERIODS;
+  }, []);
 
   // Auto-select first available period if current selection is not available
   useEffect(() => {
@@ -86,67 +131,28 @@ export function TeamBookingView() {
     }
   }, [availableTimePeriods, selectedPeriod]);
 
-  // Get periodic metrics for selected period
-  const currentPeriodMetrics = useMemo(() => {
-    const metrics = periodicalMetrics?.find(
-      (metric) => metric.periodKey.toString() === selectedPeriod
-    );
-    return metrics;
-  }, [periodicalMetrics, selectedPeriod]);
+  // Current period metrics come from currentAnalytics
+  const currentPeriodMetrics = currentAnalytics;
 
-  // Get periodic metrics for all time period
-  const allTimePeriodMetrics = useMemo(() => {
-    const metrics = periodicalMetrics?.find((metric) => metric.periodKey.toString() === '0');
-    return metrics;
-  }, [periodicalMetrics]);
+  // All time metrics
+  const allTimePeriodMetrics = allTimeAnalytics;
 
-  // Use current period data if available, fallback to overview snapshot data, then to profile data
+  // Use current period data if available, fallback to profile data
   const displayMetrics = useMemo(() => {
     if (!businessProfile) return null;
 
     return {
       averageRating:
         currentPeriodMetrics?.averageRating ||
-        overview?.averageRating ||
         businessProfile.averageRating,
       totalReviews:
-        currentPeriodMetrics?.reviewCount || overview?.totalReviews || businessProfile.totalReviews,
-      responseRate: currentPeriodMetrics?.responseRate || overview?.responseRate,
-      averageLengthOfStay:
-        currentPeriodMetrics?.averageLengthOfStay || overview?.averageLengthOfStay,
-      sentimentAnalysis: currentPeriodMetrics
-        ? {
-            positive: currentPeriodMetrics.sentimentPositive || 0,
-            neutral: currentPeriodMetrics.sentimentNeutral || 0,
-            negative: currentPeriodMetrics.sentimentNegative || 0,
-          }
-        : sentimentAnalysis,
-      topKeywords: (() => {
-        const keywords = currentPeriodMetrics?.topKeywords || topKeywords;
-        if (!keywords) return [];
-        if (Array.isArray(keywords)) return keywords;
-        if (typeof keywords === 'string') {
-          try {
-            const parsed = JSON.parse(keywords);
-            return Array.isArray(parsed) ? parsed : [];
-          } catch {
-            return [];
-          }
-        }
-        if (typeof keywords === 'object') {
-          if (Array.isArray(Object.values(keywords))) {
-            return Object.values(keywords);
-          }
-          return [];
-        }
-        return [];
-      })(),
+        currentPeriodMetrics?.totalReviews || businessProfile.totalReviews,
+      responseRate: currentPeriodMetrics?.responseRate,
+      averageLengthOfStay: currentPeriodMetrics?.averageLengthOfStay,
+      sentimentAnalysis: currentPeriodMetrics?.sentimentAnalysis || sentimentAnalysis,
+      topKeywords: currentPeriodMetrics?.topKeywords || topKeywords || [],
     };
-  }, [businessProfile, currentPeriodMetrics, overview, sentimentAnalysis, topKeywords]);
-
-  const handleRefresh = async () => {
-    await refreshData();
-  };
+  }, [businessProfile, currentPeriodMetrics, sentimentAnalysis, topKeywords]);
 
   return (
     <DashboardContent maxWidth="xl">
@@ -157,7 +163,8 @@ export function TeamBookingView() {
             links={[
               { name: 'Dashboard', href: paths.dashboard.root },
               { name: 'Teams', href: paths.dashboard.teams.root },
-              { name: slug, href: paths.dashboard.teams.bySlug(slug) },
+              { name: teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+              { name: location?.name || '', href: paths.dashboard.teams.locations(teamSlug) },
               { name: 'Booking.com' },
             ]}
             action={
@@ -174,6 +181,29 @@ export function TeamBookingView() {
             }
           />
         </Grid>
+
+        {/* Loading State */}
+        {(locationLoading || profileLoading) && (
+          <Grid size={{ xs: 12 }}>
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography>Loading Booking.com overview data...</Typography>
+            </Box>
+          </Grid>
+        )}
+
+        {/* Error State */}
+        {!locationLoading && !location && (
+          <Grid size={{ xs: 12 }}>
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography color="error">Location not found</Typography>
+            </Box>
+          </Grid>
+        )}
+
+        {/* Content - only show if location is loaded */}
+        {location && (
+          <>
+        <Grid size={{ xs: 12 }}>
 
         {/* 1. HEADER & OVERVIEW SECTION */}
         {/* Booking.com Business Header */}
@@ -233,7 +263,7 @@ export function TeamBookingView() {
 
                   <BookingMetricsOverview
                     metrics={displayMetrics}
-                    periodicalMetrics={periodicalMetrics}
+                    periodicalMetrics={null}
                     currentPeriodKey={selectedPeriod}
                   />
                 </Box>
@@ -281,6 +311,9 @@ export function TeamBookingView() {
             </Typography>
           </Box>
         </Grid>
+        </Grid>
+        </>
+      )}
       </Grid>
     </DashboardContent>
   );

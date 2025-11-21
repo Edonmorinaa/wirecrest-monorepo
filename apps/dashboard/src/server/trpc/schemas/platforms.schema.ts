@@ -16,6 +16,7 @@ export const platformSlugSchema = z.object({
  */
 export const createMarketIdentifierSchema = z.object({
   teamSlug: z.string().min(1, 'Team slug is required'),
+  locationId: z.string().min(1, 'Location ID is required'),
   platform: z.enum([
     'GOOGLE_MAPS',
     'FACEBOOK',
@@ -33,6 +34,7 @@ export const createMarketIdentifierSchema = z.object({
  */
 export const createGoogleProfileSchema = z.object({
   teamSlug: z.string().min(1, 'Team slug is required'),
+  locationId: z.string().min(1, 'Location ID is required'),
   placeId: z.string().min(1, 'Place ID is required'),
 });
 
@@ -64,6 +66,7 @@ export const getGoogleReviewsSchema = z.object({
  */
 export const createFacebookProfileSchema = z.object({
   teamSlug: z.string().min(1, 'Team slug is required'),
+  locationId: z.string().min(1, 'Location ID is required'),
   facebookUrl: z.string().url('Invalid Facebook URL'),
 });
 

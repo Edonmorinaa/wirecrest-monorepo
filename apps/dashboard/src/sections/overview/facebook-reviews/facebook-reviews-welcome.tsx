@@ -118,7 +118,7 @@ export function FacebookReviewsWelcome({
             }}
           >
             <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-              {stats?.recommendationRate ? `${(stats.recommendationRate * 100).toFixed(1)}%` : '0%'}
+              {stats?.recommendationRate ? `${(stats.recommendationRate).toFixed(1)}%` : '0%'}
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.8 }}>
               Recommendation Rate

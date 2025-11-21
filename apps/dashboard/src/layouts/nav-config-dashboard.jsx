@@ -1,7 +1,5 @@
 'use client';
 
-import { paths } from 'src/routes/paths';
-
 import { CONFIG } from 'src/global-config';
 
 import { Iconify } from 'src/components/iconify';
@@ -153,28 +151,31 @@ const ICONS = {
 // ----------------------------------------------------------------------
 
 /*
- * Generate navigation data based on team slug
+ * Generate navigation data based on team slug and location slug
+ * @param {string} teamSlug - The team slug from URL params
+ * @param {string} locationSlug - The location slug from URL params (optional)
+ * @returns {Array} Navigation configuration array
+ * 
+ * Navigation visibility rules:
+ * - No teamSlug: Show nothing
+ * - teamSlug only (no locationSlug): Show nothing (user should select a location)
+ * - teamSlug + locationSlug: Show full navigation with platform items
  */
-export const getNavData = (teamSlug) => [
-  /**
-   * Overview
-   */
-  ...(teamSlug
+export const getNavData = (teamSlug, locationSlug) => [
+  // Only show navigation items if both team and location are selected
+  ...(teamSlug && locationSlug
     ? [
-        /**
-         * Automation
-         */
         {
           subheader: 'General',
           items: [
             {
               title: 'Overview',
-              path: '/',
+              path: `/${locationSlug}`,
               icon: ICONS.dashboard,
             },
             {
               title: 'Inbox',
-              path: '/inbox',
+              path: `/${locationSlug}/inbox`,
               icon: ICONS.chat,
             },
           ],
@@ -184,83 +185,97 @@ export const getNavData = (teamSlug) => [
           items: [
             {
               title: 'X Automation',
-              path: '/automation/twitter',
+              path: `/${locationSlug}/automation/twitter`,
               icon: ICONS.twitter,
               children: [
-                { title: 'Profiles', path: '/automation/twitter/profiles' },
-                { title: 'Alerts', path: '/automation/twitter/alerts' },
+                { 
+                  title: 'Profiles', 
+                  path: `/${locationSlug}/automation/twitter/profiles` 
+                },
+                { 
+                  title: 'Alerts', 
+                  path: `/${locationSlug}/automation/twitter/alerts` 
+                },
               ],
             },
           ],
         },
-        /**
-         * Social Media
-         */
         {
           subheader: 'Social Media',
           items: [
             {
               title: 'Instagram',
-              path: paths.dashboard.instagram.root(teamSlug),
+              path: `/${locationSlug}/instagram`,
               icon: ICONS.instagram,
-              // children: [
-              //   { title: 'Analytics', path: paths.dashboard.instagram.analytics(teamSlug) },
-              //   { title: 'Posts', path: paths.dashboard.instagram.posts(teamSlug) },
-              //   { title: 'Stories', path: paths.dashboard.instagram.stories(teamSlug) },
-              // ],
             },
             {
               title: 'TikTok',
-              path: paths.dashboard.tiktok.root(teamSlug),
+              path: `/${locationSlug}/tiktok`,
               icon: ICONS.tiktok,
-              // children: [
-              //   { title: 'Analytics', path: paths.dashboard.tiktok.analytics(teamSlug) },
-              //   { title: 'Videos', path: paths.dashboard.tiktok.videos(teamSlug) },
-              //   { title: 'Trends', path: paths.dashboard.tiktok.trends(teamSlug) },
-              // ],
             },
           ],
         },
-        /**
-         * Platforms
-         */
         {
           subheader: 'Platforms',
           items: [
             {
               title: 'Google Business',
-              path: paths.dashboard.google.root(teamSlug),
+              path: `/${locationSlug}/google`,
               icon: ICONS.google,
               children: [
-                { title: 'Overview', path: paths.dashboard.google.overview(teamSlug) },
-                { title: 'Reviews', path: paths.dashboard.google.reviews(teamSlug) },
+                { 
+                  title: 'Overview', 
+                  path: `/${locationSlug}/google/overview` 
+                },
+                { 
+                  title: 'Reviews', 
+                  path: `/${locationSlug}/google/reviews` 
+                },
               ],
             },
             {
               title: 'Facebook Business',
-              path: paths.dashboard.facebook.root(teamSlug),
+              path: `/${locationSlug}/facebook`,
               icon: ICONS.facebook,
               children: [
-                { title: 'Overview', path: paths.dashboard.facebook.overview(teamSlug) },
-                { title: 'Reviews', path: paths.dashboard.facebook.reviews(teamSlug) },
+                { 
+                  title: 'Overview', 
+                  path: `/${locationSlug}/facebook/overview` 
+                },
+                { 
+                  title: 'Reviews', 
+                  path: `/${locationSlug}/facebook/reviews` 
+                },
               ],
             },
             {
               title: 'TripAdvisor',
-              path: paths.dashboard.tripadvisor.root(teamSlug),
+              path: `/${locationSlug}/tripadvisor`,
               icon: ICONS.tripadvisor,
               children: [
-                { title: 'Overview', path: paths.dashboard.tripadvisor.overview(teamSlug) },
-                { title: 'Reviews', path: paths.dashboard.tripadvisor.reviews(teamSlug) },
+                { 
+                  title: 'Overview', 
+                  path: `/${locationSlug}/tripadvisor/overview` 
+                },
+                { 
+                  title: 'Reviews', 
+                  path: `/${locationSlug}/tripadvisor/reviews` 
+                },
               ],
             },
             {
               title: 'Booking.com',
-              path: paths.dashboard.booking.root(teamSlug),
+              path: `/${locationSlug}/booking`,
               icon: ICONS.bookingcom,
               children: [
-                { title: 'Overview', path: paths.dashboard.booking.overview(teamSlug) },
-                { title: 'Reviews', path: paths.dashboard.booking.reviews(teamSlug) },
+                { 
+                  title: 'Overview', 
+                  path: `/${locationSlug}/booking/overview` 
+                },
+                { 
+                  title: 'Reviews', 
+                  path: `/${locationSlug}/booking/reviews` 
+                },
               ],
             },
           ],
@@ -268,6 +283,3 @@ export const getNavData = (teamSlug) => [
       ]
     : []),
 ];
-
-// Legacy export for backward compatibility (when no team context)
-export const navData = getNavData(null);

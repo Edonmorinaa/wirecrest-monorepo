@@ -6,7 +6,6 @@ import { auth } from '@wirecrest/auth-next';
 import { MarketPlatform } from '@prisma/client';
 import {
   createBusinessMarketIdentifier,
-  getAllBusinessMarketIdentifiers,
 } from '@/models/business-market-identifier';
 
 import { throwIfNotSuperAdmin } from 'src/lib/permissions';
@@ -15,7 +14,7 @@ import { validateWithSchema, createBusinessMarketIndetifiersSchema } from 'src/l
 import { ApiError, recordMetric } from './lib';
 
 // Business Market Identifiers Actions
-export async function getBusinessMarketIdentifiers(teamSlug: string) {
+export async function getBusinessMarketIdentifiers(teamSlug: string, locationId?: string) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
@@ -23,6 +22,13 @@ export async function getBusinessMarketIdentifiers(teamSlug: string) {
 
   const team = await prisma.team.findUnique({
     where: { slug: teamSlug },
+    include: {
+      locations: {
+        include: {
+          marketIdentifiers: true,
+        },
+      },
+    },
   });
 
   if (!team) {
@@ -41,16 +47,27 @@ export async function getBusinessMarketIdentifiers(teamSlug: string) {
     throw new ApiError(403, 'Access denied. You must be a member of this team.');
   }
 
-  const marketIdentifiers = await getAllBusinessMarketIdentifiers(team.id);
+  // If locationId is specified, return only that location's identifiers
+  if (locationId) {
+    const location = team.locations.find((loc) => loc.id === locationId);
+    if (!location) {
+      throw new ApiError(404, 'Location not found');
+    }
+    recordMetric('business-market-identifier.fetched');
+    return location.marketIdentifiers;
+  }
+
+  // Otherwise, return all identifiers from all locations
+  const allIdentifiers = team.locations.flatMap((loc) => loc.marketIdentifiers);
 
   recordMetric('business-market-identifier.fetched');
 
-  return marketIdentifiers;
+  return allIdentifiers;
 }
 
 export async function createBusinessMarketIdentifierAction(
   teamSlug: string,
-  data: { platform: MarketPlatform; identifier: string }
+  data: { platform: MarketPlatform; identifier: string; locationId: string }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -77,20 +94,31 @@ export async function createBusinessMarketIdentifierAction(
     throw new ApiError(403, 'Access denied. You must be a member of this team.');
   }
 
-  const { platform, identifier } = validateWithSchema(createBusinessMarketIndetifiersSchema, data);
+  const { platform, identifier, locationId } = validateWithSchema(createBusinessMarketIndetifiersSchema, data);
 
   if (!Object.values(MarketPlatform).includes(platform as MarketPlatform)) {
     throw new ApiError(400, 'Invalid platform');
+  }
+
+  // Verify location belongs to team
+  const location = await prisma.businessLocation.findFirst({
+    where: {
+      id: locationId,
+      teamId: team.id,
+    },
+  });
+
+  if (!location) {
+    throw new ApiError(404, 'Location not found or does not belong to this team');
   }
 
   // Create a new business market identifier
   const marketIdentifier = await createBusinessMarketIdentifier(
     {
       identifier,
-      teamId: team.id,
       platform: platform as MarketPlatform,
     },
-    team.id,
+    locationId,
     platform as MarketPlatform
   );
 
@@ -98,7 +126,7 @@ export async function createBusinessMarketIdentifierAction(
 }
 
 // Google Business Profile Actions
-export async function getGoogleBusinessProfile(teamSlug: string) {
+export async function getGoogleBusinessProfile(teamSlug: string, locationId?: string) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
@@ -124,17 +152,14 @@ export async function getGoogleBusinessProfile(teamSlug: string) {
     throw new ApiError(403, 'Access denied. You must be a member of this team.');
   }
 
+  const whereClause = locationId
+    ? { locationId }
+    : { businessLocation: { teamId: team.id } };
+
   const profile = await prisma.googleBusinessProfile.findFirst({
-    where: { teamId: team.id },
+    where: whereClause,
     include: {
-      overview: {
-        include: {
-          periodicalMetrics: {
-            orderBy: { periodKey: 'asc' },
-          },
-        },
-      },
-      location: true,
+      businessLocation: true,
       categories: true,
       photos: {
         take: 5,
@@ -173,14 +198,21 @@ export async function getGoogleBusinessProfile(teamSlug: string) {
 }
 
 // DEPRECATED: Profile creation moved to scraper
-// Use admin.createOrUpdateMarketIdentifier + admin.executePlatformAction instead
-export async function createGoogleProfile(teamSlug: string, data: { placeId: string }) {
+// Use admin.createOrUpdateMarketIdentifierEnhanced + admin.executePlatformAction instead
+export async function createGoogleProfile(
+  teamSlug: string,
+  data: { placeId: string; locationId: string }
+) {
   await throwIfNotSuperAdmin();
 
-  const { placeId } = data;
+  const { placeId, locationId } = data;
 
   if (!placeId) {
     throw new ApiError(400, 'Place ID is required');
+  }
+
+  if (!locationId) {
+    throw new ApiError(400, 'Location ID is required');
   }
 
   // Get team by slug
@@ -193,14 +225,14 @@ export async function createGoogleProfile(teamSlug: string, data: { placeId: str
   }
 
   console.log('⚠️ DEPRECATED: createGoogleProfile called. Use admin actions instead.');
-  console.log('Creating Google profile for team:', team.id, 'with placeId:', placeId);
+  console.log('Creating Google profile for team:', team.id, 'location:', locationId, 'with placeId:', placeId);
 
   // Import admin actions
-  const { createOrUpdateMarketIdentifier, executePlatformAction } = await import('./admin');
+  const { createOrUpdateMarketIdentifierEnhanced, executePlatformAction } = await import('./admin');
 
   // Step 1: Create/update market identifier
-  await createOrUpdateMarketIdentifier({
-    teamId: team.id,
+  await createOrUpdateMarketIdentifierEnhanced({
+    locationId,
     platform: 'GOOGLE_MAPS',
     identifier: placeId,
   });
@@ -208,7 +240,8 @@ export async function createGoogleProfile(teamSlug: string, data: { placeId: str
   // Step 2: Execute platform action (delegates to scraper)
   const result = await executePlatformAction({
     teamId: team.id,
-    platform: "GOOGLE_MAPS",
+    locationId,
+    platform: 'GOOGLE_MAPS',
     action: 'create_profile',
   });
 
@@ -240,7 +273,10 @@ export async function getGoogleReviewsAction(
 
   // Check if Google business profile exists for this team
   const existingProfile = await prisma.googleBusinessProfile.findFirst({
-    where: { teamId: team.id },
+    where: { 
+      businessLocation: { teamId: team.id },
+      placeId 
+    },
   });
 
   if (!existingProfile) {
@@ -278,7 +314,7 @@ export async function getGoogleReviewsAction(
 }
 
 // Facebook Business Profile Actions
-export async function getFacebookBusinessProfile(teamSlug: string) {
+export async function getFacebookBusinessProfile(teamSlug: string, locationId?: string) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
@@ -304,62 +340,18 @@ export async function getFacebookBusinessProfile(teamSlug: string) {
     throw new ApiError(403, 'Access denied. You must be a member of this team.');
   }
 
+  const whereClause = locationId
+    ? { locationId }
+    : { businessLocation: { teamId: team.id } };
+
   const profile = await prisma.facebookBusinessProfile.findFirst({
-    where: { teamId: team.id },
+    where: whereClause,
     include: {
-      overview: {
-        include: {
-          sentimentAnalysis: true,
-          emotionalAnalysis: true,
-          reviewQuality: true,
-          contentLength: true,
-          keywords: {
-            orderBy: { count: 'desc' },
-            take: 20,
-          },
-          tags: {
-            orderBy: { count: 'desc' },
-            take: 20,
-          },
-          topics: {
-            orderBy: { count: 'desc' },
+      businessLocation: true,
+      businessMetadata: true,
+      reviews: {
+        orderBy: { date: 'desc' },
             take: 10,
-          },
-          competitorMentions: {
-            orderBy: { count: 'desc' },
-            take: 10,
-          },
-          recentReviews: {
-            orderBy: { reviewDate: 'desc' },
-            take: 10,
-          },
-          reviewsTrends: {
-            orderBy: { periodStart: 'desc' },
-            take: 12,
-          },
-          seasonalPatterns: {
-            orderBy: { monthNumber: 'asc' },
-          },
-          recommendationDistribution: true,
-          facebookPeriodicalMetric: {
-            orderBy: { periodKey: 'asc' },
-            include: {
-              keywords: {
-                orderBy: { count: 'desc' },
-                take: 10,
-              },
-              tags: {
-                orderBy: { count: 'desc' },
-                take: 10,
-              },
-              topics: {
-                orderBy: { count: 'desc' },
-                take: 5,
-              },
-              emotionalBreakdown: true,
-            },
-          },
-        },
       },
     },
   });
@@ -368,14 +360,21 @@ export async function getFacebookBusinessProfile(teamSlug: string) {
 }
 
 // DEPRECATED: Profile creation moved to scraper
-// Use admin.createOrUpdateMarketIdentifier + admin.executePlatformAction instead
-export async function createFacebookProfile(teamSlug: string, data: { facebookUrl: string }) {
+// Use admin.createOrUpdateMarketIdentifierEnhanced + admin.executePlatformAction instead
+export async function createFacebookProfile(
+  teamSlug: string,
+  data: { facebookUrl: string; locationId: string }
+) {
   await throwIfNotSuperAdmin();
 
-  const { facebookUrl } = data;
+  const { facebookUrl, locationId } = data;
 
   if (!facebookUrl) {
     throw new ApiError(400, 'Facebook URL is required');
+  }
+
+  if (!locationId) {
+    throw new ApiError(400, 'Location ID is required');
   }
 
   // Get team by slug
@@ -388,14 +387,14 @@ export async function createFacebookProfile(teamSlug: string, data: { facebookUr
   }
 
   console.log('⚠️ DEPRECATED: createFacebookProfile called. Use admin actions instead.');
-  console.log('Creating Facebook profile for team:', team.id, 'with URL:', facebookUrl);
+  console.log('Creating Facebook profile for team:', team.id, 'location:', locationId, 'with URL:', facebookUrl);
 
   // Import admin actions
-  const { createOrUpdateMarketIdentifier, executePlatformAction } = await import('./admin');
+  const { createOrUpdateMarketIdentifierEnhanced, executePlatformAction } = await import('./admin');
 
   // Step 1: Create/update market identifier
-  await createOrUpdateMarketIdentifier({
-    teamId: team.id,
+  await createOrUpdateMarketIdentifierEnhanced({
+    locationId,
     platform: 'FACEBOOK',
     identifier: facebookUrl,
   });
@@ -403,6 +402,7 @@ export async function createFacebookProfile(teamSlug: string, data: { facebookUr
   // Step 2: Execute platform action (delegates to scraper)
   const result = await executePlatformAction({
     teamId: team.id,
+    locationId,
     platform: 'FACEBOOK',
     action: 'create_profile',
   });
@@ -583,15 +583,15 @@ export async function getPlatformStatus(teamSlug: string) {
     throw new ApiError(403, 'Access denied. You must be a member of this team.');
   }
 
-  // Get platform profiles
+  // Get platform profiles from locations
   const [googleProfile, facebookProfile, instagramProfile] = await Promise.all([
     prisma.googleBusinessProfile.findFirst({
-      where: { teamId: team.id },
-      include: { overview: true },
+      where: { businessLocation: { teamId: team.id } },
+      include: { reviews: { take: 1 } },
     }),
     prisma.facebookBusinessProfile.findFirst({
-      where: { teamId: team.id },
-      include: { overview: true },
+      where: { businessLocation: { teamId: team.id } },
+      include: { reviews: { take: 1 } },
     }),
     prisma.instagramBusinessProfile.findFirst({
       where: { teamId: team.id },
@@ -603,12 +603,12 @@ export async function getPlatformStatus(teamSlug: string) {
     google: {
       connected: !!googleProfile,
       profile: googleProfile,
-      hasOverview: !!googleProfile?.overview,
+      hasReviews: !!googleProfile?.reviews?.length,
     },
     facebook: {
       connected: !!facebookProfile,
       profile: facebookProfile,
-      hasOverview: !!facebookProfile?.overview,
+      hasReviews: !!facebookProfile?.reviews?.length,
     },
     instagram: {
       connected: !!instagramProfile,
@@ -645,12 +645,11 @@ export async function getBookingBusinessProfile(slug: string) {
     throw new ApiError(403, 'Access denied');
   }
 
-  const bookingIdentifier = await prisma.businessMarketIdentifier.findUnique({
+  // Get Booking identifier from any location (use first one if multiple)
+  const bookingIdentifier = await prisma.businessMarketIdentifier.findFirst({
     where: {
-      teamId_platform: {
-        teamId: team.id,
+      location: { teamId: team.id },
         platform: 'BOOKING',
-      },
     },
   });
 
@@ -661,19 +660,11 @@ export async function getBookingBusinessProfile(slug: string) {
   // Fetch the business profile with all relations
   const businessProfile = await prisma.bookingBusinessProfile.findFirst({
     where: {
-      teamId: team.id,
+      businessLocation: { teamId: team.id },
       bookingUrl: bookingIdentifier.identifier,
     },
     include: {
-      overview: {
-        include: {
-          bookingPeriodicalMetric: {
-            orderBy: {
-              updatedAt: 'desc',
-            },
-          },
-        },
-      },
+      businessLocation: true,
       businessMetadata: true,
       rooms: true,
       facilities: true,
@@ -723,41 +714,13 @@ export async function getTripAdvisorBusinessProfile(slug: string) {
     throw new ApiError(403, 'Access denied');
   }
 
-  const profile = await prisma.tripAdvisorBusinessProfile.findUnique({
+  // Get TripAdvisor profile from any location (use first one if multiple)
+  const profile = await prisma.tripAdvisorBusinessProfile.findFirst({
     where: {
-      teamId: team.id,
+      businessLocation: { teamId: team.id },
     },
     include: {
-      overview: {
-        include: {
-          tripAdvisorPeriodicalMetric: {
-            orderBy: {
-              periodKey: 'asc',
-            },
-            include: {
-              topKeywords: {
-                take: 20,
-                orderBy: {
-                  count: 'desc',
-                },
-              },
-            },
-          },
-          sentimentAnalysis: true,
-          topKeywords: {
-            take: 20,
-            orderBy: {
-              count: 'desc',
-            },
-          },
-          topTags: {
-            take: 20,
-            orderBy: {
-              count: 'desc',
-            },
-          },
-        },
-      },
+      businessLocation: true,
       businessMetadata: true,
       addressObj: true,
       subcategories: true,
@@ -766,7 +729,10 @@ export async function getTripAdvisorBusinessProfile(slug: string) {
       photos: {
         take: 5,
       },
-      ratingDistribution: true,
+      reviews: {
+        orderBy: { publishedDate: 'desc' },
+        take: 10,
+      },
     },
   });
 
@@ -880,12 +846,11 @@ export async function getBookingOverview(slug: string) {
     throw new ApiError(403, 'Access denied');
   }
 
-  const bookingIdentifier = await prisma.businessMarketIdentifier.findUnique({
+  // Get Booking identifier from any location (use first one if multiple)
+  const bookingIdentifier = await prisma.businessMarketIdentifier.findFirst({
     where: {
-      teamId_platform: {
-        teamId: team.id,
-        platform: "BOOKING",
-      },
+      location: { teamId: team.id },
+      platform: 'BOOKING',
     },
   });
 
@@ -895,51 +860,29 @@ export async function getBookingOverview(slug: string) {
     throw new ApiError(404, 'Booking.com identifier not found for this team');
   }
 
-  // Fetch the business profile with comprehensive overview data
+  // Fetch the business profile with comprehensive data
   const businessProfile = await prisma.bookingBusinessProfile.findFirst({
     where: {
-      teamId: team.id,
+      businessLocation: { teamId: team.id },
       bookingUrl: bookingIdentifier.identifier,
     },
     include: {
-      overview: {
-        include: {
-          sentimentAnalysis: true,
-          topKeywords: {
-            orderBy: { count: 'desc' },
-            take: 20,
-          },
-          recentReviews: {
-            orderBy: { publishedDate: 'desc' },
-            take: 10,
-          },
-          ratingDistribution: true,
-          bookingPeriodicalMetric: {
-            orderBy: { periodKey: 'asc' },
-            include: {
-              topKeywords: {
-                orderBy: { count: 'desc' },
-                take: 10,
-              },
-            },
-          },
-        },
-      },
+      businessLocation: true,
       businessMetadata: true,
       rooms: true,
       facilities: true,
       photos: {
         take: 5,
       },
+      reviews: {
+        orderBy: { publishedDate: 'desc' },
+        take: 10,
+      },
     },
   });
 
   if (!businessProfile) {
     throw new ApiError(404, 'Booking.com business profile not found for this team');
-  }
-
-  if (!businessProfile.overview) {
-    throw new ApiError(404, 'Booking.com overview data not found');
   }
 
   return {

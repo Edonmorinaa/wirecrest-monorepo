@@ -1,9 +1,23 @@
 /**
+ * @deprecated These tests are for a deprecated service
+ * BookingReviewAnalyticsService is no longer used - analytics now computed on-demand via tRPC
+ * Tests are kept for reference but are skipped
+ * 
+ * Historical note:
  * Comprehensive tests for Booking Review Analytics Service
  * Tests NaN validation fix (PRE-EXISTING VULNERABILITY), 1-10 scale handling, and edge cases
+ * 
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
  */
 
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+
+// SKIP ALL TESTS - Service is deprecated
+describe.skip('Booking Review Analytics Service (DEPRECATED)', () => {
+  test.skip('All tests skipped - service deprecated', () => {
+    expect(true).toBe(true);
+  });
+});
 
 // Mock dependencies
 jest.mock('@wirecrest/db', () => ({

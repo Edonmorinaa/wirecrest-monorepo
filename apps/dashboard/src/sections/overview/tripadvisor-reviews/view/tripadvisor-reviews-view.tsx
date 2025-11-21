@@ -1,7 +1,6 @@
 'use client';
 
-import { lazy, useMemo, useState, Suspense, useCallback } from 'react';
-import { useTeamSlug } from '@/hooks/use-subdomain';
+import { lazy, useMemo, useState, Suspense, useCallback, useEffect, useRef } from 'react';
 import type { Prisma } from '@prisma/client';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
@@ -15,7 +14,8 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import useTeam from 'src/hooks/useTeam';
-import useTripAdvisorReviews, { type TripAdvisorReviewWithRelations } from 'src/hooks/use-tripadvisor-reviews';
+import { useLocationBySlug, useTripAdvisorProfile, useTripAdvisorReviews, useUpdateTripAdvisorReviewMetadata } from 'src/hooks/useLocations';
+import type { TripAdvisorReviewWithRelations } from 'src/hooks/use-tripadvisor-reviews';
 
 import { fNumber } from 'src/utils/format-number';
 
@@ -45,9 +45,9 @@ import {
 } from '../components';
 
 // Lazy load the heavy analytics component
-const TripAdvisorReviewsAnalytics = lazy(() => 
-  import('../components/tripadvisor-reviews-analytics').then(module => ({ 
-    default: module.TripAdvisorReviewsAnalytics 
+const TripAdvisorReviewsAnalytics2 = lazy(() => 
+  import('../tripadvisor-reviews-analytics2').then(module => ({ 
+    default: module.TripAdvisorReviewsAnalytics2 
   }))
 );
 
@@ -118,14 +118,49 @@ export function TripAdvisorReviewsView(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const subdomainTeamSlug = useTeamSlug();
-  const slug = (subdomainTeamSlug || params.slug) as string;
+  const teamSlug = params.slug as string;
+  const locationSlug = params.locationSlug as string;
 
   // Get team data
-  const { team } = useTeam(slug);
+  const { team } = useTeam(teamSlug);
 
-  // Local state for debounced search
+  // Get location data
+  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
+
+  // Validate locationId
+  const locationId = location?.id || '';
+  const isValidLocationId = locationId && locationId.length > 20;
+
+  // Get business profile
+  const { profile: businessProfile, isLoading: profileLoading } = useTripAdvisorProfile(
+    locationId,
+    !!location && isValidLocationId
+  );
+
+  // Local state for debounced search (synced with URL)
   const [searchValue, setSearchValue] = useState('');
+
+  // Ensure page and limit are always in URL on initial load
+  useEffect(() => {
+    const hasPage = searchParams.has('page');
+    const hasLimit = searchParams.has('limit');
+    
+    // Only update URL if page or limit is missing (initial load)
+    if (!hasPage || !hasLimit) {
+      const queryParams = new URLSearchParams(searchParams.toString());
+      
+      if (!hasPage) {
+        queryParams.set('page', '1');
+      }
+      if (!hasLimit) {
+        queryParams.set('limit', '10');
+      }
+      
+      // Only update if we actually changed something
+      router.replace(`?${queryParams.toString()}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - we intentionally don't include dependencies to prevent loops
 
   // Memoize filters extraction from URL to prevent unnecessary re-renders
   const filters = useMemo((): ReviewFilters => {
@@ -152,8 +187,8 @@ export function TripAdvisorReviewsView(): JSX.Element {
     };
   }, [searchParams]);
 
-  // Sync search value with filters
-  useMemo(() => {
+  // Sync search value with filters from URL
+  useEffect(() => {
     setSearchValue(filters.search || '');
   }, [filters.search]);
 
@@ -169,11 +204,57 @@ export function TripAdvisorReviewsView(): JSX.Element {
 
   // Fetch reviews data
   const { 
-    reviews, 
-    pagination, 
-    stats,
+    reviews,
+    pagination,
+    aggregates,
+    allTimeStats,
+    isLoading,
     refetch,
-  } = useTripAdvisorReviews(slug, hookFilters);
+  } = useTripAdvisorReviews(
+    locationId,
+    hookFilters,
+    { page: filters.page, limit: filters.limit },
+    !!location && isValidLocationId
+  );
+
+  // Mutation for updating review metadata
+  const updateMetadataMutation = useUpdateTripAdvisorReviewMetadata();
+
+  // Preserve previous stats during loading to prevent showing 0
+  const previousStatsRef = useRef<{
+    total: number;
+    averageRating: number;
+    totalHelpfulVotes: number;
+    unread: number;
+  } | null>(null);
+
+  // Use all-time stats for metric cards
+  const stats = useMemo(() => {
+    // If we have new data, use it and update the ref
+    if (allTimeStats && !isLoading) {
+      const newStats = {
+        total: allTimeStats.totalReviews || 0,
+        averageRating: allTimeStats.averageRating || 0,
+        totalHelpfulVotes: allTimeStats.totalHelpfulVotes || 0,
+        unread: allTimeStats.unread || 0,
+      };
+      previousStatsRef.current = newStats;
+      return newStats;
+    }
+    
+    // If loading and we have previous stats, use them
+    if (isLoading && previousStatsRef.current) {
+      return previousStatsRef.current;
+    }
+    
+    // Fallback to defaults if no previous data
+    return {
+      total: allTimeStats?.totalReviews || previousStatsRef.current?.total || 0,
+      averageRating: allTimeStats?.averageRating || previousStatsRef.current?.averageRating || 0,
+      totalHelpfulVotes: allTimeStats?.totalHelpfulVotes || previousStatsRef.current?.totalHelpfulVotes || 0,
+      unread: allTimeStats?.unread || previousStatsRef.current?.unread || 0,
+    };
+  }, [allTimeStats, isLoading]);
 
   // Update filter in URL
   const updateFilter = useCallback((key: keyof ReviewFilters, value: unknown): void => {
@@ -218,10 +299,7 @@ export function TripAdvisorReviewsView(): JSX.Element {
       updateFilter('search', value || undefined);
     }, 500);
     // Cleanup function is returned from useEffect, not from the callback
-    // Store the timeout ID for potential cleanup if needed
-    if (timeoutId) {
-      // Timeout is handled automatically
-    }
+    return () => clearTimeout(timeoutId);
   }, [updateFilter]);
 
   // Update review metadata
@@ -229,28 +307,29 @@ export function TripAdvisorReviewsView(): JSX.Element {
     reviewId: string, 
     updates: Partial<Prisma.ReviewMetadataGetPayload<{}>>
   ): Promise<void> => {
+    if (!locationId) {
+      console.error('LocationId is required to update metadata');
+      return;
+    }
+    
     try {
-      const response = await fetch(`/api/teams/${slug}/tripadvisor/reviews/${reviewId}/metadata`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+      await updateMetadataMutation.mutateAsync({
+        locationId,
+        platform: 'tripadvisor' as const,
+        reviewId,
+        metadata: updates,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || `HTTP ${response.status}: Failed to update review`;
-        throw new Error(errorMessage);
-      }
-
+      
+      // Refetch reviews to get updated data
       await refetch();
     } catch (err) {
       console.error('Error updating review metadata:', err);
     }
-  }, [slug, refetch]);
+  }, [locationId, updateMetadataMutation, refetch]);
 
   // Convert TripAdvisor reviews to format expected by review card
   const convertedReviews = useMemo((): ConvertedReviewData[] => 
-    reviews.map((review: TripAdvisorReviewWithRelations) => ({
+    (reviews || []).map((review: any) => ({
       id: review.id,
       name: review.reviewerName,
       text: review.text,
@@ -271,7 +350,7 @@ export function TripAdvisorReviewsView(): JSX.Element {
 
   // Prepare image data for lightbox
   const allImageUrls = useMemo((): string[] =>
-    reviews
+    (reviews || [])
       .filter((review) => review.photos && review.photos.length > 0)
       .flatMap((review) => review.photos?.map((photo) => photo.url) || [])
   , [reviews]);
@@ -289,31 +368,31 @@ export function TripAdvisorReviewsView(): JSX.Element {
   const statsCards = useMemo((): StatCard[] => [
     {
       title: 'Total Reviews',
-      total: fNumber(stats.total),
+      total: fNumber(stats?.total || 0),
       icon: <Iconify icon="solar:chart-2-bold" width={24} />,
       color: 'primary',
     },
     {
       title: 'Average Rating',
-      total: `${stats.averageRating ? stats.averageRating.toFixed(1) : '0.0'} / 5`,
+      total: `${stats?.averageRating ? stats.averageRating.toFixed(1) : '0.0'} / 5`,
       icon: <Iconify icon="solar:star-bold" width={24} />,
       color: 'warning',
     },
     {
       title: 'Total Helpful Votes',
-      total: `${stats.totalHelpfulVotes || 0}`,
+      total: `${stats?.totalHelpfulVotes || 0}`,
       subtitle:
-        stats.total > 0
-          ? `${((stats.totalHelpfulVotes || 0) / stats.total).toFixed(1)} avg per review`
+        (stats?.total || 0) > 0
+          ? `${((stats?.totalHelpfulVotes || 0) / (stats?.total || 1)).toFixed(1)} avg per review`
           : '0 avg per review',
       icon: <Iconify icon="solar:like-bold" width={24} />,
       color: 'success',
       showProgress: true,
-      progressValue: stats.total > 0 ? ((stats.totalHelpfulVotes || 0) / stats.total) * 10 : 0,
+      progressValue: (stats?.total || 0) > 0 ? ((stats?.totalHelpfulVotes || 0) / (stats?.total || 1)) * 10 : 0,
     },
     {
       title: 'Unread Reviews',
-      total: fNumber(stats.unread),
+      total: fNumber(stats?.unread || 0),
       icon: <Iconify icon="solar:eye-bold" width={24} />,
       color: 'error',
     },
@@ -323,15 +402,15 @@ export function TripAdvisorReviewsView(): JSX.Element {
   const welcomeStats = useMemo((): WelcomeStat[] => [
     {
       title: 'Total Reviews',
-      value: stats.total || 0,
+      value: stats?.total || 0,
     },
     {
       title: 'Average Rating',
-      value: stats.averageRating ? stats.averageRating.toFixed(1) : '0.0',
+      value: stats?.averageRating ? stats.averageRating.toFixed(1) : '0.0',
     },
     {
       title: 'Helpful Votes',
-      value: stats.totalHelpfulVotes || 0,
+      value: stats?.totalHelpfulVotes || 0,
     },
   ], [stats]);
 
@@ -339,9 +418,10 @@ export function TripAdvisorReviewsView(): JSX.Element {
   const breadcrumbs = useMemo(() => [
     { name: 'Dashboard', href: paths.dashboard.root },
     { name: 'Teams', href: paths.dashboard.teams.root },
-    { name: team?.name || '', href: paths.dashboard.teams.bySlug(slug) },
+    { name: team?.name || '', href: paths.dashboard.teams.bySlug(teamSlug) },
+    { name: location?.name || '', href: paths.dashboard.teams.locations(teamSlug) },
     { name: 'TripAdvisor Reviews', href: '' },
-  ], [team?.name, slug]);
+  ], [team?.name, location?.name, teamSlug]);
 
   return (
     <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
@@ -355,8 +435,23 @@ export function TripAdvisorReviewsView(): JSX.Element {
           backHref=""
         />
 
+        {/* Loading State */}
+        {(locationLoading || profileLoading || reviewsLoading) && (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography>Loading TripAdvisor reviews data...</Typography>
+          </Box>
+        )}
+
+        {/* Error State */}
+        {!locationLoading && !location && (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="error">Location not found</Typography>
+          </Box>
+        )}
+
         {/* Welcome Section */}
-        <TripAdvisorReviewsWelcome 
+        {location && (
+          <TripAdvisorReviewsWelcome 
           teamName={team?.name || 'TripAdvisor Reviews'}
           description="Monitor your TripAdvisor reviews and guest feedback"
           subtitle="TripAdvisor Business Profile"
@@ -378,12 +473,7 @@ export function TripAdvisorReviewsView(): JSX.Element {
               </Box>
             </Card>
           }>
-            <TripAdvisorReviewsAnalytics 
-              title="TripAdvisor Reviews Analytics"
-              subtitle="Review trends and performance metrics over time"
-              height={400}
-              placeholderMessage="Analytics chart will be implemented here"
-            />
+            <TripAdvisorReviewsAnalytics2 teamSlug={teamSlug} locationId={locationId} />
           </Suspense>
         </Grid>
 
@@ -429,6 +519,7 @@ export function TripAdvisorReviewsView(): JSX.Element {
             />
           </Box>
         </Card>
+        )}
       </Stack>
     </DashboardContent>
   );

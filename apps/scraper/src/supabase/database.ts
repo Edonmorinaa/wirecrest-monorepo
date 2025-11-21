@@ -393,14 +393,19 @@ export class DatabaseService {
       // Get business and team info
       const businessData = await prisma.googleBusinessProfile.findFirst({
         where: { placeId },
-        select: { id: true, teamId: true },
+        select: { id: true, businessLocation: { select: { teamId: true } } },
       });
 
       if (!businessData) {
         throw new Error(`Business with placeId ${placeId} does not exist`);
       }
 
-      const { id: businessId, teamId } = businessData;
+      const businessId = businessData.id;
+      const teamId = businessData.businessLocation?.teamId;
+      
+      if (!teamId) {
+        throw new Error(`Business with placeId ${placeId} has no associated team`);
+      }
 
       // Get team limits
       const teamLimits = await this.teamService.getTeamLimits(teamId);

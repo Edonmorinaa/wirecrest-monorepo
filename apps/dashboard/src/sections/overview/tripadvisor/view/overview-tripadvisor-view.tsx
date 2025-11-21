@@ -1,11 +1,11 @@
 'use client';
 
-import { useParams } from 'next/navigation';
-import { useRef, useMemo, useState, useEffect } from 'react';
+import dayjs from 'dayjs';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo, useState, useCallback } from 'react';
 
-import { useTripAdvisorReviews } from '@/hooks';
-import { useTeamSlug } from '@/hooks/use-subdomain';
-import useTripAdvisorOverview from '@/hooks/useTripAdvisorOverview';
+import useTeam from '@/hooks/useTeam';
+import { useLocationBySlug, useTripAdvisorProfile, useTripAdvisorAnalytics, useTripAdvisorReviews } from '@/hooks/useLocations';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -28,6 +28,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
 
 import { TripAdvisorTopKeywords } from '../components/tripadvisor-top-keywords';
 import { TripAdvisorBusinessInfo } from '../components/tripadvisor-business-info';
@@ -45,103 +46,142 @@ const TIME_PERIODS = [
   { key: '30', label: 'Last 30 Days', shortLabel: '30d' },
   { key: '180', label: 'Last 6 Months', shortLabel: '6m' },
   { key: '365', label: 'Last Year', shortLabel: '1y' },
-  { key: '0', label: 'All Time', shortLabel: 'All' },
+  { key: '7300', label: 'All Time', shortLabel: 'All' },
+  { key: 'custom', label: 'Custom Range', shortLabel: 'Custom' },
 ];
 
 // ----------------------------------------------------------------------
 
 export function TripAdvisorOverviewView() {
   const params = useParams();
-  const subdomainTeamSlug = useTeamSlug();
-  const rawSlug = subdomainTeamSlug || params.slug;
-  const slug = typeof rawSlug === 'string' ? rawSlug : Array.isArray(rawSlug) ? rawSlug[0] : '';
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const teamSlug = params.slug as string;
+  const locationSlug = params.locationSlug as string;
 
-  const {
-    businessProfile,
-    overview,
-    sentimentAnalysis,
-    topKeywords,
-    periodicalMetrics,
-    isLoading,
-    isError,
-  } = useTripAdvisorOverview(slug);
+  const { team } = useTeam(teamSlug);
+  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
 
-  const { reviews } = useTripAdvisorReviews(slug, {
-    limit: 10,
-    sortBy: 'publishedDate',
-    sortOrder: 'desc',
-  });
+  // Validate locationId
+  const locationId = location?.id || '';
+  const isValidLocationId = locationId && locationId.length > 20;
 
-  const [selectedPeriod, setSelectedPeriod] = useState('30');
-  const hasSetInitialPeriod = useRef(false);
+  // Get period from URL or default to '7300'
+  const selectedPeriod = searchParams.get('period') || '7300';
 
-  // Filter time periods to only show those with review data
-  const availableTimePeriods = useMemo(() => {
-    if (!periodicalMetrics || periodicalMetrics.length === 0) {
-      return TIME_PERIODS.filter((period) => period.key === '0'); // Only show "All Time" if no metrics
+  // Custom date picker state
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [tempFromDate, setTempFromDate] = useState<Date | null>(null);
+  const [tempToDate, setTempToDate] = useState<Date | null>(null);
+
+  // Get custom date range from URL
+  const customRange = useMemo(() => {
+    const customFrom = searchParams.get('customFrom');
+    const customTo = searchParams.get('customTo');
+    
+    if (customFrom && customTo) {
+      return {
+        from: new Date(customFrom),
+        to: new Date(customTo),
+      };
     }
+    return null;
+  }, [searchParams]);
 
-    return TIME_PERIODS.filter((period) => {
-      const metric = periodicalMetrics.find((m) => m.periodKey.toString() === period.key);
-      // Always include "All Time" period, and include others only if they have reviews
-      return period.key === '0' || (metric && metric.reviewCount > 0);
-    });
-  }, [periodicalMetrics]);
-
-  // Auto-select first available period if current selection is not available
-  useEffect(() => {
-    if (availableTimePeriods.length > 0 && !hasSetInitialPeriod.current) {
-      const isCurrentPeriodAvailable = availableTimePeriods.some((p) => p.key === selectedPeriod);
-      if (!isCurrentPeriodAvailable) {
-        setSelectedPeriod(availableTimePeriods[0].key);
-        hasSetInitialPeriod.current = true;
-      }
+  // Calculate date ranges based on selected period or custom range
+  const { startDate, endDate } = useMemo(() => {
+    if (selectedPeriod === 'custom' && customRange) {
+      return {
+        startDate: customRange.from.toISOString(),
+        endDate: customRange.to.toISOString(),
+      };
     }
-  }, [availableTimePeriods, selectedPeriod]);
+    
+    const end = new Date();
+    const start = new Date();
+    const days = parseInt(selectedPeriod) || 30;
+    start.setDate(end.getDate() - days);
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  }, [selectedPeriod, customRange]);
 
-  // Get periodic metrics for selected period
-  const currentPeriodMetrics = useMemo(() => {
-    const metrics = periodicalMetrics?.find(
-      (metric) => metric.periodKey.toString() === selectedPeriod
-    );
-    return metrics;
-  }, [periodicalMetrics, selectedPeriod]);
+  // Update URL with new period
+  const updatePeriod = useCallback((newPeriod: string) => {
+    const urlParams = new URLSearchParams(searchParams);
+    urlParams.set('period', newPeriod);
+    
+    // Clear custom range if switching away from custom
+    if (newPeriod !== 'custom') {
+      urlParams.delete('customFrom');
+      urlParams.delete('customTo');
+    }
+    
+    router.replace(`?${urlParams.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+  
+  // Update URL with custom range
+  const updateCustomRange = useCallback((from: Date, to: Date) => {
+    const urlParams = new URLSearchParams(searchParams);
+    urlParams.set('period', 'custom');
+    urlParams.set('customFrom', from.toISOString().split('T')[0]);
+    urlParams.set('customTo', to.toISOString().split('T')[0]);
+    
+    router.replace(`?${urlParams.toString()}`, { scroll: false });
+  }, [searchParams, router]);
 
-  // Get periodic metrics for selected period
-  const allTimePeriodMetrics = useMemo(() => {
-    const metrics = periodicalMetrics?.find((metric) => metric.periodKey.toString() === '0');
-    return metrics;
-  }, [periodicalMetrics]);
+  // Get all-time analytics
+  const allTimeStart = useMemo(() => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 10);
+    return date.toISOString();
+  }, []);
 
-  // Use current period data if available, fallback to overview snapshot data, then to profile data
+  const { profile: businessProfile, isLoading } = useTripAdvisorProfile(locationId, !!location && isValidLocationId);
+  const { analytics: allTimeAnalytics } = useTripAdvisorAnalytics(
+    locationId,
+    allTimeStart,
+    new Date().toISOString(),
+    !!location && isValidLocationId
+  );
+  const { analytics: currentAnalytics, isLoading: analyticsLoading } = useTripAdvisorAnalytics(
+    locationId,
+    startDate,
+    endDate,
+    !!location && isValidLocationId
+  );
+  const { reviews } = useTripAdvisorReviews(
+    locationId,
+    {},
+    { page: 1, limit: 10 },
+    !!location && isValidLocationId
+  );
+
+  // Available time periods (simplified - show all)
+  const availableTimePeriods = TIME_PERIODS;
+
+  // Get all-time metrics for header
+  const allTimePeriodMetrics = useMemo(() => ({
+    averageRating: allTimeAnalytics?.averageRating || businessProfile?.rating || 0,
+    reviewCount: allTimeAnalytics?.reviewCount || businessProfile?.numberOfReviews || 0,
+  }), [allTimeAnalytics, businessProfile]);
+
+  // Use current period data if available
   const displayMetrics = useMemo(() => {
-    if (!businessProfile) return null;
+    if (!currentAnalytics) return null;
 
     return {
-      averageRating:
-        currentPeriodMetrics?.averageRating || overview?.averageRating || businessProfile.rating,
-      totalReviews:
-        currentPeriodMetrics?.reviewCount ||
-        overview?.totalReviews ||
-        businessProfile.numberOfReviews ||
-        0,
-      responseRate: currentPeriodMetrics?.responseRatePercent,
-      averageResponseTime: currentPeriodMetrics?.avgResponseTimeHours,
-      sentimentAnalysis: currentPeriodMetrics
+      averageRating: currentAnalytics.averageRating || 0,
+      totalReviews: currentAnalytics.reviewCount || 0,
+      responseRate: currentAnalytics.responseRate,
+      averageResponseTime: currentAnalytics.averageResponseTime,
+      sentimentAnalysis: currentAnalytics.sentiment
         ? {
-            positive: currentPeriodMetrics.sentimentPositive || 0,
-            neutral: currentPeriodMetrics.sentimentNeutral || 0,
-            negative: currentPeriodMetrics.sentimentNegative || 0,
-          }
-        : sentimentAnalysis
-        ? {
-            positive: sentimentAnalysis.positiveCount || 0,
-            neutral: sentimentAnalysis.neutralCount || 0,
-            negative: sentimentAnalysis.negativeCount || 0,
+            positive: currentAnalytics.sentiment.positive || 0,
+            neutral: currentAnalytics.sentiment.neutral || 0,
+            negative: currentAnalytics.sentiment.negative || 0,
           }
         : { positive: 0, neutral: 0, negative: 0 },
       topKeywords: (() => {
-        const keywords = currentPeriodMetrics?.topKeywords || topKeywords;
+        const keywords = currentAnalytics.keywords;
         if (!keywords) return [];
         if (Array.isArray(keywords)) return keywords;
         if (typeof keywords === 'string') {
@@ -160,57 +200,18 @@ export function TripAdvisorOverviewView() {
         }
         return [];
       })(),
+      ratingDistribution: currentAnalytics.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
     };
-  }, [businessProfile, currentPeriodMetrics, overview, sentimentAnalysis, topKeywords]);
+  }, [currentAnalytics]);
 
   // Show loading state
-  if (isLoading) {
+  if (locationLoading || !location || isLoading) {
     return (
       <DashboardContent maxWidth="xl">
-        <Box sx={{ p: 3 }}>
-          <Stack spacing={3}>
-            <Skeleton variant="rectangular" height={200} />
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 8 }}>
-                <Skeleton variant="rectangular" height={400} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Skeleton variant="rectangular" height={400} />
-              </Grid>
-            </Grid>
-          </Stack>
-        </Box>
+        <Typography>Loading location...</Typography>
       </DashboardContent>
     );
   }
-
-  // Show error state
-  if (isError) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <Box sx={{ p: 3 }}>
-          <Alert severity="error">
-            <AlertTitle>Error Loading Data</AlertTitle>
-            Failed to load TripAdvisor Business Profile data. Please try refreshing the page.
-          </Alert>
-        </Box>
-      </DashboardContent>
-    );
-  }
-
-  // Show not found state
-  // if (!businessProfile) {
-  //   return (
-  //     <DashboardContent maxWidth="xl">
-  //       <Box sx={{ p: 3 }}>
-  //         <Alert severity="warning">
-  //           <AlertTitle>No Data Found</AlertTitle>
-  //           No TripAdvisor Business Profile found for this tenant.
-  //         </Alert>
-  //       </Box>
-  //     </DashboardContent>
-  //   );
-  // }
 
   return (
     <DashboardContent maxWidth="xl">
@@ -221,7 +222,8 @@ export function TripAdvisorOverviewView() {
             links={[
               { name: 'Dashboard', href: paths.dashboard.root },
               { name: 'Teams', href: paths.dashboard.teams.root },
-              { name: slug || 'Team', href: paths.dashboard.teams.bySlug(slug || '') },
+              { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+              { name: location?.name || locationSlug, href: paths.dashboard.locations.bySlug(teamSlug, locationSlug) },
               { name: 'TripAdvisor Overview', href: '' },
             ]}
             action={
@@ -250,8 +252,8 @@ export function TripAdvisorOverviewView() {
         <Grid size={{ xs: 12 }}>
           <TripAdvisorOverviewWelcome
             displayName={businessProfile?.name}
-            averageRating={allTimePeriodMetrics?.averageRating || overview?.averageRating || 0}
-            totalReviews={allTimePeriodMetrics?.reviewCount || overview?.totalReviews || 0}
+            averageRating={allTimePeriodMetrics?.averageRating || 0}
+            totalReviews={allTimePeriodMetrics?.reviewCount || 0}
           />
         </Grid>
 
@@ -271,7 +273,7 @@ export function TripAdvisorOverviewView() {
               {availableTimePeriods.length > 1 && (
                 <Tabs
                   value={selectedPeriod}
-                  onChange={(e, newValue) => setSelectedPeriod(newValue)}
+                  onChange={(e, newValue) => updatePeriod(newValue)}
                   variant="scrollable"
                   scrollButtons="auto"
                   sx={{ mb: 3 }}
@@ -299,17 +301,29 @@ export function TripAdvisorOverviewView() {
                       size="small"
                       color="primary"
                     />
+                    {selectedPeriod === 'custom' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={<Iconify icon="eva:calendar-outline" />}
+                        onClick={() => {
+                          setTempFromDate(customRange?.from || null);
+                          setTempToDate(customRange?.to || null);
+                          setDatePickerOpen(true);
+                        }}
+                        sx={{ ml: 2 }}
+                      >
+                        {customRange?.from && customRange?.to
+                          ? `${customRange.from.toLocaleDateString()} - ${customRange.to.toLocaleDateString()}`
+                          : 'Select Dates'}
+                      </Button>
+                    )}
                   </Stack>
 
                   <TripAdvisorMetricsOverview
                     metrics={displayMetrics}
-                    periodicalMetrics={periodicalMetrics?.filter((m: any) => m.periodKey != null).map((m: any) => ({
-                      periodKey: m.periodKey,
-                      averageRating: m.averageRating,
-                      responseRatePercent: m.responseRatePercent,
-                      avgResponseTimeHours: m.avgResponseTimeHours,
-                      reviewCount: m.reviewCount,
-                    })) || []}
+                    periodicalMetrics={[]}
                     currentPeriodKey={selectedPeriod}
                   />
                 </Box>
@@ -326,12 +340,12 @@ export function TripAdvisorOverviewView() {
         <Grid size={{ xs: 12 }}>
           <TripAdvisorRatingDistribution
             businessName={businessProfile?.name}
-            reviewCount={currentPeriodMetrics?.reviewCount || overview?.totalReviews || 0}
-            oneStarCount={currentPeriodMetrics?.oneStarCount || overview?.oneStarCount || 0}
-            twoStarCount={currentPeriodMetrics?.twoStarCount || overview?.twoStarCount || 0}
-            threeStarCount={currentPeriodMetrics?.threeStarCount || overview?.threeStarCount || 0}
-            fourStarCount={currentPeriodMetrics?.fourStarCount || overview?.fourStarCount || 0}
-            fiveStarCount={currentPeriodMetrics?.fiveStarCount || overview?.fiveStarCount || 0}
+            reviewCount={displayMetrics?.totalReviews || 0}
+            oneStarCount={displayMetrics?.ratingDistribution?.[1] || 0}
+            twoStarCount={displayMetrics?.ratingDistribution?.[2] || 0}
+            threeStarCount={displayMetrics?.ratingDistribution?.[3] || 0}
+            fourStarCount={displayMetrics?.ratingDistribution?.[4] || 0}
+            fiveStarCount={displayMetrics?.ratingDistribution?.[5] || 0}
           />
         </Grid>
 
@@ -372,13 +386,33 @@ export function TripAdvisorOverviewView() {
           <Box sx={{ mt: 3, textAlign: 'right' }}>
             <Typography variant="caption" color="text.secondary">
               Last updated:{' '}
-              {overview?.lastUpdated
-                ? new Date(overview.lastUpdated).toLocaleString()
+              {businessProfile?.updatedAt
+                ? new Date(businessProfile.updatedAt).toLocaleString()
                 : 'Not available'}
             </Typography>
           </Box>
         </Grid>
       </Grid>
+
+      {/* Custom Date Picker Dialog */}
+      <CustomDateRangePicker
+        variant="calendar"
+        title="Select Custom Date Range"
+        open={datePickerOpen}
+        onClose={() => setDatePickerOpen(false)}
+        startDate={tempFromDate ? dayjs(tempFromDate) : null}
+        endDate={tempToDate ? dayjs(tempToDate) : null}
+        onChangeStartDate={(date) => setTempFromDate(date ? date.toDate() : null)}
+        onChangeEndDate={(date) => setTempToDate(date ? date.toDate() : null)}
+        error={tempFromDate && tempToDate ? tempFromDate > tempToDate : false}
+        onSubmit={() => {
+          if (tempFromDate && tempToDate && tempFromDate <= tempToDate) {
+            updateCustomRange(tempFromDate, tempToDate);
+            setDatePickerOpen(false);
+          }
+        }}
+        slotProps={{}}
+      />
     </DashboardContent>
   );
 }

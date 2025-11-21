@@ -2,7 +2,8 @@ import { ApifyClient } from "apify-client";
 import { Actor, ActorJob, ReviewActorJobData } from "./actor";
 import { DatabaseService } from "../../supabase/database";
 import { MarketPlatform } from "@wirecrest/db";
-import { FacebookReviewAnalyticsService } from "../../services/facebookReviewAnalyticsService";
+// Analytics service removed - analytics now computed on-demand via tRPC
+// import { FacebookReviewAnalyticsService } from "../../services/facebookReviewAnalyticsService";
 import { prisma } from "@wirecrest/db";
 import { reviewAnalysisService } from "../../services/analysis/ReviewAnalysisService";
 

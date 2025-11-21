@@ -123,6 +123,7 @@ export class GlobalScheduleOrchestrator {
 
   /**
    * Build minimal default input for task creation
+   * Note: Apify requires at least 1 item in startUrls for validation
    */
   private buildDefaultTaskInput(platform: Platform): any {
     switch (platform) {

@@ -7,7 +7,8 @@ import {
 
 interface DatabaseNotification {
   operation: "INSERT" | "UPDATE" | "DELETE";
-  teamId: string;
+  teamId: string; // Kept for event compatibility, extracted from location
+  locationId: string;
   platform: MarketPlatform;
   newIdentifier: string | null;
   oldIdentifier: string | null;
@@ -194,8 +195,9 @@ export class DatabaseListener {
 
   /**
    * Test the database listener by inserting a test record
+   * NOTE: Requires a valid locationId from your database
    */
-  async testListener(teamId: string = "test-team"): Promise<void> {
+  async testListener(locationId: string): Promise<void> {
     if (!this.isListening) {
       throw new Error("Database listener is not running");
     }
@@ -207,14 +209,14 @@ export class DatabaseListener {
     try {
       await testClient.connect();
 
-      // Insert a test record
+      // Insert a test record using locationId
       const testQuery = `
-        INSERT INTO "BusinessMarketIdentifier" (id, "teamId", platform, identifier, "createdAt", "updatedAt")
+        INSERT INTO "BusinessMarketIdentifier" (id, "locationId", platform, identifier, "createdAt", "updatedAt")
         VALUES (gen_random_uuid(), $1, 'GOOGLE_MAPS', 'ChIJtest-' || extract(epoch from now()), NOW(), NOW())
         RETURNING *
       `;
 
-      const result = await testClient.query(testQuery, [teamId]);
+      const result = await testClient.query(testQuery, [locationId]);
       console.log("Test record inserted:", result.rows[0]);
 
       // Clean up test record after a short delay

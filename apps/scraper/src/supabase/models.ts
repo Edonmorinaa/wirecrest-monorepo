@@ -462,7 +462,7 @@ export interface YelpReview {
 
 export interface BusinessMarketIdentifier {
   id: string;
-  teamId: string;
+  locationId: string;
   platform: MarketPlatform;
   identifier: string;
   createdAt: Date;

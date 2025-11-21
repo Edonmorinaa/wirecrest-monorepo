@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { useAuth } from '@wirecrest/auth-next';
-import { SuperRole } from '@prisma/client';
 import { useRouter } from 'next/navigation';
+
+import { SuperRole } from '@prisma/client';
+
 import { useSuperAdminTenants } from '@/hooks/useSuperAdminTenants';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
 import Menu from '@mui/material/Menu';
 import Alert from '@mui/material/Alert';
@@ -47,19 +47,7 @@ import { RoleGuard } from 'src/components/guards';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableSkeleton } from 'src/components/table/table-skeleton';
 
-const statusColors = {
-  not_started: 'default',
-  in_progress: 'primary',
-  completed: 'success',
-  failed: 'error'
-};
-
-const statusIcons = {
-  not_started: 'solar:clock-circle-bold',
-  in_progress: 'solar:activity-bold',
-  completed: 'solar:check-circle-bold',
-  failed: 'solar:close-circle-bold'
-};
+// Removed old status colors and icons - no longer showing per-platform status
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   fontWeight: 600,
@@ -67,7 +55,6 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 }));
 
 export default function SuperAdminTenantsPage() {
-  const { user } = useAuth();
   const router = useRouter();
   
   const [filters, setFilters] = useState({
@@ -110,14 +97,6 @@ export default function SuperAdminTenantsPage() {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   };
 
-  const handleSort = (sortBy) => {
-    setFilters(prev => ({
-      ...prev,
-      sortBy,
-      sortOrder: prev.sortBy === sortBy && prev.sortOrder === 'asc' ? 'desc' : 'asc'
-    }));
-  };
-
   const handlePageChange = (event, newPage) => {
     setFilters(prev => ({ ...prev, page: newPage + 1 }));
   };
@@ -130,17 +109,7 @@ export default function SuperAdminTenantsPage() {
     }));
   };
 
-  const getPlatformStatus = (tenant, platform) => tenant.platforms[platform]?.status || 'not_started';
-
-  const getPlatformChip = (status) => (
-      <Chip
-        icon={<Iconify icon={statusIcons[status]} />}
-        label={status.replace('_', ' ')}
-        color={statusColors[status]}
-        size="small"
-        variant="outlined"
-      />
-    );
+  // Removed getPlatformStatus and getPlatformChip - no longer showing individual platform chips
 
   // Show loading state
   if (isLoading) {
@@ -180,7 +149,7 @@ export default function SuperAdminTenantsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    <TableSkeleton rowCount={5} cellCount={6} />
+                    <TableSkeleton rowCount={5} cellCount={7} />
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -313,17 +282,17 @@ export default function SuperAdminTenantsPage() {
               <Box sx={{ p: 3 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Total Integrations
+                    Total Locations
                   </Typography>
                   <Avatar sx={{ bgcolor: 'success.lighter', color: 'success.main' }}>
-                    <Iconify icon="solar:trending-up-bold" />
+                    <Iconify icon="mdi:map-marker-multiple" />
                   </Avatar>
                 </Stack>
                 <Typography variant="h4" sx={{ mb: 0.5 }}>
-                  {stats.googleIntegrations + stats.facebookIntegrations + stats.tripadvisorIntegrations + stats.bookingIntegrations}
+                  {stats.totalLocations || 0}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Across all platforms
+                  {stats.totalIntegrations || 0} integrations
                 </Typography>
               </Box>
             </Card>
@@ -394,7 +363,7 @@ export default function SuperAdminTenantsPage() {
               Tenants
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Manage tenant organizations and their platform integrations
+              Manage tenant organizations, locations, and platform integrations
             </Typography>
             
             <TableContainer>
@@ -403,8 +372,9 @@ export default function SuperAdminTenantsPage() {
                   <TableRow>
                     <StyledTableCell>Tenant</StyledTableCell>
                     <StyledTableCell>Members</StyledTableCell>
+                    <StyledTableCell>Locations</StyledTableCell>
+                    <StyledTableCell>Integrations</StyledTableCell>
                     <StyledTableCell>Progress</StyledTableCell>
-                    <StyledTableCell>Platforms</StyledTableCell>
                     <StyledTableCell>Last Activity</StyledTableCell>
                     <StyledTableCell align="right">Actions</StyledTableCell>
                   </TableRow>
@@ -435,27 +405,37 @@ export default function SuperAdminTenantsPage() {
                           </Stack>
                         </TableCell>
                         <TableCell>
-                          <Box sx={{ width: '100%' }}>
-                            <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                              <Typography variant="body2">{tenant.overallProgress}%</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {tenant.activeTasksCount} active
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Iconify icon="mdi:map-marker" sx={{ color: 'text.secondary' }} />
+                            <Typography variant="body2">
+                              {tenant.locationsCount || 0}
+                            </Typography>
+                            {tenant.completedLocations > 0 && (
+                              <Typography variant="caption" color="text.secondary">
+                                ({tenant.completedLocations} setup)
                               </Typography>
+                            )}
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Iconify icon="solar:widget-5-bold" sx={{ color: 'text.secondary' }} />
+                            <Typography variant="body2">
+                              {tenant.totalPlatformIntegrations || 0}
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ width: 120 }}>
+                            <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+                              <Typography variant="body2">{Math.round(tenant.overallProgress || 0)}%</Typography>
                             </Stack>
                             <LinearProgress 
                               variant="determinate" 
-                              value={tenant.overallProgress} 
+                              value={tenant.overallProgress || 0} 
                               sx={{ height: 8, borderRadius: 1 }}
                             />
                           </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Stack spacing={0.5}>
-                            {getPlatformChip(getPlatformStatus(tenant, 'google'))}
-                            {getPlatformChip(getPlatformStatus(tenant, 'facebook'))}
-                            {getPlatformChip(getPlatformStatus(tenant, 'tripadvisor'))}
-                            {getPlatformChip(getPlatformStatus(tenant, 'booking'))}
-                          </Stack>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color="text.secondary">

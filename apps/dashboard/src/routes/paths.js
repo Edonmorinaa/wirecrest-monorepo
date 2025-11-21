@@ -119,6 +119,11 @@ export const paths = {
       create: `${ROOTS.DASHBOARD}/teams?newTeam=true`,
       bySlug: (slug) => `${ROOTS.DASHBOARD}/teams/${slug}`,
     },
+    // Locations (team-scoped)
+    locations: {
+      root: (slug) => `${ROOTS.DASHBOARD}/teams/${slug}/locations`,
+      bySlug: (teamSlug, locationSlug) => `${ROOTS.DASHBOARD}/teams/${teamSlug}/${locationSlug}`,
+    },
     // Team-scoped Social Media Platforms
     instagram: {
       root: (slug) => `${ROOTS.DASHBOARD}/instagram`,
@@ -133,47 +138,42 @@ export const paths = {
       trends: (slug) => `${ROOTS.DASHBOARD}/tiktok/trends`,
     },
     inbox: {
-      root: (slug) => `${ROOTS.DASHBOARD}/inbox`,
+      root: (slug) => `${ROOTS.DASHBOARD}/${slug}/inbox`,
     },
     // Team-scoped Automation
     automation: {
-      root: (slug) => `${ROOTS.DASHBOARD}/automation`,
-      dashboard: (slug) => `${ROOTS.DASHBOARD}/automation`,
-      twitter: (slug) => `${ROOTS.DASHBOARD}/automation/twitter`,
-      twitterProfiles: (slug) => `${ROOTS.DASHBOARD}/automation/twitter/profiles`,
-      twitterAlerts: (slug) => `${ROOTS.DASHBOARD}/automation/twitter/alerts`,
+      root: (slug) => `${ROOTS.DASHBOARD}/${slug}/automation`,
+      dashboard: (slug) => `${ROOTS.DASHBOARD}/${slug}/automation`,
+      twitter: (slug) => `${ROOTS.DASHBOARD}/${slug}/automation/twitter`,
+      twitterProfiles: (slug) => `${ROOTS.DASHBOARD}/${slug}/automation/twitter/profiles`,
+      twitterAlerts: (slug) => `${ROOTS.DASHBOARD}/${slug}/automation/twitter/alerts`,
     },
     // Team-scoped Twitter (for backward compatibility)
     twitter: {
-      root: (slug) => `${ROOTS.DASHBOARD}/automation/twitter`,
-      profiles: (slug) => `${ROOTS.DASHBOARD}/automation/twitter/profiles`,
-      alerts: (slug) => `${ROOTS.DASHBOARD}/automation/twitter/alerts`,
+      root: (slug) => `${ROOTS.DASHBOARD}/${slug}/automation/twitter`,
+      profiles: (slug) => `${ROOTS.DASHBOARD}/${slug}/automation/twitter/profiles`,
+      alerts: (slug) => `${ROOTS.DASHBOARD}/${slug}/automation/twitter/alerts`,
     },
-    // Team-scoped Business Platforms
+    // Team-scoped Business Platforms (location-based)
     google: {
-      root: (slug) => `${ROOTS.DASHBOARD}/google`,
-      overview: (slug) => `${ROOTS.DASHBOARD}/google/overview`,
-      reviews: (slug) => `${ROOTS.DASHBOARD}/google/reviews`,
+      root: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/google`,
+      overview: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/google/overview`,
+      reviews: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/google/reviews`,
     },
     facebook: {
-      root: (slug) => `${ROOTS.DASHBOARD}/facebook`,
-      overview: (slug) => `${ROOTS.DASHBOARD}/facebook/overview`,
-      reviews: (slug) => `${ROOTS.DASHBOARD}/facebook/reviews`,
+      root: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/facebook`,
+      overview: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/facebook/overview`,
+      reviews: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/facebook/reviews`,
     },
     tripadvisor: {
-      root: (slug) => `${ROOTS.DASHBOARD}/tripadvisor`,
-      overview: (slug) => `${ROOTS.DASHBOARD}/tripadvisor/overview`,
-      reviews: (slug) => `${ROOTS.DASHBOARD}/tripadvisor/reviews`,
+      root: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/tripadvisor`,
+      overview: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/tripadvisor/overview`,
+      reviews: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/tripadvisor/reviews`,
     },
     booking: {
-      root: (slug) => `${ROOTS.DASHBOARD}/booking`,
-      overview: (slug) => `${ROOTS.DASHBOARD}/booking/overview`,
-      reviews: (slug) => `${ROOTS.DASHBOARD}/booking/reviews`,
-    },
-    bookingcom: {
-      root: (slug) => `${ROOTS.DASHBOARD}/booking`,
-      overview: (slug) => `${ROOTS.DASHBOARD}/booking/overview`,
-      reviews: (slug) => `${ROOTS.DASHBOARD}/booking/reviews`,
+      root: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/booking`,
+      overview: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/booking/overview`,
+      reviews: (locationSlug) => `${ROOTS.DASHBOARD}/${locationSlug}/booking/reviews`,
     },
     user: {
       root: `${ROOTS.DASHBOARD}/user`,

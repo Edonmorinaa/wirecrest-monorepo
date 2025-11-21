@@ -178,7 +178,7 @@ export const deleteMemberSchema = z.object({
 //   });
 
 export const createBusinessMarketIndetifiersSchema = z.object({
-  teamId,
+  locationId: z.string().min(1, 'Location ID is required'),
   platform: marketPlatform,
   identifier: z.string().min(1)
 });

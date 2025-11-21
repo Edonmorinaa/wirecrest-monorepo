@@ -36,7 +36,11 @@ export const getByCustomerId = async (billingId: string): Promise<Team | null> =
 export const getTeam = async (key: { id: string } | { slug: string }) => await prisma.team.findUniqueOrThrow({
     where: key,
     include: {
+      locations: {
+        include: {
       marketIdentifiers: true,
+        },
+      },
     },
   });
 
@@ -447,7 +451,11 @@ export const getTeamMember = async (userId: string, slug: string) => {
     include: {
       team: {
         include: {
+          locations: {
+        include: {
           marketIdentifiers: true,
+            },
+          },
         },
       },
     },

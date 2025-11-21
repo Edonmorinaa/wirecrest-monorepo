@@ -22,6 +22,7 @@ const nextConfig = {
   env: {
     BUILD_STATIC_EXPORT: JSON.stringify(isStaticExport),
     AUTH_SERVICE_URL: process.env.AUTH_SERVICE_URL,
+    NEXT_PUBLIC_AUTH_SERVICE_URL: process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || process.env.AUTH_SERVICE_URL || 'http://localhost:3000',
   },
   
   // TypeScript configuration

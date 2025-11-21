@@ -146,6 +146,7 @@ export const adminRouter = router({
       try {
         const result = await _deletePlatformData({
           teamId: input.teamId,
+          locationId: input.locationId,
           platform: input.platform,
         });
         return result;

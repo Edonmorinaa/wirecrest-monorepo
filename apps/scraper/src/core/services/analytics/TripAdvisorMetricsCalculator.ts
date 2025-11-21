@@ -1,4 +1,14 @@
 /**
+ * @deprecated This file is kept for reference only
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This utility calculated TripAdvisor-specific metrics
+ * for updating TripAdvisorPeriodicalMetric tables (now removed from schema)
+ * 
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ * 
+ * Original description:
  * TripAdvisor Metrics Calculator
  * Handles TripAdvisor-specific metrics: bubble ratings, sub-ratings, trip types, helpful votes
  * TripAdvisor uses 1-5 bubble ratings (same scale as Google stars)

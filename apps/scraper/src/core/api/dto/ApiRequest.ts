@@ -14,6 +14,7 @@ export interface BaseApiRequest {
  * Segregated interface for business profile operations (ISP)
  */
 export interface BusinessProfileRequest extends BaseApiRequest {
+  locationId: string; // Required: location where this business profile belongs
   identifier: string; // placeId, facebookUrl, tripAdvisorUrl, bookingUrl
   forceRefresh?: boolean;
 }

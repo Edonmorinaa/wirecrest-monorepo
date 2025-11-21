@@ -9,37 +9,19 @@
  * All procedures require ADMIN super role.
  */
 
-import { TRPCError } from '@trpc/server';
 import { prisma } from '@wirecrest/db';
-import { router, adminProcedure, protectedProcedure } from '../trpc';
-import {
-  getTenantsSchema,
-  tenantSlugSchema,
-  tenantIdSchema,
-  createTenantSchema,
-  updateTenantSchema,
-} from '../schemas/tenants.schema';
+import { TRPCError } from '@trpc/server';
+
 import { RealtimeBroadcaster } from 'src/lib/realtime';
 
-/**
- * Helper function to calculate platform status
- * Stub implementation - adapt based on your actual logic
- */
-function calculatePlatformStatus(team: any, platform: string) {
-  // This is a simplified version - adjust based on your actual logic
-  return {
-    status: 'not_configured',
-    progress: 0,
-  };
-}
-
-/**
- * Helper function to calculate overall progress
- */
-function calculateOverallProgress(platforms: any) {
-  const statuses = Object.values(platforms).map((p: any) => p.progress || 0);
-  return statuses.reduce((sum: number, val: number) => sum + val, 0) / statuses.length;
-}
+import { router, adminProcedure, protectedProcedure } from '../trpc';
+import {
+  createTenantSchema,
+  tenantIdSchema,
+  tenantSlugSchema,
+  getTenantsSchema,
+  updateTenantSchema,
+} from '../schemas/tenants.schema';
 
 /**
  * Tenants Router
@@ -67,7 +49,7 @@ export const tenantsRouter = router({
       const orderBy: any = {};
       orderBy[sortBy] = sortOrder;
 
-      // Get teams with member counts
+      // Get teams with member and location counts
       const teams = await prisma.team.findMany({
         where: whereClause,
         orderBy,
@@ -77,6 +59,7 @@ export const tenantsRouter = router({
           _count: {
             select: {
               members: true,
+              locations: true,
             },
           },
           members: {
@@ -84,30 +67,72 @@ export const tenantsRouter = router({
               user: true,
             },
           },
-          marketIdentifiers: true,
-          businessProfile: true,
-          facebookBusinessProfiles: true,
-          tripAdvisorBusinessProfile: true,
-          bookingBusinessProfile: true,
+          locations: {
+            include: {
+              googleBusinessProfile: {
+                select: { id: true },
+              },
+              facebookBusinessProfile: {
+                select: { id: true },
+              },
+              tripAdvisorBusinessProfile: {
+                select: { id: true },
+              },
+              bookingBusinessProfile: {
+                select: { id: true },
+              },
+            },
+          },
+          instagramBusinessProfile: {
+            select: { id: true },
+          },
+          tiktokBusinessProfile: {
+            select: { id: true },
+          },
         },
       });
 
-      // Get total count
-      const total = await prisma.team.count({ where: whereClause });
-
-      // Calculate status for each tenant
+      // Calculate status for each tenant with location-based metrics
       const tenantsWithStatus = teams.map((team) => {
-        const platforms = {
-          google: calculatePlatformStatus(team, 'GOOGLE_MAPS'),
-          facebook: calculatePlatformStatus(team, 'FACEBOOK'),
-          tripadvisor: calculatePlatformStatus(team, 'TRIPADVISOR'),
-          booking: calculatePlatformStatus(team, 'BOOKING'),
-        };
+        // Count total platform integrations across all locations
+        let totalPlatformIntegrations = 0;
+        let completedLocations = 0;
 
-        const overallProgress = calculateOverallProgress(platforms);
-        const activeTasksCount = Object.values(platforms).filter(
-          (p) => p.status === 'in_progress'
-        ).length;
+        team.locations.forEach((location) => {
+          let locationPlatformCount = 0;
+          
+          if (location.googleBusinessProfile) {
+            totalPlatformIntegrations++;
+            locationPlatformCount++;
+          }
+          if (location.facebookBusinessProfile) {
+            totalPlatformIntegrations++;
+            locationPlatformCount++;
+          }
+          if (location.tripAdvisorBusinessProfile) {
+            totalPlatformIntegrations++;
+            locationPlatformCount++;
+          }
+          if (location.bookingBusinessProfile) {
+            totalPlatformIntegrations++;
+            locationPlatformCount++;
+          }
+
+          // Consider location complete if it has at least 1 platform
+          if (locationPlatformCount > 0) {
+            completedLocations++;
+          }
+        });
+
+        // Add social platform integrations (team-level)
+        if (team.instagramBusinessProfile) totalPlatformIntegrations++;
+        if (team.tiktokBusinessProfile) totalPlatformIntegrations++;
+
+        // Calculate overall progress based on locations setup
+        const locationsCount = team._count.locations;
+        const overallProgress = locationsCount > 0 
+          ? (completedLocations / locationsCount) * 100 
+          : 0;
 
         return {
           id: team.id,
@@ -116,33 +141,32 @@ export const tenantsRouter = router({
           createdAt: team.createdAt,
           updatedAt: team.updatedAt,
           membersCount: team._count.members,
-          platforms,
+          locationsCount,
+          totalPlatformIntegrations,
+          completedLocations,
           overallProgress,
-          activeTasksCount,
           lastActivity: team.updatedAt,
         };
       });
 
-      // Apply status filter if provided
+      // Apply filters if provided
       let filteredTenants = tenantsWithStatus;
+      
       if (status) {
         filteredTenants = filteredTenants.filter((tenant) => {
-          const allStatuses = [
-            tenant.platforms.google.status,
-            tenant.platforms.facebook.status,
-            tenant.platforms.tripadvisor.status,
-            tenant.platforms.booking.status,
-          ];
-          return allStatuses.includes(status as any);
+          // Map status to progress ranges
+          if (status === 'completed') return tenant.overallProgress === 100;
+          if (status === 'in_progress') return tenant.overallProgress > 0 && tenant.overallProgress < 100;
+          if (status === 'not_started') return tenant.overallProgress === 0;
+          return true;
         });
       }
 
-      // Apply platform filter if provided
+      // Platform filter is less relevant now, but keep for backward compatibility
+      // Could filter by "has this platform in any location"
       if (platform) {
         filteredTenants = filteredTenants.filter((tenant) => {
-          const platformStatus =
-            tenant.platforms[platform as keyof typeof tenant.platforms];
-          return platformStatus && platformStatus.status === status;
+          return tenant.totalPlatformIntegrations > 0;
         });
       }
 
@@ -156,18 +180,13 @@ export const tenantsRouter = router({
         ).length,
         notStartedTenants: tenantsWithStatus.filter((t) => t.overallProgress === 0)
           .length,
-        googleIntegrations: tenantsWithStatus.filter(
-          (t) => t.platforms.google.status === 'completed'
-        ).length,
-        facebookIntegrations: tenantsWithStatus.filter(
-          (t) => t.platforms.facebook.status === 'completed'
-        ).length,
-        tripadvisorIntegrations: tenantsWithStatus.filter(
-          (t) => t.platforms.tripadvisor.status === 'completed'
-        ).length,
-        bookingIntegrations: tenantsWithStatus.filter(
-          (t) => t.platforms.booking.status === 'completed'
-        ).length,
+        totalLocations: tenantsWithStatus.reduce((sum, t) => sum + t.locationsCount, 0),
+        totalIntegrations: tenantsWithStatus.reduce((sum, t) => sum + t.totalPlatformIntegrations, 0),
+        failedTenants: 0, // Deprecated - no longer tracking task failures at this level
+        googleIntegrations: 0, // Deprecated - can't easily aggregate across locations
+        facebookIntegrations: 0, // Deprecated
+        tripadvisorIntegrations: 0, // Deprecated
+        bookingIntegrations: 0, // Deprecated
       };
 
       const totalPages = Math.ceil(filteredTenants.length / limit);
@@ -196,9 +215,7 @@ export const tenantsRouter = router({
   /**
    * Get tenant by slug (protected - team members can access)
    */
-  bySlug: protectedProcedure.input(tenantSlugSchema).query(async ({ input }) => {
-    try {
-      const team = await prisma.team.findUnique({
+  bySlug: protectedProcedure.input(tenantSlugSchema).query(async ({ input }) => prisma.team.findUnique({
         where: { slug: input.slug },
         select: {
           id: true,
@@ -207,17 +224,14 @@ export const tenantsRouter = router({
           createdAt: true,
           updatedAt: true,
         },
-      });
-
-      return team;
-    } catch (error) {
+  }).catch((error) => {
       console.error('Error fetching tenant by slug:', error);
       return null;
-    }
-  }),
+  })),
 
   /**
    * Get tenant details (admin only)
+   * UPDATED: Now returns location-based platform data
    */
   byId: adminProcedure.input(tenantIdSchema).query(async ({ input }) => {
     try {
@@ -227,6 +241,7 @@ export const tenantsRouter = router({
           _count: {
             select: {
               members: true,
+              locations: true,
             },
           },
           members: {
@@ -234,39 +249,48 @@ export const tenantsRouter = router({
               user: true,
             },
           },
-          marketIdentifiers: true,
-          businessProfile: {
+          locations: {
+            include: {
+              googleBusinessProfile: {
             include: {
               reviews: {
-                orderBy: { scrapedAt: 'desc' },
+                    orderBy: { publishedAtDate: 'desc' },
                 take: 10,
               },
+                  _count: { select: { reviews: true } },
             },
           },
-          facebookBusinessProfiles: {
+              facebookBusinessProfile: {
             include: {
               reviews: {
-                orderBy: { scrapedAt: 'desc' },
+                    orderBy: { date: 'desc' },
                 take: 10,
               },
+                  _count: { select: { reviews: true } },
             },
           },
           tripAdvisorBusinessProfile: {
             include: {
               reviews: {
-                orderBy: { scrapedAt: 'desc' },
+                    orderBy: { publishedDate: 'desc' },
                 take: 10,
               },
+                  _count: { select: { reviews: true } },
             },
           },
           bookingBusinessProfile: {
             include: {
               reviews: {
-                orderBy: { scrapedAt: 'desc' },
+                    orderBy: { publishedDate: 'desc' },
                 take: 10,
+                  },
+                  _count: { select: { reviews: true } },
+                },
               },
             },
           },
+          instagramBusinessProfile: true,
+          tiktokBusinessProfile: true,
         },
       });
 
@@ -277,14 +301,43 @@ export const tenantsRouter = router({
         });
       }
 
-      const platforms = {
-        google: calculatePlatformStatus(team, 'GOOGLE_MAPS'),
-        facebook: calculatePlatformStatus(team, 'FACEBOOK'),
-        tripadvisor: calculatePlatformStatus(team, 'TRIPADVISOR'),
-        booking: calculatePlatformStatus(team, 'BOOKING'),
-      };
+      // Calculate location-based metrics
+      let totalPlatformIntegrations = 0;
+      let completedLocations = 0;
 
-      const overallProgress = calculateOverallProgress(platforms);
+      team.locations.forEach((location) => {
+        let locationPlatformCount = 0;
+        
+        if (location.googleBusinessProfile) {
+          totalPlatformIntegrations++;
+          locationPlatformCount++;
+        }
+        if (location.facebookBusinessProfile) {
+          totalPlatformIntegrations++;
+          locationPlatformCount++;
+        }
+        if (location.tripAdvisorBusinessProfile) {
+          totalPlatformIntegrations++;
+          locationPlatformCount++;
+        }
+        if (location.bookingBusinessProfile) {
+          totalPlatformIntegrations++;
+          locationPlatformCount++;
+        }
+
+        if (locationPlatformCount > 0) {
+          completedLocations++;
+        }
+      });
+
+      // Add social platforms
+      if (team.instagramBusinessProfile) totalPlatformIntegrations++;
+      if (team.tiktokBusinessProfile) totalPlatformIntegrations++;
+
+      const locationsCount = team._count.locations;
+      const overallProgress = locationsCount > 0 
+        ? (completedLocations / locationsCount) * 100 
+        : 0;
 
       return {
         id: team.id,
@@ -294,13 +347,13 @@ export const tenantsRouter = router({
         updatedAt: team.updatedAt,
         membersCount: team._count.members,
         members: team.members,
-        platforms,
+        locationsCount,
+        totalPlatformIntegrations,
+        completedLocations,
         overallProgress,
-        marketIdentifiers: team.marketIdentifiers,
-        businessProfile: team.businessProfile,
-        facebookBusinessProfiles: team.facebookBusinessProfiles,
-        tripAdvisorBusinessProfile: team.tripAdvisorBusinessProfile,
-        bookingBusinessProfile: team.bookingBusinessProfile,
+        locations: team.locations,
+        instagramBusinessProfile: team.instagramBusinessProfile,
+        tiktokBusinessProfile: team.tiktokBusinessProfile,
       };
     } catch (error) {
       console.error('Error fetching tenant:', error);
@@ -345,7 +398,7 @@ export const tenantsRouter = router({
       });
 
       // Broadcast real-time update
-      await RealtimeBroadcaster.broadcastTenantsUpdate({
+      void RealtimeBroadcaster.broadcastTenantsUpdate({
         type: 'tenant_created',
         tenantId: team.id,
       });
@@ -401,7 +454,7 @@ export const tenantsRouter = router({
       });
 
       // Broadcast real-time update
-      await RealtimeBroadcaster.broadcastTenantsUpdate({
+      void RealtimeBroadcaster.broadcastTenantsUpdate({
         type: 'tenant_updated',
         tenantId: team.id,
       });
@@ -426,7 +479,7 @@ export const tenantsRouter = router({
       });
 
       // Broadcast real-time update
-      await RealtimeBroadcaster.broadcastTenantsUpdate({
+      void RealtimeBroadcaster.broadcastTenantsUpdate({
         type: 'tenant_deleted',
         tenantId: input.tenantId,
       });

@@ -41,14 +41,19 @@ export function useOwnerResponse() {
     setGeneratedResponse('');
 
     try {
-      // Prepare review data
+      // Convert reviewDate to string if it's a Date object
+      const reviewDateValue = review.publishedDate || review.reviewDate || review.publishedAtDate;
+      const reviewDateString = reviewDateValue 
+        ? (reviewDateValue instanceof Date ? reviewDateValue.toISOString() : String(reviewDateValue))
+        : undefined;
+
       const reviewData = {
         text: review.text || review.reviewText || '',
         rating: review.rating || review.stars || 0,
         reviewerName: review.reviewerName || review.name || '',
         businessName: review.businessName || '',
         platform,
-        reviewDate: review.publishedDate || review.reviewDate || review.publishedAtDate,
+        reviewDate: reviewDateString,
         reviewUrl: review.reviewUrl || '',
         additionalContext: review.additionalContext || '',
       };
@@ -78,7 +83,9 @@ export function useOwnerResponse() {
           });
       }
 
-      setGeneratedResponse(response);
+      // Extract the response text from the response object
+      const responseText = typeof response === 'string' ? response : response?.response || '';
+      setGeneratedResponse(responseText);
       showSnackbar('Owner response generated successfully!', 'success');
     } catch (err) {
       console.error('Error generating owner response:', err);

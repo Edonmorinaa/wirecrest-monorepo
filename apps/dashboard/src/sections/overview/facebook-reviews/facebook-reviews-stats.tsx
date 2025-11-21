@@ -45,7 +45,7 @@ export function FacebookReviewsStats({ stats = {}, sx }: FacebookReviewsStatsPro
     },
     {
       title: 'Recommendation Rate',
-      total: `${stats.recommendationRate ? (stats.recommendationRate * 100).toFixed(1) : '0.0'}%`,
+      total: `${stats.recommendationRate ? (stats.recommendationRate).toFixed(1) : '0'}%`,
       icon: <Iconify icon="solar:star-bold" width={24} height={24} className="" sx={{}} />,
       color: 'warning',
       percent: undefined,

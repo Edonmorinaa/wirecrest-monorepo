@@ -1,10 +1,12 @@
 'use client';
 
+import dayjs from 'dayjs';
+import { useMemo, useState, useCallback } from 'react';
+
 import useTeam from '@/hooks/useTeam';
-import { useParams } from 'next/navigation';
-import { useTeamSlug } from '@/hooks/use-subdomain';
-import { useRef, useMemo, useState, useEffect } from 'react';
-import useGoogleBusinessProfile from '@/hooks/useGoogleBusinessProfile';
+import { useGoogleProfile, useGoogleReviews, useLocationBySlug, useGoogleAnalytics } from '@/hooks/useLocations';
+
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -24,16 +26,15 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
 
 import { GoogleMap } from '../google-map';
-import { GoogleTopKeywords } from '../google-top-keywords';
 import { GoogleBusinessInfo } from '../google-business-info';
 import { GoogleRecentReviews } from '../google-recent-reviews';
 import { GoogleOverviewWelcome } from '../google-overview-welcome';
 import { GoogleMetricsOverview } from '../google-metrics-overview';
 import { GoogleSentimentAnalysis } from '../google-sentiment-analysis';
 import { GoogleRatingDistribution } from '../google-rating-distribution';
-import { useGoogleReviews } from '@/hooks';
 
 // Time period options for metrics
 const TIME_PERIODS = [
@@ -43,116 +44,154 @@ const TIME_PERIODS = [
   { key: '30', label: 'Last 30 Days', shortLabel: '30d' },
   { key: '180', label: 'Last 6 Months', shortLabel: '6m' },
   { key: '365', label: 'Last Year', shortLabel: '1y' },
-  { key: '0', label: 'All Time', shortLabel: 'All' },
+  { key: '7300', label: 'All Time', shortLabel: 'All' },
+  { key: 'custom', label: 'Custom Range', shortLabel: 'Custom' },
 ];
 
 // ----------------------------------------------------------------------
 
 export function GoogleOverviewView() {
   const params = useParams();
-  const subdomainTeamSlug = useTeamSlug();
-  const slug = subdomainTeamSlug || params.slug;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const teamSlug = params.slug as string;
+  const locationSlug = params.locationSlug as string;
 
-  const { team } = useTeam(slug as string);
-  const { businessProfile } = useGoogleBusinessProfile(slug as string);
-  const { reviews } = useGoogleReviews(slug as string, {
-    limit: 5,
-    sortBy: 'publishedAtDate',
-    sortOrder: 'desc',
+  const { team } = useTeam(teamSlug);
+  
+  // Get location by slug (new location-based system)
+  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
+  
+  // Log location data for debugging
+  console.log('[GoogleOverviewView] Location data:', { 
+    locationSlug, 
+    location: location ? { id: location.id, name: location.name, slug: location.slug } : null,
+    locationLoading 
   });
+  
+  // Use location-based hooks for the new system
+  // Only pass locationId if it's a valid UUID
+  const locationId = location?.id || '';
+  const isValidLocationId = locationId && locationId.length > 20; // Basic validation
+  
+  const { profile: businessProfile } = useGoogleProfile(locationId, !!location && isValidLocationId);
+  const { reviews: reviewsData } = useGoogleReviews(locationId, {}, { page: 1, limit: 5 }, !!location && isValidLocationId);
+  const reviews = reviewsData || [];
 
-  const [selectedPeriod, setSelectedPeriod] = useState('30');
-  const hasSetInitialPeriod = useRef(false);
-
-  // Filter time periods to only show those with review data
-  const availableTimePeriods = useMemo(() => {
-    if (!businessProfile?.overview?.periodicalMetrics) {
-      return TIME_PERIODS.filter((period) => period.key === '0'); // Only show "All Time" if no metrics
+  // Get period from URL or default to '30'
+  const selectedPeriod = searchParams.get('period') || '7300';
+  
+  // Custom date picker state
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [tempFromDate, setTempFromDate] = useState<Date | null>(null);
+  const [tempToDate, setTempToDate] = useState<Date | null>(null);
+  
+  // Get custom date range from URL
+  const customRange = useMemo(() => {
+    const customFrom = searchParams.get('customFrom');
+    const customTo = searchParams.get('customTo');
+    
+    if (customFrom && customTo) {
+      return {
+        from: new Date(customFrom),
+        to: new Date(customTo),
+      };
     }
+    return null;
+  }, [searchParams]);
 
-    const metrics = businessProfile.overview.periodicalMetrics;
-    return TIME_PERIODS.filter((period) => {
-      const metric = metrics.find((m) => m.periodKey.toString() === period.key);
-      // Always include "All Time" period, and include others only if they have reviews
-      return period.key === '0' || (metric && metric.reviewCount > 0);
-    });
-  }, [businessProfile?.overview?.periodicalMetrics]);
-
-  // Auto-select first available period if current selection is not available
-  useEffect(() => {
-    if (availableTimePeriods.length > 0 && !hasSetInitialPeriod.current) {
-      const isCurrentPeriodAvailable = availableTimePeriods.some(
-        (p) => p.key === selectedPeriod
-      );
-      if (!isCurrentPeriodAvailable) {
-        setSelectedPeriod(availableTimePeriods[0].key);
-        hasSetInitialPeriod.current = true;
-      }
+  // Calculate date ranges based on selected period or custom range
+  const { startDate, endDate } = useMemo(() => {
+    if (selectedPeriod === 'custom' && customRange) {
+      return {
+        startDate: customRange.from.toISOString(),
+        endDate: customRange.to.toISOString(),
+      };
     }
-  }, [availableTimePeriods, selectedPeriod]);
+    
+    const end = new Date();
+    const start = new Date();
+    const days = parseInt(selectedPeriod) || 30;
+    start.setDate(end.getDate() - days);
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  }, [selectedPeriod, customRange]);
 
-  // Get periodic metrics for selected period
-  const currentPeriodMetrics = useMemo(() => {
-    const metrics = businessProfile?.overview?.periodicalMetrics?.find(
-      (metric) => metric.periodKey.toString() === selectedPeriod
-    );
-    return metrics;
-  }, [businessProfile?.overview?.periodicalMetrics, selectedPeriod]);
+  // Update URL with new period
+  const updatePeriod = useCallback((newPeriod: string) => {
+    const urlParams = new URLSearchParams(searchParams);
+    urlParams.set('period', newPeriod);
+    
+    // Clear custom range if switching away from custom
+    if (newPeriod !== 'custom') {
+      urlParams.delete('customFrom');
+      urlParams.delete('customTo');
+    }
+    
+    router.replace(`?${urlParams.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+  
+  // Update URL with custom range
+  const updateCustomRange = useCallback((from: Date, to: Date) => {
+    const urlParams = new URLSearchParams(searchParams);
+    urlParams.set('period', 'custom');
+    urlParams.set('customFrom', from.toISOString().split('T')[0]);
+    urlParams.set('customTo', to.toISOString().split('T')[0]);
+    
+    router.replace(`?${urlParams.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+  
+  // Get all-time analytics for metric cards (20 years ago to now)
+  const allTimeStart = useMemo(() => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 20);
+    return date.toISOString();
+  }, []);
 
-    // Get periodic metrics for selected period
-    const allTimePeriodMetrics = useMemo(() => {
-      const metrics = businessProfile?.overview?.periodicalMetrics?.find(
-        (metric) => metric.periodKey.toString() === "0"
-      );
-      return metrics;
-    }, [businessProfile?.overview?.periodicalMetrics]);
+  // const { analytics: allTimeAnalytics, isLoading: isLoadingAllTime } = useGoogleAnalytics(
+  //   locationId,
+  //   allTimeStart,
+  //   new Date().toISOString(),
+  //   !!location && isValidLocationId
+  // );
 
-  // Use current period data if available, fallback to overview snapshot data, then to profile data
+  // Get analytics for selected period (for graphs and other components)
+  const { analytics: currentAnalytics, isLoading: isLoadingAnalytics } = useGoogleAnalytics(
+    locationId,
+    startDate,
+    endDate,
+    !!location && isValidLocationId
+  );
+
+  // Available time periods (simplified - show all)
+  const availableTimePeriods = TIME_PERIODS;
+
+  // Display metrics from all-time analytics (metric cards always show all-time data)
   const displayMetrics = useMemo(() => {
-    if (!businessProfile) return null;
+    if (!currentAnalytics) return null;
 
     return {
-      averageRating:
-        currentPeriodMetrics?.avgRating ||
-        businessProfile.overview?.currentOverallRating ||
-        businessProfile.rating,
-      totalReviews:
-        currentPeriodMetrics?.reviewCount ||
-        businessProfile.overview?.currentTotalReviews ||
-        businessProfile.userRatingCount,
-      responseRate: currentPeriodMetrics?.responseRatePercent,
-      averageResponseTime: currentPeriodMetrics?.avgResponseTimeHours
-        ? `${currentPeriodMetrics.avgResponseTimeHours}h`
-        : 'Not available',
-      sentimentAnalysis: currentPeriodMetrics
+      averageRating: currentAnalytics.averageRating,
+      totalReviews: currentAnalytics.reviewCount,
+      responseRate: currentAnalytics.responseRate,
+      averageResponseTimeHours: currentAnalytics.averageResponseTimeHours,
+      sentimentAnalysis: currentAnalytics.sentiment
         ? {
-            positive: currentPeriodMetrics.sentimentPositive || 0,
-            neutral: currentPeriodMetrics.sentimentNeutral || 0,
-            negative: currentPeriodMetrics.sentimentNegative || 0,
+            positive: currentAnalytics.sentiment.positive || 0,
+            neutral: currentAnalytics.sentiment.neutral || 0,
+            negative: currentAnalytics.sentiment.negative || 0,
           }
         : null,
-      topKeywords: (() => {
-        const keywords = currentPeriodMetrics?.topKeywords;
-        if (!keywords) return [];
-        if (Array.isArray(keywords)) return keywords;
-        if (typeof keywords === 'string') {
-          try {
-            const parsed = JSON.parse(keywords);
-            return Array.isArray(parsed) ? parsed : [];
-          } catch {
-            return [];
-          }
-        }
-        if (typeof keywords === 'object') {
-          if (Array.isArray(Object.values(keywords))) {
-            return Object.values(keywords);
-          }
-          return [];
-        }
-        return [];
-      })(),
     };
-  }, [businessProfile, currentPeriodMetrics]);
+  }, [currentAnalytics]);
+
+  // Show loading state
+  if (locationLoading || !location) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <Typography>Loading location...</Typography>
+      </DashboardContent>
+    );
+  }
 
   return (
     <DashboardContent maxWidth="xl">
@@ -165,19 +204,21 @@ export function GoogleOverviewView() {
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Teams', href: paths.dashboard.teams.root },
-            { name: team.name, href: paths.dashboard.teams.bySlug(slug) },
-            { name: 'Google Overview' },
+            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+            { name: location?.name || locationSlug, href: '#' },
+            { name: 'Google Overview', href: '#' },
           ]}
           action={
-            <Button
-            variant="contained"
-            startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} 
-            target="_blank"
-            href={businessProfile.overview?.profileWebsiteUri}
-            />}
-          >
-            Visit Website
-          </Button>
+            businessProfile?.formattedAddress && (
+              <Button
+                variant="contained"
+                startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} />}
+                target="_blank"
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessProfile.formattedAddress)}`}
+              >
+                View on Maps
+              </Button>
+            )
           }
         />
         </Grid>
@@ -185,7 +226,13 @@ export function GoogleOverviewView() {
         {/* 1. HEADER & OVERVIEW SECTION */}
         {/* Google Business Header */}
         <Grid size={{ xs: 12 }}>
-        <GoogleOverviewWelcome displayName={businessProfile?.displayName || ""} averageRating={allTimePeriodMetrics?.avgRating || 0} totalReviews={allTimePeriodMetrics?.reviewCount || 0}  />
+        <GoogleOverviewWelcome 
+          displayName={businessProfile?.displayName || location?.name || ""} 
+          averageRating={currentAnalytics?.averageRating || 0} 
+          totalReviews={currentAnalytics?.reviewCount || 0}
+          isLoading={isLoadingAnalytics}
+          sx={{}}
+        />
       </Grid>
 
         {/* Time Period Selector and Key Metrics */}
@@ -204,7 +251,7 @@ export function GoogleOverviewView() {
               {availableTimePeriods.length > 1 && (
                 <Tabs
                   value={selectedPeriod}
-                  onChange={(e, newValue) => setSelectedPeriod(newValue)}
+                  onChange={(e, newValue) => updatePeriod(newValue)}
                   variant="scrollable"
                   scrollButtons="auto"
                   sx={{ mb: 3 }}
@@ -229,65 +276,91 @@ export function GoogleOverviewView() {
                       size="small"
                       color="primary"
                     />
+                    {selectedPeriod === 'custom' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={<Iconify icon="eva:calendar-outline" />}
+                        onClick={() => {
+                          setTempFromDate(customRange?.from || null);
+                          setTempToDate(customRange?.to || null);
+                          setDatePickerOpen(true);
+                        }}
+                        sx={{ ml: 2 }}
+                      >
+                        {customRange?.from && customRange?.to
+                          ? `${customRange.from.toLocaleDateString()} - ${customRange.to.toLocaleDateString()}`
+                          : 'Select Dates'}
+                      </Button>
+                    )}
                   </Stack>
 
                   <GoogleMetricsOverview 
                     metrics={displayMetrics} 
-                    periodicalMetrics={businessProfile?.overview?.periodicalMetrics}
-                    currentPeriodKey={selectedPeriod}
+                    periodicalMetrics={[]}
+                    currentPeriodKey="all-time"
+                      isLoading={isLoadingAnalytics}
                   />
                 </Box>
               ))}
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12 }}>
-          <GoogleRecentReviews reviews={reviews} />
-        </Grid>
 
         {/* 2. ANALYTICS & CHARTS SECTION */}
         {/* Rating Distribution - Full Width */}
         <Grid size={{ xs: 12 }}>
-          <GoogleRatingDistribution businessProfile={businessProfile} currentPeriodMetrics={currentPeriodMetrics} />
+          <GoogleRatingDistribution 
+            businessProfile={businessProfile} 
+            currentPeriodMetrics={{ ratingDistribution: currentAnalytics?.ratingDistribution }} 
+            sx={{}}
+          />
         </Grid>
 
-        {/* Sentiment Analysis and Top Keywords - Side by Side */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <GoogleSentimentAnalysis metrics={displayMetrics} />
+        {/* Sentiment Analysis and Google Map - Side by Side */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <GoogleSentimentAnalysis 
+            metrics={displayMetrics}
+            title="Sentiment Analysis"
+            subheader="Distribution of review sentiments"
+            chart={{}}
+            sx={{}}
+          />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 4 }}>
-          <GoogleTopKeywords keywords={displayMetrics?.topKeywords || []} />
-        </Grid>
-
-                {/* Google Map */}
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <GoogleMap businessProfile={businessProfile} />
         </Grid>
 
         <Grid size={{ xs: 12 }}>
+          {/* @ts-ignore - Type compatibility issue between Prisma optional types and component props */}
+          <GoogleRecentReviews reviews={reviews} />
+        </Grid>
+        <Grid size={{ xs: 12 }}>
           <GoogleBusinessInfo businessProfile={businessProfile} />
         </Grid>
-
-        {/* 3. BUSINESS DETAILS SECTION */}
-        {/* Business Information */}
-
-
-        {/* 4. CONTENT & REVIEWS SECTION */}
-        {/* Recent Reviews - Full Width */}
-
-        {/* 5. FOOTER SECTION */}
-        {/* Last Updated */}
-        <Grid size={{ xs: 12 }}>
-          <Box sx={{ mt: 3, textAlign: 'right' }}>
-            <Typography variant="caption" color="text.secondary">
-              Last updated: {businessProfile.overview?.lastRefreshedAt
-                ? new Date(businessProfile.overview.lastRefreshedAt).toLocaleString()
-                : 'Not available'}
-            </Typography>
-          </Box>
-        </Grid>
       </Grid>
+
+      {/* Custom Date Picker Dialog */}
+      <CustomDateRangePicker
+        variant="calendar"
+        title="Select Custom Date Range"
+        open={datePickerOpen}
+        onClose={() => setDatePickerOpen(false)}
+        startDate={tempFromDate ? dayjs(tempFromDate) : null}
+        endDate={tempToDate ? dayjs(tempToDate) : null}
+        onChangeStartDate={(date) => setTempFromDate(date ? date.toDate() : null)}
+        onChangeEndDate={(date) => setTempToDate(date ? date.toDate() : null)}
+        error={tempFromDate && tempToDate ? tempFromDate > tempToDate : false}
+        onSubmit={() => {
+          if (tempFromDate && tempToDate && tempFromDate <= tempToDate) {
+            updateCustomRange(tempFromDate, tempToDate);
+            setDatePickerOpen(false);
+          }
+        }}
+        slotProps={{}}
+      />
     </DashboardContent>
   );
 }

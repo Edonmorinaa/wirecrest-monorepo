@@ -1,4 +1,14 @@
 /**
+ * @deprecated This file is kept for reference only
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This utility calculated metrics for different time periods
+ * for updating PeriodicalMetric tables (now removed from schema)
+ * 
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ * 
+ * Original description:
  * Period Calculator Utility
  * Calculates metrics for different time periods
  * Follows Single Responsibility Principle (SRP)

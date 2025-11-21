@@ -6,7 +6,15 @@
  * - Platform-specific responses
  */
 
-import { TRPCError } from '@trpc/server';
+import {
+  type ReviewData,
+  generateBookingResponse,
+  generateFacebookResponse,
+  generateGoogleResponse,
+  generateOwnerResponse,
+  generateTripAdvisorResponse,
+} from 'src/lib/openai';
+
 import { router, protectedProcedure } from '../trpc';
 import {
   generateOwnerResponseSchema,
@@ -23,28 +31,29 @@ export const aiRouter = router({
   generateResponse: protectedProcedure
     .input(generateOwnerResponseSchema)
     .mutation(async ({ input }) => {
-      // TODO: Implement actual AI response generation using Perplexity/OpenAI
-      // For now, return a mock response
+      const { reviewData, customPrompt, tone, language } = input;
 
-      const { reviewData, tone, language } = input;
+      // Map schema data to ReviewData format expected by openai.ts
+      const mappedReviewData: ReviewData = {
+        text: reviewData.text,
+        rating: reviewData.rating || 0,
+        reviewerName: reviewData.reviewerName,
+        businessName: reviewData.businessName,
+        platform: (reviewData.platform?.toUpperCase() as 'GOOGLE' | 'FACEBOOK' | 'TRIPADVISOR' | 'BOOKING') || 'GOOGLE',
+        reviewDate: reviewData.reviewDate,
+        reviewUrl: reviewData.reviewUrl,
+        additionalContext: reviewData.additionalContext,
+      };
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Mock response based on rating
-      const rating = reviewData.rating || 3;
-      let mockResponse = '';
-
-      if (rating >= 4) {
-        mockResponse = `Thank you so much for your wonderful ${rating}-star review! We're thrilled to hear you had a great experience with us. Your feedback means the world to our team, and we look forward to serving you again soon!`;
-      } else if (rating === 3) {
-        mockResponse = `Thank you for taking the time to share your feedback. We appreciate your ${rating}-star review and would love to learn more about your experience. Please don't hesitate to reach out if there's anything we can do to improve!`;
-      } else {
-        mockResponse = `We sincerely apologize that your experience didn't meet your expectations. Your ${rating}-star review has been noted, and we take all feedback seriously. We'd like the opportunity to make things right. Please contact us directly so we can address your concerns.`;
-      }
+      const response = await generateOwnerResponse({
+        reviewData: mappedReviewData,
+        customPrompt,
+        tone,
+        language,
+      });
 
       return {
-        response: mockResponse,
+        response,
         tone,
         language,
         generatedAt: new Date().toISOString(),
@@ -57,18 +66,27 @@ export const aiRouter = router({
   generateGoogleResponse: protectedProcedure
     .input(generatePlatformResponseSchema)
     .mutation(async ({ input }) => {
-      // Google Reviews have specific guidelines
-      // TODO: Implement Google-optimized response generation
+      const { reviewData, customPrompt } = input;
 
-      const { reviewData, tone, language } = input;
+      // Map schema data to ReviewData format expected by openai.ts
+      const mappedReviewData: ReviewData = {
+        text: reviewData.text,
+        rating: reviewData.rating || 0,
+        reviewerName: reviewData.reviewerName,
+        businessName: reviewData.businessName,
+        platform: 'GOOGLE',
+        reviewDate: reviewData.reviewDate,
+        reviewUrl: reviewData.reviewUrl,
+        additionalContext: reviewData.additionalContext,
+      };
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await generateGoogleResponse(mappedReviewData, customPrompt);
 
       return {
-        response: `Thank you for your Google review! We appreciate your feedback and hope to serve you again soon.`,
+        response,
         platform: 'google',
-        tone,
-        language,
+        tone: input.tone || 'professional',
+        language: input.language || 'en',
         generatedAt: new Date().toISOString(),
       };
     }),
@@ -79,18 +97,27 @@ export const aiRouter = router({
   generateFacebookResponse: protectedProcedure
     .input(generatePlatformResponseSchema)
     .mutation(async ({ input }) => {
-      // Facebook recommendations have different format
-      // TODO: Implement Facebook-optimized response generation
+      const { reviewData, customPrompt } = input;
 
-      const { reviewData, tone, language } = input;
+      // Map schema data to ReviewData format expected by openai.ts
+      const mappedReviewData: ReviewData = {
+        text: reviewData.text,
+        rating: reviewData.rating || 0,
+        reviewerName: reviewData.reviewerName,
+        businessName: reviewData.businessName,
+        platform: 'FACEBOOK',
+        reviewDate: reviewData.reviewDate,
+        reviewUrl: reviewData.reviewUrl,
+        additionalContext: reviewData.additionalContext,
+      };
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await generateFacebookResponse(mappedReviewData, customPrompt);
 
       return {
-        response: `Thanks for recommending us on Facebook! Your support means everything to our team. 🙏`,
+        response,
         platform: 'facebook',
-        tone,
-        language,
+        tone: input.tone || 'friendly',
+        language: input.language || 'en',
         generatedAt: new Date().toISOString(),
       };
     }),
@@ -101,18 +128,27 @@ export const aiRouter = router({
   generateTripAdvisorResponse: protectedProcedure
     .input(generatePlatformResponseSchema)
     .mutation(async ({ input }) => {
-      // TripAdvisor has specific community guidelines
-      // TODO: Implement TripAdvisor-optimized response generation
+      const { reviewData, customPrompt } = input;
 
-      const { reviewData, tone, language } = input;
+      // Map schema data to ReviewData format expected by openai.ts
+      const mappedReviewData: ReviewData = {
+        text: reviewData.text,
+        rating: reviewData.rating || 0,
+        reviewerName: reviewData.reviewerName,
+        businessName: reviewData.businessName,
+        platform: 'TRIPADVISOR',
+        reviewDate: reviewData.reviewDate,
+        reviewUrl: reviewData.reviewUrl,
+        additionalContext: reviewData.additionalContext,
+      };
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await generateTripAdvisorResponse(mappedReviewData, customPrompt);
 
       return {
-        response: `Thank you for your TripAdvisor review! We're grateful for your feedback and look forward to welcoming you back.`,
+        response,
         platform: 'tripadvisor',
-        tone,
-        language,
+        tone: input.tone || 'professional',
+        language: input.language || 'en',
         generatedAt: new Date().toISOString(),
       };
     }),
@@ -123,18 +159,27 @@ export const aiRouter = router({
   generateBookingResponse: protectedProcedure
     .input(generatePlatformResponseSchema)
     .mutation(async ({ input }) => {
-      // Booking.com has specific response format
-      // TODO: Implement Booking.com-optimized response generation
+      const { reviewData, customPrompt } = input;
 
-      const { reviewData, tone, language } = input;
+      // Map schema data to ReviewData format expected by openai.ts
+      const mappedReviewData: ReviewData = {
+        text: reviewData.text,
+        rating: reviewData.rating || 0,
+        reviewerName: reviewData.reviewerName,
+        businessName: reviewData.businessName,
+        platform: 'BOOKING',
+        reviewDate: reviewData.reviewDate,
+        reviewUrl: reviewData.reviewUrl,
+        additionalContext: reviewData.additionalContext,
+      };
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await generateBookingResponse(mappedReviewData, customPrompt);
 
       return {
-        response: `Thank you for your Booking.com review! We appreciate your feedback and hope to host you again in the future.`,
+        response,
         platform: 'booking',
-        tone,
-        language,
+        tone: input.tone || 'professional',
+        language: input.language || 'en',
         generatedAt: new Date().toISOString(),
       };
     }),

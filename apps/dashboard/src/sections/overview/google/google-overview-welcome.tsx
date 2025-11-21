@@ -3,6 +3,7 @@ import { varAlpha } from 'minimal-shared/utils';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 
@@ -13,7 +14,7 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function GoogleOverviewWelcome({ displayName, averageRating, totalReviews, sx, ...other }) {
+export function GoogleOverviewWelcome({ displayName, averageRating, totalReviews, isLoading = false, sx, ...other }) {
   const theme = useTheme();
 
   return (
@@ -55,27 +56,26 @@ export function GoogleOverviewWelcome({ displayName, averageRating, totalReviews
       >
         <Stack spacing={2} sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Iconify icon="socials:google" width={72} height={72} />
+          <Iconify icon="socials:google" width={72} height={72} />
             
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }} color="text.primary">
-                {/* Google Overview */}
-                {displayName || 'Business Profile'}
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.8 }} color="text.secondary">
-                Business Profile
-              </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }} color="text.primary">
+                    {displayName || 'Business Profile'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.8 }} color="text.secondary">
+                    Business Profile
+                  </Typography>
             </Box>
           </Box>
         </Stack>
 
         <Typography variant="h6" sx={{ whiteSpace: 'pre-line', mb: 2 }} color="text.primary">
-          Have a look at your Google Business Profile
-        </Typography>
+              Have a look at your Google Business Profile
+            </Typography>
 
-        <Typography variant="body2" sx={{ opacity: 0.64, maxWidth: 360, mb: 3 }} color="text.secondary">
-        Get a quick overview of your Google reviews, ratings, and customer feedback. Track your business reputation and see how customers are engaging with your profile.
-        </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.64, maxWidth: 360, mb: 3 }} color="text.secondary">
+            Get a quick overview of your Google reviews, ratings, and customer feedback. Track your business reputation and see how customers are engaging with your profile.
+            </Typography>
       </Box>
 
       {/* Stats Summary */}
@@ -90,26 +90,51 @@ export function GoogleOverviewWelcome({ displayName, averageRating, totalReviews
               }}
             >
               <Stack spacing={2} alignItems="center" textAlign="center">
-                <Typography variant="h2" sx={{ fontWeight: 'bold', color: theme.palette.common.white }} >
-                  {averageRating?.toFixed(1)}
-                </Typography>
-
-                <Stack direction="row" spacing={0.5}>
-                  {[...Array(5)].map((_, i) => (
-                    <Iconify
-                      key={i}
-                      icon="solar:star-bold"
-                      sx={{
-                        color: i < Math.round(averageRating) ? theme.palette.warning.main : alpha(theme.palette.common.white, 0.4),
-                        fontSize: 16,
-                      }}
+                {isLoading ? (
+                  <>
+                    <Skeleton 
+                      variant="text" 
+                      width={80} 
+                      height={64}
+                      sx={{ bgcolor: alpha(theme.palette.common.white, 0.25) }}
                     />
-                  ))}
-                </Stack>
+                    <Skeleton 
+                      variant="rectangular" 
+                      width={100} 
+                      height={20}
+                      sx={{ bgcolor: alpha(theme.palette.common.white, 0.2), borderRadius: 1 }}
+                    />
+                    <Skeleton 
+                      variant="text" 
+                      width={150} 
+                      height={20}
+                      sx={{ bgcolor: alpha(theme.palette.common.white, 0.2) }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Typography variant="h2" sx={{ fontWeight: 'bold', color: theme.palette.common.white }} >
+                      {averageRating?.toFixed(1)}
+                    </Typography>
 
-                <Typography variant="body2" sx={{ color: theme.palette.common.white }}>
-                  Based on {totalReviews} reviews
-                </Typography>
+                    <Stack direction="row" spacing={0.5}>
+                      {[...Array(5)].map((_, i) => (
+                        <Iconify
+                          key={i}
+                          icon="solar:star-bold"
+                          sx={{
+                            color: i < Math.round(averageRating) ? theme.palette.warning.main : alpha(theme.palette.common.white, 0.4),
+                            fontSize: 16,
+                          }}
+                        />
+                      ))}
+                    </Stack>
+
+                    <Typography variant="body2" sx={{ color: theme.palette.common.white }}>
+                      Based on {totalReviews} reviews
+                    </Typography>
+                  </>
+                )}
               </Stack>
             </Card>
       </Box>

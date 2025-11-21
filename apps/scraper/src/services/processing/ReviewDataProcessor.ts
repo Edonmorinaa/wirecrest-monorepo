@@ -6,26 +6,29 @@
 import { prisma } from '@wirecrest/db';
 import type { Prisma } from '@prisma/client';
 import { DatabaseService } from '../../supabase/database';
-import { GoogleReviewAnalyticsService } from '../googleReviewAnalyticsService';
-import { FacebookReviewAnalyticsService } from '../facebookReviewAnalyticsService';
-import { TripAdvisorReviewAnalyticsService } from '../tripAdvisorReviewAnalyticsService';
-import { BookingReviewAnalyticsService } from '../bookingReviewAnalyticsService';
+// Analytics services removed - analytics now computed on-demand via tRPC
+// import { GoogleReviewAnalyticsService } from '../googleReviewAnalyticsService';
+// import { FacebookReviewAnalyticsService } from '../facebookReviewAnalyticsService';
+// import { TripAdvisorReviewAnalyticsService } from '../tripAdvisorReviewAnalyticsService';
+// import { BookingReviewAnalyticsService } from '../bookingReviewAnalyticsService';
 import type { Platform, SyncResult } from '../../types/apify.types';
 import { sendNotification } from '../../utils/notificationHelper';
 
 export class ReviewDataProcessor {
   private databaseService: DatabaseService;
-  private googleAnalytics: GoogleReviewAnalyticsService;
-  private facebookAnalytics: FacebookReviewAnalyticsService;
-  private tripAdvisorAnalytics: TripAdvisorReviewAnalyticsService;
-  private bookingAnalytics: BookingReviewAnalyticsService;
+  // Analytics services removed - analytics now computed on-demand via tRPC
+  // private googleAnalytics: GoogleReviewAnalyticsService;
+  // private facebookAnalytics: FacebookReviewAnalyticsService;
+  // private tripAdvisorAnalytics: TripAdvisorReviewAnalyticsService;
+  // private bookingAnalytics: BookingReviewAnalyticsService;
 
   constructor() {
     this.databaseService = new DatabaseService();
-    this.googleAnalytics = new GoogleReviewAnalyticsService();
-    this.facebookAnalytics = new FacebookReviewAnalyticsService();
-    this.tripAdvisorAnalytics = new TripAdvisorReviewAnalyticsService();
-    this.bookingAnalytics = new BookingReviewAnalyticsService();
+    // Analytics services removed - analytics now computed on-demand via tRPC
+    // this.googleAnalytics = new GoogleReviewAnalyticsService();
+    // this.facebookAnalytics = new FacebookReviewAnalyticsService();
+    // this.tripAdvisorAnalytics = new TripAdvisorReviewAnalyticsService();
+    // this.bookingAnalytics = new BookingReviewAnalyticsService();
   }
 
   /**
@@ -142,17 +145,30 @@ export class ReviewDataProcessor {
     const uniquePlaceIds = [...new Set(rawData.map((r) => r.placeId).filter(Boolean))];
     console.log(`Found ${uniquePlaceIds.length} unique place(s)`);
 
-    // Fetch all business profiles - filter by team if provided
+    // Fetch all business profiles - filter by team if provided (through businessLocation relation)
     const whereClause: Prisma.GoogleBusinessProfileWhereInput = {
       placeId: { in: uniquePlaceIds },
-      ...(teamId && { teamId }),
+      ...(teamId && { 
+        businessLocation: { 
+          teamId 
+        } 
+      }),
     };
 
     const businessProfiles = await prisma.googleBusinessProfile.findMany({
       where: whereClause,
-      select: { id: true, placeId: true, lastReviewDate: true, teamId: true },
+      select: { 
+        id: true, 
+        placeId: true, 
+        lastReviewDate: true,
+        businessLocation: {
+          select: {
+            teamId: true
+          }
+        }
+      },
     });
-    const profileMap = new Map<string, { id: string; placeId: string | null; lastReviewDate: Date | null; teamId: string }>(
+    const profileMap = new Map<string, { id: string; placeId: string | null; lastReviewDate: Date | null; businessLocation: { teamId: string } }>(
       businessProfiles.map((p) => [p.placeId || '', p])
     );
     
@@ -162,7 +178,7 @@ export class ReviewDataProcessor {
 
     // Process reviews for each place
     for (const placeId of uniquePlaceIds) {
-      const profile = profileMap.get(placeId) as { id: string; placeId: string | null; lastReviewDate: Date | null; teamId: string } | undefined;
+      const profile = profileMap.get(placeId) as { id: string; placeId: string | null; lastReviewDate: Date | null; businessLocation: { teamId: string } } | undefined;
       if (!profile) {
         console.log(`⚠️  No profile found for placeId ${placeId}, skipping...`);
         continue;
@@ -180,15 +196,56 @@ export class ReviewDataProcessor {
           continue;
         }
 
-        // Check if review already exists
+        // Use consistent reviewerId for deduplication
+        const reviewerId = review.reviewerId || review.userId || `reviewer-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Check if review already exists (atomic check for proper deduplication)
         const existingReview = await prisma.googleReview.findFirst({
           where: {
             businessProfileId: profile.id,
-            reviewerId: review.reviewerId || review.userId || `reviewer-${Math.random().toString(36).substr(2, 9)}`,
+            reviewerId: reviewerId,
+          },
+          include: {
+            reviewMetadata: true,
           },
         });
 
         if (existingReview) {
+          // Update existing review with latest data to handle owner responses, etc.
+          const updateData: Prisma.GoogleReviewUpdateInput = {
+            text: review.text || existingReview.text || '',
+            textTranslated: review.textTranslated || existingReview.textTranslated,
+            likesCount: review.likesCount || existingReview.likesCount,
+            responseFromOwnerDate: review.responseFromOwnerDate
+              ? new Date(review.responseFromOwnerDate)
+              : existingReview.responseFromOwnerDate,
+            responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
+            reviewImageUrls: review.reviewImageUrls || existingReview.reviewImageUrls,
+            scrapedAt: new Date(),
+          };
+          
+          await prisma.googleReview.update({
+            where: { id: existingReview.id },
+            data: updateData,
+          });
+          
+          // Update review metadata
+          if (existingReview.reviewMetadata) {
+            const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
+              reply: review.responseFromOwnerText || null,
+              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+              hasReply: !!review.responseFromOwnerText,
+              photoCount: review.reviewImageUrls?.length || 0,
+              photoUrls: review.reviewImageUrls || [],
+              scrapedAt: new Date(),
+            };
+            
+            await prisma.reviewMetadata.update({
+              where: { id: existingReview.reviewMetadata.id },
+              data: metadataUpdateData,
+            });
+          }
+          
           reviewsDuplicate++;
           continue;
         }
@@ -223,47 +280,12 @@ export class ReviewDataProcessor {
           sourceUrl: review.reviewUrl || review.url || null,
         };
         
-        const reviewMetadata = await prisma.reviewMetadata.create({
-          data: reviewMetadataData,
-        });
+        // Use try-catch to handle race conditions where review might be created between check and insert
+        try {
+          const reviewMetadata = await prisma.reviewMetadata.create({
+            data: reviewMetadataData,
+          });
 
-        // Upsert review (update if exists, create if not)
-        if (existingReview) {
-          // Update existing review with latest data
-          const updateData: Prisma.GoogleReviewUpdateInput = {
-            text: review.text || existingReview.text || '',
-            textTranslated: review.textTranslated || existingReview.textTranslated,
-            likesCount: review.likesCount || existingReview.likesCount,
-            responseFromOwnerDate: review.responseFromOwnerDate
-              ? new Date(review.responseFromOwnerDate)
-              : existingReview.responseFromOwnerDate,
-            responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
-            reviewImageUrls: review.reviewImageUrls || existingReview.reviewImageUrls,
-            scrapedAt: new Date(),
-          };
-          
-          await prisma.googleReview.update({
-            where: { id: existingReview.id },
-            data: updateData,
-          });
-          
-          // Update review metadata
-          const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
-            reply: review.responseFromOwnerText || null,
-            replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-            hasReply: !!review.responseFromOwnerText,
-            photoCount: review.reviewImageUrls?.length || 0,
-            photoUrls: review.reviewImageUrls || [],
-            scrapedAt: new Date(),
-          };
-          
-          await prisma.reviewMetadata.update({
-            where: { id: reviewMetadata.id },
-            data: metadataUpdateData,
-          });
-          
-          reviewsDuplicate++;
-        } else {
           // Create new review
           const createData: Prisma.GoogleReviewCreateInput = {
             businessProfile: {
@@ -272,7 +294,7 @@ export class ReviewDataProcessor {
             reviewMetadata: {
               connect: { id: reviewMetadata.id },
             },
-            reviewerId: review.reviewerId || review.userId || `reviewer-${Math.random().toString(36).substr(2, 9)}`,
+            reviewerId: reviewerId,
             reviewerUrl: review.reviewerUrl || '',
             name: review.reviewerName || 'Anonymous',
             reviewerNumberOfReviews: review.reviewerNumberOfReviews || 0,
@@ -328,6 +350,15 @@ export class ReviewDataProcessor {
           });
           
           reviewsNew++;
+        } catch (error: any) {
+          // Handle race condition: review was created between our check and insert
+          if (error?.code === 'P2002' || error?.message?.includes('Unique constraint')) {
+            console.log(`⚠️  Race condition detected for Google review ${reviewerId}, treating as duplicate`);
+            reviewsDuplicate++;
+            continue;
+          }
+          // Re-throw other errors
+          throw error;
         }
 
         businessesUpdated.add(profile.id);
@@ -350,8 +381,8 @@ export class ReviewDataProcessor {
         },
       });
 
-      // Trigger analytics update
-      await this.googleAnalytics.processReviewsAndUpdateDashboard(businessId);
+      // Analytics update removed - analytics now computed on-demand via tRPC
+      // await this.googleAnalytics.processReviewsAndUpdateDashboard(businessId);
     }
 
     console.log(
@@ -436,17 +467,30 @@ export class ReviewDataProcessor {
     const uniqueUrls = [...new Set(rawData.map((r) => r.facebookUrl).filter(Boolean))];
     console.log(`Found ${uniqueUrls.length} unique page(s)`);
 
-    // Fetch all business profiles - filter by team if provided
+    // Fetch all business profiles - filter by team if provided (through businessLocation relation)
     const whereClause: Prisma.FacebookBusinessProfileWhereInput = {
       facebookUrl: { in: uniqueUrls },
-      ...(teamId && { teamId }),
+      ...(teamId && { 
+        businessLocation: { 
+          teamId 
+        } 
+      }),
     };
 
     const businessProfiles = await prisma.facebookBusinessProfile.findMany({
       where: whereClause,
-      select: { id: true, facebookUrl: true, lastReviewDate: true, teamId: true },
+      select: { 
+        id: true, 
+        facebookUrl: true, 
+        lastReviewDate: true,
+        businessLocation: {
+          select: {
+            teamId: true
+          }
+        }
+      },
     });
-    const profileMap = new Map<string, { id: string; facebookUrl: string | null; lastReviewDate: Date | null; teamId: string }>(
+    const profileMap = new Map<string, { id: string; facebookUrl: string | null; lastReviewDate: Date | null; businessLocation: { teamId: string } }>(
       businessProfiles.map((p) => [p.facebookUrl || '', p])
     );
     
@@ -456,7 +500,7 @@ export class ReviewDataProcessor {
 
     // Process reviews for each page
     for (const facebookUrl of uniqueUrls) {
-      const profile = profileMap.get(facebookUrl) as { id: string; facebookUrl: string | null; lastReviewDate: Date | null; teamId: string } | undefined;
+      const profile = profileMap.get(facebookUrl) as { id: string; facebookUrl: string | null; lastReviewDate: Date | null; businessLocation: { teamId: string } } | undefined;
       if (!profile) {
         console.log(`⚠️  No profile found for URL ${facebookUrl}, skipping...`);
         continue;
@@ -485,39 +529,6 @@ export class ReviewDataProcessor {
           },
         });
 
-        // Create or find review metadata
-        const reviewMetadata = existingReview?.reviewMetadata || await prisma.reviewMetadata.create({
-          data: {
-            externalId: review.id,
-            source: 'FACEBOOK',
-            author: review.user?.name || review.userName || 'Anonymous',
-            authorImage: review.user?.profilePic || review.userProfilePic || null,
-            rating: review.isRecommended ? 5 : 1,
-            text: review.text || null,
-            date: reviewDate || new Date(),
-            photoCount: 0,
-            photoUrls: [],
-            reply: null,
-            replyDate: null,
-            hasReply: false,
-            sentiment: null,
-            keywords: [],
-            topics: [],
-            emotional: null,
-            actionable: false,
-            responseUrgency: null,
-            competitorMentions: [],
-            comparativePositive: null,
-            isRead: false,
-            isImportant: false,
-            labels: [],
-            language: 'en',
-            scrapedAt: new Date(),
-            sourceUrl: review.url || null,
-          },
-        });
-
-        // Upsert review (update if exists, create if not)
         if (existingReview) {
           // Update existing review with latest data
           const updateData: Prisma.FacebookReviewUpdateInput = {
@@ -535,17 +546,54 @@ export class ReviewDataProcessor {
           });
           
           // Update review metadata
-          const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
-            scrapedAt: new Date(),
-          };
-          
-          await prisma.reviewMetadata.update({
-            where: { id: reviewMetadata.id },
-            data: metadataUpdateData,
-          });
+          if (existingReview.reviewMetadata) {
+            const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
+              scrapedAt: new Date(),
+            };
+            
+            await prisma.reviewMetadata.update({
+              where: { id: existingReview.reviewMetadata.id },
+              data: metadataUpdateData,
+            });
+          }
           
           reviewsDuplicate++;
-        } else {
+          continue;
+        }
+
+        // Create review metadata and review (use try-catch for race conditions)
+        try {
+          const reviewMetadata = await prisma.reviewMetadata.create({
+            data: {
+              externalId: review.id,
+              source: 'FACEBOOK',
+              author: review.user?.name || review.userName || 'Anonymous',
+              authorImage: review.user?.profilePic || review.userProfilePic || null,
+              rating: review.isRecommended ? 5 : 1,
+              text: review.text || null,
+              date: reviewDate || new Date(),
+              photoCount: 0,
+              photoUrls: [],
+              reply: null,
+              replyDate: null,
+              hasReply: false,
+              sentiment: null,
+              keywords: [],
+              topics: [],
+              emotional: null,
+              actionable: false,
+              responseUrgency: null,
+              competitorMentions: [],
+              comparativePositive: null,
+              isRead: false,
+              isImportant: false,
+              labels: [],
+              language: 'en',
+              scrapedAt: new Date(),
+              sourceUrl: review.url || null,
+            },
+          });
+
           // Create new review
           const createData: Prisma.FacebookReviewCreateInput = {
             businessProfile: {
@@ -581,6 +629,15 @@ export class ReviewDataProcessor {
           });
           
           reviewsNew++;
+        } catch (error: any) {
+          // Handle race condition: review was created between our check and insert
+          if (error?.code === 'P2002' || error?.message?.includes('Unique constraint')) {
+            console.log(`⚠️  Race condition detected for Facebook review ${review.id}, treating as duplicate`);
+            reviewsDuplicate++;
+            continue;
+          }
+          // Re-throw other errors
+          throw error;
         }
 
         businessesUpdated.add(profile.id);
@@ -603,8 +660,8 @@ export class ReviewDataProcessor {
         },
       });
 
-      // Trigger analytics update
-      await this.facebookAnalytics.processReviewsAndUpdateDashboard(businessId);
+      // Analytics update removed - analytics now computed on-demand via tRPC
+      // await this.facebookAnalytics.processReviewsAndUpdateDashboard(businessId);
     }
 
     console.log(
@@ -677,6 +734,7 @@ export class ReviewDataProcessor {
 
   /**
    * Process TripAdvisor reviews (TripAdvisor Reviews Scraper output)
+   * Handles multiple locations in single dataset
    */
   private async processTripAdvisorReviews(
     teamId: string | null,
@@ -686,189 +744,229 @@ export class ReviewDataProcessor {
     const teamInfo = teamId ? `team ${teamId}` : 'all teams';
     console.log(`🌍 Processing TripAdvisor reviews for ${teamInfo}...`);
     
-    // Get business profile - filter by team if provided, otherwise find by URL in data
-    let businessProfile;
-    if (teamId) {
-      businessProfile = await prisma.tripAdvisorBusinessProfile.findUnique({
-        where: { teamId },
-        select: { id: true, tripAdvisorUrl: true, lastReviewDate: true, teamId: true },
-      });
-    } else {
-      // For scheduled runs, try to find by URL from the first item
-      const firstItem = rawData[0];
-      const url = firstItem?.url || firstItem?.tripAdvisorUrl;
-      if (url) {
-        businessProfile = await prisma.tripAdvisorBusinessProfile.findFirst({
-          where: { tripAdvisorUrl: url },
-          select: { id: true, tripAdvisorUrl: true, lastReviewDate: true, teamId: true },
-        });
-      }
-    }
+    // Get unique location IDs from dataset (TripAdvisor uses locationId as unique identifier)
+    const uniqueLocationIds = [...new Set(rawData.map((r) => r.locationId || r.tripAdvisorLocationId).filter(Boolean))];
+    console.log(`Found ${uniqueLocationIds.length} unique location(s)`);
 
-    if (!businessProfile) {
-      throw new Error('TripAdvisor business profile not found');
-    }
+    // Fetch all business profiles - filter by team if provided (through businessLocation relation)
+    const whereClause: Prisma.TripAdvisorBusinessProfileWhereInput = {
+      locationId: { in: uniqueLocationIds },
+      ...(teamId && { 
+        businessLocation: { 
+          teamId 
+        } 
+      }),
+    };
 
+    const businessProfiles = await prisma.tripAdvisorBusinessProfile.findMany({
+      where: whereClause,
+      select: { 
+        id: true, 
+        locationId: true,
+        tripAdvisorUrl: true, 
+        lastReviewDate: true,
+        name: true,
+        type: true,
+        businessLocation: {
+          select: {
+            teamId: true
+          }
+        }
+      },
+    });
+    const profileMap = new Map<string, { id: string; locationId: string; tripAdvisorUrl: string; lastReviewDate: Date | null; name: string; type: any; businessLocation: { teamId: string } }>(
+      businessProfiles.map((p) => [p.locationId || '', p])
+    );
+    
     let reviewsNew = 0;
     let reviewsDuplicate = 0;
+    const businessesUpdated = new Set<string>();
 
-    for (const review of rawData) {
-      const reviewDate = review.publishedDate ? new Date(review.publishedDate) : null;
-      
-      // Skip if older than last known review (deduplication)
-      if (!isInitial && businessProfile.lastReviewDate && reviewDate && reviewDate <= businessProfile.lastReviewDate) {
-        reviewsDuplicate++;
+    // Process reviews for each location
+    for (const locationId of uniqueLocationIds) {
+      const profile = profileMap.get(locationId);
+      if (!profile) {
+        console.log(`⚠️  No profile found for locationId ${locationId}, skipping...`);
         continue;
       }
 
-      // Check if review already exists
-      const existingReview = await prisma.tripAdvisorReview.findFirst({
-        where: {
-          businessProfileId: businessProfile.id,
-          tripAdvisorReviewId: review.id,
-        },
-        include: {
-          reviewMetadata: true,
-        },
-      });
+      const locationReviews = rawData.filter((r) => (r.locationId || r.tripAdvisorLocationId) === locationId);
+      console.log(`Processing ${locationReviews.length} reviews for location ${locationId}`);
 
-      // Create or find review metadata
-      const reviewMetadata = existingReview?.reviewMetadata || await prisma.reviewMetadata.create({
-        data: {
-          externalId: review.id,
-          source: 'TRIPADVISOR',
-          author: review.user?.username || review.reviewerName || 'Anonymous',
-          authorImage: review.user?.photoUrl || review.reviewerPhotoUrl || null,
-          rating: review.rating || 0,
-          text: review.text || null,
-          date: reviewDate || new Date(),
-          photoCount: 0,
-          photoUrls: [],
-          reply: review.responseFromOwnerText || null,
-          replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-          hasReply: !!review.responseFromOwnerText,
-          sentiment: null,
-          keywords: [],
-          topics: [],
-          emotional: null,
-          actionable: false,
-          responseUrgency: null,
-          competitorMentions: [],
-          comparativePositive: null,
-          isRead: false,
-          isImportant: false,
-          labels: [],
-          language: 'en',
-          scrapedAt: new Date(),
-          sourceUrl: review.url || null,
-        },
-      });
+      for (const review of locationReviews) {
+        const reviewDate = review.publishedDate ? new Date(review.publishedDate) : null;
+        
+        // Skip if older than last known review (deduplication)
+        if (!isInitial && profile.lastReviewDate && reviewDate && reviewDate <= profile.lastReviewDate) {
+          reviewsDuplicate++;
+          continue;
+        }
 
-      // Upsert review (update if exists, create if not)
-      if (existingReview) {
-        // Update existing review with latest data
-        const updateData: Prisma.TripAdvisorReviewUpdateInput = {
-          text: review.text || existingReview.text,
-          helpfulVotes: review.helpfulVotes || existingReview.helpfulVotes,
-          responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
-          responseFromOwnerDate: review.responseFromOwnerDate 
-            ? new Date(review.responseFromOwnerDate) 
-            : existingReview.responseFromOwnerDate,
-          hasOwnerResponse: review.hasOwnerResponse || existingReview.hasOwnerResponse,
-          scrapedAt: new Date(),
-          updatedAt: new Date(),
-        };
-        
-        await prisma.tripAdvisorReview.update({
-          where: { id: existingReview.id },
-          data: updateData,
-        });
-        
-        // Update review metadata
-        const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
-          reply: review.responseFromOwnerText || null,
-          replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-          hasReply: !!review.responseFromOwnerText,
-          scrapedAt: new Date(),
-        };
-        
-        await prisma.reviewMetadata.update({
-          where: { id: reviewMetadata.id },
-          data: metadataUpdateData,
-        });
-        
-        reviewsDuplicate++;
-      } else {
-        // Create new review
-        const createData: Prisma.TripAdvisorReviewCreateInput = {
-          businessProfile: {
-            connect: { id: businessProfile.id },
+        // Check if review already exists
+        const existingReview = await prisma.tripAdvisorReview.findFirst({
+          where: {
+            businessProfileId: profile.id,
+            tripAdvisorReviewId: review.id,
           },
-          reviewMetadata: {
-            connect: { id: reviewMetadata.id },
+          include: {
+            reviewMetadata: true,
           },
-          tripAdvisorReviewId: review.id,
-          reviewUrl: review.url || null,
-          title: review.title || null,
-          text: review.text || null,
-          rating: review.rating || 0,
-          publishedDate: reviewDate || new Date(),
-          visitDate: review.visitDate ? new Date(review.visitDate) : null,
-          reviewerId: review.user?.id || review.reviewerId || `reviewer-${Math.random().toString(36).substr(2, 9)}`,
-          reviewerName: review.user?.username || review.reviewerName || 'Anonymous',
-          reviewerLocation: review.user?.location || review.reviewerLocation || null,
-          reviewerLevel: review.user?.level || review.reviewerLevel || null,
-          reviewerPhotoUrl: review.user?.photoUrl || review.reviewerPhotoUrl || null,
-          helpfulVotes: review.helpfulVotes || 0,
-          tripType: review.tripType || null,
-          roomTip: review.roomTip || null,
-          responseFromOwnerText: review.responseFromOwnerText || null,
-          responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-          hasOwnerResponse: !!review.responseFromOwnerText,
-          locationId: review.locationId || businessProfile.locationId,
-          businessName: review.businessName || businessProfile.name,
-          businessType: review.businessType || businessProfile.type,
-          scrapedAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        
-        await prisma.tripAdvisorReview.create({
-          data: createData,
         });
-        
-        reviewsNew++;
+
+        if (existingReview) {
+          // Update existing review with latest data
+          const updateData: Prisma.TripAdvisorReviewUpdateInput = {
+            text: review.text || existingReview.text,
+            helpfulVotes: review.helpfulVotes || existingReview.helpfulVotes,
+            responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
+            responseFromOwnerDate: review.responseFromOwnerDate 
+              ? new Date(review.responseFromOwnerDate) 
+              : existingReview.responseFromOwnerDate,
+            hasOwnerResponse: review.hasOwnerResponse || existingReview.hasOwnerResponse,
+            scrapedAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
+          await prisma.tripAdvisorReview.update({
+            where: { id: existingReview.id },
+            data: updateData,
+          });
+          
+          // Update review metadata
+          if (existingReview.reviewMetadata) {
+            const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
+              reply: review.responseFromOwnerText || null,
+              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+              hasReply: !!review.responseFromOwnerText,
+              scrapedAt: new Date(),
+            };
+            
+            await prisma.reviewMetadata.update({
+              where: { id: existingReview.reviewMetadata.id },
+              data: metadataUpdateData,
+            });
+          }
+          
+          reviewsDuplicate++;
+          continue;
+        }
+
+        // Create review metadata and review (use try-catch for race conditions)
+        try {
+          const reviewMetadata = await prisma.reviewMetadata.create({
+            data: {
+              externalId: review.id,
+              source: 'TRIPADVISOR',
+              author: review.user?.username || review.reviewerName || 'Anonymous',
+              authorImage: review.user?.photoUrl || review.reviewerPhotoUrl || null,
+              rating: review.rating || 0,
+              text: review.text || null,
+              date: reviewDate || new Date(),
+              photoCount: 0,
+              photoUrls: [],
+              reply: review.responseFromOwnerText || null,
+              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+              hasReply: !!review.responseFromOwnerText,
+              sentiment: null,
+              keywords: [],
+              topics: [],
+              emotional: null,
+              actionable: false,
+              responseUrgency: null,
+              competitorMentions: [],
+              comparativePositive: null,
+              isRead: false,
+              isImportant: false,
+              labels: [],
+              language: 'en',
+              scrapedAt: new Date(),
+              sourceUrl: review.url || null,
+            },
+          });
+
+          // Create new review
+          const createData: Prisma.TripAdvisorReviewCreateInput = {
+            businessProfile: {
+              connect: { id: profile.id },
+            },
+            reviewMetadata: {
+              connect: { id: reviewMetadata.id },
+            },
+            tripAdvisorReviewId: review.id,
+            reviewUrl: review.url || null,
+            title: review.title || null,
+            text: review.text || null,
+            rating: review.rating || 0,
+            publishedDate: reviewDate || new Date(),
+            visitDate: review.visitDate ? new Date(review.visitDate) : null,
+            reviewerId: review.user?.id || review.reviewerId || `reviewer-${Math.random().toString(36).substr(2, 9)}`,
+            reviewerName: review.user?.username || review.reviewerName || 'Anonymous',
+            reviewerLocation: review.user?.location || review.reviewerLocation || null,
+            reviewerLevel: review.user?.level || review.reviewerLevel || null,
+            reviewerPhotoUrl: review.user?.photoUrl || review.reviewerPhotoUrl || null,
+            helpfulVotes: review.helpfulVotes || 0,
+            tripType: review.tripType || null,
+            roomTip: review.roomTip || null,
+            responseFromOwnerText: review.responseFromOwnerText || null,
+            responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasOwnerResponse: !!review.responseFromOwnerText,
+            locationId: review.locationId || profile.locationId,
+            businessName: review.businessName || profile.name,
+            businessType: review.businessType || profile.type,
+            scrapedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
+          await prisma.tripAdvisorReview.create({
+            data: createData,
+          });
+          
+          reviewsNew++;
+        } catch (error: any) {
+          // Handle race condition: review was created between our check and insert
+          if (error?.code === 'P2002' || error?.message?.includes('Unique constraint')) {
+            console.log(`⚠️  Race condition detected for TripAdvisor review ${review.id}, treating as duplicate`);
+            reviewsDuplicate++;
+            continue;
+          }
+          // Re-throw other errors
+          throw error;
+        }
+
+        businessesUpdated.add(profile.id);
       }
     }
 
-    // Update profile
-    if (reviewsNew > 0) {
+    // Update lastScrapedAt and lastReviewDate for all affected profiles
+    for (const businessId of businessesUpdated) {
       const latestReview = await prisma.tripAdvisorReview.findFirst({
-        where: { businessProfileId: businessProfile.id },
+        where: { businessProfileId: businessId },
         orderBy: { publishedDate: 'desc' },
         select: { publishedDate: true },
       });
 
       await prisma.tripAdvisorBusinessProfile.update({
-        where: { id: businessProfile.id },
+        where: { id: businessId },
         data: {
           lastScrapedAt: new Date(),
           lastReviewDate: latestReview?.publishedDate || new Date(),
         },
       });
 
-      await this.tripAdvisorAnalytics.processReviewsAndUpdateDashboard(businessProfile.id);
+      // Analytics update removed - analytics now computed on-demand via tRPC
+      // await this.tripAdvisorAnalytics.processReviewsAndUpdateDashboard(businessId);
     }
 
     console.log(
-      `✅ TripAdvisor: ${reviewsNew} new, ${reviewsDuplicate} duplicates`
+      `✅ TripAdvisor: ${reviewsNew} new, ${reviewsDuplicate} duplicates, ${businessesUpdated.size} businesses updated`
     );
 
     // Send notifications for negative and urgent reviews
     if (reviewsNew > 0) {
       const newReviewsData = await prisma.tripAdvisorReview.findMany({
         where: {
-          businessProfileId: businessProfile.id,
+          businessProfileId: { in: Array.from(businessesUpdated) },
           createdAt: { gte: new Date(Date.now() - 60000) }, // Last minute
         },
         select: {
@@ -892,7 +990,7 @@ export class ReviewDataProcessor {
           category: 'Reviews',
           metadata: { 
             platform: 'tripadvisor', 
-            businessProfileId: businessProfile.id,
+            businessProfileId: uniqueLocationIds[0],
             count: negativeReviews.length,
           },
           expiresInDays: 7,
@@ -912,7 +1010,7 @@ export class ReviewDataProcessor {
           category: 'Reviews',
           metadata: { 
             platform: 'tripadvisor', 
-            businessProfileId: businessProfile.id,
+            businessProfileId: uniqueLocationIds[0],
             count: urgentReviews.length,
           },
           expiresInDays: 3,
@@ -924,12 +1022,13 @@ export class ReviewDataProcessor {
       reviewsProcessed: rawData.length,
       reviewsNew,
       reviewsDuplicate,
-      businessesUpdated: reviewsNew > 0 ? 1 : 0,
+      businessesUpdated: businessesUpdated.size,
     };
   }
 
   /**
    * Process Booking reviews (Booking.com Reviews Scraper output)
+   * Handles multiple hotel URLs in single dataset
    */
   private async processBookingReviews(
     teamId: string | null,
@@ -939,192 +1038,229 @@ export class ReviewDataProcessor {
     const teamInfo = teamId ? `team ${teamId}` : 'all teams';
     console.log(`🏨 Processing Booking.com reviews for ${teamInfo}...`);
     
-    // Get business profile - filter by team if provided, otherwise find by URL in data
-    let businessProfile;
-    if (teamId) {
-      businessProfile = await prisma.bookingBusinessProfile.findUnique({
-        where: { teamId },
-        select: { id: true, bookingUrl: true, lastReviewDate: true, teamId: true },
-      });
-    } else {
-      // For scheduled runs, try to find by URL from the first item
-      const firstItem = rawData[0];
-      const url = firstItem?.url || firstItem?.bookingUrl;
-      if (url) {
-        businessProfile = await prisma.bookingBusinessProfile.findFirst({
-          where: { bookingUrl: url },
-          select: { id: true, bookingUrl: true, lastReviewDate: true, teamId: true },
-        });
-      }
-    }
+    // Get unique booking URLs from dataset
+    const uniqueUrls = [...new Set(rawData.map((r) => r.bookingUrl || r.url).filter(Boolean))];
+    console.log(`Found ${uniqueUrls.length} unique hotel(s)`);
 
-    if (!businessProfile) {
-      throw new Error('Booking business profile not found');
-    }
+    // Fetch all business profiles - filter by team if provided (through businessLocation relation)
+    const whereClause: Prisma.BookingBusinessProfileWhereInput = {
+      bookingUrl: { in: uniqueUrls },
+      ...(teamId && { 
+        businessLocation: { 
+          teamId 
+        } 
+      }),
+    };
 
+    const businessProfiles = await prisma.bookingBusinessProfile.findMany({
+      where: whereClause,
+      select: { 
+        id: true, 
+        bookingUrl: true, 
+        lastReviewDate: true,
+        businessLocation: {
+          select: {
+            teamId: true
+          }
+        }
+      },
+    });
+    const profileMap = new Map<string, { id: string; bookingUrl: string; lastReviewDate: Date | null; businessLocation: { teamId: string } }>(
+      businessProfiles.map((p) => [p.bookingUrl || '', p])
+    );
+    
     let reviewsNew = 0;
     let reviewsDuplicate = 0;
+    const businessesUpdated = new Set<string>();
 
-    for (const review of rawData) {
-      const reviewDate = review.reviewDate ? new Date(review.reviewDate) : null;
-      
-      // Skip if older than last known review (deduplication)
-      if (!isInitial && businessProfile.lastReviewDate && reviewDate && reviewDate <= businessProfile.lastReviewDate) {
-        reviewsDuplicate++;
+    // Process reviews for each hotel
+    for (const bookingUrl of uniqueUrls) {
+      const profile = profileMap.get(bookingUrl);
+      if (!profile) {
+        console.log(`⚠️  No profile found for URL ${bookingUrl}, skipping...`);
         continue;
       }
 
-      // Check if review already exists
-      const existingReview = await prisma.bookingReview.findFirst({
-        where: {
-          businessProfileId: businessProfile.id,
-          bookingReviewId: review.id,
-        },
-        include: {
-          reviewMetadata: true,
-        },
-      });
+      const hotelReviews = rawData.filter((r) => (r.bookingUrl || r.url) === bookingUrl);
+      console.log(`Processing ${hotelReviews.length} reviews for hotel ${bookingUrl}`);
 
-      // Create or find review metadata
-      const reviewMetadata = existingReview?.reviewMetadata || await prisma.reviewMetadata.create({
-        data: {
-          externalId: review.id,
-          source: 'BOOKING',
-          author: review.userName || 'Anonymous',
-          authorImage: null,
-          rating: parseFloat(review.rating) || 0,
-          text: review.reviewText || null,
-          date: reviewDate || new Date(),
-          photoCount: 0,
-          photoUrls: [],
-          reply: review.responseFromOwnerText || null,
-          replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-          hasReply: !!review.responseFromOwnerText,
-          sentiment: null,
-          keywords: [],
-          topics: [],
-          emotional: null,
-          actionable: false,
-          responseUrgency: null,
-          competitorMentions: [],
-          comparativePositive: null,
-          isRead: false,
-          isImportant: false,
-          labels: [],
-          language: 'en',
-          scrapedAt: new Date(),
-          sourceUrl: review.url || null,
-        },
-      });
+      for (const review of hotelReviews) {
+        const reviewDate = review.reviewDate ? new Date(review.reviewDate) : null;
+        
+        // Skip if older than last known review (deduplication)
+        if (!isInitial && profile.lastReviewDate && reviewDate && reviewDate <= profile.lastReviewDate) {
+          reviewsDuplicate++;
+          continue;
+        }
 
-      // Upsert review (update if exists, create if not)
-      if (existingReview) {
-        // Update existing review with latest data
-        const updateData: Prisma.BookingReviewUpdateInput = {
-          text: review.reviewText || existingReview.text,
-          responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
-          responseFromOwnerDate: review.responseFromOwnerDate 
-            ? new Date(review.responseFromOwnerDate) 
-            : existingReview.responseFromOwnerDate,
-          hasOwnerResponse: review.hasOwnerResponse || existingReview.hasOwnerResponse,
-          scrapedAt: new Date(),
-          updatedAt: new Date(),
-        };
-        
-        await prisma.bookingReview.update({
-          where: { id: existingReview.id },
-          data: updateData,
-        });
-        
-        // Update review metadata
-        const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
-          reply: review.responseFromOwnerText || null,
-          replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-          hasReply: !!review.responseFromOwnerText,
-          scrapedAt: new Date(),
-        };
-        
-        await prisma.reviewMetadata.update({
-          where: { id: reviewMetadata.id },
-          data: metadataUpdateData,
-        });
-        
-        reviewsDuplicate++;
-      } else {
-        // Create new review
-        const createData: Prisma.BookingReviewCreateInput = {
-          businessProfile: {
-            connect: { id: businessProfile.id },
+        // Check if review already exists
+        const existingReview = await prisma.bookingReview.findFirst({
+          where: {
+            businessProfileId: profile.id,
+            bookingReviewId: review.id,
           },
-          reviewMetadata: {
-            connect: { id: reviewMetadata.id },
+          include: {
+            reviewMetadata: true,
           },
-          bookingReviewId: review.id,
-          title: review.reviewTitle || null,
-          text: review.reviewText || null,
-          rating: parseFloat(review.rating) || 0,
-          publishedDate: reviewDate || new Date(),
-          stayDate: review.stayDate ? new Date(review.stayDate) : null,
-          reviewerId: review.userId || null,
-          reviewerName: review.userName || 'Anonymous',
-          reviewerNationality: review.userNationality || null,
-          lengthOfStay: review.lengthOfStay || null,
-          roomType: review.roomType || null,
-          guestType: review.guestType || 'OTHER',
-          likedMost: review.likedMost || null,
-          dislikedMost: review.dislikedMost || null,
-          cleanlinessRating: review.cleanlinessRating || null,
-          comfortRating: review.comfortRating || null,
-          locationRating: review.locationRating || null,
-          facilitiesRating: review.facilitiesRating || null,
-          staffRating: review.staffRating || null,
-          valueForMoneyRating: review.valueForMoneyRating || null,
-          wifiRating: review.wifiRating || null,
-          responseFromOwnerText: review.responseFromOwnerText || null,
-          responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-          hasOwnerResponse: !!review.responseFromOwnerText,
-          isVerifiedStay: review.isVerifiedStay || false,
-          scrapedAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        
-        await prisma.bookingReview.create({
-          data: createData,
         });
-        
-        reviewsNew++;
+
+        if (existingReview) {
+          // Update existing review with latest data
+          const updateData: Prisma.BookingReviewUpdateInput = {
+            text: review.reviewText || existingReview.text,
+            responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
+            responseFromOwnerDate: review.responseFromOwnerDate 
+              ? new Date(review.responseFromOwnerDate) 
+              : existingReview.responseFromOwnerDate,
+            hasOwnerResponse: review.hasOwnerResponse || existingReview.hasOwnerResponse,
+            scrapedAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
+          await prisma.bookingReview.update({
+            where: { id: existingReview.id },
+            data: updateData,
+          });
+          
+          // Update review metadata
+          if (existingReview.reviewMetadata) {
+            const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
+              reply: review.responseFromOwnerText || null,
+              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+              hasReply: !!review.responseFromOwnerText,
+              scrapedAt: new Date(),
+            };
+            
+            await prisma.reviewMetadata.update({
+              where: { id: existingReview.reviewMetadata.id },
+              data: metadataUpdateData,
+            });
+          }
+          
+          reviewsDuplicate++;
+          continue;
+        }
+
+        // Create review metadata and review (use try-catch for race conditions)
+        try {
+          const reviewMetadata = await prisma.reviewMetadata.create({
+            data: {
+              externalId: review.id,
+              source: 'BOOKING',
+              author: review.userName || 'Anonymous',
+              authorImage: null,
+              rating: parseFloat(review.rating) || 0,
+              text: review.reviewText || null,
+              date: reviewDate || new Date(),
+              photoCount: 0,
+              photoUrls: [],
+              reply: review.responseFromOwnerText || null,
+              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+              hasReply: !!review.responseFromOwnerText,
+              sentiment: null,
+              keywords: [],
+              topics: [],
+              emotional: null,
+              actionable: false,
+              responseUrgency: null,
+              competitorMentions: [],
+              comparativePositive: null,
+              isRead: false,
+              isImportant: false,
+              labels: [],
+              language: 'en',
+              scrapedAt: new Date(),
+              sourceUrl: review.url || null,
+            },
+          });
+
+          // Create new review
+          const createData: Prisma.BookingReviewCreateInput = {
+            businessProfile: {
+              connect: { id: profile.id },
+            },
+            reviewMetadata: {
+              connect: { id: reviewMetadata.id },
+            },
+            bookingReviewId: review.id,
+            title: review.reviewTitle || null,
+            text: review.reviewText || null,
+            rating: parseFloat(review.rating) || 0,
+            publishedDate: reviewDate || new Date(),
+            stayDate: review.stayDate ? new Date(review.stayDate) : null,
+            reviewerId: review.userId || null,
+            reviewerName: review.userName || 'Anonymous',
+            reviewerNationality: review.userNationality || null,
+            lengthOfStay: review.lengthOfStay || null,
+            roomType: review.roomType || null,
+            guestType: review.guestType || 'OTHER',
+            likedMost: review.likedMost || null,
+            dislikedMost: review.dislikedMost || null,
+            cleanlinessRating: review.cleanlinessRating || null,
+            comfortRating: review.comfortRating || null,
+            locationRating: review.locationRating || null,
+            facilitiesRating: review.facilitiesRating || null,
+            staffRating: review.staffRating || null,
+            valueForMoneyRating: review.valueForMoneyRating || null,
+            wifiRating: review.wifiRating || null,
+            responseFromOwnerText: review.responseFromOwnerText || null,
+            responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasOwnerResponse: !!review.responseFromOwnerText,
+            isVerifiedStay: review.isVerifiedStay || false,
+            scrapedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
+          await prisma.bookingReview.create({
+            data: createData,
+          });
+          
+          reviewsNew++;
+        } catch (error: any) {
+          // Handle race condition: review was created between our check and insert
+          if (error?.code === 'P2002' || error?.message?.includes('Unique constraint')) {
+            console.log(`⚠️  Race condition detected for Booking review ${review.id}, treating as duplicate`);
+            reviewsDuplicate++;
+            continue;
+          }
+          // Re-throw other errors
+          throw error;
+        }
+
+        businessesUpdated.add(profile.id);
       }
     }
 
-    // Update profile
-    if (reviewsNew > 0) {
+    // Update lastScrapedAt and lastReviewDate for all affected profiles
+    for (const businessId of businessesUpdated) {
       const latestReview = await prisma.bookingReview.findFirst({
-        where: { businessProfileId: businessProfile.id },
+        where: { businessProfileId: businessId },
         orderBy: { publishedDate: 'desc' },
         select: { publishedDate: true },
       });
 
       await prisma.bookingBusinessProfile.update({
-        where: { id: businessProfile.id },
+        where: { id: businessId },
         data: {
           lastScrapedAt: new Date(),
           lastReviewDate: latestReview?.publishedDate || new Date(),
         },
       });
 
-      await this.bookingAnalytics.processReviewsAndUpdateDashboard(businessProfile.id);
+      // Analytics update removed - analytics now computed on-demand via tRPC
+      // await this.bookingAnalytics.processReviewsAndUpdateDashboard(businessId);
     }
 
     console.log(
-      `✅ Booking: ${reviewsNew} new, ${reviewsDuplicate} duplicates`
+      `✅ Booking: ${reviewsNew} new, ${reviewsDuplicate} duplicates, ${businessesUpdated.size} businesses updated`
     );
 
     // Send notifications for negative and urgent reviews
     if (reviewsNew > 0) {
       const newReviewsData = await prisma.bookingReview.findMany({
         where: {
-          businessProfileId: businessProfile.id,
+          businessProfileId: { in: Array.from(businessesUpdated) },
           createdAt: { gte: new Date(Date.now() - 60000) }, // Last minute
         },
         select: {
@@ -1144,11 +1280,11 @@ export class ReviewDataProcessor {
           type: 'mail',
           scope: 'team',
           teamId,
-          title: `<p><strong>${negativeReviews.length}</strong> new negative Booking.com review${negativeReviews.length > 1 ? 's' : ''} received</p>`,
+          title: `<p><strong>${negativeReviews.length}</strong> new negative Booking review${negativeReviews.length > 1 ? 's' : ''} received</p>`,
           category: 'Reviews',
           metadata: { 
             platform: 'booking', 
-            businessProfileId: businessProfile.id,
+            businessProfileId: uniqueUrls[0],
             count: negativeReviews.length,
           },
           expiresInDays: 7,
@@ -1164,11 +1300,11 @@ export class ReviewDataProcessor {
           type: 'payment',
           scope: 'team',
           teamId,
-          title: `<p><strong>URGENT:</strong> ${urgentReviews.length} Booking.com review${urgentReviews.length > 1 ? 's' : ''} require immediate response</p>`,
+          title: `<p><strong>URGENT:</strong> ${urgentReviews.length} Booking review${urgentReviews.length > 1 ? 's' : ''} require immediate response</p>`,
           category: 'Reviews',
           metadata: { 
             platform: 'booking', 
-            businessProfileId: businessProfile.id,
+            businessProfileId: uniqueUrls[0],
             count: urgentReviews.length,
           },
           expiresInDays: 3,
@@ -1180,7 +1316,7 @@ export class ReviewDataProcessor {
       reviewsProcessed: rawData.length,
       reviewsNew,
       reviewsDuplicate,
-      businessesUpdated: reviewsNew > 0 ? 1 : 0,
+      businessesUpdated: businessesUpdated.size,
     };
   }
 

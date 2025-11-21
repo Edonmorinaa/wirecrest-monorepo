@@ -1,7 +1,6 @@
 'use client';
 
-import { useTeamSlug } from '@/hooks/use-subdomain';
-import { lazy, useMemo, Suspense, useCallback } from 'react';
+import { lazy, useMemo, Suspense, useCallback, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -14,8 +13,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import useTeam from 'src/hooks/useTeam';
-import useBookingReviews from 'src/hooks/use-booking-reviews';
-import { useTeamBookingData } from 'src/hooks/use-team-booking-data';
+import { useLocationBySlug, useBookingProfile, useBookingReviews, useUpdateBookingReviewMetadata } from 'src/hooks/useLocations';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -27,9 +25,9 @@ import { BookingReviewsFilters } from '../booking-reviews-filters';
 import { BookingReviewsWelcome } from '../booking-reviews-welcome';
 
 // Lazy load the heavy analytics component
-const BookingReviewsAnalytics = lazy(() =>
-  import('../booking-reviews-analytics').then((module) => ({
-    default: module.BookingReviewsAnalytics,
+const BookingReviewsAnalytics2 = lazy(() =>
+  import('../booking-reviews-analytics2').then((module) => ({
+    default: module.BookingReviewsAnalytics2,
   }))
 );
 
@@ -59,13 +57,46 @@ export function BookingReviewsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const subdomainTeamSlug = useTeamSlug();
-  const slug = subdomainTeamSlug || params.slug;
+  const teamSlug = params.slug as string;
+  const locationSlug = params.locationSlug as string;
 
+  // Get team data
+  const { team } = useTeam(teamSlug);
 
-  // Get team and business profile data
-  const { team } = useTeam(slug as string);
-  const { businessProfile } = useTeamBookingData(slug as string);
+  // Get location data
+  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
+
+  // Validate locationId
+  const locationId = location?.id || '';
+  const isValidLocationId = locationId && locationId.length > 20;
+
+  // Get business profile
+  const { profile: businessProfile, isLoading: profileLoading } = useBookingProfile(
+    locationId,
+    !!location && isValidLocationId
+  );
+
+  // Ensure page and limit are always in URL on initial load
+  useEffect(() => {
+    const hasPage = searchParams.has('page');
+    const hasLimit = searchParams.has('limit');
+    
+    // Only update URL if page or limit is missing (initial load)
+    if (!hasPage || !hasLimit) {
+      const queryParams = new URLSearchParams(searchParams.toString());
+      
+      if (!hasPage) {
+        queryParams.set('page', '1');
+      }
+      if (!hasLimit) {
+        queryParams.set('limit', '10');
+      }
+      
+      // Only update if we actually changed something
+      router.replace(`?${queryParams.toString()}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - we intentionally don't include dependencies to prevent loops
 
   // Memoize filters extraction to prevent unnecessary re-renders
   const filters = useMemo((): Filters => {
@@ -114,12 +145,81 @@ export function BookingReviewsView() {
     [filters]
   );
 
+  // Fetch reviews data
   const {
     reviews,
     pagination,
-    stats,
+    aggregates,
+    allTimeStats,
+    isLoading,
     refetch,
-  } = useBookingReviews(slug as string, hookFilters);
+  } = useBookingReviews(
+    locationId,
+    hookFilters,
+    { page: filters.page || 1, limit: filters.limit || 10 },
+    !!location && isValidLocationId
+  );
+
+  // Mutation for updating review metadata
+  const updateMetadataMutation = useUpdateBookingReviewMetadata();
+
+  // Preserve previous stats during loading to prevent showing 0
+  const previousStatsRef = useRef<{
+    total: number;
+    averageRating: number;
+    responded: number;
+    unread: number;
+  } | null>(null);
+
+  // Use all-time stats for metric cards (total reviews, average rating, with response, unread)
+  const stats = useMemo(() => {
+    // If we have new data, use it and update the ref
+    if (allTimeStats && !isLoading) {
+      const newStats = {
+        total: allTimeStats.totalReviews || 0,
+        averageRating: allTimeStats.averageRating || 0,
+        responded: allTimeStats.withResponse || 0,
+        unread: allTimeStats.unread || 0,
+      };
+      previousStatsRef.current = newStats;
+      return {
+        ...newStats,
+        // Keep filtered aggregates for other uses
+        positive: aggregates?.sentimentBreakdown?.positive || 0,
+        neutral: aggregates?.sentimentBreakdown?.neutral || 0,
+        negative: aggregates?.sentimentBreakdown?.negative || 0,
+        responseRate: aggregates?.responseRate || 0,
+        verifiedStays: aggregates?.verifiedStays || 0,
+      };
+    }
+    
+    // If loading and we have previous stats, use them
+    if (isLoading && previousStatsRef.current) {
+      return {
+        ...previousStatsRef.current,
+        // Keep filtered aggregates for other uses
+        positive: aggregates?.sentimentBreakdown?.positive || 0,
+        neutral: aggregates?.sentimentBreakdown?.neutral || 0,
+        negative: aggregates?.sentimentBreakdown?.negative || 0,
+        responseRate: aggregates?.responseRate || 0,
+        verifiedStays: aggregates?.verifiedStays || 0,
+      };
+    }
+    
+    // Fallback to defaults if no previous data
+    return {
+      total: allTimeStats?.totalReviews || previousStatsRef.current?.total || 0,
+      averageRating: allTimeStats?.averageRating || previousStatsRef.current?.averageRating || 0,
+      responded: allTimeStats?.withResponse || previousStatsRef.current?.responded || 0,
+      unread: allTimeStats?.unread || previousStatsRef.current?.unread || 0,
+      // Keep filtered aggregates for other uses
+      positive: aggregates?.sentimentBreakdown?.positive || 0,
+      neutral: aggregates?.sentimentBreakdown?.neutral || 0,
+      negative: aggregates?.sentimentBreakdown?.negative || 0,
+      responseRate: aggregates?.responseRate || 0,
+      verifiedStays: aggregates?.verifiedStays || 0,
+    };
+  }, [allTimeStats, aggregates, isLoading]);
 
   const updateFilter = useCallback(
     (key: keyof Filters, value: any) => {
@@ -149,53 +249,51 @@ export function BookingReviewsView() {
     [searchParams, router]
   );
 
-  // const resetFilters = useCallback(() => {
-  //   // Clear all query parameters except essential ones
-  //   const queryParams = new URLSearchParams();
-  //   queryParams.set('page', '1');
-  //   queryParams.set('limit', '10');
+  const resetFilters = useCallback(() => {
+    // Clear all query parameters except essential ones
+    const queryParams = new URLSearchParams();
+    queryParams.set('page', '1');
+    queryParams.set('limit', '10');
 
-  //   // Use router.replace with shallow routing to prevent full page reload
-  //   router.replace(`?${queryParams.toString()}`, { scroll: false });
-  // }, [router]);
+    // Use router.replace with shallow routing to prevent full page reload
+    router.replace(`?${queryParams.toString()}`, { scroll: false });
+  }, [router]);
 
-  const handleUpdateMetadata = useCallback(
-    async (reviewId: string, updates: any) => {
-      try {
-        // Update the review metadata
-        const response = await fetch(`/api/teams/${slug}/booking/reviews/${reviewId}/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updates),
-        });
+  const handleUpdateMetadata = useCallback(async (reviewId: string, field: 'isRead' | 'isImportant', value: boolean) => {
+    if (!locationId) {
+      console.error('LocationId is required to update metadata');
+      return;
+    }
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMessage =
-            errorData.error?.message || `HTTP ${response.status}: Failed to update review`;
-          throw new Error(errorMessage);
-        }
-
-        // Refresh the reviews data without causing full page reload
-        await refetch();
-      } catch (error) {
-        console.error('Error updating review metadata:', error);
-        // You might want to show a toast notification here
-        // toast.error(error instanceof Error ? error.message : 'Failed to update review');
-      }
-    },
-    [slug, refetch]
-  );
+    try {
+      await updateMetadataMutation.mutateAsync({
+        locationId,
+        platform: 'booking' as const,
+        reviewId,
+        metadata: {
+          [field]: value,
+        },
+      });
+      
+      // Refetch reviews to get updated data
+      await refetch();
+    } catch (error) {
+      console.error('Error updating review metadata:', error);
+      // You might want to show a toast notification here
+      // toast.error(error instanceof Error ? error.message : 'Failed to update review');
+    }
+  }, [locationId, updateMetadataMutation, refetch]);
 
   // Memoize breadcrumbs to prevent unnecessary re-renders
   const breadcrumbs = useMemo(
     () => [
       { name: 'Dashboard', href: paths.dashboard.root },
       { name: 'Teams', href: paths.dashboard.teams.root },
-      { name: team?.name || '', href: paths.dashboard.teams.bySlug(slug) },
+      { name: team?.name || '', href: paths.dashboard.teams.bySlug(teamSlug) },
+      { name: location?.name || '', href: paths.dashboard.teams.locations(teamSlug) },
       { name: 'Booking.com Reviews' },
     ],
-    [team?.name, slug]
+    [team?.name, location?.name, teamSlug]
   );
 
   return (
@@ -210,7 +308,16 @@ export function BookingReviewsView() {
           backHref=""
         />
 
+        {/* Loading State */}
+        {(locationLoading || profileLoading) && !location && (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography>Loading location...</Typography>
+          </Box>
+        )}
+
         {/* Welcome Section */}
+        {location && (
+          <>
         <BookingReviewsWelcome
           team={team}
           businessProfile={businessProfile}
@@ -241,27 +348,35 @@ export function BookingReviewsView() {
               </Card>
             }
           >
-            <BookingReviewsAnalytics teamSlug={slug as string} />
+            <BookingReviewsAnalytics2 teamSlug={teamSlug} locationId={locationId} />
           </Suspense>
         </Grid>
 
         {/* Filters and Reviews List */}
         <Card>
           <Box sx={{ p: 3, borderBottom: `solid 1px ${theme.palette.divider}` }}>
-            <BookingReviewsFilters filters={filters} onFilterChange={updateFilter} stats={stats} />
+            <BookingReviewsFilters 
+              filters={filters} 
+              onFilterChange={updateFilter} 
+              onResetFilters={resetFilters}
+              stats={stats} 
+            />
           </Box>
 
           <Box sx={{ p: 3 }}>
             <BookingReviewsList
-              reviews={reviews || []}
+              reviews={(reviews || []) as any}
               pagination={pagination}
               filters={filters}
+              isLoading={isLoading}
               onUpdateMetadata={handleUpdateMetadata}
               onPageChange={(page) => updateFilter('page', page)}
               onRefresh={refetch}
             />
           </Box>
         </Card>
+          </>
+        )}
       </Stack>
     </DashboardContent>
   );

@@ -18,10 +18,17 @@ export class AuthApiClient {
   private client: AxiosInstance;
   private baseURL: string;
 
-  constructor(baseURL: string = process.env.AUTH_SERVICE_URL || 'http://localhost:3000') {
-    this.baseURL = baseURL;
+  constructor(baseURL?: string) {
+    // In browser, check NEXT_PUBLIC_ prefixed env var first, then fall back to server-side env var
+    const defaultURL = typeof window !== 'undefined'
+      ? process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:3000'
+      : process.env.AUTH_SERVICE_URL || 'http://localhost:3000';
+    
+    this.baseURL = baseURL || defaultURL;
+    console.log('🔧 AuthApiClient initialized with baseURL:', this.baseURL);
+    
     this.client = axios.create({
-      baseURL,
+      baseURL: this.baseURL,
       timeout: 10000,
       withCredentials: true, // This ensures cookies are sent with requests
       headers: {

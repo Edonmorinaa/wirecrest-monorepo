@@ -16,7 +16,15 @@ export class BookingBusinessRepository
 
   async findByTeamId(teamId: string): Promise<BookingBusinessProfile[]> {
     return await this.model.findMany({
-      where: { teamId },
+      where: { businessLocation: { teamId } },
+    });
+  }
+
+  async findByBusinessLocationId(
+    businessLocationId: string,
+  ): Promise<BookingBusinessProfile | null> {
+    return await this.model.findFirst({
+      where: { businessLocationId },
     });
   }
 
@@ -32,7 +40,7 @@ export class BookingBusinessRepository
   ): Promise<BookingBusinessProfile | null> {
     return await this.model.findFirst({
       where: {
-        teamId,
+        businessLocation: { teamId },
         // Booking business profiles don't have platform field, they are implicitly Booking
       },
     });
@@ -68,7 +76,7 @@ export class BookingBusinessRepository
     platform: MarketPlatform,
   ): Promise<number> {
     return await this.model.count({
-      where: { teamId },
+      where: { businessLocation: { teamId } },
     });
   }
 }

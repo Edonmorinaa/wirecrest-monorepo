@@ -65,7 +65,8 @@ export async function getTenants(filters: {
       include: {
         _count: {
           select: {
-            members: true
+            members: true,
+            locations: true
           }
         },
         members: {
@@ -73,11 +74,47 @@ export async function getTenants(filters: {
             user: true
           }
         },
+        locations: {
+          include: {
         marketIdentifiers: true,
-        businessProfile: true,
-        facebookBusinessProfiles: true,
-        tripAdvisorBusinessProfile: true,
-        bookingBusinessProfile: true
+            googleBusinessProfile: {
+              select: {
+                id: true,
+                placeId: true,
+                displayName: true,
+                rating: true,
+                userRatingCount: true
+              }
+            },
+            facebookBusinessProfile: {
+              select: {
+                id: true,
+                facebookUrl: true,
+                title: true,
+                likes: true,
+                followers: true
+              }
+            },
+            tripAdvisorBusinessProfile: {
+              select: {
+                id: true,
+                tripAdvisorUrl: true,
+                name: true,
+                rating: true,
+                numReviews: true
+              }
+            },
+            bookingBusinessProfile: {
+              select: {
+                id: true,
+                bookingUrl: true,
+                name: true,
+                reviewScore: true,
+                numReviews: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -195,7 +232,8 @@ export async function getTenant(tenantId: string) {
       include: {
         _count: {
           select: {
-            members: true
+            members: true,
+            locations: true
           }
         },
         members: {
@@ -203,8 +241,10 @@ export async function getTenant(tenantId: string) {
             user: true
           }
         },
+        locations: {
+          include: {
         marketIdentifiers: true,
-        businessProfile: {
+            googleBusinessProfile: {
           include: {
             reviews: {
               orderBy: { scrapedAt: 'desc' },
@@ -212,7 +252,7 @@ export async function getTenant(tenantId: string) {
             }
           }
         },
-        facebookBusinessProfiles: {
+            facebookBusinessProfile: {
           include: {
             reviews: {
               orderBy: { scrapedAt: 'desc' },
@@ -233,6 +273,8 @@ export async function getTenant(tenantId: string) {
             reviews: {
               orderBy: { scrapedAt: 'desc' },
               take: 10
+                }
+              }
             }
           }
         }
@@ -259,14 +301,11 @@ export async function getTenant(tenantId: string) {
       createdAt: team.createdAt,
       updatedAt: team.updatedAt,
       membersCount: team._count.members,
+      locationsCount: team._count.locations,
       members: team.members,
       platforms,
       overallProgress,
-      marketIdentifiers: team.marketIdentifiers,
-      businessProfile: team.businessProfile,
-      facebookBusinessProfiles: team.facebookBusinessProfiles,
-      tripAdvisorBusinessProfile: team.tripAdvisorBusinessProfile,
-      bookingBusinessProfile: team.bookingBusinessProfile
+      locations: team.locations
     };
   } catch (error) {
     console.error('Error fetching tenant:', error);
@@ -397,30 +436,35 @@ export async function deleteTenant(tenantId: string) {
 
 // Helper functions
 function calculatePlatformStatus(team: any, platform: string) {
-  const identifier = team.marketIdentifiers?.find(
-    (id: any) => id.platform === platform
-  );
+  // Aggregate data from all locations
+  const allIdentifiers = team.locations?.flatMap((loc: any) => 
+    loc.marketIdentifiers?.filter((id: any) => id.platform === platform) || []
+  ) || [];
 
-  let profile = null;
+  let allProfiles: any[] = [];
   switch (platform) {
     case 'GOOGLE_MAPS':
-      profile = team.businessProfile;
+      allProfiles = team.locations?.map((loc: any) => loc.googleBusinessProfile).filter(Boolean) || [];
       break;
     case 'FACEBOOK':
-      profile = team.facebookBusinessProfiles;
+      allProfiles = team.locations?.map((loc: any) => loc.facebookBusinessProfile).filter(Boolean) || [];
       break;
     case 'TRIPADVISOR':
-      profile = team.tripAdvisorBusinessProfile;
+      allProfiles = team.locations?.map((loc: any) => loc.tripAdvisorBusinessProfile).filter(Boolean) || [];
       break;
     case 'BOOKING':
-      profile = team.bookingBusinessProfile;
+      allProfiles = team.locations?.map((loc: any) => loc.bookingBusinessProfile).filter(Boolean) || [];
       break;
   }
 
-  const hasIdentifier = !!identifier;
-  const hasProfile = !!profile;
-  const hasReviews = profile?.reviews && profile.reviews.length > 0;
-  const reviewsCount = profile?.reviews?.length || 0;
+  const hasIdentifier = allIdentifiers.length > 0;
+  const hasProfile = allProfiles.length > 0;
+  const hasReviews = allProfiles.some((profile: any) => 
+    profile?.reviews && profile.reviews.length > 0
+  );
+  const reviewsCount = allProfiles.reduce((sum: number, profile: any) => 
+    sum + (profile?.reviews?.length || 0), 0
+  );
 
   let status: 'not_started' | 'in_progress' | 'completed' = 'not_started';
 

@@ -2,7 +2,8 @@ import { ApifyClient } from "apify-client";
 import { Actor, ActorJob, ReviewActorJobData } from "./actor";
 import { DatabaseService } from "../../supabase/database";
 import { MarketPlatform, TripAdvisorTripType } from "@wirecrest/db";
-import { TripAdvisorReviewAnalyticsService } from "../../services/tripAdvisorReviewAnalyticsService";
+// Analytics service removed - analytics now computed on-demand via tRPC
+// import { TripAdvisorReviewAnalyticsService } from "../../services/tripAdvisorReviewAnalyticsService";
 import { prisma } from "@wirecrest/db";
 import { randomUUID } from "crypto";
 import { reviewAnalysisService } from "../../services/analysis/ReviewAnalysisService";

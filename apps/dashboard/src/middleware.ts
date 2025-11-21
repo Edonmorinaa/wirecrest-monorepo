@@ -83,8 +83,13 @@ function extractSubdomain(request: NextRequest): string | null {
  * Handles routing logic for:
  * - admin.domain.com -> Super admin dashboard
  * - auth.domain.com -> Authentication pages
- * - tenant.domain.com -> Tenant-specific dashboard
+ * - tenant.domain.com -> Tenant-specific dashboard (with locations)
  * - domain.com -> Public landing pages
+ * 
+ * Location-based routing structure:
+ * - tenant.domain.com/ -> /dashboard/teams/{tenant} (locations list)
+ * - tenant.domain.com/{locationSlug}/google/overview -> /dashboard/teams/{tenant}/{locationSlug}/google/overview
+ * - tenant.domain.com/{locationSlug}/facebook/reviews -> /dashboard/teams/{tenant}/{locationSlug}/facebook/reviews
  * 
  * @param request - The Next.js request object
  * @returns NextResponse with appropriate routing/rewrite logic
@@ -95,6 +100,7 @@ export async function middleware(request: NextRequest) {
   const subdomain = extractSubdomain(request);
 
   if (subdomain) {
+    // Handle admin subdomain
     if (subdomain === 'admin') {
       if (pathname.startsWith('/auth') || pathname.startsWith('/dashboard')) {
         return new NextResponse('Not Found', { status: 404 });
@@ -113,6 +119,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.rewrite(url);
     }
 
+    // Handle auth subdomain
     if (subdomain === 'auth') {
       // Prevent nested auth or dashboard paths
       if (pathname.startsWith('/auth') || pathname.startsWith('/dashboard')) {
@@ -164,9 +171,21 @@ export async function middleware(request: NextRequest) {
       return NextResponse.rewrite(url);
     }
 
-    return pathname === '/'
-      ? NextResponse.rewrite(new URL(`/dashboard/teams/${subdomain}`, request.url))
-      : NextResponse.rewrite(new URL(`/dashboard/teams/${subdomain}${pathname}`, request.url));
+    // Handle tenant subdomains with location-based routing
+    // Rewrites tenant subdomain URLs to internal Next.js routes
+    // Examples:
+    //   tenant.domain.com/ -> /dashboard/teams/tenant (locations list - team root)
+    //   tenant.domain.com/location-1/google/overview -> /dashboard/teams/tenant/location-1/google/overview (platform page)
+    //   tenant.domain.com/locations -> /dashboard/teams/tenant/locations (locations management)
+    
+    // Team root page (shows locations list or redirects to first location)
+    if (pathname === '/') {
+      return NextResponse.rewrite(new URL(`/dashboard/teams/${subdomain}`, request.url));
+    }
+    
+    // All other paths include location slug and platform/feature
+    // Rewrite to internal structure: /dashboard/teams/{subdomain}{pathname}
+    return NextResponse.rewrite(new URL(`/dashboard/teams/${subdomain}${pathname}`, request.url));
   }
 
   if (pathname.startsWith('/dashboard')) {

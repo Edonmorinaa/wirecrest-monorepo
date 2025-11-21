@@ -1,8 +1,7 @@
 'use client';
 
-import { useTeamSlug } from '@/hooks/use-subdomain';
-import { lazy, useMemo, Suspense, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -14,8 +13,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import useTeam from 'src/hooks/useTeam';
-import useGoogleReviews from 'src/hooks/use-google-reviews';
-import useGoogleBusinessProfile from 'src/hooks/useGoogleBusinessProfile';
+import { useGoogleProfile, useGoogleReviews, useLocationBySlug, useUpdateGoogleReviewMetadata } from 'src/hooks/useLocations';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -42,6 +40,8 @@ interface Filters {
   sortOrder?: 'asc' | 'desc';
   isRead?: boolean;
   isImportant?: boolean;
+  startDate?: string;
+  endDate?: string;
 }
 
 export function GoogleReviewsView() {
@@ -50,19 +50,49 @@ export function GoogleReviewsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const subdomainTeamSlug = useTeamSlug();
-  const slug = subdomainTeamSlug || params.slug;
+  const teamSlug = params.slug as string;
+  const locationSlug = params.locationSlug as string;
 
-  // Get team and business profile data
-  const { team } = useTeam(slug as string);
-  const { businessProfile } = useGoogleBusinessProfile(slug as string);
+  // Get team and location data
+  const { team } = useTeam(teamSlug);
+  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
+  
+  // Validate locationId
+  const locationId = location?.id || '';
+  const isValidLocationId = locationId && locationId.length > 20;
+  
+  const { profile: businessProfile } = useGoogleProfile(locationId, !!location && isValidLocationId);
+
+  // Ensure page and limit are always in URL on initial load
+  useEffect(() => {
+    const hasPage = searchParams.has('page');
+    const hasLimit = searchParams.has('limit');
+    
+    // Only update URL if page or limit is missing (initial load)
+    if (!hasPage || !hasLimit) {
+      const queryParams = new URLSearchParams(searchParams.toString());
+      
+      if (!hasPage) {
+        queryParams.set('page', '1');
+      }
+      if (!hasLimit) {
+        queryParams.set('limit', '10');
+      }
+      
+      // Only update if we actually changed something
+      router.replace(`?${queryParams.toString()}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - we intentionally don't include dependencies to prevent loops
 
   // Memoize filters extraction to prevent unnecessary re-renders
   const filters = useMemo((): Filters => {
     const query = Object.fromEntries(searchParams.entries());
+    const pageNum = query.page ? parseInt(query.page, 10) : 1;
+    const limitNum = query.limit ? parseInt(query.limit, 10) : 10;
     return {
-      page: query.page ? parseInt(query.page) : 1,
-      limit: query.limit ? parseInt(query.limit) : 10,
+      page: !isNaN(pageNum) && pageNum > 0 ? pageNum : 1,
+      limit: !isNaN(limitNum) && limitNum > 0 ? limitNum : 10,
       ratings: query.ratings ? 
         query.ratings.split(',').map(r => parseInt(r.trim())).filter(r => !isNaN(r))
         : undefined,
@@ -72,48 +102,135 @@ export function GoogleReviewsView() {
       sortBy: (query.sortBy as 'publishedAtDate' | 'rating' | 'responseStatus') || 'publishedAtDate',
       sortOrder: (query.sortOrder as 'asc' | 'desc') || 'desc',
       isRead: query.isRead === 'true' ? true : query.isRead === 'false' ? false : undefined,
-      isImportant: query.isImportant === 'true' ? true : query.isImportant === 'false' ? false : undefined
+      isImportant: query.isImportant === 'true' ? true : query.isImportant === 'false' ? false : undefined,
+      startDate: query.startDate ? new Date(query.startDate).toISOString() : undefined,
+      endDate: query.endDate ? new Date(query.endDate).toISOString() : undefined,
     };
   }, [searchParams]);
 
   // Convert filters to match the hook's expected format
   const hookFilters = useMemo(() => ({
-    ...filters,
-    sortBy: (filters.sortBy === 'rating' ? 'stars' : 
-            filters.sortBy === 'responseStatus' ? 'name' : 
-            filters.sortBy) as 'publishedAtDate' | 'stars' | 'name'
+    rating: filters.ratings, // Convert plural to singular for API
+    sentiment: filters.sentiment,
+    hasResponse: filters.hasResponse,
+    search: filters.search,
+    sortBy: filters.sortBy === 'rating' ? 'stars' : filters.sortBy,
+    sortOrder: filters.sortOrder,
+    isRead: filters.isRead,
+    isImportant: filters.isImportant,
   }), [filters]);
 
+  // Fetch reviews using tRPC hook
   const { 
     reviews, 
     pagination, 
-    stats,
+    aggregates,
+    allTimeStats,
+    isLoading,
     refetch,
-  } = useGoogleReviews(slug as string, hookFilters);
-
-  const updateFilter = useCallback((key: keyof Filters, value: any) => {
-    const queryParams = new URLSearchParams(searchParams);
-    
-    // Reset to page 1 when filters change (except when changing page)
-    if (key !== 'page') {
-      queryParams.set('page', '1');
+  } = useGoogleReviews(locationId, hookFilters, { page: filters.page || 1, limit: filters.limit || 10 }, !!location && isValidLocationId);
+  
+  // Mutation for updating review metadata
+  const updateMetadataMutation = useUpdateGoogleReviewMetadata();
+  
+  // Preserve previous stats during loading to prevent showing 0
+  const previousStatsRef = useRef<{
+    total: number;
+    averageRating: number;
+    withResponse: number;
+    unread: number;
+  } | null>(null);
+  
+  // Convert all-time stats to stats format for metric cards
+  // Use all-time stats for metric cards (total reviews, average rating, with response, unread)
+  const stats = useMemo(() => {
+    // If we have new data, use it and update the ref
+    if (allTimeStats && !isLoading) {
+      const newStats = {
+        total: allTimeStats.totalReviews || 0,
+        averageRating: allTimeStats.averageRating || 0,
+        withResponse: allTimeStats.withResponse || 0,
+        unread: allTimeStats.unread || 0,
+      };
+      previousStatsRef.current = newStats;
+      return {
+        ...newStats,
+        // Keep filtered aggregates for other uses
+        positive: aggregates?.sentimentBreakdown?.positive || 0,
+        neutral: aggregates?.sentimentBreakdown?.neutral || 0,
+        negative: aggregates?.sentimentBreakdown?.negative || 0,
+        responded: aggregates?.respondedCount || 0,
+        responseRate: aggregates?.responseRate || 0,
+        ratingDistribution: aggregates?.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      };
     }
     
+    // If loading and we have previous stats, use them
+    if (isLoading && previousStatsRef.current) {
+      return {
+        ...previousStatsRef.current,
+        // Keep filtered aggregates for other uses
+        positive: aggregates?.sentimentBreakdown?.positive || 0,
+        neutral: aggregates?.sentimentBreakdown?.neutral || 0,
+        negative: aggregates?.sentimentBreakdown?.negative || 0,
+        responded: aggregates?.respondedCount || 0,
+        responseRate: aggregates?.responseRate || 0,
+        ratingDistribution: aggregates?.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      };
+    }
+    
+    // Fallback to defaults if no previous data
+    return {
+      total: allTimeStats?.totalReviews || previousStatsRef.current?.total || 0,
+      averageRating: allTimeStats?.averageRating || previousStatsRef.current?.averageRating || 0,
+      withResponse: allTimeStats?.withResponse || previousStatsRef.current?.withResponse || 0,
+      unread: allTimeStats?.unread || previousStatsRef.current?.unread || 0,
+      // Keep filtered aggregates for other uses
+      positive: aggregates?.sentimentBreakdown?.positive || 0,
+      neutral: aggregates?.sentimentBreakdown?.neutral || 0,
+      negative: aggregates?.sentimentBreakdown?.negative || 0,
+      responded: aggregates?.respondedCount || 0,
+      responseRate: aggregates?.responseRate || 0,
+      ratingDistribution: aggregates?.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    };
+  }, [allTimeStats, aggregates, isLoading]);
+
+  const updateFilter = useCallback((key: keyof Filters, value: any) => {
+    // Create a new URLSearchParams from the current search params
+    // This ensures we preserve all existing query parameters
+    const queryParams = new URLSearchParams(searchParams.toString());
+    
+    // Reset to page 1 when filters change (except when changing page)
+    // if (key !== 'page') {
+    //   queryParams.set('page', '1');
+    // }
+    
+    // Handle the value update
     if (value === undefined || value === null || value === '') {
       queryParams.delete(key);
     } else if (key === 'ratings' && Array.isArray(value)) {
       // Handle ratings array properly
       if (value.length === 0) {
-        queryParams.delete(key);
+        queryParams.delete('ratings');
       } else {
-        queryParams.set(key, value.join(','));
+        queryParams.set('ratings', value.join(','));
+      }
+    } else if (key === 'page') {
+      // Explicitly set page value - ensure it's a valid number
+      const pageNum = typeof value === 'number' ? value : parseInt(String(value), 10);
+      if (!isNaN(pageNum) && pageNum > 0) {
+        queryParams.set('page', pageNum.toString());
+      } else {
+        // If invalid page, default to 1 but don't delete it
+        queryParams.set('page', '1');
       }
     } else {
-      queryParams.set(key, value.toString());
+      queryParams.set(key, String(value));
     }
     
     // Use router.replace with shallow routing to prevent full page reload
-    router.replace(`?${queryParams.toString()}`, { scroll: false });
+    const newQueryString = queryParams.toString();
+    router.replace(`?${newQueryString}`, { scroll: false });
   }, [searchParams, router]);
 
   const resetFilters = useCallback(() => {
@@ -126,37 +243,48 @@ export function GoogleReviewsView() {
     router.replace(`?${queryParams.toString()}`, { scroll: false });
   }, [router]);
 
-  const handleUpdateMetadata = useCallback(async (reviewId: string, updates: any) => {
+  const handleUpdateMetadata = useCallback(async (reviewId: string, field: 'isRead' | 'isImportant', value: boolean) => {
+    if (!locationId) {
+      console.error('LocationId is required to update metadata');
+      return;
+    }
+
     try {
-      // Update the review metadata
-      const response = await fetch(`/api/teams/${slug}/google/reviews/${reviewId}/metadata`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+      await updateMetadataMutation.mutateAsync({
+        locationId,
+        platform: 'google' as const,
+        reviewId,
+        metadata: {
+          [field]: value,
+        },
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || `HTTP ${response.status}: Failed to update review`;
-        throw new Error(errorMessage);
-      }
-
-      // Refresh the reviews data without causing full page reload
+      
+      // Refetch reviews to get updated data
       await refetch();
     } catch (error) {
       console.error('Error updating review metadata:', error);
       // You might want to show a toast notification here
       // toast.error(error instanceof Error ? error.message : 'Failed to update review');
     }
-  }, [slug, refetch]);
+  }, [locationId, updateMetadataMutation, refetch]);
 
   // Memoize breadcrumbs to prevent unnecessary re-renders
   const breadcrumbs = useMemo(() => [
     { name: 'Dashboard', href: paths.dashboard.root },
     { name: 'Teams', href: paths.dashboard.teams.root },
-    { name: team?.name || '', href: paths.dashboard.teams.bySlug(slug) },
-    { name: 'Google Reviews' },
-  ], [team?.name, slug]);
+    { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+    { name: location?.name || locationSlug, href: paths.dashboard.locations.bySlug(teamSlug, locationSlug) },
+    { name: 'Google Reviews', href: '#' },
+  ], [team?.name, teamSlug, location?.name, locationSlug]);
+
+  // Show loading state
+  if (locationLoading || !location) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <Typography>Loading location...</Typography>
+      </DashboardContent>
+    );
+  }
 
   return (
     <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
@@ -178,9 +306,6 @@ export function GoogleReviewsView() {
           sx={{}}
         />
 
-        {/* Stats Cards */}
-        <GoogleReviewsStats stats={stats} />
-
         {/* Analytics Chart - Lazy Loaded */}
         <Grid size={{ xs: 12 }}>
           <Suspense fallback={
@@ -192,10 +317,12 @@ export function GoogleReviewsView() {
               </Box>
             </Card>
           }>
-            <GoogleReviewsAnalytics2 teamSlug={slug} />
+            <GoogleReviewsAnalytics2 teamSlug={teamSlug} locationId={locationId} />
           </Suspense>
         </Grid>
           
+          {/* Stats Cards */}
+        <GoogleReviewsStats stats={stats} />
 
         {/* Filters and Reviews List */}
         <Card>
@@ -210,9 +337,10 @@ export function GoogleReviewsView() {
           
           <Box sx={{ p: 3 }}>
             <GoogleReviewsList
-              reviews={reviews || []}
+              reviews={(reviews || []) as any}
               pagination={pagination}
               filters={filters}
+              isLoading={isLoading}
               onUpdateMetadata={handleUpdateMetadata}
               onPageChange={(page) => updateFilter('page', page)}
               onRefresh={refetch}

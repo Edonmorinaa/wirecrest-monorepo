@@ -1,4 +1,14 @@
 /**
+ * @deprecated This file is kept for reference only
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This utility calculated Booking.com-specific metrics
+ * for updating BookingPeriodicalMetric tables (now removed from schema)
+ * 
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ * 
+ * Original description:
  * Booking.com Metrics Calculator
  * Handles Booking.com-specific metrics: 1-10 ratings, sub-ratings, guest types, stay metrics
  * CRITICAL: Booking uses 1-10 scale but converts to 1-5 for histogram (by rounding)

@@ -216,10 +216,10 @@ export function GoogleRatingDistribution({ businessProfile, currentPeriodMetrics
       title={
           <Stack direction="row" alignItems="center" spacing={1}>
             <Iconify icon="solar:star-bold" />
-            <Typography variant="h6">{businessProfile.displayName}</Typography>
+            <Typography variant="h6">{businessProfile?.displayName}</Typography>
           </Stack>
         } 
-        subheader={`Total Reviews: ${businessProfile.userRatingCount}`} />
+        subheader={`Total Reviews: ${currentPeriodMetrics?.totalReviews}`} />
       
       <Chart
         type="bar"

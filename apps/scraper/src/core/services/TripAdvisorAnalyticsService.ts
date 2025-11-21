@@ -1,4 +1,14 @@
 /**
+ * @deprecated This file is kept for reference only
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This previously calculated periodical metrics
+ * and updated TripAdvisorOverview and TripAdvisorPeriodicalMetric tables (now removed from schema)
+ * 
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ * 
+ * Original description:
  * TripAdvisor Analytics Service
  * Implements analytics for TripAdvisor reviews using SOLID principles
  * TripAdvisor uses 1-5 bubble ratings with 8 sub-ratings and trip type categorization

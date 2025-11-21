@@ -2,14 +2,14 @@ import { prisma } from '@wirecrest/db';
 import { MarketPlatform, BusinessMarketIdentifier } from '@prisma/client';
 
 // Helper function to delete Google Business Profile when identifier changes
-const deleteAssociatedGoogleProfile = async (teamId: string, oldIdentifier?: string) => {
+const deleteAssociatedGoogleProfile = async (locationId: string, oldIdentifier?: string) => {
   if (!oldIdentifier) return;
 
   try {
     // Find the Google Business Profile associated with the old identifier
     const existingProfile = await prisma.googleBusinessProfile.findFirst({
       where: {
-        teamId,
+        locationId,
         placeId: oldIdentifier,
       },
     });
@@ -33,15 +33,25 @@ const deleteAssociatedGoogleProfile = async (teamId: string, oldIdentifier?: str
 };
 
 export const createBusinessMarketIdentifier = async (
-  identifier: Omit<BusinessMarketIdentifier, 'id' | 'createdAt' | 'updatedAt'>,
-  teamId: string,
+  identifier: Omit<BusinessMarketIdentifier, 'id' | 'createdAt' | 'updatedAt' | 'locationId'>,
+  locationId: string,
   platform: MarketPlatform
 ) => {
-  // First check if there's an existing market identifier for this team and platform
+  // Get location to retrieve teamId for webhook notification
+  const location = await prisma.businessLocation.findUnique({
+    where: { id: locationId },
+    select: { teamId: true },
+  });
+
+  if (!location) {
+    throw new Error('Location not found');
+  }
+
+  // First check if there's an existing market identifier for this location and platform
   const existingIdentifier = await prisma.businessMarketIdentifier.findUnique({
     where: {
-      teamId_platform: {
-        teamId,
+      locationId_platform: {
+        locationId,
         platform,
       },
     },
@@ -54,13 +64,13 @@ export const createBusinessMarketIdentifier = async (
       platform === MarketPlatform.GOOGLE_MAPS &&
       existingIdentifier.identifier !== identifier.identifier
     ) {
-      await deleteAssociatedGoogleProfile(teamId, existingIdentifier.identifier);
+      await deleteAssociatedGoogleProfile(locationId, existingIdentifier.identifier);
     }
 
     const result = await prisma.businessMarketIdentifier.update({
       where: {
-        teamId_platform: {
-          teamId,
+        locationId_platform: {
+          locationId,
           platform,
         },
       },
@@ -70,7 +80,7 @@ export const createBusinessMarketIdentifier = async (
     });
 
     // Notify scraper service about platform configuration
-    await notifyScraperPlatformConfigured(teamId, platform, identifier.identifier);
+    await notifyScraperPlatformConfigured(location.teamId, locationId, platform, identifier.identifier);
 
     return result;
   }
@@ -79,20 +89,20 @@ export const createBusinessMarketIdentifier = async (
   const result = await prisma.businessMarketIdentifier.upsert({
     create: {
       ...identifier,
-      teamId,
+      locationId,
       platform,
     },
     update: identifier,
     where: {
-      teamId_platform: {
-        teamId,
+      locationId_platform: {
+        locationId,
         platform,
       },
     },
   });
 
   // Notify scraper service about platform configuration
-  await notifyScraperPlatformConfigured(teamId, platform, identifier.identifier);
+  await notifyScraperPlatformConfigured(location.teamId, locationId, platform, identifier.identifier);
 
   return result;
 };
@@ -103,19 +113,21 @@ export const createBusinessMarketIdentifier = async (
  */
 async function notifyScraperPlatformConfigured(
   teamId: string,
+  locationId: string,
   platform: MarketPlatform,
   identifier: string
 ): Promise<void> {
   try {
     const scraperUrl = process.env.SCRAPER_API_URL || 'http://localhost:3001';
     
-    console.log(`🔔 Notifying scraper about ${platform} configuration for team ${teamId}`);
+    console.log(`🔔 Notifying scraper about ${platform} configuration for location ${locationId} (team ${teamId})`);
     
     const response = await fetch(`${scraperUrl}/api/webhooks/platform-configured`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         teamId,
+        locationId,
         platform,
         identifier,
       }),
@@ -135,17 +147,17 @@ async function notifyScraperPlatformConfigured(
   }
 }
 
-export const getBusinessMarketIdentifier = async (teamId: string, platform: MarketPlatform) => await prisma.businessMarketIdentifier.findUnique({
+export const getBusinessMarketIdentifier = async (locationId: string, platform: MarketPlatform) => await prisma.businessMarketIdentifier.findUnique({
     where: {
-      teamId_platform: {
-        teamId,
+      locationId_platform: {
+        locationId,
         platform,
       },
     },
   });
 
-export const getAllBusinessMarketIdentifiers = async (teamId: string) => await prisma.businessMarketIdentifier.findMany({
+export const getAllBusinessMarketIdentifiers = async (locationId: string) => await prisma.businessMarketIdentifier.findMany({
     where: {
-      teamId,
+      locationId,
     },
   });

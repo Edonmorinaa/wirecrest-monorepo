@@ -1,3 +1,13 @@
+/**
+ * @deprecated This file is kept for reference only
+ * Overview tables (TripAdvisorOverview, TripAdvisorPeriodicalMetric) have been removed from schema
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This service managed TripAdvisorOverview and TripAdvisorPeriodicalMetric records
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ */
+
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { TripAdvisorReview } from "@prisma/client";
 import { TripAdvisorOverview, TripAdvisorPeriodicalMetric } from "./models";

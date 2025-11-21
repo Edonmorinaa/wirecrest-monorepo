@@ -29,19 +29,20 @@ export class PlatformConfigWebhookController {
    */
   async handlePlatformConfigured(req: Request, res: Response): Promise<void> {
     try {
-      const { teamId, platform, identifier } = req.body;
+      const { teamId, locationId, platform, identifier } = req.body;
 
       // Validate required fields
-      if (!teamId || !platform || !identifier) {
+      if (!teamId || !locationId || !platform || !identifier) {
         res.status(400).json({
           success: false,
-          error: "Missing required fields: teamId, platform, identifier",
+          error: "Missing required fields: teamId, locationId, platform, identifier",
         });
         return;
       }
 
       console.log(`📍 Platform configuration webhook received:`, {
         teamId,
+        locationId,
         platform,
         identifier,
       });
@@ -71,6 +72,7 @@ export class PlatformConfigWebhookController {
       );
       const profileResult = await profileService.ensureBusinessProfileExists(
         teamId,
+        locationId,
         this.mapPlatformToMarketPlatform(platform),
         identifier,
       );

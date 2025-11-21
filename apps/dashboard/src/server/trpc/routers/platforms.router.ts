@@ -82,6 +82,7 @@ export const platformsRouter = router({
           {
             platform: input.platform,
             identifier: input.identifier,
+            locationId: input.locationId,
           }
         );
         return result;
@@ -123,6 +124,7 @@ export const platformsRouter = router({
       try {
         const result = await _createGoogleProfile(input.teamSlug, {
           placeId: input.placeId,
+          locationId: input.locationId,
         });
         return result;
       } catch (error: any) {
@@ -201,6 +203,7 @@ export const platformsRouter = router({
       try {
         const result = await _createFacebookProfile(input.teamSlug, {
           facebookUrl: input.facebookUrl,
+          locationId: input.locationId,
         });
         return result;
       } catch (error: any) {

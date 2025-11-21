@@ -31,16 +31,16 @@ export class GoogleBusinessController {
    */
   async createProfile(req: Request, res: Response): Promise<void> {
     try {
-      const { teamId, placeId } = req.body;
+      const { teamId, locationId, placeId } = req.body;
 
-      if (!teamId || !placeId) {
-        res.status(400).json({ error: "teamId and placeId are required" });
+      if (!teamId || !locationId || !placeId) {
+        res.status(400).json({ error: "teamId, locationId, and placeId are required" });
         return;
       }
 
-      // Check if profile already exists
+      // Check if profile already exists for this location
       const existingProfile = await prisma.googleBusinessProfile.findFirst({
-        where: { teamId },
+        where: { locationId },
       });
 
       if (existingProfile && existingProfile.placeId === placeId) {
@@ -52,11 +52,11 @@ export class GoogleBusinessController {
         return;
       }
 
-      // Create or update profile
+      // Create or update profile using locationId as unique constraint
       const profile = await prisma.googleBusinessProfile.upsert({
-        where: { teamId },
+        where: { locationId },
         create: {
-          teamId,
+          locationId,
           placeId,
         },
         update: {
@@ -86,7 +86,7 @@ export class GoogleBusinessController {
       }
 
       console.log(
-        `✓ Created Google Business Profile for team ${teamId} with placeId ${placeId}`,
+        `✓ Created Google Business Profile for location ${locationId} with placeId ${placeId}`,
       );
 
       res.json({
@@ -165,7 +165,7 @@ export class GoogleBusinessController {
       const { teamId } = req.params;
 
       const profile = await prisma.googleBusinessProfile.findFirst({
-        where: { teamId },
+        where: { businessLocation: { teamId } },
         include: {
           metadata: true,
         },

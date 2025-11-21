@@ -963,16 +963,11 @@ export class SimpleBusinessService {
           console.log(
             `📊 Triggering Facebook analytics for up-to-date reviews...`,
           );
-          const { FacebookReviewAnalyticsService } = await import(
-            "./facebookReviewAnalyticsService.js"
-          );
-          const analyticsService = new FacebookReviewAnalyticsService();
-          await analyticsService.processReviewsAndUpdateDashboard(
-            business.businessId,
-          );
-          console.log(
-            `✅ Facebook analytics completed for businessProfileId: ${business.businessId}`,
-          );
+          // Analytics update removed - analytics now computed on-demand via tRPC
+          // const { FacebookReviewAnalyticsService } = await import("./facebookReviewAnalyticsService.js");
+          // const analyticsService = new FacebookReviewAnalyticsService();
+          // await analyticsService.processReviewsAndUpdateDashboard(business.businessId);
+          // console.log(`✅ Facebook analytics completed for businessProfileId: ${business.businessId}`);
         } catch (analyticsError) {
           console.error(
             `❌ Error processing Facebook analytics for up-to-date reviews:`,
@@ -2310,16 +2305,11 @@ export class SimpleBusinessService {
           console.log(
             `📊 Triggering Booking.com analytics for up-to-date reviews...`,
           );
-          const { BookingReviewAnalyticsService } = await import(
-            "./bookingReviewAnalyticsService.js"
-          );
-          const analyticsService = new BookingReviewAnalyticsService();
-          await analyticsService.processReviewsAndUpdateDashboard(
-            business.businessId,
-          );
-          console.log(
-            `✅ Booking.com analytics completed for businessProfileId: ${business.businessId}`,
-          );
+          // Analytics update removed - analytics now computed on-demand via tRPC
+          // const { BookingReviewAnalyticsService } = await import("./bookingReviewAnalyticsService.js");
+          // const analyticsService = new BookingReviewAnalyticsService();
+          // await analyticsService.processReviewsAndUpdateDashboard(business.businessId);
+          // console.log(`✅ Booking.com analytics completed for businessProfileId: ${business.businessId}`);
         } catch (analyticsError) {
           console.error(
             `❌ Error processing Booking.com analytics for up-to-date reviews:`,

@@ -1,4 +1,14 @@
 /**
+ * @deprecated This file is kept for reference only
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This previously calculated periodical metrics
+ * and updated BookingOverview and BookingPeriodicalMetric tables (now removed from schema)
+ * 
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ * 
+ * Original description:
  * Booking.com Analytics Service
  * Implements analytics for Booking.com reviews using SOLID principles
  * Booking uses 1-10 rating scale (converted to 1-5 for histogram) with 7 sub-ratings

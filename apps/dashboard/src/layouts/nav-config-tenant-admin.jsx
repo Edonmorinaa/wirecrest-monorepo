@@ -55,8 +55,10 @@ const ICONS = {
 /**
  * Tenant Admin navigation data
  * This is for users who are admins within their team/tenant
+ * @param {string} teamSlug - The team's slug identifier
+ * @param {string|null} locationSlug - The current location's slug (null if not on a location page)
  */
-export const getTenantAdminNavData = (teamSlug) => [
+export const getTenantAdminNavData = (teamSlug, locationSlug = null) => [
   /**
    * Overview
    */
@@ -108,84 +110,84 @@ export const getTenantAdminNavData = (teamSlug) => [
       },
     ],
   },
-  // Only show platform navigation if we have a team slug
-  ...(teamSlug ? [
+  // Only show platform navigation if we have a location slug
+  ...(locationSlug ? [
     /**
-     * Social Media
+     * Social Media (location-scoped)
      */
     {
       subheader: 'Social Media',
       items: [
         {
           title: 'Instagram',
-          path: paths.dashboard.instagram.root(teamSlug),
+          path: paths.dashboard.instagram.root(locationSlug),
           icon: ICONS.instagram,
         },
         {
           title: 'TikTok',
-          path: paths.dashboard.tiktok.root(teamSlug),
+          path: paths.dashboard.tiktok.root(locationSlug),
           icon: ICONS.tiktok,
         },
       ],
     },
     /**
-     * Platforms
+     * Platforms (location-scoped)
      */
     {
       subheader: 'Platforms',
       items: [
         {
           title: 'Google Business',
-          path: paths.dashboard.google.root(teamSlug),
+          path: paths.dashboard.google.root(locationSlug),
           icon: ICONS.google,
           children: [
-            { title: 'Overview', path: paths.dashboard.google.overview(teamSlug) },
-            { title: 'Reviews', path: paths.dashboard.google.reviews(teamSlug) }
+            { title: 'Overview', path: paths.dashboard.google.overview(locationSlug) },
+            { title: 'Reviews', path: paths.dashboard.google.reviews(locationSlug) }
           ],
         },
         {
           title: 'Facebook Business',
-          path: paths.dashboard.facebook.root(teamSlug),
+          path: paths.dashboard.facebook.root(locationSlug),
           icon: ICONS.facebook,
           children: [
-            { title: 'Overview', path: paths.dashboard.facebook.overview(teamSlug) },
-            { title: 'Reviews', path: paths.dashboard.facebook.reviews(teamSlug) }
+            { title: 'Overview', path: paths.dashboard.facebook.overview(locationSlug) },
+            { title: 'Reviews', path: paths.dashboard.facebook.reviews(locationSlug) }
           ],
         },
         {
           title: 'TripAdvisor',
-          path: paths.dashboard.tripadvisor.root(teamSlug),
+          path: paths.dashboard.tripadvisor.root(locationSlug),
           icon: ICONS.tripadvisor,
           children: [
-            { title: 'Overview', path: paths.dashboard.tripadvisor.overview(teamSlug) },
-            { title: 'Reviews', path: paths.dashboard.tripadvisor.reviews(teamSlug) }
+            { title: 'Overview', path: paths.dashboard.tripadvisor.overview(locationSlug) },
+            { title: 'Reviews', path: paths.dashboard.tripadvisor.reviews(locationSlug) }
           ],
         },
         {
           title: 'Booking.com',
-          path: paths.dashboard.booking.root(teamSlug),
+          path: paths.dashboard.booking.root(locationSlug),
           icon: ICONS.booking,
           children: [
-            { title: 'Overview', path: paths.dashboard.booking.overview(teamSlug) },
-            { title: 'Reviews', path: paths.dashboard.booking.reviews(teamSlug) }
+            { title: 'Overview', path: paths.dashboard.booking.overview(locationSlug) },
+            { title: 'Reviews', path: paths.dashboard.booking.reviews(locationSlug) }
           ],
         },
       ],
     },
     /**
-     * Integrations
+     * Integrations (location-scoped)
      */
     {
       subheader: 'Integrations',
       items: [
         {
           title: 'Platform Integrations',
-          path: teamSlug ? `/dashboard/teams/${teamSlug}/integrations` : paths.dashboard.integrations,
+          path: `/${locationSlug}/integrations`,
           icon: ICONS.integrations,
         },
         {
           title: 'Webhooks',
-          path: teamSlug ? `/dashboard/teams/${teamSlug}/webhooks` : paths.dashboard.webhooks,
+          path: `/${locationSlug}/webhooks`,
           icon: ICONS.webhooks,
         },
       ],

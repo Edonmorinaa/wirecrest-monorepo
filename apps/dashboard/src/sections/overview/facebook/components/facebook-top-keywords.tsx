@@ -64,22 +64,37 @@ export function FacebookTopKeywords({ keywords }) {
       <CardContent>
         <Stack direction="row" flexWrap="wrap" gap={1.5} sx={{ p: 1 }}>
           {keywords.map((keyword, index) => {
-            const keywordText = keyword.key || keyword.keyword || keyword;
-            const keywordValue = keyword.value || keyword.count || 1;
+            // Handle different keyword formats
+            let keywordText = '';
+            let keywordValue = 1;
+            
+            if (typeof keyword === 'string') {
+              keywordText = keyword;
+            } else if (typeof keyword === 'object' && keyword !== null) {
+              // Try different possible property names
+              keywordText = keyword.key || keyword.keyword || keyword.text || keyword.word || '';
+              keywordValue = keyword.value || keyword.count || keyword.frequency || 1;
+            }
+            
+            // Skip if we couldn't extract text
+            if (!keywordText || keywordText === '[object Object]') {
+              console.warn('Invalid keyword format:', keyword);
+              return null;
+            }
             
             return (
               <Chip
-                key={index}
+                key={`${keywordText}-${index}`}
                 label={`${keywordText} (${keywordValue})`}
                 size="small"
                 sx={{
-                  bgcolor: index < 3 ? theme.palette.primary.lighter : theme.palette.grey[100],
-                  color: index < 3 ? theme.palette.primary.darker : theme.palette.text.secondary,
+                  bgcolor: index < 3 ? theme.palette.primary.light : theme.palette.grey[100],
+                  color: index < 3 ? theme.palette.primary.dark : theme.palette.text.secondary,
                   fontWeight: index < 3 ? 600 : 500,
                   transition: 'all 0.2s ease-in-out',
                   '&:hover': {
                     transform: 'scale(1.05)',
-                    bgcolor: index < 3 ? theme.palette.primary.light : theme.palette.grey[200],
+                    bgcolor: index < 3 ? theme.palette.primary.main : theme.palette.grey[200],
                   },
                 }}
               />

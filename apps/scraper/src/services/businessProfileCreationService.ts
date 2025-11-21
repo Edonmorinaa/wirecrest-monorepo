@@ -38,6 +38,7 @@ export class BusinessProfileCreationService {
    */
   async ensureBusinessProfileExists(
     teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     identifier: string,
   ): Promise<{
@@ -50,6 +51,7 @@ export class BusinessProfileCreationService {
       // Check if profile already exists
       const profileId = await this.getExistingProfileId(
         teamId,
+        locationId,
         platform,
         identifier,
       );
@@ -61,10 +63,11 @@ export class BusinessProfileCreationService {
 
       // Profile doesn't exist - create it
       console.log(
-        `Creating new business profile for team ${teamId}, platform ${platform}`,
+        `Creating new business profile for location ${locationId}, platform ${platform}`,
       );
       const result = await this.createBusinessProfile(
         teamId,
+        locationId,
         platform,
         identifier,
       );
@@ -85,19 +88,20 @@ export class BusinessProfileCreationService {
   }
 
   /**
-   * Check for URL conflicts with other teams
+   * Check for URL conflicts with other locations
    * Always returns null to trigger profile upsert flow
-   * Throws error if URL is used by a different team (conflict)
+   * Throws error if URL is used by a different location (conflict)
    */
   private async getExistingProfileId(
     teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     identifier: string,
   ): Promise<string | null> {
     try {
       switch (platform) {
         case MarketPlatform.GOOGLE_MAPS:
-          // Google Place IDs are not globally unique per team
+          // Google Place IDs are not globally unique per location
           // Always trigger upsert to refresh data
           return null;
 
@@ -106,14 +110,14 @@ export class BusinessProfileCreationService {
           const facebookConflict = await prisma.facebookBusinessProfile.findFirst({
             where: {
               facebookUrl: identifier,
-              teamId: { not: teamId },
+              businessLocation: { teamId: { not: teamId } },
             },
-            select: { id: true, teamId: true },
+            select: { id: true, businessLocation: { select: { teamId: true } } },
           });
 
           if (facebookConflict) {
             throw new Error(
-              `Facebook URL ${identifier} is already registered to another team (${facebookConflict.teamId})`,
+              `Facebook URL ${identifier} is already registered to another team (${facebookConflict.businessLocation?.teamId})`,
             );
           }
 
@@ -122,17 +126,19 @@ export class BusinessProfileCreationService {
 
         case MarketPlatform.TRIPADVISOR:
           // Check if this URL is already used by another team (tripAdvisorUrl is globally unique)
-          const urlProfile = await prisma.tripAdvisorBusinessProfile.findUnique(
+          const tripAdvisorConflict = await prisma.tripAdvisorBusinessProfile.findFirst(
             {
-              where: { tripAdvisorUrl: identifier },
-              select: { id: true, teamId: true },
+              where: {
+                tripAdvisorUrl: identifier,
+                businessLocation: { teamId: { not: teamId } },
+              },
+              select: { id: true, businessLocation: { select: { teamId: true } } },
             },
           );
 
-          if (urlProfile && urlProfile.teamId !== teamId) {
-            // URL is already in use by another team - this is a conflict
+          if (tripAdvisorConflict) {
             throw new Error(
-              `TripAdvisor URL ${identifier} is already registered to another team (${urlProfile.teamId})`,
+              `TripAdvisor URL ${identifier} is already registered to another team (${tripAdvisorConflict.businessLocation?.teamId})`,
             );
           }
 
@@ -144,14 +150,14 @@ export class BusinessProfileCreationService {
           const bookingConflict = await prisma.bookingBusinessProfile.findFirst({
             where: {
               bookingUrl: identifier,
-              teamId: { not: teamId },
+              businessLocation: { teamId: { not: teamId } },
             },
-            select: { id: true, teamId: true },
+            select: { id: true, businessLocation: { select: { teamId: true } } },
           });
 
           if (bookingConflict) {
             throw new Error(
-              `Booking URL ${identifier} is already registered to another team (${bookingConflict.teamId})`,
+              `Booking URL ${identifier} is already registered to another team (${bookingConflict.businessLocation?.teamId})`,
             );
           }
 
@@ -243,6 +249,7 @@ export class BusinessProfileCreationService {
    */
   async createBusinessProfile(
     teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     identifier: string,
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
@@ -250,21 +257,25 @@ export class BusinessProfileCreationService {
       if (platform === MarketPlatform.GOOGLE_MAPS) {
         return await this.createGoogleBusinessProfileWithPlacesAPI(
           teamId,
+          locationId,
           identifier,
         );
       } else if (platform === MarketPlatform.FACEBOOK) {
         return await this.createFacebookBusinessProfileWithApify(
           teamId,
+          locationId,
           identifier,
         );
       } else if (platform === MarketPlatform.TRIPADVISOR) {
         return await this.createTripAdvisorBusinessProfileWithApify(
           teamId,
+          locationId,
           identifier,
         );
       } else if (platform === MarketPlatform.BOOKING) {
         return await this.createBookingBusinessProfileWithApify(
           teamId,
+          locationId,
           identifier,
         );
       } else {
@@ -276,6 +287,7 @@ export class BusinessProfileCreationService {
     } catch (error) {
       console.error("Error creating business profile:", {
         teamId,
+        locationId,
         platform,
         identifier,
         error,
@@ -293,6 +305,7 @@ export class BusinessProfileCreationService {
    */
   private async createGoogleBusinessProfileWithPlacesAPI(
     teamId: string,
+    locationId: string,
     placeId: string,
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     if (!this.googleApiKey) {
@@ -313,25 +326,25 @@ export class BusinessProfileCreationService {
       );
 
       console.log(
-        `[Google Places HTTP API] Checking existing profile for team: ${teamId}`,
+        `[Google Places HTTP API] Checking existing profile for location: ${locationId}`,
       );
 
-      // Check if team already has a Google business profile (one-to-one relationship)
+      // Check if location already has a Google business profile (one-to-one relationship)
       const existingBusiness = await prisma.googleBusinessProfile.findUnique({
-        where: { teamId },
+        where: { locationId },
         select: { id: true, placeId: true },
       });
 
       if (existingBusiness && existingBusiness.placeId !== placeId) {
-        // Team already has a different Google business profile
+        // Location already has a different Google business profile
         return {
           success: false,
-          error: `Team already has a Google business profile for a different place. Each team can only have one Google business profile.`,
+          error: `Location already has a Google business profile for a different place. Each location can only have one Google business profile.`,
         };
       }
 
       console.log(
-        `[Google Places HTTP API] ${existingBusiness ? 'Updating' : 'Creating'} profile for team ${teamId}`,
+        `[Google Places HTTP API] ${existingBusiness ? 'Updating' : 'Creating'} profile for location ${locationId}`,
       );
 
       // Update progress: Fetching from Google
@@ -450,9 +463,9 @@ export class BusinessProfileCreationService {
 
       // Upsert the business profile with fresh data from Google
       const businessProfile = await prisma.googleBusinessProfile.upsert({
-        where: { teamId },
+        where: { locationId },
         create: {
-          teamId,
+          locationId,
           placeId: placeData.id || placeId,
           displayName: placeData.displayName?.text,
           displayNameLanguageCode: placeData.displayName?.languageCode,
@@ -746,6 +759,7 @@ export class BusinessProfileCreationService {
    */
   private async createFacebookBusinessProfileWithApify(
     teamId: string,
+    locationId: string,
     facebookUrl: string,
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
@@ -760,7 +774,7 @@ export class BusinessProfileCreationService {
 
       // Check if team already has a Facebook business profile
       const existingBusiness = await prisma.facebookBusinessProfile.findUnique({
-        where: { teamId },
+        where: { locationId },
         select: { id: true, facebookUrl: true },
       });
 
@@ -816,9 +830,9 @@ export class BusinessProfileCreationService {
 
       // Upsert Facebook business profile with fresh data
       const businessProfile = await prisma.facebookBusinessProfile.upsert({
-        where: { teamId },
+        where: { locationId },
         create: {
-          teamId,
+          locationId,
           facebookUrl: facebookUrl,
           pageId: pageData.pageId || randomUUID(),
           facebookId: pageData.facebookId || pageData.pageId || randomUUID(),
@@ -944,6 +958,7 @@ export class BusinessProfileCreationService {
    */
   private async createTripAdvisorBusinessProfileWithApify(
     teamId: string,
+    locationId: string,
     tripAdvisorUrl: string,
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
@@ -959,7 +974,7 @@ export class BusinessProfileCreationService {
       // Check if team already has a TripAdvisor business profile
       const existingBusiness =
         await prisma.tripAdvisorBusinessProfile.findUnique({
-          where: { teamId },
+          where: { locationId },
           select: { id: true, tripAdvisorUrl: true },
         });
 
@@ -1030,10 +1045,16 @@ export class BusinessProfileCreationService {
       const existingUrlProfile =
         await prisma.tripAdvisorBusinessProfile.findUnique({
           where: { tripAdvisorUrl },
-          select: { teamId: true },
+          select: { 
+            businessLocation: {
+              select: {
+                teamId: true
+              }
+            }
+          },
         });
 
-      if (existingUrlProfile && existingUrlProfile.teamId !== teamId) {
+      if (existingUrlProfile && existingUrlProfile.businessLocation?.teamId !== teamId) {
         throw new Error(
           `TripAdvisor URL ${tripAdvisorUrl} is already registered to another team.`,
         );
@@ -1070,9 +1091,9 @@ export class BusinessProfileCreationService {
       };
 
       const businessProfile = await prisma.tripAdvisorBusinessProfile.upsert({
-        where: { teamId },
+        where: { businessLocationId: locationId },
         create: {
-          teamId,
+          businessLocationId: locationId,
           ...profileData,
           businessMetadata: {
             create: {
@@ -1146,6 +1167,7 @@ export class BusinessProfileCreationService {
    */
   private async createBookingBusinessProfileWithApify(
     teamId: string,
+    locationId: string,
     bookingUrl: string,
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
@@ -1194,7 +1216,7 @@ export class BusinessProfileCreationService {
 
       // Check if team already has a Booking business profile
       const existingBusiness = await prisma.bookingBusinessProfile.findUnique({
-        where: { teamId },
+        where: { businessLocationId: locationId },
         select: { id: true, bookingUrl: true },
       });
 
@@ -1263,9 +1285,9 @@ export class BusinessProfileCreationService {
 
       // Upsert Booking business profile with fresh data
       const businessProfile = await prisma.bookingBusinessProfile.upsert({
-        where: { teamId },
+        where: { businessLocationId: locationId },
         create: {
-          teamId,
+          businessLocationId: locationId,
           bookingUrl,
           hotelId: pageData.hotelId?.toString() || pageData.id?.toString() || null,
           name: pageData.name || "Unknown",

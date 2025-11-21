@@ -1,7 +1,6 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import Pagination from '@mui/material/Pagination';
 import Typography from '@mui/material/Typography';
@@ -40,26 +39,101 @@ interface GoogleReviewsListProps {
   reviews: Review[];
   pagination: any;
   filters: any;
+  isLoading?: boolean;
   onPageChange: (page: number) => void;
   onUpdateMetadata: (reviewId: string, field: 'isRead' | 'isImportant', value: boolean) => void;
   onRefresh: () => void;
+}
+
+// Skeleton component for loading state
+function ReviewCardSkeleton() {
+  return (
+    <Box
+      sx={{
+        p: 3,
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Stack spacing={2}>
+        {/* Header */}
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Skeleton variant="circular" width={40} height={40} />
+            <Box>
+              <Skeleton variant="text" width={120} height={20} />
+              <Skeleton variant="text" width={80} height={16} sx={{ mt: 0.5 }} />
+            </Box>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Skeleton variant="circular" width={32} height={32} />
+            <Skeleton variant="circular" width={32} height={32} />
+          </Stack>
+        </Stack>
+
+        {/* Rating */}
+        <Skeleton variant="rectangular" width={100} height={20} />
+
+        {/* Additional Info */}
+        <Skeleton variant="text" width={150} height={16} />
+
+        {/* Review Text */}
+        <Stack spacing={1}>
+          <Skeleton variant="text" width="100%" height={16} />
+          <Skeleton variant="text" width="90%" height={16} />
+          <Skeleton variant="text" width="80%" height={16} />
+        </Stack>
+
+        {/* Images placeholder */}
+        <Stack direction="row" spacing={1}>
+          <Skeleton variant="rectangular" width={80} height={80} sx={{ borderRadius: 1 }} />
+          <Skeleton variant="rectangular" width={80} height={80} sx={{ borderRadius: 1 }} />
+        </Stack>
+
+        {/* Footer */}
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack direction="row" spacing={1}>
+            <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+            <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Skeleton variant="rectangular" width={100} height={32} sx={{ borderRadius: 1 }} />
+            <Skeleton variant="rectangular" width={120} height={32} sx={{ borderRadius: 1 }} />
+          </Stack>
+        </Stack>
+      </Stack>
+    </Box>
+  );
 }
 
 export function GoogleReviewsList({
   reviews,
   pagination,
   filters,
+  isLoading = false,
   onPageChange,
   onUpdateMetadata,
   onRefresh,
 }: GoogleReviewsListProps) {
-  // Prepare slides for lightbox
+  // Prepare slides for lightbox (must be called unconditionally)
   const allImages = reviews
     .filter((review) => review.reviewImageUrls && review.reviewImageUrls.length > 0)
     .flatMap((review) => review.reviewImageUrls!);
 
   const slides = allImages.map((src) => ({ src }));
   const { selected, open, onOpen, onClose } = useLightbox(slides);
+
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <Stack spacing={2}>
+        {Array.from({ length: 3 }).map((_, index) => (
+          <ReviewCardSkeleton key={`skeleton-${index}`} />
+        ))}
+      </Stack>
+    );
+  }
 
   if (reviews.length === 0) {
     return (

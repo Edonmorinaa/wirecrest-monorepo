@@ -11,7 +11,7 @@ import {
 
 export interface MarketIdentifier {
   id: string;
-  teamId: string;
+  locationId: string;
   platform: MarketPlatform;
   identifier: string;
   createdAt: Date;
@@ -24,11 +24,11 @@ export class MarketIdentifierService {
   }
 
   /**
-   * Update the market identifier for a team and platform
+   * Update the market identifier for a location and platform
    * Triggers business setup workflow if identifier changes
    */
   async updateMarketIdentifier(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     newIdentifier: string,
     forceUpdate: boolean = false,
@@ -41,7 +41,7 @@ export class MarketIdentifierService {
       console.log(
         `🔍 MarketIdentifierService.updateMarketIdentifier called with:`,
         {
-          teamId,
+          locationId,
           platform,
           newIdentifier,
           forceUpdate,
@@ -53,8 +53,8 @@ export class MarketIdentifierService {
       const existingIdentifier =
         await prisma.businessMarketIdentifier.findUnique({
           where: {
-            teamId_platform: {
-              teamId,
+            locationId_platform: {
+              locationId,
               platform,
             },
           },
@@ -95,14 +95,24 @@ export class MarketIdentifierService {
         );
       }
 
+      // Get location info to retrieve teamId for events
+      const location = await prisma.businessLocation.findUnique({
+        where: { id: locationId },
+        select: { teamId: true },
+      });
+
+      if (!location) {
+        throw new Error(`Location ${locationId} not found`);
+      }
+
       // Update or create the identifier
       console.log(`🔄 Upserting market identifier...`);
       console.log(`📤 Upserting market identifier using Prisma`);
 
       const upsertedData = await prisma.businessMarketIdentifier.upsert({
         where: {
-          teamId_platform: {
-            teamId,
+          locationId_platform: {
+            locationId,
             platform,
           },
         },
@@ -111,7 +121,7 @@ export class MarketIdentifierService {
           updatedAt: new Date(),
         },
         create: {
-          teamId,
+          locationId,
           platform,
           identifier: newIdentifier,
         },
@@ -119,9 +129,9 @@ export class MarketIdentifierService {
 
       console.log(`✅ Market identifier upserted successfully:`, upsertedData);
 
-      // Emit the market identifier change event
+      // Emit the market identifier change event (keeping teamId for backward compatibility)
       const changeEvent: MarketIdentifierChangeEvent = {
-        teamId,
+        teamId: location.teamId,
         platform,
         oldIdentifier: existingIdentifier?.identifier,
         newIdentifier,
@@ -154,17 +164,17 @@ export class MarketIdentifierService {
   }
 
   /**
-   * Get market identifier for a team and platform
+   * Get market identifier for a location and platform
    */
   async getMarketIdentifier(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
   ): Promise<MarketIdentifier | null> {
     try {
       const data = await prisma.businessMarketIdentifier.findUnique({
         where: {
-          teamId_platform: {
-            teamId,
+          locationId_platform: {
+            locationId,
             platform,
           },
         },
@@ -178,12 +188,33 @@ export class MarketIdentifierService {
   }
 
   /**
-   * Get all market identifiers for a team
+   * Get all market identifiers for a location
+   */
+  async getLocationMarketIdentifiers(locationId: string): Promise<MarketIdentifier[]> {
+    try {
+      const data = await prisma.businessMarketIdentifier.findMany({
+        where: { locationId },
+        orderBy: [{ platform: "asc" }, { updatedAt: "desc" }],
+      });
+
+      return data || [];
+    } catch (error) {
+      console.error("Error getting location market identifiers:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all market identifiers for all locations in a team
    */
   async getTeamMarketIdentifiers(teamId: string): Promise<MarketIdentifier[]> {
     try {
       const data = await prisma.businessMarketIdentifier.findMany({
-        where: { teamId },
+        where: {
+          location: {
+            teamId,
+          },
+        },
         orderBy: [{ platform: "asc" }, { updatedAt: "desc" }],
       });
 
@@ -198,17 +229,22 @@ export class MarketIdentifierService {
    * Delete market identifier and trigger cleanup
    */
   async deleteMarketIdentifier(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
   ): Promise<boolean> {
     try {
-      // Get existing identifier before deletion
+      // Get existing identifier and location info before deletion
       const existingIdentifier =
         await prisma.businessMarketIdentifier.findUnique({
           where: {
-            teamId_platform: {
-              teamId,
+            locationId_platform: {
+              locationId,
               platform,
+            },
+          },
+          include: {
+            location: {
+              select: { teamId: true },
             },
           },
         });
@@ -220,8 +256,8 @@ export class MarketIdentifierService {
       // Delete the identifier using Prisma
       await prisma.businessMarketIdentifier.delete({
         where: {
-          teamId_platform: {
-            teamId,
+          locationId_platform: {
+            locationId,
             platform,
           },
         },
@@ -229,7 +265,7 @@ export class MarketIdentifierService {
 
       // Emit cleanup event (this will trigger data cleanup)
       marketIdentifierEvents.emitDataCleanup({
-        teamId,
+        teamId: existingIdentifier.location.teamId,
         platform,
         oldIdentifier: existingIdentifier.identifier,
         status: "started",

@@ -1,3 +1,14 @@
+/**
+ * @deprecated This file is kept for reference only
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This previously calculated periodical metrics
+ * and updated GoogleOverview and PeriodicalMetric tables (now removed from schema)
+ * 
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ */
+
 import type {
   IAnalyticsService,
   AnalyticsResult,

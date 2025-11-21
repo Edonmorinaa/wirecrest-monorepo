@@ -1,87 +1,35 @@
-import { PageGate } from '@/components/gates/PageGate';
-import { getTenantBySlug } from '@/actions/tenants';
-import { notFound } from 'next/navigation';
-import { FeatureUsageCard } from '@/components/FeatureUsageCard';
+'use client';
 
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 
-import { paths } from 'src/routes/paths';
+import { useLocations } from 'src/hooks/useLocations';
 
-import { DashboardContent } from 'src/layouts/dashboard';
-
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { LocationsListView } from 'src/sections/locations';
 
 // ----------------------------------------------------------------------
 
-export default async function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default function TeamPage() {
+  const params = useParams();
+  const router = useRouter();
+  const teamSlug = params.slug as string;
   
-  // Fetch tenant by slug
-  const tenant = await getTenantBySlug(slug);
-  
-  // Handle case where tenant is not found
-  if (!tenant) {
-    notFound();
-  }
+  const { locations, isLoading } = useLocations(teamSlug);
 
-  const tenantId = tenant.id;
+  // Redirect to first location if locations exist
+  useEffect(() => {
+    if (!isLoading && locations && locations.length > 0) {
+      const firstLocation = locations[0];
+      // Redirect to the first location's overview page
+      // Use slug if available, otherwise fall back to id
+      const locationSlug = firstLocation.slug || firstLocation.id;
+      // Navigate to location's default page using relative path
+      // When on test5.wirecrest.local/, redirect to /location-slug
+      router.replace(`/${locationSlug}`);
+    }
+  }, [isLoading, locations, router, teamSlug]);
 
-  return (
-    <PageGate teamId={tenantId}>
-      <DashboardContent>
-      <CustomBreadcrumbs
-        heading={`Team: ${slug}`}
-        links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Teams', href: '/dashboard/teams' },
-          { name: slug },
-        ]}
-        sx={{ mb: { xs: 3, md: 5 } }}
-      />
-
-      <Grid container spacing={3}>
-        {/* Team Overview */}
-        <Grid size={{ xs: 12 }}>
-          <Card sx={{ p: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h4" gutterBottom>
-                Welcome to {slug}
-              </Typography>
-              <Button 
-                variant="outlined" 
-                href={`/dashboard/teams/${slug}/features`}
-                size="small"
-              >
-                Manage Features
-              </Button>
-            </Box>
-            <Typography variant="body1" color="text.secondary" paragraph>
-              This is the team dashboard for {slug}. Here you can manage your team&apos;s social media platforms and business listings.
-            </Typography>
-            
-            {/* Feature Status - Will be handled by PageGate */}
-          </Card>
-        </Grid>
-
-        {/* Feature Usage Analytics */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <FeatureUsageCard tenantId={tenantId} />
-        </Grid>
-
-        {/* Quota Display - Removed: Tenants should not see quota management UI */}
-        {/* Only superadmin can view/manage quotas via /dashboard/superadmin */}
-
-        {/* Demo Configuration - Removed: Tenants should not configure quotas */}
-        {/* Only superadmin can configure quotas via /dashboard/superadmin */}
-
-        {/* Quick Actions */}
-        
-      </Grid>
-      </DashboardContent>
-    </PageGate>
-  );
+  // Show locations list (user can select a location or create one)
+  // If no locations exist, this view will show an empty state with "Create Location" button
+  return <LocationsListView />;
 }

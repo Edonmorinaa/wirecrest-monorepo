@@ -16,7 +16,15 @@ export class TripAdvisorBusinessRepository
 
   async findByTeamId(teamId: string): Promise<TripAdvisorBusinessProfile[]> {
     return await this.model.findMany({
-      where: { teamId },
+      where: { businessLocation: { teamId } },
+    });
+  }
+
+  async findByBusinessLocationId(
+    businessLocationId: string,
+  ): Promise<TripAdvisorBusinessProfile | null> {
+    return await this.model.findFirst({
+      where: { businessLocationId },
     });
   }
 
@@ -24,7 +32,7 @@ export class TripAdvisorBusinessRepository
     placeId: string,
   ): Promise<TripAdvisorBusinessProfile | null> {
     return await this.model.findFirst({
-      where: { locationId: placeId },
+      where: { locationId: placeId }, // TripAdvisor's own locationId
     });
   }
 
@@ -34,7 +42,7 @@ export class TripAdvisorBusinessRepository
   ): Promise<TripAdvisorBusinessProfile | null> {
     return await this.model.findFirst({
       where: {
-        teamId,
+        businessLocation: { teamId },
         // TripAdvisor business profiles don't have platform field, they are implicitly TripAdvisor
       },
     });
@@ -72,7 +80,7 @@ export class TripAdvisorBusinessRepository
     platform: MarketPlatform,
   ): Promise<number> {
     return await this.model.count({
-      where: { teamId },
+      where: { businessLocation: { teamId } },
     });
   }
 }

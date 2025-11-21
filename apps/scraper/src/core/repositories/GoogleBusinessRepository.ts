@@ -16,7 +16,13 @@ export class GoogleBusinessRepository
 
   async findByTeamId(teamId: string): Promise<GoogleBusinessProfile[]> {
     return await this.model.findMany({
-      where: { teamId },
+      where: { businessLocation: { teamId } },
+    });
+  }
+
+  async findByLocationId(locationId: string): Promise<GoogleBusinessProfile | null> {
+    return await this.model.findFirst({
+      where: { locationId },
     });
   }
 
@@ -32,7 +38,7 @@ export class GoogleBusinessRepository
   ): Promise<GoogleBusinessProfile | null> {
     return await this.model.findFirst({
       where: {
-        teamId,
+        businessLocation: { teamId },
         // Google business profiles don't have platform field, they are implicitly Google
       },
     });
@@ -68,7 +74,7 @@ export class GoogleBusinessRepository
     platform: MarketPlatform,
   ): Promise<number> {
     return await this.model.count({
-      where: { teamId },
+      where: { businessLocation: { teamId } },
     });
   }
 }

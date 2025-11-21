@@ -487,7 +487,7 @@ export class AdminController {
     switch (platform) {
       case "google_reviews": {
         const profiles = await prisma.googleBusinessProfile.findMany({
-          where: { teamId },
+          where: { businessLocation: { teamId } },
           select: { placeId: true },
         });
         return profiles.map((p) => p.placeId).filter(Boolean) as string[];
@@ -495,7 +495,7 @@ export class AdminController {
 
       case "facebook": {
         const profiles = await prisma.facebookBusinessProfile.findMany({
-          where: { teamId },
+          where: { businessLocation: { teamId } },
           select: { facebookUrl: true },
         });
         return profiles.map((p) => p.facebookUrl).filter(Boolean) as string[];
@@ -503,7 +503,7 @@ export class AdminController {
 
       case "tripadvisor": {
         const profiles = await prisma.tripAdvisorBusinessProfile.findMany({
-          where: { teamId },
+          where: { businessLocation: { teamId } },
           select: { tripAdvisorUrl: true },
         });
         return profiles
@@ -513,7 +513,7 @@ export class AdminController {
 
       case "booking": {
         const profiles = await prisma.bookingBusinessProfile.findMany({
-          where: { teamId },
+          where: { businessLocation: { teamId } },
           select: { bookingUrl: true },
         });
         return profiles.map((p) => p.bookingUrl).filter(Boolean) as string[];

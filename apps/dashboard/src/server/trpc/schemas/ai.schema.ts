@@ -8,10 +8,14 @@ import { z } from 'zod';
  * Review data for AI response generation
  */
 export const reviewDataSchema = z.object({
-  reviewText: z.string(),
+  text: z.string(),
+  rating: z.number().optional(),
   reviewerName: z.string().optional(),
-  rating: z.number().min(1).max(5).optional(),
+  businessName: z.string().optional(),
   platform: z.string().optional(),
+  reviewDate: z.string().optional(),
+  reviewUrl: z.string().optional(),
+  additionalContext: z.string().optional(),
 });
 
 /**

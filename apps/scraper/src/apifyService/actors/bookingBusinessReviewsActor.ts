@@ -1,7 +1,8 @@
 import { ApifyClient } from "apify-client";
 import { Actor, ReviewActorJobData } from "./actor";
 import { logger } from "../../utils/logger";
-import { BookingReviewAnalyticsService } from "../../services/bookingReviewAnalyticsService";
+// Analytics service removed - analytics now computed on-demand via tRPC
+// import { BookingReviewAnalyticsService } from "../../services/bookingReviewAnalyticsService";
 import { prisma } from "@wirecrest/db";
 
 export class BookingBusinessReviewsActor extends Actor {
@@ -105,7 +106,7 @@ export const bookingBusinessReviewsActorJobRunner = async (
     // Get business profile to get businessProfileId using Prisma
     const businessProfile = await prisma.bookingBusinessProfile.findFirst({
       where: {
-        teamId: data.teamId,
+        businessLocation: { teamId: data.teamId },
         bookingUrl: data.bookingUrl,
       },
       select: {

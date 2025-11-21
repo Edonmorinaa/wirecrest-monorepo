@@ -51,8 +51,10 @@ const ICONS = {
 /**
  * Tenant Member navigation data
  * This is for users who are members within their team/tenant (limited access)
+ * @param {string} teamSlug - The team's slug identifier
+ * @param {string|null} locationSlug - The current location's slug (null if not on a location page)
  */
-export const getTenantMemberNavData = (teamSlug) => [
+export const getTenantMemberNavData = (locationSlug = null) => [
   /**
    * Overview
    */
@@ -61,17 +63,17 @@ export const getTenantMemberNavData = (teamSlug) => [
     items: [
       { 
         title: 'Dashboard', 
-        path: '/', 
+        path: `/${locationSlug}`, 
         icon: ICONS.dashboard 
       },
       { 
         title: 'Analytics', 
-        path: '/analytics', 
+        path: `/${locationSlug}/analytics`, 
         icon: ICONS.analytics 
       },
       { 
         title: 'Reports', 
-        path: '/reports', 
+        path: `/${locationSlug}/reports`, 
         icon: ICONS.reports 
       },
     ],
@@ -94,66 +96,66 @@ export const getTenantMemberNavData = (teamSlug) => [
       },
     ],
   },
-  // Only show platform navigation if we have a team slug
-  ...(teamSlug ? [
+  // Only show platform navigation if we have a location slug
+  ...(locationSlug ? [
     /**
-     * Social Media
+     * Social Media (location-scoped)
      */
     {
       subheader: 'Social Media',
       items: [
         {
           title: 'Instagram',
-          path: paths.dashboard.instagram.root(teamSlug),
+          path: paths.dashboard.instagram.root(locationSlug),
           icon: ICONS.instagram,
         },
         {
           title: 'TikTok',
-          path: paths.dashboard.tiktok.root(teamSlug),
+          path: paths.dashboard.tiktok.root(locationSlug),
           icon: ICONS.tiktok,
         },
       ],
     },
     /**
-     * Platforms
+     * Platforms (location-scoped)
      */
     {
       subheader: 'Platforms',
       items: [
         {
           title: 'Google Business',
-          path: paths.dashboard.google.root(teamSlug),
+          path: paths.dashboard.google.root(locationSlug),
           icon: ICONS.google,
           children: [
-            { title: 'Overview', path: paths.dashboard.google.overview(teamSlug) },
-            { title: 'Reviews', path: paths.dashboard.google.reviews(teamSlug) }
+            { title: 'Overview', path: paths.dashboard.google.overview(locationSlug) },
+            { title: 'Reviews', path: paths.dashboard.google.reviews(locationSlug) }
           ],
         },
         {
           title: 'Facebook Business',
-          path: paths.dashboard.facebook.root(teamSlug),
+          path: paths.dashboard.facebook.root(locationSlug),
           icon: ICONS.facebook,
           children: [
-            { title: 'Overview', path: paths.dashboard.facebook.overview(teamSlug) },
-            { title: 'Reviews', path: paths.dashboard.facebook.reviews(teamSlug) }
+            { title: 'Overview', path: paths.dashboard.facebook.overview(locationSlug) },
+            { title: 'Reviews', path: paths.dashboard.facebook.reviews(locationSlug) }
           ],
         },
         {
           title: 'TripAdvisor',
-          path: paths.dashboard.tripadvisor.root(teamSlug),
+          path: paths.dashboard.tripadvisor.root(locationSlug),
           icon: ICONS.tripadvisor,
           children: [
-            { title: 'Overview', path: paths.dashboard.tripadvisor.overview(teamSlug) },
-            { title: 'Reviews', path: paths.dashboard.tripadvisor.reviews(teamSlug) }
+            { title: 'Overview', path: paths.dashboard.tripadvisor.overview(locationSlug) },
+            { title: 'Reviews', path: paths.dashboard.tripadvisor.reviews(locationSlug) }
           ],
         },
         {
           title: 'Booking.com',
-          path: paths.dashboard.booking.root(teamSlug),
+          path: paths.dashboard.booking.root(locationSlug),
           icon: ICONS.booking,
           children: [
-            { title: 'Overview', path: paths.dashboard.booking.overview(teamSlug) },
-            { title: 'Reviews', path: paths.dashboard.booking.reviews(teamSlug) }
+            { title: 'Overview', path: paths.dashboard.booking.overview(locationSlug) },
+            { title: 'Reviews', path: paths.dashboard.booking.reviews(locationSlug) }
           ],
         },
       ],
@@ -183,6 +185,3 @@ export const getTenantMemberNavData = (teamSlug) => [
     ],
   },
 ];
-
-// Legacy export for backward compatibility (when no team context)
-export const tenantMemberNavData = getTenantMemberNavData(null);

@@ -23,6 +23,7 @@ import { oauthRouter } from './routers/oauth.router';
 import { dsyncRouter } from './routers/dsync.router';
 import { adminRouter } from './routers/admin.router';
 import { platformsRouter } from './routers/platforms.router';
+import { locationsRouter } from './routers/locations.router';
 
 /**
  * Root tRPC router
@@ -30,6 +31,7 @@ import { platformsRouter } from './routers/platforms.router';
  */
 export const appRouter = router({
   teams: teamsRouter,
+  locations: locationsRouter,
   reviews: reviewsRouter,
   billing: billingRouter,
   health: healthRouter,

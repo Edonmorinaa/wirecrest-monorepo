@@ -31,6 +31,10 @@ import { getUserNavData } from 'src/layouts/nav-config-user';
 import { getTenantAdminNavData } from 'src/layouts/nav-config-tenant-admin';
 import { getTenantMemberNavData } from 'src/layouts/nav-config-tenant-member';
 
+// Import selectors
+import { TeamSelector, LocationSelector } from 'src/components/selectors';
+import { Role, SuperRole } from '@prisma/client';
+
 // ----------------------------------------------------------------------
 
 function DashboardContent({ children }) {
@@ -38,8 +42,9 @@ function DashboardContent({ children }) {
   const router = useRouter();
   const params = useParams();
   
-  // Get team slug from URL params
+  // Get team slug and location slug from URL params
   const teamSlug = params?.slug;
+  const locationSlug = params?.locationSlug || null;
   
   // Get user's super role and team role
   const userSuperRole = user?.superRole;
@@ -48,21 +53,22 @@ function DashboardContent({ children }) {
   // Determine which navigation config to use
   const getNavigationData = () => {
     // Super Admin gets admin navigation
-    if (userSuperRole === 'ADMIN') {
+    if (userSuperRole === SuperRole.ADMIN) {
       return adminNavData;
     }
     
     // Support users get admin navigation
-    if (userSuperRole === 'SUPPORT') {
+    if (userSuperRole === SuperRole.SUPPORT) {
       return adminNavData;
     }
     
     // Regular users get navigation based on their team role
-    if (userSuperRole === 'USER') {
-      if (userTeamRole === 'ADMIN') {
-        return getTenantAdminNavData(teamSlug);
+    // Platform links are scoped to the current location
+    if (userSuperRole === SuperRole.TENANT) {
+      if (userTeamRole === Role.ADMIN) {
+        return getTenantAdminNavData(teamSlug, locationSlug);
       } else {
-        return getTenantMemberNavData(teamSlug);
+        return getTenantMemberNavData(locationSlug);
       }
     }
     
@@ -181,6 +187,20 @@ function DashboardContent({ children }) {
             </div>
           </div>
 
+          {/* Team and Location Selectors */}
+          {userSuperRole === 'TENANT' && teamSlug && (
+            <div className="border-b px-4 py-3">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <TeamSelector />
+                </div>
+                <div className="flex-1">
+                  <LocationSelector />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex-1 overflow-auto">
             <nav className="grid items-start px-2 text-sm font-medium">
@@ -269,10 +289,17 @@ function DashboardContent({ children }) {
           </div>
           <div className="flex items-center gap-2">
             {teamSlug && userSuperRole === 'USER' && (
-              <Badge variant="outline">
-                <Building className="w-3 h-3 mr-1" />
-                {teamSlug}
-              </Badge>
+              <>
+                <Badge variant="outline">
+                  <Building className="w-3 h-3 mr-1" />
+                  {teamSlug}
+                </Badge>
+                {locationSlug && (
+                  <Badge variant="secondary">
+                    📍 {locationSlug}
+                  </Badge>
+                )}
+              </>
             )}
           </div>
         </header>

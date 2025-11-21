@@ -15,7 +15,13 @@ export class FacebookBusinessRepository
 
   async findByTeamId(teamId: string): Promise<FacebookBusinessProfile[]> {
     return await this.model.findMany({
-      where: { teamId },
+      where: { businessLocation: { teamId } },
+    });
+  }
+
+  async findByLocationId(locationId: string): Promise<FacebookBusinessProfile | null> {
+    return await this.model.findFirst({
+      where: { locationId },
     });
   }
 
@@ -33,7 +39,7 @@ export class FacebookBusinessRepository
   ): Promise<FacebookBusinessProfile | null> {
     return await this.model.findFirst({
       where: {
-        teamId,
+        businessLocation: { teamId },
         // Facebook business profiles don't have platform field, they are implicitly Facebook
       },
     });
@@ -66,7 +72,7 @@ export class FacebookBusinessRepository
     platform: MarketPlatform,
   ): Promise<number> {
     return await this.model.count({
-      where: { teamId },
+      where: { businessLocation: { teamId } },
     });
   }
 }

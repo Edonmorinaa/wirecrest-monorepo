@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     // Get team
     const team = await prisma.team.findUnique({
       where: { slug: teamSlug },
+      include: { locations: true },
     });
 
     if (!team) {
@@ -25,28 +26,43 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get business profile
+    if (!team.locations || team.locations.length === 0) {
+      return NextResponse.json({
+        businessProfile: null,
+        reviews: {
+          google: [],
+          facebook: [],
+        },
+      });
+    }
+
+    // Get the first location's business profiles (or you can aggregate across all locations)
+    const locationIds = team.locations.map(loc => loc.id);
+    
+    // Get business profile for the first location
     const businessProfile = await prisma.googleBusinessProfile.findFirst({
-      where: { teamId: team.id },
+      where: { locationId: { in: locationIds } },
     });
 
-    // Get reviews from different platforms
+    // Get reviews from different platforms across all team locations
     const googleReviews = await prisma.googleReview.findMany({
       where: {
         businessProfile: {
-          teamId: team.id,
+          locationId: { in: locationIds },
         },
       },
       orderBy: { publishedAtDate: 'desc' },
+      take: 100, // Limit to prevent too much data
     });
 
     const facebookReviews = await prisma.facebookReview.findMany({
       where: {
         businessProfile: {
-          teamId: team.id,
+          locationId: { in: locationIds },
         },
       },
       orderBy: { date: 'desc' },
+      take: 100, // Limit to prevent too much data
     });
 
     // Serialize the data to handle Date objects and any other non-serializable types

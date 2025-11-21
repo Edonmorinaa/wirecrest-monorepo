@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 
 import { SuperRole } from '@prisma/client';
+import { PLATFORM_DISPLAY_CONFIGS, SOCIAL_PLATFORM_DISPLAY_CONFIGS } from '@wirecrest/core';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
 import Menu from '@mui/material/Menu';
 import Tabs from '@mui/material/Tabs';
@@ -15,6 +17,7 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -27,26 +30,27 @@ import DialogContent from '@mui/material/DialogContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import DialogContentText from '@mui/material/DialogContentText';
 
-import { PLATFORM_DISPLAY_CONFIGS, SOCIAL_PLATFORM_DISPLAY_CONFIGS } from '@wirecrest/core';
-
-import { DashboardContent } from 'src/layouts/dashboard';
-
-import { Iconify } from 'src/components/iconify';
-import { RoleGuard } from 'src/components/guards';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-
-import { useSuperAdminTenant } from '@/hooks/useSuperAdminTenant';
-import { useSyncStatus } from '@/hooks/useSyncStatus';
 import {
   deletePlatformData,
   executePlatformAction,
-  createOrUpdateMarketIdentifierEnhanced
+  createOrUpdateMarketIdentifierEnhanced,
 } from '@/actions/admin';
+import { useSuperAdminTenant } from '@/hooks/useSuperAdminTenant';
+import { useSyncStatus } from '@/hooks/useSyncStatus';
+
+import { trpc } from 'src/lib/trpc/client';
+
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { RoleGuard } from 'src/components/guards';
+import { Iconify } from 'src/components/iconify';
+import { LocationSelector } from 'src/components/superadmin/LocationSelector';
+
+import { DashboardContent } from 'src/layouts/dashboard';
 
 import ActivityTab from './components/ActivityTab';
-import StatsCard from './components/StatsCard';
-import PlatformCard from './components/PlatformCard';
 import InstagramCard from './components/InstagramCard';
+import PlatformCard from './components/PlatformCard';
+import StatsCard from './components/StatsCard';
 import TenantMembersTab from './components/TenantMembersTab';
 
 const platformConfig = PLATFORM_DISPLAY_CONFIGS;
@@ -82,6 +86,7 @@ export default function SuperAdminTenantDetailPage() {
   const tenantId = params.tenantId;
 
   const [tabValue, setTabValue] = useState(0);
+  const [selectedLocationId, setSelectedLocationId] = useState(null);
   const [marketIdentifiers, setMarketIdentifiers] = useState({});
   const [platformLoadingStates, setPlatformLoadingStates] = useState({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -91,13 +96,28 @@ export default function SuperAdminTenantDetailPage() {
 
   const {
     tenant,
+    locations,
+    selectedLocation,
+    socialPlatforms,
     platforms,
     recentActivity,
     stats,
     isLoading,
     error,
     refresh
-  } = useSuperAdminTenant(tenantId);
+  } = useSuperAdminTenant(tenantId, selectedLocationId);
+
+  // Fetch location-specific platform data including market identifiers
+  const { data: locationPlatformData, refetch: refetchLocationData } = trpc.superadmin.getLocationPlatformData.useQuery(
+    {
+      teamId: tenantId,
+      locationId: selectedLocationId || '',
+    },
+    {
+      enabled: !!tenantId && !!selectedLocationId,
+      refetchInterval: 10000,
+    }
+  );
 
   // Use sync status hook for real-time updates
   const { getPlatformSyncStatus } = useSyncStatus({
@@ -106,24 +126,67 @@ export default function SuperAdminTenantDetailPage() {
     onlyPollWhenActive: true,
   });
 
-  // Initialize market identifiers when data loads
+  // Set first location as selected by default
   useEffect(() => {
-    if (platforms) {
-      const identifiers = {};
-      ['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING', 'INSTAGRAM', 'TIKTOK'].forEach(platform => {
-        const platformKey = platform.toLowerCase();
-        const platformData = platforms[platformKey];
+    if (locations && locations.length > 0 && !selectedLocationId) {
+      setSelectedLocationId(locations[0].id);
+    }
+  }, [locations, selectedLocationId]);
+
+  // Auto-fill market identifiers when location data loads
+  useEffect(() => {
+    if (!selectedLocationId) {
+      // Reset when no location is selected
+      setMarketIdentifiers({});
+      setPlatformLoadingStates({});
+      return;
+    }
+
+    // Extract identifiers from location platform data
+    const newIdentifiers = {};
+    
+    if (locationPlatformData?.platforms) {
+      Object.entries(locationPlatformData.platforms).forEach(([key, platformData]) => {
+        const platform = key.toUpperCase();
         if (platformData?.identifier) {
-          identifiers[platform] = platformData.identifier;
-          console.log(`✅ Loaded identifier for ${platform}:`, platformData.identifier);
-        } else {
-          console.log(`ℹ️ No identifier found for ${platform}`);
+          newIdentifiers[platform] = platformData.identifier;
         }
       });
-      setMarketIdentifiers(identifiers);
-      console.log('📋 Final market identifiers:', identifiers);
     }
-  }, [platforms]);
+    
+    setMarketIdentifiers(prev => ({
+      ...prev,
+      ...newIdentifiers,
+    }));
+    setPlatformLoadingStates({});
+  }, [selectedLocationId, locationPlatformData]);
+
+  // Keep social platform identifiers in sync
+  useEffect(() => {
+    if (!socialPlatforms) return;
+    
+    const socialIdentifiers = {};
+    if (socialPlatforms.instagram?.identifier) {
+      socialIdentifiers.INSTAGRAM = socialPlatforms.instagram.identifier;
+    }
+    if (socialPlatforms.tiktok?.identifier) {
+      socialIdentifiers.TIKTOK = socialPlatforms.tiktok.identifier;
+        }
+    
+    setMarketIdentifiers(prev => ({
+      ...prev,
+      ...socialIdentifiers,
+    }));
+  }, [socialPlatforms]);
+
+  const handleLocationChange = useCallback((location) => {
+    setSelectedLocationId(location.id);
+    // Clear current state immediately for better UX
+    setMarketIdentifiers({});
+    setPlatformLoadingStates({});
+    // Trigger refetch of location data
+    refetchLocationData();
+  }, [refetchLocationData]);
 
   const handleIdentifierChange = useCallback((platform, value) => {
     setMarketIdentifiers(prev => ({
@@ -136,30 +199,52 @@ export default function SuperAdminTenantDetailPage() {
     const identifier = marketIdentifiers[platform];
     if (!identifier) return;
 
+    // Business platforms require a selected location
+    const isBusinessPlatform = ['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING'].includes(platform);
+    
+    if (isBusinessPlatform && !selectedLocationId) {
+      alert('Please select a location first to configure business platforms.');
+      return;
+    }
+
     setPlatformLoadingStates(prev => ({ ...prev, [platform]: true }));
 
     try {
       await createOrUpdateMarketIdentifierEnhanced({
-        teamId: tenantId,
+        locationId: selectedLocationId, // Changed from teamId to locationId
         platform: PLATFORM_MAPPING[platform] || platform.toUpperCase(),
         identifier
       });
       await refresh();
+      // Also refetch location data to get updated identifiers
+      if (isBusinessPlatform) {
+        await refetchLocationData();
+      }
     } catch (err) {
       console.error('Error saving identifier:', err);
       alert(`Error saving ${platform} identifier: ${err.message}`);
     } finally {
       setPlatformLoadingStates(prev => ({ ...prev, [platform]: false }));
     }
-  }, [marketIdentifiers, tenantId, refresh]);
+  }, [marketIdentifiers, selectedLocationId, refresh, refetchLocationData]);
 
   const handlePlatformAction = useCallback(async (platform, action) => {
     setPlatformLoadingStates(prev => ({ ...prev, [platform]: true }));
 
     try {
+      // For business platforms, require locationId
+      const platformKey = PLATFORM_MAPPING[platform] || platform.toUpperCase();
+      const isBusinessPlatform = ['GOOGLE_MAPS', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING'].includes(platformKey);
+      
+      if (isBusinessPlatform && !selectedLocationId) {
+        alert('Please select a location first');
+        return;
+      }
+
       await executePlatformAction({
         teamId: tenantId,
-        platform: PLATFORM_MAPPING[platform] || platform.toUpperCase(),
+        locationId: selectedLocationId,
+        platform: platformKey,
         action,
         options: {}
       });
@@ -170,7 +255,7 @@ export default function SuperAdminTenantDetailPage() {
     } finally {
       setPlatformLoadingStates(prev => ({ ...prev, [platform]: false }));
     }
-  }, [tenantId, refresh]);
+  }, [tenantId, selectedLocationId, refresh]);
 
   const handleDeletePlatformData = useCallback((platform) => {
     setDeletePlatform(platform);
@@ -185,7 +270,8 @@ export default function SuperAdminTenantDetailPage() {
     try {
       await deletePlatformData({
         teamId: tenantId,
-        platform: deletePlatform
+        locationId: selectedLocationId,
+        platform:  deletePlatform
       });
       setMarketIdentifiers(prev => ({ ...prev, [deletePlatform]: '' }));
       await refresh();
@@ -197,7 +283,7 @@ export default function SuperAdminTenantDetailPage() {
       setDeleteDialogOpen(false);
       setDeletePlatform(null);
     }
-  }, [deletePlatform, tenantId, refresh]);
+  }, [deletePlatform, tenantId, selectedLocationId, refresh]);
 
   const handleMenuOpen = useCallback((event, platform) => {
     setAnchorEl(event.currentTarget);
@@ -212,8 +298,53 @@ export default function SuperAdminTenantDetailPage() {
   const getPlatformStatus = useCallback((platform) => {
     if (!platforms) return 'not_started';
     const platformKey = platform.toLowerCase();
-    return platforms[platformKey]?.status || 'not_started';
-  }, [platforms]);
+    const platformData = platforms[platformKey];
+    
+    // Check if we have an identifier saved for this platform
+    const hasIdentifier = !!marketIdentifiers[platform];
+    
+    // If we have identifier but no profile, show identifier_set
+    if (hasIdentifier && !platformData?.profile) {
+      return 'identifier_set';
+    }
+    
+    // Otherwise use the status from platform data
+    return platformData?.status || 'not_started';
+  }, [platforms, marketIdentifiers]);
+
+  const getSocialPlatformStatus = useCallback((platform) => {
+    if (!socialPlatforms) return 'not_started';
+    const platformKey = platform.toLowerCase();
+    const platformData = socialPlatforms[platformKey];
+    
+    // Check if we have an identifier saved
+    const hasIdentifier = !!marketIdentifiers[platform];
+    
+    // If we have identifier but no profile, show identifier_set
+    if (hasIdentifier && !platformData?.profile) {
+      return 'identifier_set';
+    }
+    
+    // Otherwise use the status from platform data
+    return platformData?.status || 'not_started';
+  }, [socialPlatforms, marketIdentifiers]);
+
+  const getSocialPlatformCurrentStepMessage = useCallback((platform) => {
+    if (!socialPlatforms) return null;
+    const platformKey = platform.toLowerCase();
+    const platformData = socialPlatforms[platformKey];
+
+    if (!platformData?.currentStep) return null;
+
+    switch (platformData.currentStep) {
+      case 'CREATING_PROFILE':
+        return platform === 'TIKTOK' ? 'Creating TikTok profile...' : 'Creating profile...';
+      case 'FETCHING_SNAPSHOTS':
+        return 'Taking snapshots...';
+      default:
+        return `Processing: ${platformData.currentStep}`;
+    }
+  }, [socialPlatforms]);
 
   const getCurrentStepMessage = useCallback((platform) => {
     if (!platforms) return null;
@@ -307,7 +438,20 @@ export default function SuperAdminTenantDetailPage() {
                 </Stack>
               </Box>
 
-              <Stack direction="row" spacing={1.5}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <LocationSelector
+                  locations={locations}
+                  selectedLocation={selectedLocation}
+                  onLocationChange={handleLocationChange}
+                  onAddLocation={() => {
+                    // TODO: Implement add location modal/page
+                    console.log('Add location clicked');
+                  }}
+                  isLoading={isLoading}
+                />
+                
+                <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                
                 <Button
                   variant="outlined"
                   startIcon={<Iconify icon="solar:arrow-left-bold" />}
@@ -347,7 +491,7 @@ export default function SuperAdminTenantDetailPage() {
             <StatsCard
               title="Reviews"
               value={stats.totalReviews}
-              subtitle="Total reviews"
+              subtitle={selectedLocation ? `From ${selectedLocation.name}` : 'Total reviews'}
               icon="solar:star-bold"
               color="warning"
             />
@@ -399,20 +543,22 @@ export default function SuperAdminTenantDetailPage() {
               {/* Platform Setup Tab */}
               <TabPanel value={tabValue} index={0}>
                 <Box sx={{ p: 3 }}>
+                  {/* Social Platforms Section (Team-level) */}
                   <Stack spacing={2} sx={{ mb: 4 }}>
-                    <Typography variant="h6">Platform Integrations</Typography>
+                    <Typography variant="h6">Social Media Platforms</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Configure and manage platform integrations for {tenant.name}
+                      Team-level social media integrations for {tenant.name}
                     </Typography>
                   </Stack>
 
+                  <Grid container spacing={3} sx={{ mb: 6 }}>
                   {/* Instagram Card (Featured) */}
-                  <Grid size={{ xs: 12 }} sx={{ mb: 4 }}>
+                    <Grid size={{ xs: 12 }} sx={{ mb: 2 }}>
                     <InstagramCard
                       identifier={marketIdentifiers.INSTAGRAM || ''}
-                      status={getPlatformStatus('INSTAGRAM')}
-                      platformData={platforms?.instagram}
-                      currentStepMessage={getCurrentStepMessage('INSTAGRAM')}
+                        status={getSocialPlatformStatus('INSTAGRAM')}
+                        platformData={socialPlatforms?.instagram}
+                        currentStepMessage={getSocialPlatformCurrentStepMessage('INSTAGRAM')}
                       loading={platformLoadingStates.INSTAGRAM || false}
                       onIdentifierChange={handleIdentifierChange}
                       onSave={handleSaveIdentifier}
@@ -421,19 +567,59 @@ export default function SuperAdminTenantDetailPage() {
                     />
                   </Grid>
 
-                  {/* Regular Platform Cards */}
+                    {/* TikTok Card */}
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <PlatformCard
+                        platform="TIKTOK"
+                        config={socialPlatformConfig.TIKTOK}
+                        identifier={marketIdentifiers.TIKTOK || ''}
+                        status={getSocialPlatformStatus('TIKTOK')}
+                        syncStatus={getPlatformSyncStatus('tiktok')}
+                        platformData={socialPlatforms?.tiktok}
+                        currentStepMessage={getSocialPlatformCurrentStepMessage('TIKTOK')}
+                        loading={platformLoadingStates.TIKTOK || false}
+                        isLoadingData={isLoading}
+                        onIdentifierChange={handleIdentifierChange}
+                        onSave={handleSaveIdentifier}
+                        onAction={handlePlatformAction}
+                        onMenuOpen={handleMenuOpen}
+                      />
+                    </Grid>
+                  </Grid>
+
+                  <Divider sx={{ my: 4 }} />
+
+                  {/* Business Platforms Section (Location-level) */}
+                  <Stack spacing={2} sx={{ mb: 4 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="h6">Business Platforms</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Location-specific business platform integrations
+                          {selectedLocation && ` for ${selectedLocation.name}`}
+                        </Typography>
+                      </Box>
+                      
+                      {selectedLocation && (
+                        <Chip
+                          icon={<Iconify icon="mdi:map-marker" />}
+                          label={selectedLocation.name}
+                          color="primary"
+                          variant="outlined"
+                        />
+                      )}
+                    </Stack>
+                  </Stack>
+
+                  {selectedLocation ? (
                   <Grid container spacing={3}>
-                    {['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING', 'TIKTOK'].map((platform) => {
+                      {['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING'].map((platform) => {
                       const platformKey = PLATFORM_MAPPING[platform] || platform;
                       return (
                         <Grid size={{ xs: 12, md: 6 }} key={platform}>
                           <PlatformCard
                             platform={platform}
-                            config={
-                              ['INSTAGRAM', 'TIKTOK'].includes(platform)
-                                ? socialPlatformConfig[platform]
-                                : platformConfig[platform]
-                            }
+                              config={platformConfig[platform]}
                             identifier={marketIdentifiers[platform] || ''}
                             status={getPlatformStatus(platform)}
                             syncStatus={getPlatformSyncStatus(platformKey.toLowerCase())}
@@ -450,6 +636,14 @@ export default function SuperAdminTenantDetailPage() {
                       );
                     })}
                   </Grid>
+                  ) : (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      <AlertTitle>No Location Selected</AlertTitle>
+                      {locations.length > 0
+                        ? 'Please select a location from the dropdown above to manage business platforms.'
+                        : 'No locations found. Add a location to start configuring business platforms.'}
+                    </Alert>
+                  )}
                 </Box>
               </TabPanel>
 

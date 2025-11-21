@@ -5,7 +5,7 @@ import { CONFIG } from 'src/global-config';
 export const _workspaces = [
   {
     id: 'team-1',
-    name: 'Team 1',
+    name: 'Team 1 1 1',
     plan: 'Free',
     logo: `${CONFIG.assetsDir}/assets/icons/workspaces/logo-1.webp`,
   },

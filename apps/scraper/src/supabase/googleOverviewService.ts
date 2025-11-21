@@ -1,3 +1,13 @@
+/**
+ * @deprecated This file is kept for reference only
+ * Overview tables (GoogleOverview, PeriodicalMetric) have been removed from schema
+ * Analytics are now computed on-demand via tRPC procedures in the dashboard app
+ * DO NOT USE - will be removed in future cleanup
+ * 
+ * Historical note: This service managed GoogleOverview and PeriodicalMetric records
+ * See: apps/dashboard/src/server/trpc/routers/locations.router.ts for new implementation
+ */
+
 import { GoogleReview, Prisma } from "@prisma/client";
 import { prisma } from "@wirecrest/db";
 

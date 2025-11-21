@@ -2,7 +2,7 @@ import type { GoogleReview, ReviewMetadata } from '@prisma/client';
 
 import dayjs from 'dayjs';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -29,10 +29,9 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { useOwnerResponse } from 'src/hooks/useOwnerResponse';
+import { useGoogleReviews, useGoogleEnhancedGraph, useUpdateGoogleReviewMetadata } from 'src/hooks/useLocations';
 
 import { fShortenNumber } from 'src/utils/format-number';
-
-import { trpc } from 'src/lib/trpc/client';
 
 import { Iconify } from 'src/components/iconify';
 import { Lightbox, useLightbox } from 'src/components/lightbox';
@@ -44,6 +43,7 @@ import { OwnerResponseModal } from 'src/components/owner-response-modal/owner-re
 
 interface GoogleReviewsAnalytics2Props {
   teamSlug: string;
+  locationId?: string;
   title?: string;
   subheader?: string;
   sx?: any;
@@ -61,17 +61,11 @@ interface ChartDataPoint {
 
 // Extend Prisma types for our use case
 type GoogleReviewWithMetadata = GoogleReview & {
-  reviewMetadata: ReviewMetadata;
+  reviewMetadata?: ReviewMetadata | null;
 };
 
 // Use the extended type as our main Review interface
 type Review = GoogleReviewWithMetadata;
-
-interface DateRangeConstraints {
-  minDate: Date | null;
-  maxDate: Date | null;
-  totalReviews: number;
-}
 
 interface CustomDateRange {
   from: Date;
@@ -91,20 +85,8 @@ interface DateReviewsModalProps {
   date: string | null;
   dateEnd?: string | null;
   teamSlug: string;
+  locationId?: string;
   sentiment?: string | null;
-}
-
-interface AnalyticsStats {
-  totalReviews: number;
-  averageRating: number;
-  ratingDistribution: Record<string, number>;
-  sentimentAnalysis: {
-    positive: number;
-    neutral: number;
-    negative: number;
-  };
-  responseRate: number;
-  recentReviews: number;
 }
 
 
@@ -446,7 +428,7 @@ function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata, onGene
 }
 
 // Enhanced Date Reviews Modal Component
-function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, sentiment }: DateReviewsModalProps) {
+function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, locationId, sentiment }: DateReviewsModalProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -455,6 +437,9 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
   const { isLoading: isGenerating, generatedResponse, error: responseError, generateResponse, reset, snackbar, hideSnackbar } = useOwnerResponse();
+  
+  // Mutation for updating review metadata
+  const updateMetadataMutation = useUpdateGoogleReviewMetadata();
   
   // Prepare slides for lightbox - memoized to prevent state issues
   const allImages = useMemo(() => 
@@ -490,14 +475,18 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
   };
 
   const handleUpdateMetadata = async (reviewId: string, field: 'isRead' | 'isImportant', value: boolean) => {
-    try {
-      const response = await fetch(`/api/teams/${teamSlug}/google/reviews/${reviewId}/metadata`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value }),
-      });
+    if (!locationId) {
+      console.error('LocationId is required to update metadata');
+      return;
+    }
 
-      if (!response.ok) throw new Error('Failed to update review');
+    try {
+      await updateMetadataMutation.mutateAsync({
+        locationId,
+        platform: 'google' as const,
+        reviewId,
+        metadata: { [field]: value },
+      });
 
       // Update the local state
       setReviews(prevReviews => 
@@ -535,33 +524,38 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
     };
   }, [date, dateEnd]);
 
-  // Use tRPC to fetch reviews for this specific date
-  const { data: reviewsData, isLoading: isFetchingReviews, error: fetchError } = trpc.reviews.google.useQuery(
+  // Use useGoogleReviews hook to fetch reviews for this specific date
+  const { 
+    reviews: fetchedReviews, 
+    isLoading: isFetchingReviews,
+    error: fetchError
+  } = useGoogleReviews(
+    locationId || '',
     {
-      teamSlug: teamSlug || '',
-      page: 1,
-      limit: 100,
       startDate: dateRangeForQuery?.startDate,
       endDate: dateRangeForQuery?.endDate,
     },
-    {
-      enabled: isOpen && !!teamSlug && !!dateRangeForQuery,
-      refetchOnWindowFocus: false,
-    }
+    { 
+      page: 1, 
+      limit: 100 
+    },
+    isOpen && !!locationId && !!dateRangeForQuery
   );
 
-  // Process and filter reviews based on sentiment
-  useEffect(() => {
-    if (!reviewsData?.reviews) {
-      setReviews([]);
-      return;
+  // Memoize filtered reviews to prevent unnecessary recalculations
+  // Note: This preserves all review properties including reviewMetadata with sentiment
+  const filteredReviews = useMemo(() => {
+    if (!fetchedReviews || fetchedReviews.length === 0) {
+      return [];
     }
 
-    let filteredReviews = reviewsData.reviews as unknown as Review[];
+    // Cast to Review type - all properties including reviewMetadata are preserved
+    let filtered = fetchedReviews as unknown as Review[];
     
     // Filter by sentiment if specified
+    // The filter operation preserves all review properties (including reviewMetadata, sentiment, etc.)
     if (sentiment && sentiment !== 'all') {
-      filteredReviews = filteredReviews.filter((review) => {
+      filtered = filtered.filter((review) => {
         const reviewSentiment = review.reviewMetadata?.sentiment;
         
         // If no sentiment data, classify by star rating
@@ -592,15 +586,32 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
       });
     }
     
-    console.log('Modal reviews filtered:', {
-      total: reviewsData.reviews.length,
-      filtered: filteredReviews.length,
-      sentiment,
-      dateRange: dateRangeForQuery
-    });
+    // Return filtered reviews with all properties intact (reviewMetadata, sentiment, etc.)
+    return filtered;
+  }, [fetchedReviews, sentiment]);
+
+  // Track previous filtered reviews to prevent unnecessary state updates
+  const prevFilteredReviewsRef = useRef<string>('');
+  
+  // Update reviews state only when filtered reviews actually change
+  useEffect(() => {
+    // Create a stable key from review IDs to compare
+    const currentKey = filteredReviews.map(r => r.id).join(',');
     
-    setReviews(filteredReviews);
-  }, [reviewsData, sentiment, dateRangeForQuery]);
+    // Only update if the content actually changed
+    if (prevFilteredReviewsRef.current !== currentKey) {
+      prevFilteredReviewsRef.current = currentKey;
+      
+      console.log('Modal reviews filtered:', {
+        total: fetchedReviews?.length || 0,
+        filtered: filteredReviews.length,
+        sentiment,
+        dateRange: dateRangeForQuery
+      });
+      
+      setReviews(filteredReviews);
+    }
+  }, [filteredReviews, fetchedReviews?.length, sentiment, dateRangeForQuery]);
 
   // Update loading and error states
   useEffect(() => {
@@ -609,7 +620,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
 
   useEffect(() => {
     if (fetchError) {
-      setError(fetchError.message || 'Failed to fetch reviews');
+      setError(typeof fetchError === 'string' ? fetchError : fetchError.message || 'Failed to fetch reviews');
     } else {
       setError(null);
     }
@@ -621,6 +632,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
       setReviews([]);
       setError(null);
       setIsLoading(false);
+      prevFilteredReviewsRef.current = '';
     }
   }, [isOpen]);
 
@@ -704,7 +716,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
           </Stack>
 
           {/* Sentiment Breakdown Summary */}
-          {reviewsData && !sentiment && (
+          {fetchedReviews && fetchedReviews.length > 0 && !sentiment && (
             <Stack direction="row" spacing={2} sx={{ pl: 0.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Box
@@ -716,7 +728,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
                   }}
                 />
                 <Typography variant="caption" color="text.secondary">
-                  {reviewsData.reviews.filter((r: any) => {
+                  {fetchedReviews.filter((r: any) => {
                     const s = r.reviewMetadata?.sentiment;
                     return s !== null && s !== undefined ? s >= 0.5 : r.stars >= 4;
                   }).length} Positive
@@ -732,7 +744,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
                   }}
                 />
                 <Typography variant="caption" color="text.secondary">
-                  {reviewsData.reviews.filter((r: any) => {
+                  {fetchedReviews.filter((r: any) => {
                     const s = r.reviewMetadata?.sentiment;
                     return s !== null && s !== undefined ? (s >= -0.5 && s < 0.5) : r.stars === 3;
                   }).length} Neutral
@@ -748,7 +760,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
                   }}
                 />
                 <Typography variant="caption" color="text.secondary">
-                  {reviewsData.reviews.filter((r: any) => {
+                  {fetchedReviews.filter((r: any) => {
                     const s = r.reviewMetadata?.sentiment;
                     return s !== null && s !== undefined ? s < -0.5 : r.stars <= 2;
                   }).length} Negative
@@ -870,28 +882,23 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, se
 }
 
 export function GoogleReviewsAnalytics2({ 
-  teamSlug, 
-  title = "Enhanced Reviews Analytics", 
+  teamSlug,
+  locationId,
+  title = "Review Analytics", 
   subheader,
   sx,
   ...other 
 }: GoogleReviewsAnalytics2Props) {
-  console.log('GoogleReviewsAnalytics2 rendered with teamSlug:', teamSlug, 'at:', new Date().toISOString());
+  console.log('GoogleReviewsAnalytics2 rendered with teamSlug:', teamSlug, 'locationId:', locationId, 'at:', new Date().toISOString());
   
   const theme = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   
+  // Mutation for updating review metadata
   // State management
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [analyticsStats, setAnalyticsStats] = useState<AnalyticsStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [constraints, setConstraints] = useState<DateRangeConstraints>({
-    minDate: null,
-    maxDate: null,
-    totalReviews: 0
-  });
-  const [isLoadingConstraints, setIsLoadingConstraints] = useState(true);
   
   // Chart series selection state
   const [selectedSeries, setSelectedSeries] = useState('all');
@@ -946,70 +953,70 @@ export function GoogleReviewsAnalytics2({
 
   // Fetch date range constraints
   const fetchConstraints = useCallback(async () => {
-    if (!teamSlug) {
-      console.log('No teamSlug available for fetchConstraints');
-      return;
-    }
+    // if (!teamSlug) {
+    //   console.log('No teamSlug available for fetchConstraints');
+    //   return;
+    // }
     
-    console.log('Fetching date range constraints for team:', teamSlug);
-    setIsLoadingConstraints(true);
-    try {
-      const apiUrl = `/api/teams/${teamSlug}/google/reviews/date-range`;
-      console.log('Calling API:', apiUrl);
+    // console.log('Fetching date range constraints for team:', teamSlug);
+    // setIsLoadingConstraints(true);
+    // try {
+    //   const apiUrl = `/api/teams/${teamSlug}/google/reviews/date-range`;
+    //   console.log('Calling API:', apiUrl);
       
-      const response = await fetch(apiUrl);
-      console.log('Date range API response status:', response.status, response.statusText);
+    //   const response = await fetch(apiUrl);
+    //   console.log('Date range API response status:', response.status, response.statusText);
       
-      if (!response.ok) {
-        let errorText = '';
-        try {
-          errorText = await response.text();
-        } catch {
-          errorText = 'Unable to read error response';
-        }
+    //   if (!response.ok) {
+    //     let errorText = '';
+    //     try {
+    //       errorText = await response.text();
+    //     } catch {
+    //       errorText = 'Unable to read error response';
+    //     }
         
-        console.warn('Date range API error response:', {
-          status: response.status,
-          statusText: response.statusText,
-          url: apiUrl,
-          errorText
-        });
+    //     console.warn('Date range API error response:', {
+    //       status: response.status,
+    //       statusText: response.statusText,
+    //       url: apiUrl,
+    //       errorText
+    //     });
         
-        setConstraints({
-          minDate: null,
-          maxDate: null,
-          totalReviews: 0
-        });
-        return;
-      }
+    //     setConstraints({
+    //       minDate: null,
+    //       maxDate: null,
+    //       totalReviews: 0
+    //     });
+    //     return;
+    //   }
       
-      const result = await response.json();
-      console.log('Date range API result:', result);
+    //   const result = await response.json();
+    //   console.log('Date range API result:', result);
       
-      if (result.data) {
-        setConstraints({
-          minDate: result.data.oldestDate ? new Date(result.data.oldestDate) : null,
-          maxDate: result.data.newestDate ? new Date(result.data.newestDate) : null,
-          totalReviews: result.data.totalReviews
-        });
-      } else {
-        setConstraints({
-          minDate: null,
-          maxDate: null,
-          totalReviews: 0
-        });
-      }
-    } catch (error) {
-      console.warn('Error fetching date range constraints:', error);
-      setConstraints({
-        minDate: null,
-        maxDate: null,
-        totalReviews: 0
-      });
-    } finally {
-      setIsLoadingConstraints(false);
-    }
-  }, [teamSlug]);
+    //   if (result.data) {
+    //     setConstraints({
+    //       minDate: result.data.oldestDate ? new Date(result.data.oldestDate) : null,
+    //       maxDate: result.data.newestDate ? new Date(result.data.newestDate) : null,
+    //       totalReviews: result.data.totalReviews
+    //     });
+    //   } else {
+    //     setConstraints({
+    //       minDate: null,
+    //       maxDate: null,
+    //       totalReviews: 0
+    //     });
+    //   }
+    // } catch (error) {
+    //   console.warn('Error fetching date range constraints:', error);
+    //   setConstraints({
+    //     minDate: null,
+    //     maxDate: null,
+    //     totalReviews: 0
+    //   });
+    // } finally {
+    //   setIsLoadingConstraints(false);
+    // }
+  }, []);
 
   // Calculate date range based on timeRange or customRange
   const { startDate, endDate } = useMemo(() => {
@@ -1035,116 +1042,153 @@ export function GoogleReviewsAnalytics2({
     };
   }, [timeRange, customRange, timeRanges]);
 
-  // Use tRPC to fetch analytics data
-  const { data: analyticsData, isLoading: isFetchingAnalytics, error: analyticsError } = trpc.reviews.googleEnhancedAnalytics.useQuery(
-    {
-      teamSlug,
-      startDate,
-      endDate,
-    },
-    {
-      enabled: !!teamSlug && !!startDate && !!endDate,
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-    }
-  );
+  const { data: analyticsData, isLoading: isFetchingAnalytics, error: analyticsError } = useGoogleEnhancedGraph(locationId, startDate, endDate);
 
   // Helper function to aggregate data by periods
-  const aggregateDataByPeriod = useCallback((dailyData: any[], periodDays: number) => {
-    if (!dailyData || dailyData.length === 0) return [];
+  const aggregateDataByPeriod = useCallback((dailyData: any[], periodDays: number, rangeStart: Date, rangeEnd: Date) => {
+    if (!dailyData || dailyData.length === 0) {
+      // Still generate periods even with no data - filled with zeros
+      const periods: ChartDataPoint[] = [];
+      const currentDate = new Date(rangeStart);
+      currentDate.setHours(0, 0, 0, 0);
+      
+      const rangeEndDate = new Date(rangeEnd);
+      rangeEndDate.setHours(0, 0, 0, 0);
+      
+      while (currentDate <= rangeEndDate) {
+        const periodStart = new Date(currentDate);
+        const periodEnd = new Date(currentDate);
+        periodEnd.setDate(periodEnd.getDate() + Math.min(periodDays - 1, Math.floor((rangeEndDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))));
+        
+        let dateDisplay: string;
+        if (periodDays === 1) {
+          dateDisplay = periodStart.toLocaleDateString();
+        } else if (periodDays === 7) {
+          dateDisplay = `Week of ${periodStart.toLocaleDateString()}`;
+        } else if (periodDays === 30) {
+          dateDisplay = periodStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        } else if (periodDays === 14) {
+          dateDisplay = `${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()}`;
+        } else if (periodDays >= 90) {
+          dateDisplay = `${periodStart.toLocaleDateString('en-US', { month: 'short' })} - ${periodEnd.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+        } else {
+          dateDisplay = `${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()}`;
+        }
+        
+        periods.push({
+          date: periodStart.toISOString().split('T')[0],
+          dateEnd: periodEnd.toISOString().split('T')[0],
+          dateDisplay,
+          total: 0,
+          positive: 0,
+          negative: 0,
+          neutral: 0,
+        });
+        
+        currentDate.setDate(currentDate.getDate() + periodDays);
+      }
+      
+      return periods;
+    }
     
     if (periodDays <= 1) {
-      // Return daily data as-is
-      return dailyData.map(day => ({
-        date: day.date,
-        dateEnd: day.date,
-        dateDisplay: new Date(day.date).toLocaleDateString(),
-        total: day.count || 0,
-        positive: day.positive || 0,
-        negative: day.negative || 0,
-        neutral: day.neutral || 0,
-      }));
+      // For daily view, include all days in range
+      const periods: ChartDataPoint[] = [];
+      const dataMap = new Map(dailyData.map(d => [d.date, d]));
+      
+      const currentDate = new Date(rangeStart);
+      currentDate.setHours(0, 0, 0, 0);
+      
+      const rangeEndDate = new Date(rangeEnd);
+      rangeEndDate.setHours(0, 0, 0, 0);
+      
+      while (currentDate <= rangeEndDate) {
+        const dateKey = currentDate.toISOString().split('T')[0];
+        const dayData = dataMap.get(dateKey);
+        
+        periods.push({
+          date: dateKey,
+          dateEnd: dateKey,
+          dateDisplay: currentDate.toLocaleDateString(),
+          total: dayData?.count || 0,
+          positive: dayData?.positiveCount || dayData?.positive || 0,
+          negative: dayData?.negativeCount || dayData?.negative || 0,
+          neutral: dayData?.neutralCount || dayData?.neutral || 0,
+        });
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      return periods;
     }
 
-    // Sort data by date
-    const sortedData = [...dailyData].sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    // Group data into fixed periods
-    const periods: ChartDataPoint[] = [];
-    const firstDate = new Date(sortedData[0].date);
-    
     // Create a map for quick lookup
-    const dataMap = new Map(sortedData.map(d => [d.date, d]));
+    const dataMap = new Map(dailyData.map(d => [d.date, d]));
     
-    // Start from the first date and create periods
-    let currentDate = new Date(firstDate);
+    // Group data into fixed periods - include ALL periods from rangeStart to rangeEnd
+    const periods: ChartDataPoint[] = [];
+    let currentDate = new Date(rangeStart);
     currentDate.setHours(0, 0, 0, 0);
     
-    const lastDate = new Date(sortedData[sortedData.length - 1].date);
-    lastDate.setHours(0, 0, 0, 0);
+    const rangeEndDate = new Date(rangeEnd);
+    rangeEndDate.setHours(0, 0, 0, 0);
     
-    while (currentDate <= lastDate) {
+    while (currentDate <= rangeEndDate) {
       const periodStart = new Date(currentDate);
       const periodEnd = new Date(currentDate);
       periodEnd.setDate(periodEnd.getDate() + periodDays - 1);
+      
+      // Cap the period end at the range end
+      if (periodEnd > rangeEndDate) {
+        periodEnd.setTime(rangeEndDate.getTime());
+      }
       
       // Aggregate all days in this period
       let total = 0;
       let positive = 0;
       let negative = 0;
       let neutral = 0;
-      let actualEndDate = periodStart;
       
-      for (let i = 0; i < periodDays; i++) {
-        const checkDate = new Date(periodStart);
-        checkDate.setDate(checkDate.getDate() + i);
-        
-        if (checkDate > lastDate) break;
-        
+      const checkDate = new Date(periodStart);
+      while (checkDate <= periodEnd && checkDate <= rangeEndDate) {
         const dateKey = checkDate.toISOString().split('T')[0];
         const dayData = dataMap.get(dateKey);
         
         if (dayData) {
           total += dayData.count || 0;
-          positive += dayData.positive || 0;
-          negative += dayData.negative || 0;
-          neutral += dayData.neutral || 0;
-          actualEndDate = checkDate;
+          positive += dayData.positiveCount || dayData.positive || 0;
+          negative += dayData.negativeCount || dayData.negative || 0;
+          neutral += dayData.neutralCount || dayData.neutral || 0;
         }
+        
+        checkDate.setDate(checkDate.getDate() + 1);
       }
       
-      // Only add periods that have data
-      if (total > 0) {
-        const periodStartDate = periodStart;
-        const periodEndDate = actualEndDate;
-        
-        let dateDisplay: string;
-        if (periodDays === 1) {
-          dateDisplay = periodStartDate.toLocaleDateString();
-        } else if (periodDays === 7) {
-          dateDisplay = `Week of ${periodStartDate.toLocaleDateString()}`;
-        } else if (periodDays === 30) {
-          dateDisplay = periodStartDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        } else if (periodDays === 14) {
-          dateDisplay = `${periodStartDate.toLocaleDateString()} - ${periodEndDate.toLocaleDateString()}`;
-        } else if (periodDays >= 90) {
-          dateDisplay = `${periodStartDate.toLocaleDateString('en-US', { month: 'short' })} - ${periodEndDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
-        } else {
-          dateDisplay = `${periodStartDate.toLocaleDateString()} - ${periodEndDate.toLocaleDateString()}`;
-        }
-        
-        periods.push({
-          date: periodStartDate.toISOString().split('T')[0],
-          dateEnd: periodEndDate.toISOString().split('T')[0],
-          dateDisplay,
-          total,
-          positive,
-          negative,
-          neutral,
-        });
+      // Add ALL periods, even with zero data
+      let dateDisplay: string;
+      if (periodDays === 1) {
+        dateDisplay = periodStart.toLocaleDateString();
+      } else if (periodDays === 7) {
+        dateDisplay = `Week of ${periodStart.toLocaleDateString()}`;
+      } else if (periodDays === 30) {
+        dateDisplay = periodStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      } else if (periodDays === 14) {
+        dateDisplay = `${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()}`;
+      } else if (periodDays >= 90) {
+        dateDisplay = `${periodStart.toLocaleDateString('en-US', { month: 'short' })} - ${periodEnd.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+      } else {
+        dateDisplay = `${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()}`;
       }
+      
+      periods.push({
+        date: periodStart.toISOString().split('T')[0],
+        dateEnd: periodEnd.toISOString().split('T')[0],
+        dateDisplay,
+        total,
+        positive,
+        negative,
+        neutral,
+      });
       
       // Move to next period
       currentDate.setDate(currentDate.getDate() + periodDays);
@@ -1152,9 +1196,9 @@ export function GoogleReviewsAnalytics2({
 
     console.log('Aggregation complete:', {
       periodDays,
-      inputDays: sortedData.length,
+      inputDays: dailyData.length,
       outputPeriods: periods.length,
-      dateRange: `${firstDate.toISOString().split('T')[0]} to ${lastDate.toISOString().split('T')[0]}`,
+      dateRange: `${rangeStart.toISOString().split('T')[0]} to ${rangeEndDate.toISOString().split('T')[0]}`,
       firstPeriod: periods[0],
       lastPeriod: periods[periods.length - 1],
       samplePeriods: periods.slice(0, 3)
@@ -1189,7 +1233,6 @@ export function GoogleReviewsAnalytics2({
   useEffect(() => {
     if (!analyticsData) {
       setChartData([]);
-      setAnalyticsStats(null);
       return;
     }
 
@@ -1199,28 +1242,16 @@ export function GoogleReviewsAnalytics2({
     const aggregationPeriod = getAggregationPeriod();
     console.log('Aggregating data by period:', aggregationPeriod, 'days');
 
-    // Aggregate the daily data
-    const aggregatedData = aggregateDataByPeriod(analyticsData.trends.daily, aggregationPeriod);
+    // Parse the date range from the query
+    const rangeStart = new Date(startDate);
+    const rangeEnd = new Date(endDate);
+
+    // Aggregate the daily data - now includes all periods even with 0 reviews
+    const aggregatedData = aggregateDataByPeriod(analyticsData.daily, aggregationPeriod, rangeStart, rangeEnd);
     
     console.log('Aggregated chart data:', aggregatedData);
     setChartData(aggregatedData);
-
-    // Transform to analytics stats format
-    const stats: AnalyticsStats = {
-      totalReviews: analyticsData.overview.totalReviews,
-      averageRating: analyticsData.overview.averageRating,
-      ratingDistribution: analyticsData.ratingDistribution.breakdown,
-      sentimentAnalysis: {
-        positive: analyticsData.sentiment.distribution.positive,
-        neutral: analyticsData.sentiment.distribution.neutral,
-        negative: analyticsData.sentiment.distribution.negative,
-      },
-      responseRate: analyticsData.responses.responseRate,
-      recentReviews: analyticsData.overview.totalReviews, // Use total reviews count
-    };
-
-    setAnalyticsStats(stats);
-  }, [analyticsData, aggregateDataByPeriod, getAggregationPeriod]);
+  }, [analyticsData, aggregateDataByPeriod, getAggregationPeriod, startDate, endDate]);
 
   // Update loading state
   useEffect(() => {
@@ -1232,7 +1263,6 @@ export function GoogleReviewsAnalytics2({
     if (analyticsError) {
       console.error('Error fetching analytics:', analyticsError);
       setChartData([]);
-      setAnalyticsStats(null);
     }
   }, [analyticsError]);
 
@@ -1557,8 +1587,8 @@ export function GoogleReviewsAnalytics2({
     }
   };
 
-  // Show loading state while constraints are loading
-  if (isLoadingConstraints) {
+  // Show loading state while data is loading
+  if (isLoading && !chartData.length) {
     return (
       <Box sx={{ space: 2 }}>
         <Skeleton variant="rectangular" height={32} width={256} sx={{ mb: 2 }} />
@@ -1830,6 +1860,7 @@ export function GoogleReviewsAnalytics2({
         date={dateModal.date}
         dateEnd={dateModal.dateEnd}
         teamSlug={teamSlug}
+        locationId={locationId}
         sentiment={dateModal.sentiment}
       />
     </>

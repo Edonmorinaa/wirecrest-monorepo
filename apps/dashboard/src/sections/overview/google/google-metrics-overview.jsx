@@ -5,6 +5,7 @@ import { varAlpha } from 'minimal-shared/utils';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
+import Skeleton from '@mui/material/Skeleton';
 import { useTheme } from '@mui/material/styles';
 import LinearProgress from '@mui/material/LinearProgress';
 
@@ -174,8 +175,123 @@ export function GoogleMetricsWidgetSummary({
   );
 }
 
-export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPeriodKey }) {
+// Loading Skeleton for Metric Card
+function MetricCardSkeleton({ color = 'primary' }) {
   const theme = useTheme();
+  
+  return (
+    <Card
+      sx={{
+        p: 2,
+        boxShadow: 'none',
+        position: 'relative',
+        color: `${color}.darker`,
+        backgroundColor: 'common.white',
+        backgroundImage: `linear-gradient(135deg, ${varAlpha(theme.vars.palette[color].lighterChannel, 0.48)}, ${varAlpha(theme.vars.palette[color].lightChannel, 0.48)})`,
+      }}
+    >
+      {/* Icon skeleton with matching color */}
+      <Box sx={{ width: 48, height: 48, mb: 3 }}>
+        <Skeleton 
+          variant="circular" 
+          width={48} 
+          height={48}
+          sx={{ bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.2) }}
+        />
+      </Box>
+
+      <Box
+        sx={{
+          top: 16,
+          gap: 0.5,
+          right: 16,
+          display: 'flex',
+          position: 'absolute',
+          alignItems: 'center',
+        }}
+      >
+        <Skeleton 
+          variant="rectangular" 
+          width={84} 
+          height={76}
+          sx={{ 
+            bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.15),
+            borderRadius: 1,
+          }}
+        />
+      </Box>
+
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'flex-end',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <Box sx={{ flexGrow: 1, minWidth: 112 }}>
+          <Box sx={{ mb: 1 }}>
+            <Skeleton 
+              variant="text" 
+              width="70%" 
+              height={24}
+              sx={{ bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.15) }}
+            />
+          </Box>
+
+          <Box sx={{ mb: 0.5 }}>
+            <Skeleton 
+              variant="text" 
+              width="50%" 
+              height={40}
+              sx={{ bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.2) }}
+            />
+          </Box>
+
+          <Box>
+            <Skeleton 
+              variant="text" 
+              width="60%" 
+              height={18}
+              sx={{ bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.12) }}
+            />
+          </Box>
+        </Box>
+      </Box>
+
+      <SvgColor
+        src={`${CONFIG.assetsDir}/assets/background/shape-square.svg`}
+        sx={{
+          top: 0,
+          left: -20,
+          width: 240,
+          zIndex: -1,
+          height: 240,
+          opacity: 0.24,
+          position: 'absolute',
+          color: `${color}.main`,
+        }}
+      />
+    </Card>
+  );
+}
+
+export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPeriodKey, isLoading = false }) {
+  const theme = useTheme();
+
+  // Show loading skeletons
+  if (isLoading) {
+    const skeletonColors = ['warning', 'info', 'success', 'primary'];
+    return (
+      <Grid container spacing={3}>
+        {skeletonColors.map((color, index) => (
+          <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
+            <MetricCardSkeleton color={color} />
+          </Grid>
+        ))}
+      </Grid>
+    );
+  }
 
   if (!metrics) return null;
 
@@ -197,7 +313,7 @@ export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPerio
         case 'responseRate':
           return Number(period.responseRatePercent) || 0;
         case 'averageResponseTime':
-          return Number(period.avgResponseTimeHours) || 0;
+          return Number(period.avgResponseTimeHours ?? 0) || 0;
         case 'totalReviews':
           return Number(period.reviewCount) || 0;
         default:
@@ -238,11 +354,32 @@ export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPerio
 
   const categories = generateCategories();
 
-  // Get current period data based on periodKey
+  // Get current period data from metrics prop or periodicalMetrics
   const getCurrentPeriodData = (metricKey) => {
+    // If periodicalMetrics is empty or not available, use metrics directly
+    if (!periodicalMetrics || periodicalMetrics.length === 0) {
+      switch (metricKey) {
+        case 'averageRating':
+          return Number(metrics?.averageRating) || 0;
+        case 'responseRate':
+          return Number(metrics?.responseRate) || 0;
+        case 'averageResponseTime':
+          return Number(metrics?.averageResponseTimeHours) || 0;
+        case 'totalReviews':
+          return Number(metrics?.totalReviews) || 0;
+        default:
+          return 0;
+      }
+    }
+
+    // Otherwise, use periodicalMetrics
     const currentPeriod = periodicalMetrics.find(
       (metric) => metric.periodKey.toString() === currentPeriodKey
     );
+
+    if (!currentPeriod) {
+      return 0;
+    }
 
     switch (metricKey) {
       case 'averageRating':
@@ -300,8 +437,8 @@ export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPerio
         previousValue = Number(previousPeriod.responseRatePercent) || 0;
         break;
       case 'averageResponseTime':
-        currentValue = Number(currentPeriod.avgResponseTimeHours) || 0;
-        previousValue = Number(previousPeriod.avgResponseTimeHours) || 0;
+        currentValue = Number(currentPeriod.avgResponseTimeHours ?? 0) || 0;
+        previousValue = Number(previousPeriod.avgResponseTimeHours ?? 0) || 0;
         break;
       case 'totalReviews':
         currentValue = Number(currentPeriod.reviewCount) || 0;
@@ -320,12 +457,15 @@ export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPerio
     return Math.round(percentageChange * 10) / 10; // Round to 1 decimal place
   };
 
-  let averageResponseTime = getCurrentPeriodData('averageResponseTime');
+  const averageResponseTime = getCurrentPeriodData('averageResponseTime');
+  const averageRating = getCurrentPeriodData('averageRating');
+  const responseRate = getCurrentPeriodData('responseRate');
+  const totalReviews = getCurrentPeriodData('totalReviews');
 
   const metricCards = [
     {
       title: 'Average Rating',
-      total: (Number(getCurrentPeriodData('averageRating')) || 0).toFixed(1),
+      total: (Number(averageRating) || 0).toFixed(1),
       icon: <Iconify icon="solar:star-bold" width={24} />,
       color: 'warning',
       percent: calculatePercentageChange('averageRating'),
@@ -336,12 +476,12 @@ export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPerio
     },
     {
       title: 'Response Rate',
-      total: `${getCurrentPeriodData('responseRate')}%`,
+      total: `${Number(responseRate).toFixed(1)}%`,
       icon: <Iconify icon="solar:chat-round-dots-bold" width={24} />,
       color: 'info',
       percent: calculatePercentageChange('responseRate'),
       showProgress: true,
-      progressValue: Number(getCurrentPeriodData('responseRate')) || 0,
+      progressValue: Number(responseRate) || 0,
       chart: {
         series: generateChartDataFromPeriods('responseRate'),
         categories,
@@ -349,7 +489,7 @@ export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPerio
     },
     {
       title: 'Avg Response Time',
-      total: averageResponseTime ? `${averageResponseTime} h` : 'N/A',
+      total: averageResponseTime ? `${Number(averageResponseTime).toFixed(1)}h` : '0h',
       icon: <Iconify icon="solar:clock-circle-bold" width={24} />,
       color: 'success',
       percent: calculatePercentageChange('averageResponseTime'),
@@ -360,7 +500,7 @@ export function GoogleMetricsOverview({ metrics, periodicalMetrics, currentPerio
     },
     {
       title: 'Total Reviews',
-      total: Number(getCurrentPeriodData('totalReviews')) || 0,
+      total: Number(totalReviews) || 0,
       icon: <Iconify icon="solar:chart-2-bold" width={24} />,
       color: 'primary',
       percent: calculatePercentageChange('totalReviews'),
