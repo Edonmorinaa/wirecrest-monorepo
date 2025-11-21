@@ -2,12 +2,15 @@
 
 import { useState, useCallback } from 'react';
 
+import { useParams } from 'next/navigation';
+
 import Grid from '@mui/material/Grid';
 import Skeleton from '@mui/material/Skeleton';
 
 import { paths } from 'src/routes/paths';
 
 import useTeam from 'src/hooks/useTeam';
+import { useLocationBySlug } from 'src/hooks/useLocations';
 import useInboxReviews, {
   type InboxFilters,
   type UnifiedReview,
@@ -26,7 +29,15 @@ import { InboxFiltersComponent } from '../inbox-filters';
 // ----------------------------------------------------------------------
 
 export function InboxView() {
-  const { team, isLoading: teamLoading } = useTeam();
+  const params = useParams();
+  const teamSlug = params.slug as string;
+  const locationSlug = params.locationSlug as string;
+
+  const { team, isLoading: teamLoading } = useTeam(teamSlug);
+  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
+
+  // Get locationId
+  const locationId = location?.id || '';
 
   // State
   const [selectedReview, setSelectedReview] = useState<UnifiedReview | null>(null);
@@ -43,9 +54,9 @@ export function InboxView() {
     dateRange: 'all',
   });
 
-  // Load reviews using the hook
+  // Load reviews using the hook (pass locationId instead of teamSlug)
   const { reviews, pagination, stats, isLoading, isError, refreshReviews, updateReviewStatus } =
-    useInboxReviews(team?.slug, filters);
+    useInboxReviews(locationId, filters);
 
   const handleUpdateStatus = useCallback(
     async (reviewId: string, field: 'isRead' | 'isImportant', value: boolean) => {
@@ -130,7 +141,7 @@ export function InboxView() {
     setFilters((prev) => ({ ...prev, page }));
   }, []);
 
-  if (teamLoading || !team) {
+  if (teamLoading || locationLoading || !team || !location) {
     return (
       <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
         <CustomBreadcrumbs
@@ -139,6 +150,7 @@ export function InboxView() {
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Teams', href: paths.dashboard.teams.root },
             { name: team?.name || 'Team', href: paths.dashboard.teams.bySlug(team?.slug || '') },
+            { name: location?.name || 'Location', href: paths.dashboard.locations.bySlug(team?.slug || '', location?.slug || location?.id || '') },
             { name: 'Inbox', href: '' },
           ]}
           action={null}
@@ -169,6 +181,7 @@ export function InboxView() {
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Teams', href: paths.dashboard.teams.root },
           { name: team.name, href: paths.dashboard.teams.bySlug(team.slug) },
+          { name: location.name, href: paths.dashboard.locations.bySlug(team.slug, location.slug || location.id) },
           { name: 'Inbox', href: '' },
         ]}
         action={null}

@@ -86,6 +86,7 @@ export class GoogleBusinessReviewsActorJob {
         "your_google_reviews_actor_id";
       const input = {
         placeIds: [placeId],
+        personalData: true,
         maxReviews: isInitialization ? maxReviews || 1000 : 50, // Example: more for init, fewer for polling
         // Add other necessary input fields for your Apify actor (language, etc.)
         // lastReviewDate: this.jobPayload.lastScrapedReviewDate, // For incremental scrapes

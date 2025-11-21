@@ -1,8 +1,9 @@
 'use client';
 
-import { lazy, useMemo, useState, Suspense, useCallback, useEffect, useRef } from 'react';
 import type { Prisma } from '@prisma/client';
+
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { lazy, useMemo, useState, Suspense, useCallback, useEffect, useRef } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -13,16 +14,16 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
+import { Iconify } from 'src/components/iconify';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+import type { PaginationInfo, TripAdvisorReviewWithRelations } from 'src/hooks/use-tripadvisor-reviews';
 import useTeam from 'src/hooks/useTeam';
 import { useLocationBySlug, useTripAdvisorProfile, useTripAdvisorReviews, useUpdateTripAdvisorReviewMetadata } from 'src/hooks/useLocations';
-import type { TripAdvisorReviewWithRelations } from 'src/hooks/use-tripadvisor-reviews';
 
 import { fNumber } from 'src/utils/format-number';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-
-import { Iconify } from 'src/components/iconify';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import type { LightboxSlide, ConvertedReviewData } from '../components/tripadvisor-reviews-list';
 import type { 
@@ -132,7 +133,7 @@ export function TripAdvisorReviewsView(): JSX.Element {
   const isValidLocationId = locationId && locationId.length > 20;
 
   // Get business profile
-  const { profile: businessProfile, isLoading: profileLoading } = useTripAdvisorProfile(
+  const { isLoading: profileLoading } = useTripAdvisorProfile(
     locationId,
     !!location && isValidLocationId
   );
@@ -204,9 +205,8 @@ export function TripAdvisorReviewsView(): JSX.Element {
 
   // Fetch reviews data
   const { 
-    reviews,
-    pagination,
-    aggregates,
+    reviews: rawReviews,
+    pagination: rawPagination,
     allTimeStats,
     isLoading,
     refetch,
@@ -216,6 +216,19 @@ export function TripAdvisorReviewsView(): JSX.Element {
     { page: filters.page, limit: filters.limit },
     !!location && isValidLocationId
   );
+
+  // Cast reviews to the correct type
+  const reviews = useMemo(() => rawReviews as unknown as TripAdvisorReviewWithRelations[], [rawReviews]);
+
+  // Transform pagination to match expected type
+  const pagination: PaginationInfo = useMemo(() => ({
+    page: rawPagination?.page || 1,
+    limit: rawPagination?.limit || 10,
+    total: rawPagination?.totalCount || 0,
+    totalPages: rawPagination?.totalPages || 0,
+    hasNextPage: (rawPagination?.page || 1) < (rawPagination?.totalPages || 0),
+    hasPreviousPage: (rawPagination?.page || 1) > 1,
+  }), [rawPagination]);
 
   // Mutation for updating review metadata
   const updateMetadataMutation = useUpdateTripAdvisorReviewMetadata();
@@ -291,16 +304,18 @@ export function TripAdvisorReviewsView(): JSX.Element {
     router.replace(`?${queryParams.toString()}`, { scroll: false });
   }, [router]);
 
-  // Handle debounced search
+  // Handle debounced search with useEffect for cleanup
   const handleSearchChange = useCallback((value: string): void => {
     setSearchValue(value);
-    // Debounce the actual filter update
+  }, []);
+
+  // Separate effect for debounced filter update
+  useEffect(() => {
     const timeoutId = setTimeout(() => {
-      updateFilter('search', value || undefined);
+      updateFilter('search', searchValue || undefined);
     }, 500);
-    // Cleanup function is returned from useEffect, not from the callback
     return () => clearTimeout(timeoutId);
-  }, [updateFilter]);
+  }, [searchValue, updateFilter]);
 
   // Update review metadata
   const handleUpdateMetadata = useCallback(async (
@@ -351,7 +366,7 @@ export function TripAdvisorReviewsView(): JSX.Element {
   // Prepare image data for lightbox
   const allImageUrls = useMemo((): string[] =>
     (reviews || [])
-      .filter((review) => review.photos && review.photos.length > 0)
+      .filter((review) => review.photos && Array.isArray(review.photos) && review.photos.length > 0)
       .flatMap((review) => review.photos?.map((photo) => photo.url) || [])
   , [reviews]);
 
@@ -415,13 +430,13 @@ export function TripAdvisorReviewsView(): JSX.Element {
   ], [stats]);
 
   // Memoize breadcrumbs to prevent unnecessary re-renders
-  const breadcrumbs = useMemo(() => [
+  const breadcrumbs = [
     { name: 'Dashboard', href: paths.dashboard.root },
     { name: 'Teams', href: paths.dashboard.teams.root },
     { name: team?.name || '', href: paths.dashboard.teams.bySlug(teamSlug) },
-    { name: location?.name || '', href: paths.dashboard.teams.locations(teamSlug) },
-    { name: 'TripAdvisor Reviews', href: '' },
-  ], [team?.name, location?.name, teamSlug]);
+    { name: location?.name || '', href: "" },
+    { name: 'TripAdvisor Reviews', href: '' }
+  ]
 
   return (
     <DashboardContent maxWidth="xl" sx={{}} className="" disablePadding={false}>
@@ -436,7 +451,7 @@ export function TripAdvisorReviewsView(): JSX.Element {
         />
 
         {/* Loading State */}
-        {(locationLoading || profileLoading || reviewsLoading) && (
+        {(locationLoading || profileLoading || isLoading) && (
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography>Loading TripAdvisor reviews data...</Typography>
           </Box>
@@ -451,60 +466,61 @@ export function TripAdvisorReviewsView(): JSX.Element {
 
         {/* Welcome Section */}
         {location && (
-          <TripAdvisorReviewsWelcome 
-          teamName={team?.name || 'TripAdvisor Reviews'}
-          description="Monitor your TripAdvisor reviews and guest feedback"
-          subtitle="TripAdvisor Business Profile"
-          welcomeStats={welcomeStats}
-          sx={{}}
-        />
-
-        {/* Stats Cards */}
-        <TripAdvisorReviewsStats stats={statsCards} />
-
-        {/* Analytics Chart - Lazy Loaded */}
-        <Grid size={{ xs: 12 }}>
-          <Suspense fallback={
-            <Card sx={{ p: 3 }}>
-              <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Loading analytics...
-                </Typography>
-              </Box>
-            </Card>
-          }>
-            <TripAdvisorReviewsAnalytics2 teamSlug={teamSlug} locationId={locationId} />
-          </Suspense>
-        </Grid>
-
-        {/* Filters and Reviews List */}
-        <Card>
-          <Box sx={{ p: 3, borderBottom: `solid 1px ${theme.palette.divider}` }}>
-            <TripAdvisorReviewsFilters 
-              filters={filters}
-              pagination={pagination}
-              searchValue={searchValue}
-              ratingOptions={RATING_OPTIONS}
-              sentimentOptions={SENTIMENT_OPTIONS}
-              sortOptions={SORT_OPTIONS}
-              sortOrderOptions={SORT_ORDER_OPTIONS}
-              responseStatusOptions={RESPONSE_STATUS_OPTIONS}
-              readStatusOptions={READ_STATUS_OPTIONS}
-              importanceOptions={IMPORTANCE_OPTIONS}
-              tripTypeOptions={TRIP_TYPE_OPTIONS}
-              onSearchChange={handleSearchChange}
-              onRatingChange={(ratings) => updateFilter('ratings', ratings)}
-              onResponseStatusChange={(hasResponse) => updateFilter('hasResponse', hasResponse)}
-              onSentimentChange={(sentiment) => updateFilter('sentiment', sentiment)}
-              onSortByChange={(sortBy) => updateFilter('sortBy', sortBy)}
-              onSortOrderChange={(sortOrder) => updateFilter('sortOrder', sortOrder)}
-              onReadStatusChange={(isRead) => updateFilter('isRead', isRead)}
-              onImportanceChange={(isImportant) => updateFilter('isImportant', isImportant)}
-              onTripTypeChange={(tripType) => updateFilter('tripType', tripType)}
-              onResetFilters={resetFilters}
+          <>
+            <TripAdvisorReviewsWelcome 
+              teamName={team?.name || 'TripAdvisor Reviews'}
+              description="Monitor your TripAdvisor reviews and guest feedback"
+              subtitle="TripAdvisor Business Profile"
+              welcomeStats={welcomeStats}
+              sx={{}}
             />
-          </Box>
-          
+
+            {/* Stats Cards */}
+            <TripAdvisorReviewsStats stats={statsCards} />
+
+            {/* Analytics Chart - Lazy Loaded */}
+            <Grid size={{ xs: 12 }}>
+              <Suspense fallback={
+                <Card sx={{ p: 3 }}>
+                  <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Loading analytics...
+                    </Typography>
+                  </Box>
+                </Card>
+              }>
+                <TripAdvisorReviewsAnalytics2 teamSlug={teamSlug} locationId={locationId} />
+              </Suspense>
+            </Grid>
+
+            {/* Filters and Reviews List */}
+            <Card>
+              <Box sx={{ p: 3, borderBottom: `solid 1px ${theme.palette.divider}` }}>
+                <TripAdvisorReviewsFilters 
+                  filters={filters}
+                  pagination={pagination}
+                  searchValue={searchValue}
+                  ratingOptions={RATING_OPTIONS}
+                  sentimentOptions={SENTIMENT_OPTIONS}
+                  sortOptions={SORT_OPTIONS}
+                  sortOrderOptions={SORT_ORDER_OPTIONS}
+                  responseStatusOptions={RESPONSE_STATUS_OPTIONS}
+                  readStatusOptions={READ_STATUS_OPTIONS}
+                  importanceOptions={IMPORTANCE_OPTIONS}
+                  tripTypeOptions={TRIP_TYPE_OPTIONS}
+                  onSearchChange={handleSearchChange}
+                  onRatingChange={(ratings) => updateFilter('ratings', ratings)}
+                  onResponseStatusChange={(hasResponse) => updateFilter('hasResponse', hasResponse)}
+                  onSentimentChange={(sentiment) => updateFilter('sentiment', sentiment)}
+                  onSortByChange={(sortBy) => updateFilter('sortBy', sortBy)}
+                  onSortOrderChange={(sortOrder) => updateFilter('sortOrder', sortOrder)}
+                  onReadStatusChange={(isRead) => updateFilter('isRead', isRead)}
+                  onImportanceChange={(isImportant) => updateFilter('isImportant', isImportant)}
+                  onTripTypeChange={(tripType) => updateFilter('tripType', tripType)}
+                  onResetFilters={resetFilters}
+                />
+              </Box>
+              
           <Box sx={{ p: 3 }}>
             <TripAdvisorReviewsList
               reviews={reviews}
@@ -518,7 +534,8 @@ export function TripAdvisorReviewsView(): JSX.Element {
               onImageClick={handleImageClick}
             />
           </Box>
-        </Card>
+            </Card>
+          </>
         )}
       </Stack>
     </DashboardContent>

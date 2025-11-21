@@ -3,6 +3,7 @@
  * Processes review data from Apify and saves to database
  */
 
+import { ApifyClient } from 'apify-client';
 import { prisma } from '@wirecrest/db';
 import type { Prisma } from '@prisma/client';
 import { DatabaseService } from '../../supabase/database';
@@ -16,19 +17,46 @@ import { sendNotification } from '../../utils/notificationHelper';
 
 export class ReviewDataProcessor {
   private databaseService: DatabaseService;
+  private apifyClient: ApifyClient;
   // Analytics services removed - analytics now computed on-demand via tRPC
   // private googleAnalytics: GoogleReviewAnalyticsService;
   // private facebookAnalytics: FacebookReviewAnalyticsService;
   // private tripAdvisorAnalytics: TripAdvisorReviewAnalyticsService;
   // private bookingAnalytics: BookingReviewAnalyticsService;
 
-  constructor() {
+  constructor(apifyToken?: string) {
     this.databaseService = new DatabaseService();
+    
+    // Initialize Apify client with token from env or parameter
+    const token = apifyToken || process.env.APIFY_TOKEN;
+    if (!token) {
+      throw new Error('APIFY_TOKEN is required for ReviewDataProcessor');
+    }
+    this.apifyClient = new ApifyClient({ token });
+    
     // Analytics services removed - analytics now computed on-demand via tRPC
     // this.googleAnalytics = new GoogleReviewAnalyticsService();
     // this.facebookAnalytics = new FacebookReviewAnalyticsService();
     // this.tripAdvisorAnalytics = new TripAdvisorReviewAnalyticsService();
     // this.bookingAnalytics = new BookingReviewAnalyticsService();
+  }
+
+  /**
+   * Fetch data from Apify dataset
+   */
+  private async fetchDatasetItems<T = any>(datasetId: string): Promise<T[]> {
+    console.log(`📥 Fetching data from Apify dataset: ${datasetId}`);
+    
+    try {
+      const dataset = this.apifyClient.dataset(datasetId);
+      const { items } = await dataset.listItems();
+      
+      console.log(`✅ Successfully fetched ${items.length} items from dataset`);
+      return items as T[];
+    } catch (error) {
+      console.error(`❌ Error fetching dataset ${datasetId}:`, error);
+      throw new Error(`Failed to fetch Apify dataset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
@@ -78,8 +106,50 @@ export class ReviewDataProcessor {
   }
 
   /**
-   * Process reviews from Apify dataset
+   * Process reviews from Apify dataset by fetching data using dataset ID
+   * This is the new primary method that handles data fetching and processing
+   * 
+   * @param datasetId - Apify dataset ID from eventData
+   * @param teamId - Team ID (null for scheduled runs)
+   * @param platform - Platform type (google_reviews, facebook, tripadvisor, booking)
+   * @param isInitial - Whether this is an initial sync
+   */
+  async processReviewsFromDataset(
+    datasetId: string,
+    teamId: string | null,
+    platform: Platform,
+    isInitial: boolean
+  ): Promise<SyncResult> {
+    const startTime = Date.now();
+
+    console.log(`🚀 Starting review processing from dataset: ${datasetId}`);
+    console.log(`   Team: ${teamId || 'scheduled run (all teams)'}`);
+    console.log(`   Platform: ${platform}`);
+    console.log(`   Type: ${isInitial ? 'Initial sync' : 'Update'}`);
+
+    // Fetch data from Apify dataset
+    const rawData = await this.fetchDatasetItems(datasetId);
+
+    if (!rawData || rawData.length === 0) {
+      console.log('⚠️  No data in dataset - nothing to process');
+      return {
+        reviewsProcessed: 0,
+        reviewsNew: 0,
+        reviewsDuplicate: 0,
+        businessesUpdated: 0,
+        processingTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Process the fetched data
+    return this.processReviews(teamId, platform, rawData, isInitial);
+  }
+
+  /**
+   * Process reviews from raw data array
    * teamId can be null for scheduled runs - we'll determine it from the data
+   * 
+   * @deprecated Use processReviewsFromDataset instead for better separation of concerns
    */
   async processReviews(
     teamId: string | null,
@@ -210,93 +280,81 @@ export class ReviewDataProcessor {
           },
         });
 
-        if (existingReview) {
-          // Update existing review with latest data to handle owner responses, etc.
-          const updateData: Prisma.GoogleReviewUpdateInput = {
-            text: review.text || existingReview.text || '',
-            textTranslated: review.textTranslated || existingReview.textTranslated,
-            likesCount: review.likesCount || existingReview.likesCount,
-            responseFromOwnerDate: review.responseFromOwnerDate
-              ? new Date(review.responseFromOwnerDate)
-              : existingReview.responseFromOwnerDate,
-            responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
-            reviewImageUrls: review.reviewImageUrls || existingReview.reviewImageUrls,
-            scrapedAt: new Date(),
-          };
-          
-          await prisma.googleReview.update({
-            where: { id: existingReview.id },
-            data: updateData,
-          });
-          
-          // Update review metadata
-          if (existingReview.reviewMetadata) {
-            const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
-              reply: review.responseFromOwnerText || null,
-              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-              hasReply: !!review.responseFromOwnerText,
-              photoCount: review.reviewImageUrls?.length || 0,
-              photoUrls: review.reviewImageUrls || [],
-              scrapedAt: new Date(),
-            };
-            
-            await prisma.reviewMetadata.update({
-              where: { id: existingReview.reviewMetadata.id },
-              data: metadataUpdateData,
-            });
-          }
-          
-          reviewsDuplicate++;
-          continue;
-        }
+        // Skip duplicate check - we'll use upsert which handles duplicates automatically
+        // This eliminates race conditions
 
-        // Create review metadata first
-        const reviewMetadataData: Prisma.ReviewMetadataCreateInput = {
-          externalId: review.reviewId || review.id || `review-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          source: 'GOOGLE_MAPS',
-          author: review.reviewerName || 'Anonymous',
-          authorImage: review.reviewerPhotoUrl || null,
-          rating: review.stars || review.rating || 0,
-          text: review.text || null,
-          date: reviewDate || new Date(),
-          photoCount: review.reviewImageUrls?.length || 0,
-          photoUrls: review.reviewImageUrls || [],
-          reply: review.responseFromOwnerText || null,
-          replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-          hasReply: !!review.responseFromOwnerText,
-          sentiment: null,
-          keywords: [],
-          topics: [],
-          emotional: null,
-          actionable: false,
-          responseUrgency: null,
-          competitorMentions: [],
-          comparativePositive: null,
-          isRead: false,
-          isImportant: false,
-          labels: [],
-          language: review.language || 'en',
-          scrapedAt: new Date(),
-          sourceUrl: review.reviewUrl || review.url || null,
-        };
+        // Use upsert to avoid duplicates - using reviewMetadata compound key
+        const fid = review.fid || `${profile.placeId}-${reviewerId}-${reviewDate?.getTime() || Date.now()}`;
+        const externalId = review.reviewId || review.id || fid;
         
-        // Use try-catch to handle race conditions where review might be created between check and insert
-        try {
-          const reviewMetadata = await prisma.reviewMetadata.create({
-            data: reviewMetadataData,
-          });
+        // Prepare review metadata - check if it exists first
+        const existingMetadata = await prisma.reviewMetadata.findFirst({
+          where: { 
+            externalId,
+            source: 'GOOGLE_MAPS',
+          },
+        });
 
-          // Create new review
-          const createData: Prisma.GoogleReviewCreateInput = {
+        const reviewMetadata = await prisma.reviewMetadata.upsert({
+          where: { 
+            externalId_source: {
+              externalId,
+              source: 'GOOGLE_MAPS',
+            },
+          },
+          create: {
+            externalId,
+            source: 'GOOGLE_MAPS',
+            author: review.name || review.reviewerName || 'Anonymous',
+            authorImage: review.reviewerPhotoUrl || null,
+            rating: review.stars || review.rating || 0,
+            text: review.text || null,
+            date: reviewDate || new Date(),
+            photoCount: review.reviewImageUrls?.length || 0,
+            photoUrls: review.reviewImageUrls || [],
+            reply: review.responseFromOwnerText || null,
+            replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasReply: !!review.responseFromOwnerText,
+            sentiment: null,
+            keywords: [],
+            topics: [],
+            emotional: null,
+            actionable: false,
+            responseUrgency: null,
+            competitorMentions: [],
+            comparativePositive: null,
+            isRead: false,
+            isImportant: false,
+            labels: [],
+            language: review.language || 'en',
+            scrapedAt: new Date(),
+            sourceUrl: review.reviewUrl || review.url || null,
+          },
+          update: {
+            text: review.text || undefined,
+            photoCount: review.reviewImageUrls?.length || 0,
+            photoUrls: review.reviewImageUrls || [],
+            reply: review.responseFromOwnerText || null,
+            replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasReply: !!review.responseFromOwnerText,
+            scrapedAt: new Date(),
+          },
+        });
+
+        // Upsert the review using reviewMetadataId as unique identifier
+        const upsertedReview = await prisma.googleReview.upsert({
+          where: { reviewMetadataId: reviewMetadata.id },
+          create: {
+            fid,
             businessProfile: {
               connect: { id: profile.id },
             },
             reviewMetadata: {
               connect: { id: reviewMetadata.id },
             },
-            reviewerId: reviewerId,
+            reviewerId,
             reviewerUrl: review.reviewerUrl || '',
-            name: review.reviewerName || 'Anonymous',
+            name: review.name || review.reviewerName || 'Anonymous',
             reviewerNumberOfReviews: review.reviewerNumberOfReviews || 0,
             isLocalGuide: review.isLocalGuide || false,
             reviewerPhotoUrl: review.reviewerPhotoUrl || '',
@@ -339,26 +397,28 @@ export class ReviewDataProcessor {
             url: review.url || null,
             price: review.price || null,
             cid: review.cid || null,
-            fid: review.fid || null,
             imageUrl: review.imageUrl || null,
             scrapedAt: new Date(),
             language: review.language || 'en',
-          };
-          
-          await prisma.googleReview.create({
-            data: createData,
-          });
-          
+          },
+          update: {
+            text: review.text || '',
+            textTranslated: review.textTranslated || null,
+            likesCount: review.likesCount || 0,
+            responseFromOwnerDate: review.responseFromOwnerDate
+              ? new Date(review.responseFromOwnerDate)
+              : null,
+            responseFromOwnerText: review.responseFromOwnerText || null,
+            reviewImageUrls: review.reviewImageUrls || [],
+            scrapedAt: new Date(),
+          },
+        });
+
+        // Track if this was a new review or an update
+        if (existingMetadata) {
+          reviewsDuplicate++;
+        } else {
           reviewsNew++;
-        } catch (error: any) {
-          // Handle race condition: review was created between our check and insert
-          if (error?.code === 'P2002' || error?.message?.includes('Unique constraint')) {
-            console.log(`⚠️  Race condition detected for Google review ${reviewerId}, treating as duplicate`);
-            reviewsDuplicate++;
-            continue;
-          }
-          // Re-throw other errors
-          throw error;
         }
 
         businessesUpdated.add(profile.id);
@@ -518,84 +578,78 @@ export class ReviewDataProcessor {
           continue;
         }
 
-        // Check if review already exists
-        const existingReview = await prisma.facebookReview.findFirst({
-          where: {
-            businessProfileId: profile.id,
-            facebookReviewId: review.id,
-          },
-          include: {
-            reviewMetadata: true,
+        // Process photos from raw data
+        const photos = Array.isArray(review.photos) ? review.photos : [];
+        const photoUrls = photos
+          .map((photo: {
+            imageUri?: string;
+            image?: { uri?: string };
+            url?: string;
+            viewerImageUri?: string;
+            viewer_image?: { uri?: string };
+            [key: string]: any;
+          }) => {
+            return photo.imageUri || photo.image?.uri || photo.url || photo.viewerImageUri || photo.viewer_image?.uri || null;
+          })
+          .filter((url: string | null): url is string => Boolean(url));
+        const photoCount = photoUrls.length;
+
+        // Check if metadata exists
+        const existingMetadata = await prisma.reviewMetadata.findFirst({
+          where: { 
+            externalId: review.id,
+            source: 'FACEBOOK',
           },
         });
 
-        if (existingReview) {
-          // Update existing review with latest data
-          const updateData: Prisma.FacebookReviewUpdateInput = {
-            text: review.text || existingReview.text,
-            likesCount: review.likesCount || existingReview.likesCount,
-            commentsCount: review.commentsCount || existingReview.commentsCount,
-            tags: review.tags || existingReview.tags,
-            scrapedAt: new Date(),
-            updatedAt: new Date(),
-          };
-          
-          await prisma.facebookReview.update({
-            where: { id: existingReview.id },
-            data: updateData,
-          });
-          
-          // Update review metadata
-          if (existingReview.reviewMetadata) {
-            const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
-              scrapedAt: new Date(),
-            };
-            
-            await prisma.reviewMetadata.update({
-              where: { id: existingReview.reviewMetadata.id },
-              data: metadataUpdateData,
-            });
-          }
-          
-          reviewsDuplicate++;
-          continue;
-        }
-
-        // Create review metadata and review (use try-catch for race conditions)
-        try {
-          const reviewMetadata = await prisma.reviewMetadata.create({
-            data: {
+        // Upsert review metadata
+        const reviewMetadata = await prisma.reviewMetadata.upsert({
+          where: { 
+            externalId_source: {
               externalId: review.id,
               source: 'FACEBOOK',
-              author: review.user?.name || review.userName || 'Anonymous',
-              authorImage: review.user?.profilePic || review.userProfilePic || null,
-              rating: review.isRecommended ? 5 : 1,
-              text: review.text || null,
-              date: reviewDate || new Date(),
-              photoCount: 0,
-              photoUrls: [],
-              reply: null,
-              replyDate: null,
-              hasReply: false,
-              sentiment: null,
-              keywords: [],
-              topics: [],
-              emotional: null,
-              actionable: false,
-              responseUrgency: null,
-              competitorMentions: [],
-              comparativePositive: null,
-              isRead: false,
-              isImportant: false,
-              labels: [],
-              language: 'en',
-              scrapedAt: new Date(),
-              sourceUrl: review.url || null,
             },
-          });
+          },
+          create: {
+            externalId: review.id,
+            source: 'FACEBOOK',
+            author: review.user?.name || review.userName || 'Anonymous',
+            authorImage: review.user?.profilePic || review.userProfilePic || null,
+            rating: review.isRecommended ? 5 : 1,
+            text: review.text || null,
+            date: reviewDate || new Date(),
+            photoCount,
+            photoUrls,
+            reply: null,
+            replyDate: null,
+            hasReply: false,
+            sentiment: null,
+            keywords: [],
+            topics: [],
+            emotional: null,
+            actionable: false,
+            responseUrgency: null,
+            competitorMentions: [],
+            comparativePositive: null,
+            isRead: false,
+            isImportant: false,
+            labels: [],
+            language: 'en',
+            scrapedAt: new Date(),
+            sourceUrl: review.url || null,
+          },
+          update: {
+            text: review.text || undefined,
+            photoCount,
+            photoUrls,
+            scrapedAt: new Date(),
+          },
+        });
 
-          // Create new review
-          const createData: Prisma.FacebookReviewCreateInput = {
+        // Upsert Facebook review using reviewMetadataId as unique identifier
+        const upsertedReview = await prisma.facebookReview.upsert({
+          where: { reviewMetadataId: reviewMetadata.id },
+          create: {
             businessProfile: {
               connect: { id: profile.id },
             },
@@ -622,22 +676,70 @@ export class ReviewDataProcessor {
             scrapedAt: new Date(),
             createdAt: new Date(),
             updatedAt: new Date(),
-          };
-          
-          await prisma.facebookReview.create({
-            data: createData,
+          },
+          update: {
+            text: review.text || undefined,
+            likesCount: review.likesCount || 0,
+            commentsCount: review.commentsCount || 0,
+            tags: review.tags || [],
+            scrapedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+
+        // Handle photos - delete old ones and create new ones
+        if (photos.length > 0) {
+          // Delete existing photos for this review
+          await prisma.facebookReviewPhoto.deleteMany({
+            where: { facebookReviewId: upsertedReview.id },
           });
-          
+
+          // Create new photos
+          const photoData = photos.map((photo: {
+            url?: string;
+            imageUri?: string;
+            image?: { uri?: string; height?: number; width?: number };
+            viewerImageUri?: string;
+            viewer_image?: { uri?: string; height?: number; width?: number };
+            height?: number;
+            width?: number;
+            viewerHeight?: number;
+            viewerWidth?: number;
+            id?: string;
+            photoId?: string;
+            accessibilityCaption?: string;
+            accessibility_caption?: string;
+            isPlayable?: boolean;
+            is_playable?: boolean;
+            ownerUserId?: string;
+            owner?: { id?: string };
+            [key: string]: any;
+          }, index: number) => ({
+            facebookReviewId: upsertedReview.id,
+            url: photo.url || '',
+            imageUri: photo.imageUri || photo.image?.uri || '',
+            height: photo.height || photo.image?.height || null,
+            width: photo.width || photo.image?.width || null,
+            viewerImageUri: photo.viewerImageUri || photo.viewer_image?.uri || null,
+            viewerHeight: photo.viewerHeight || photo.viewer_image?.height || null,
+            viewerWidth: photo.viewerWidth || photo.viewer_image?.width || null,
+            photoId: photo.id || photo.photoId || `photo-${index}`,
+            accessibilityCaption: photo.accessibilityCaption || photo.accessibility_caption || null,
+            isPlayable: photo.isPlayable || photo.is_playable || false,
+            ownerUserId: photo.ownerUserId || photo.owner?.id || null,
+          }));
+
+          await prisma.facebookReviewPhoto.createMany({
+            data: photoData,
+            skipDuplicates: true,
+          });
+        }
+
+        // Track if this was a new review or an update
+        if (existingMetadata) {
+          reviewsDuplicate++;
+        } else {
           reviewsNew++;
-        } catch (error: any) {
-          // Handle race condition: review was created between our check and insert
-          if (error?.code === 'P2002' || error?.message?.includes('Unique constraint')) {
-            console.log(`⚠️  Race condition detected for Facebook review ${review.id}, treating as duplicate`);
-            reviewsDuplicate++;
-            continue;
-          }
-          // Re-throw other errors
-          throw error;
         }
 
         businessesUpdated.add(profile.id);
@@ -802,90 +904,63 @@ export class ReviewDataProcessor {
           continue;
         }
 
-        // Check if review already exists
-        const existingReview = await prisma.tripAdvisorReview.findFirst({
-          where: {
-            businessProfileId: profile.id,
-            tripAdvisorReviewId: review.id,
-          },
-          include: {
-            reviewMetadata: true,
+        // Check if metadata exists
+        const existingMetadata = await prisma.reviewMetadata.findFirst({
+          where: { 
+            externalId: review.id,
+            source: 'TRIPADVISOR',
           },
         });
 
-        if (existingReview) {
-          // Update existing review with latest data
-          const updateData: Prisma.TripAdvisorReviewUpdateInput = {
-            text: review.text || existingReview.text,
-            helpfulVotes: review.helpfulVotes || existingReview.helpfulVotes,
-            responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
-            responseFromOwnerDate: review.responseFromOwnerDate 
-              ? new Date(review.responseFromOwnerDate) 
-              : existingReview.responseFromOwnerDate,
-            hasOwnerResponse: review.hasOwnerResponse || existingReview.hasOwnerResponse,
-            scrapedAt: new Date(),
-            updatedAt: new Date(),
-          };
-          
-          await prisma.tripAdvisorReview.update({
-            where: { id: existingReview.id },
-            data: updateData,
-          });
-          
-          // Update review metadata
-          if (existingReview.reviewMetadata) {
-            const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
-              reply: review.responseFromOwnerText || null,
-              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-              hasReply: !!review.responseFromOwnerText,
-              scrapedAt: new Date(),
-            };
-            
-            await prisma.reviewMetadata.update({
-              where: { id: existingReview.reviewMetadata.id },
-              data: metadataUpdateData,
-            });
-          }
-          
-          reviewsDuplicate++;
-          continue;
-        }
-
-        // Create review metadata and review (use try-catch for race conditions)
-        try {
-          const reviewMetadata = await prisma.reviewMetadata.create({
-            data: {
+        // Upsert review metadata
+        const reviewMetadata = await prisma.reviewMetadata.upsert({
+          where: { 
+            externalId_source: {
               externalId: review.id,
               source: 'TRIPADVISOR',
-              author: review.user?.username || review.reviewerName || 'Anonymous',
-              authorImage: review.user?.photoUrl || review.reviewerPhotoUrl || null,
-              rating: review.rating || 0,
-              text: review.text || null,
-              date: reviewDate || new Date(),
-              photoCount: 0,
-              photoUrls: [],
-              reply: review.responseFromOwnerText || null,
-              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-              hasReply: !!review.responseFromOwnerText,
-              sentiment: null,
-              keywords: [],
-              topics: [],
-              emotional: null,
-              actionable: false,
-              responseUrgency: null,
-              competitorMentions: [],
-              comparativePositive: null,
-              isRead: false,
-              isImportant: false,
-              labels: [],
-              language: 'en',
-              scrapedAt: new Date(),
-              sourceUrl: review.url || null,
             },
-          });
+          },
+          create: {
+            externalId: review.id,
+            source: 'TRIPADVISOR',
+            author: review.user?.username || review.reviewerName || 'Anonymous',
+            authorImage: review.user?.photoUrl || review.reviewerPhotoUrl || null,
+            rating: review.rating || 0,
+            text: review.text || null,
+            date: reviewDate || new Date(),
+            photoCount: 0,
+            photoUrls: [],
+            reply: review.responseFromOwnerText || null,
+            replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasReply: !!review.responseFromOwnerText,
+            sentiment: null,
+            keywords: [],
+            topics: [],
+            emotional: null,
+            actionable: false,
+            responseUrgency: null,
+            competitorMentions: [],
+            comparativePositive: null,
+            isRead: false,
+            isImportant: false,
+            labels: [],
+            language: 'en',
+            scrapedAt: new Date(),
+            sourceUrl: review.url || null,
+          },
+          update: {
+            text: review.text || undefined,
+            reply: review.responseFromOwnerText || null,
+            replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasReply: !!review.responseFromOwnerText,
+            scrapedAt: new Date(),
+          },
+        });
 
-          // Create new review
-          const createData: Prisma.TripAdvisorReviewCreateInput = {
+        // Upsert TripAdvisor review using tripAdvisorReviewId as unique identifier
+        await prisma.tripAdvisorReview.upsert({
+          where: { tripAdvisorReviewId: review.id },
+          create: {
             businessProfile: {
               connect: { id: profile.id },
             },
@@ -916,22 +991,23 @@ export class ReviewDataProcessor {
             scrapedAt: new Date(),
             createdAt: new Date(),
             updatedAt: new Date(),
-          };
-          
-          await prisma.tripAdvisorReview.create({
-            data: createData,
-          });
-          
+          },
+          update: {
+            text: review.text || undefined,
+            helpfulVotes: review.helpfulVotes || 0,
+            responseFromOwnerText: review.responseFromOwnerText || null,
+            responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasOwnerResponse: !!review.responseFromOwnerText,
+            scrapedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+
+        // Track if this was a new review or an update
+        if (existingMetadata) {
+          reviewsDuplicate++;
+        } else {
           reviewsNew++;
-        } catch (error: any) {
-          // Handle race condition: review was created between our check and insert
-          if (error?.code === 'P2002' || error?.message?.includes('Unique constraint')) {
-            console.log(`⚠️  Race condition detected for TripAdvisor review ${review.id}, treating as duplicate`);
-            reviewsDuplicate++;
-            continue;
-          }
-          // Re-throw other errors
-          throw error;
         }
 
         businessesUpdated.add(profile.id);
@@ -1093,96 +1169,62 @@ export class ReviewDataProcessor {
           continue;
         }
 
-        // Check if review already exists
-        const existingReview = await prisma.bookingReview.findFirst({
-          where: {
-            businessProfileId: profile.id,
-            bookingReviewId: review.id,
+        // Check if metadata exists
+        const existingMetadata = await prisma.reviewMetadata.findFirst({
+          where: { externalId: review.id },
+        });
+
+        // Upsert review metadata
+        const reviewMetadata = await prisma.reviewMetadata.upsert({
+          where: { externalId: review.id },
+          create: {
+            externalId: review.id,
+            source: 'BOOKING',
+            author: review.userName || 'Anonymous',
+            authorImage: null,
+            rating: parseFloat(review.rating) || 0,
+            text: review.reviewText || null,
+            date: reviewDate || new Date(),
+            photoCount: 0,
+            photoUrls: [],
+            reply: review.responseFromOwnerText || null,
+            replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasReply: !!review.responseFromOwnerText,
+            sentiment: null,
+            keywords: [],
+            topics: [],
+            emotional: null,
+            actionable: false,
+            responseUrgency: null,
+            competitorMentions: [],
+            comparativePositive: null,
+            isRead: false,
+            isImportant: false,
+            labels: [],
+            language: 'en',
+            scrapedAt: new Date(),
+            sourceUrl: review.url || null,
           },
-          include: {
-            reviewMetadata: true,
+          update: {
+            text: review.reviewText || undefined,
+            reply: review.responseFromOwnerText || null,
+            replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasReply: !!review.responseFromOwnerText,
+            scrapedAt: new Date(),
           },
         });
 
-        if (existingReview) {
-          // Update existing review with latest data
-          const updateData: Prisma.BookingReviewUpdateInput = {
-            text: review.reviewText || existingReview.text,
-            responseFromOwnerText: review.responseFromOwnerText || existingReview.responseFromOwnerText,
-            responseFromOwnerDate: review.responseFromOwnerDate 
-              ? new Date(review.responseFromOwnerDate) 
-              : existingReview.responseFromOwnerDate,
-            hasOwnerResponse: review.hasOwnerResponse || existingReview.hasOwnerResponse,
-            scrapedAt: new Date(),
-            updatedAt: new Date(),
-          };
-          
-          await prisma.bookingReview.update({
-            where: { id: existingReview.id },
-            data: updateData,
-          });
-          
-          // Update review metadata
-          if (existingReview.reviewMetadata) {
-            const metadataUpdateData: Prisma.ReviewMetadataUpdateInput = {
-              reply: review.responseFromOwnerText || null,
-              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-              hasReply: !!review.responseFromOwnerText,
-              scrapedAt: new Date(),
-            };
-            
-            await prisma.reviewMetadata.update({
-              where: { id: existingReview.reviewMetadata.id },
-              data: metadataUpdateData,
-            });
-          }
-          
-          reviewsDuplicate++;
-          continue;
-        }
-
-        // Create review metadata and review (use try-catch for race conditions)
-        try {
-          const reviewMetadata = await prisma.reviewMetadata.create({
-            data: {
-              externalId: review.id,
-              source: 'BOOKING',
-              author: review.userName || 'Anonymous',
-              authorImage: null,
-              rating: parseFloat(review.rating) || 0,
-              text: review.reviewText || null,
-              date: reviewDate || new Date(),
-              photoCount: 0,
-              photoUrls: [],
-              reply: review.responseFromOwnerText || null,
-              replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
-              hasReply: !!review.responseFromOwnerText,
-              sentiment: null,
-              keywords: [],
-              topics: [],
-              emotional: null,
-              actionable: false,
-              responseUrgency: null,
-              competitorMentions: [],
-              comparativePositive: null,
-              isRead: false,
-              isImportant: false,
-              labels: [],
-              language: 'en',
-              scrapedAt: new Date(),
-              sourceUrl: review.url || null,
-            },
-          });
-
-          // Create new review
-          const createData: Prisma.BookingReviewCreateInput = {
+        // Upsert Booking review using bookingReviewId as unique identifier
+        await prisma.bookingReview.upsert({
+          where: { id: review.fid },
+          create: {
             businessProfile: {
               connect: { id: profile.id },
             },
             reviewMetadata: {
               connect: { id: reviewMetadata.id },
             },
-            bookingReviewId: review.id,
+            id: review.fid,
             title: review.reviewTitle || null,
             text: review.reviewText || null,
             rating: parseFloat(review.rating) || 0,
@@ -1210,22 +1252,22 @@ export class ReviewDataProcessor {
             scrapedAt: new Date(),
             createdAt: new Date(),
             updatedAt: new Date(),
-          };
-          
-          await prisma.bookingReview.create({
-            data: createData,
-          });
-          
+          },
+          update: {
+            text: review.reviewText || undefined,
+            responseFromOwnerText: review.responseFromOwnerText || null,
+            responseFromOwnerDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
+            hasOwnerResponse: !!review.responseFromOwnerText,
+            scrapedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+
+        // Track if this was a new review or an update
+        if (existingMetadata) {
+          reviewsDuplicate++;
+        } else {
           reviewsNew++;
-        } catch (error: any) {
-          // Handle race condition: review was created between our check and insert
-          if (error?.code === 'P2002' || error?.message?.includes('Unique constraint')) {
-            console.log(`⚠️  Race condition detected for Booking review ${review.id}, treating as duplicate`);
-            reviewsDuplicate++;
-            continue;
-          }
-          // Re-throw other errors
-          throw error;
         }
 
         businessesUpdated.add(profile.id);

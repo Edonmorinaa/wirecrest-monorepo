@@ -101,7 +101,19 @@ const ReviewListItem = ({
   isSelected: boolean;
   onSelect: (review: UnifiedReview) => void;
 }) => {
-  const formatDate = (date: string) => format(new Date(date), 'MMM d, yyyy');
+  const formatDate = (date: string) => {
+    if (!date) return 'Unknown date';
+    try {
+      const parsedDate = new Date(date);
+      if (Number.isNaN(parsedDate.getTime())) {
+        return 'Invalid date';
+      }
+      return format(parsedDate, 'MMM d, yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', date, error);
+      return 'Invalid date';
+    }
+  };
 
   const getSentimentColor = (sentiment?: number) => {
     if (!sentiment) return 'default';

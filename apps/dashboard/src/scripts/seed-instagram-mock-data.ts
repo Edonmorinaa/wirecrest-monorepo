@@ -276,28 +276,18 @@ async function main() {
       console.log('✅ Old mock data deleted');
     }
 
-    // Find team by slug "asdasd" or use first available team
-    let teamId = '88f08ee0-e742-4516-add7-15953ec6f56b';
-    let teamSlug = 'asdasd';
+    // Use the specific team ID provided
+    const teamId = 'ab932ea4-a66b-48b2-ac74-5edfa544b68a';
     
-    const targetTeam = teams.find(t => t.slug === 'asdasd') || teams[0];
-    if (targetTeam) {
-      teamId = targetTeam.id;
-      teamSlug = targetTeam.slug;
-      console.log(`📋 Using existing team: ${targetTeam.name} (${teamId}) with slug: ${teamSlug}`);
-    } else {
-      console.log('📝 Creating mock team with slug "asdasd"...');
-      const newTeam = await prisma.team.create({
-        data: {
-          name: 'Mock Data Team',
-          slug: 'asdasd',
-          defaultRole: 'MEMBER'
-        }
-      });
-      teamId = newTeam.id;
-      teamSlug = newTeam.slug;
-      console.log(`✅ Mock team created: ${teamId} with slug: ${teamSlug}`);
+    const targetTeam = teams.find(t => t.id === teamId);
+    if (!targetTeam) {
+      console.error(`❌ Team with ID ${teamId} not found!`);
+      console.log('Available teams:', teams);
+      process.exit(1);
     }
+    
+    const teamSlug = targetTeam.slug;
+    console.log(`📋 Using team: ${targetTeam.name} (${teamId}) with slug: ${teamSlug}`);
 
     // Create or update Instagram business profile for this team
     console.log('📝 Creating/updating mock business profile...');

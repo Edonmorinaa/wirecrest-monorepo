@@ -778,11 +778,27 @@ export const locationsRouter = router({
           select: { id: true },
         });
 
+        // Return empty data if profile not found (platform not set up)
         if (!profile) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'Google Business Profile not found',
-          });
+          return {
+            reviews: [],
+            pagination: {
+              page: input.pagination?.page || 1,
+              limit: input.pagination?.limit || 10,
+              totalCount: 0,
+              totalPages: 0,
+            },
+            aggregates: {
+              ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+              sentiment: { positive: 0, negative: 0, neutral: 0 },
+            },
+            allTimeStats: {
+              totalReviews: 0,
+              averageRating: 0,
+              unread: 0,
+              withResponse: 0,
+            },
+          };
         }
 
         const { filters = {}, pagination } = input;
@@ -1220,11 +1236,27 @@ export const locationsRouter = router({
           select: { id: true },
         });
 
+        // Return empty data if profile not found (platform not set up)
         if (!profile) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'Facebook Business Profile not found',
-          });
+          return {
+            reviews: [],
+            pagination: {
+              page: input.pagination?.page || 1,
+              limit: input.pagination?.limit || 10,
+              totalCount: 0,
+              totalPages: 0,
+            },
+            aggregates: {
+              recommendations: { recommendedCount: 0, notRecommendedCount: 0, recommendationRate: 0 },
+              engagement: { totalLikes: 0, totalComments: 0, totalPhotos: 0, averageEngagement: 0 },
+            },
+            allTimeStats: {
+              totalReviews: 0,
+              recommendationRate: 0,
+              unread: 0,
+              withResponse: 0,
+            },
+          };
         }
 
         const { filters = {}, pagination = { page: 1, limit: 10 } } = input;
@@ -1517,11 +1549,27 @@ export const locationsRouter = router({
           select: { id: true },
         });
 
+        // Return empty data if profile not found (platform not set up)
         if (!profile) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'TripAdvisor Business Profile not found',
-          });
+          return {
+            reviews: [],
+            pagination: {
+              page: input.pagination?.page || 1,
+              limit: input.pagination?.limit || 10,
+              totalCount: 0,
+              totalPages: 0,
+            },
+            aggregates: {
+              ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+              sentiment: { positive: 0, negative: 0, neutral: 0 },
+            },
+            allTimeStats: {
+              totalReviews: 0,
+              averageRating: 0,
+              unread: 0,
+              withResponse: 0,
+            },
+          };
         }
 
         const { filters = {}, pagination = { page: 1, limit: 10 } } = input;
@@ -1829,11 +1877,27 @@ export const locationsRouter = router({
           select: { id: true },
         });
 
+        // Return empty data if profile not found (platform not set up)
         if (!profile) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'Booking Business Profile not found',
-          });
+          return {
+            reviews: [],
+            pagination: {
+              page: input.pagination?.page || 1,
+              limit: input.pagination?.limit || 10,
+              totalCount: 0,
+              totalPages: 0,
+            },
+            aggregates: {
+              ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+              sentiment: { positive: 0, negative: 0, neutral: 0 },
+            },
+            allTimeStats: {
+              totalReviews: 0,
+              averageRating: 0,
+              unread: 0,
+              withResponse: 0,
+            },
+          };
         }
 
         const { filters = {}, pagination = { page: 1, limit: 10 } } = input;

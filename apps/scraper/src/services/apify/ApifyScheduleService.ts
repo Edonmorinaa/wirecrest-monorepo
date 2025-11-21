@@ -314,7 +314,7 @@ export class ApifyScheduleService {
           reviewsSort: "newest",
           language: "en",
           reviewsOrigin: "google", // Only Google reviews (not TripAdvisor)
-          personalData: false, // GDPR compliant
+          personalData: true, // GDPR compliant
         };
 
       case "facebook": {

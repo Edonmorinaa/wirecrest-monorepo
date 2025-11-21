@@ -164,7 +164,7 @@ export function TeamBookingView() {
               { name: 'Dashboard', href: paths.dashboard.root },
               { name: 'Teams', href: paths.dashboard.teams.root },
               { name: teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
-              { name: location?.name || '', href: paths.dashboard.teams.locations(teamSlug) },
+              { name: location?.name || '', href: "#" },
               { name: 'Booking.com' },
             ]}
             action={

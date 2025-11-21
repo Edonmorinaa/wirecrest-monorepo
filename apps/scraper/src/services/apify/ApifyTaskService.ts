@@ -87,8 +87,8 @@ export class ApifyTaskService {
       maxReviews: config.maxReviews,
       reviewsSort: "newest",
       language: "en",
-      reviewsOrigin: "google", // Only Google reviews (not TripAdvisor etc)
-      personalData: false, // Don't scrape personal reviewer data (GDPR compliant)
+      reviewsOrigin: "google",
+      personalData: true,
       webhooks,
     };
   }

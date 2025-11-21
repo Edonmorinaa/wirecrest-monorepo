@@ -16,7 +16,7 @@ export class ApifyWebhookController {
 
   constructor(apifyToken: string) {
     this.syncService = new ApifyDataSyncService(apifyToken);
-    this.dataProcessor = new ReviewDataProcessor();
+    this.dataProcessor = new ReviewDataProcessor(apifyToken);
   }
 
   /**
@@ -201,10 +201,21 @@ export class ApifyWebhookController {
         throw new Error("No dataset ID in payload");
       }
 
-      // Fetch data from Apify dataset
-      const rawData = await this.syncService.fetchDatasetItems(datasetId);
+      // Normalize platform name
+      const platform = this.normalizePlatform(payload.platform);
 
-      if (!rawData || rawData.length === 0) {
+      // Process reviews directly from dataset
+      // The processor will fetch data from Apify and process it
+      // For scheduled runs without sync record, it processes per-business
+      const result = await this.dataProcessor.processReviewsFromDataset(
+        datasetId,
+        syncRecord?.teamId || null, // null for scheduled runs
+        platform as Platform,
+        syncRecord?.syncType === "initial" || false,
+      );
+
+      // Handle empty dataset case
+      if (result.reviewsProcessed === 0) {
         console.log(
           "⚠️  No data in dataset - run completed but no items to process",
         );
@@ -236,19 +247,6 @@ export class ApifyWebhookController {
         };
       }
 
-      // Normalize platform name
-      const platform = this.normalizePlatform(payload.platform);
-
-      // Process data based on platform
-      // For scheduled runs without sync record, process per-business
-      // The processor will determine the team based on business identifiers in the data
-      const result = await this.dataProcessor.processReviews(
-        syncRecord?.teamId || null, // null for scheduled runs
-        platform as Platform,
-        rawData,
-        syncRecord?.syncType === "initial" || false,
-      );
-
       // Update sync record with results if it exists (manual/subscription triggers)
       if (syncRecord) {
         await this.syncService.updateSyncRecord(syncRecord.id, {
@@ -271,7 +269,7 @@ export class ApifyWebhookController {
         await this.createSyncRecordsForScheduledRun(
           actorRunId,
           platform as Platform,
-          rawData,
+          datasetId,
           result,
         );
       }
@@ -449,10 +447,13 @@ export class ApifyWebhookController {
   private async createSyncRecordsForScheduledRun(
     apifyRunId: string,
     platform: Platform,
-    rawData: any[],
+    datasetId: string,
     aggregatedResult: any,
   ): Promise<void> {
     try {
+      // Fetch data from dataset to group by team
+      const rawData = await this.syncService.fetchDatasetItems(datasetId);
+      
       // Group data by team
       const teamStats = await this.groupDataByTeam(platform, rawData);
 

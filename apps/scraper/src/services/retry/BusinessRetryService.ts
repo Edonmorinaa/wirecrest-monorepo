@@ -330,7 +330,7 @@ export class BusinessRetryService {
           reviewsSort: "newest",
           language: "en",
           reviewsOrigin: "google",
-          personalData: false,
+          personalData: true,
         };
 
       case "facebook":
