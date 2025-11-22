@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import type { Pool } from 'pg';
+import type { PrismaPg } from '@prisma/adapter-pg';
 
 declare global {
   var prisma: PrismaClient | undefined;
@@ -13,12 +13,16 @@ let prisma: PrismaClient;
 
 if (isServerless) {
   // --- SERVERLESS MODE: VERCEL ---
-  const pool = new Pool({
+  // Dynamic require to avoid top-level import issues
+  const pg = require('pg');
+  const prismaPg = require('@prisma/adapter-pg');
+  
+  const pool: Pool = new pg.Pool({
     connectionString: DATABASE_URL,
     max: 1, // crucial
   });
 
-  const adapter = new PrismaPg(pool);
+  const adapter: PrismaPg = new prismaPg.PrismaPg(pool);
 
   prisma =
     global.prisma ??

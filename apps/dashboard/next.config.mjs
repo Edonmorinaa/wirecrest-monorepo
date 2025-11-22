@@ -121,6 +121,30 @@ const nextConfig = {
       ...config.resolve.extensions,
     ];
     
+    // Exclude server-only packages from client bundle
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        dns: false,
+        crypto: false,
+        stream: false,
+        path: false,
+        os: false,
+        'pg-native': false,
+      };
+
+      // Mark these packages as external for client builds
+      config.externals = config.externals || [];
+      config.externals.push({
+        'pg': 'commonjs pg',
+        'pg-native': 'commonjs pg-native',
+        '@prisma/adapter-pg': 'commonjs @prisma/adapter-pg',
+      });
+    }
+    
     // Production optimizations
     if (!dev && !isServer) {
       // Tree shaking optimization
