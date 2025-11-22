@@ -1,46 +1,47 @@
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 declare global {
-  // allow global `var` declarations
-  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 
-const DATABASE_URL = process.env.DATABASE_URL || '';
-const isDevelopment = process.env.NODE_ENV !== 'production';
+const DATABASE_URL = process.env.DATABASE_URL!;
+const isServerless = process.env.PRISMA_SERVERLESS === 'true';
 
-export const prisma =
-  (typeof global !== 'undefined' ? global.prisma : undefined) ||
-  new PrismaClient({
-    log: isDevelopment ? ['error', 'warn'] : ['error'],
-    datasources: {
-      db: {
-        url: DATABASE_URL,
-      },
-    },
+let prisma: PrismaClient;
+
+if (isServerless) {
+  // --- SERVERLESS MODE: VERCEL ---
+  const pool = new Pool({
+    connectionString: DATABASE_URL,
+    max: 1, // crucial
   });
 
-// Cache the Prisma instance globally to prevent multiple instances
-if (typeof global !== 'undefined') {
+  const adapter = new PrismaPg(pool);
+
+  prisma =
+    global.prisma ??
+    new PrismaClient({
+      adapter,
+      log: ['error'],
+    });
+
+  // share in dev only
+  if (process.env.NODE_ENV !== 'production') {
+    global.prisma = prisma;
+  }
+} else {
+  // --- NORMAL NODE / DOCKER MODE ---
+  prisma =
+    global.prisma ??
+    new PrismaClient({
+      log: ['error', 'warn'],
+      datasources: { db: { url: DATABASE_URL } },
+    });
+
   global.prisma = prisma;
 }
 
-// Gracefully disconnect on shutdown
-if (typeof process !== 'undefined') {
-  process.on('beforeExit', async () => {
-    await prisma.$disconnect();
-  });
-
-  process.on('SIGINT', async () => {
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', async () => {
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-}
-
-// Re-export all Prisma types and enums
+export { prisma };
 export * from '@prisma/client';

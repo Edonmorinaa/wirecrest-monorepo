@@ -428,7 +428,7 @@ export class ApifyWebhookController {
    * "facebook_reviews" -> "facebook"
    * "google_reviews" -> "google_reviews" (unchanged)
    */
-  private normalizePlatform(platformFromWebhook: string): string {
+  private   normalizePlatform(platformFromWebhook: string): string {
     // Map webhook platform names to our Platform type
     const platformMap: Record<string, string> = {
       facebook_reviews: "facebook",
