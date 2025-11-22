@@ -5958,6 +5958,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@prisma/adapter-pg@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "@prisma/adapter-pg@npm:7.0.0"
+  dependencies:
+    "@prisma/driver-adapter-utils": "npm:7.0.0"
+    pg: "npm:^8.16.3"
+    postgres-array: "npm:3.0.4"
+  checksum: 76106731cfea854ccae60eeb12d6d5bf05df4daad04599b7a9912d5ea5d6ba6d8f502d27970293dc861087023a53d822fdcec18f443c35f42b8d7ec562f01161
+  languageName: node
+  linkType: hard
+
 "@prisma/client@npm:6.18.0, @prisma/client@npm:^6.14.0, @prisma/client@npm:^6.16.2":
   version: 6.18.0
   resolution: "@prisma/client@npm:6.18.0"
@@ -6001,6 +6012,22 @@ __metadata:
   version: 6.18.0
   resolution: "@prisma/debug@npm:6.18.0"
   checksum: 5b88dbeb74864bd8a84e8f1de49d130d237c22634aa7c4fe5a891041f79b059ab8a3a20053d93f22426b70f1afabd646dc140c3647b2a97f2480c2f05c7f557f
+  languageName: node
+  linkType: hard
+
+"@prisma/debug@npm:7.0.0":
+  version: 7.0.0
+  resolution: "@prisma/debug@npm:7.0.0"
+  checksum: 6608460691b7e5ff44f8f50a576f7a002528f3274bc7961980b9ab0b03744e6ac40d3a0a9a7ea09d3f31595993b2943e90741aaa1a6c0f9fe98de273041feef5
+  languageName: node
+  linkType: hard
+
+"@prisma/driver-adapter-utils@npm:7.0.0":
+  version: 7.0.0
+  resolution: "@prisma/driver-adapter-utils@npm:7.0.0"
+  dependencies:
+    "@prisma/debug": "npm:7.0.0"
+  checksum: bcf39427e30444b234255c5fa52ea02958d95d5b0a648d863b2e1377c5b07666ff77035154990eb495e6e10952fdd76b9987bd9ae11e98b40a942977ad841f4d
   languageName: node
   linkType: hard
 
@@ -9713,6 +9740,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@wirecrest/db@workspace:packages/db"
   dependencies:
+    "@prisma/adapter-pg": "npm:^7.0.0"
     "@prisma/client": "npm:6.18.0"
     "@wirecrest/typescript-config": "workspace:*"
     prisma: "npm:6.18.0"
@@ -17848,7 +17876,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pg@npm:^8.16.0":
+"pg@npm:^8.16.0, pg@npm:^8.16.3":
   version: 8.16.3
   resolution: "pg@npm:8.16.3"
   dependencies:
@@ -17983,6 +18011,13 @@ __metadata:
     picocolors: "npm:^1.0.0"
     source-map-js: "npm:^1.0.2"
   checksum: 748b82e6e5fc34034dcf2ae88ea3d11fd09f69b6c50ecdd3b4a875cfc7cdca435c958b211e2cb52355422ab6fccb7d8f2f2923161d7a1b281029e4a913d59acf
+  languageName: node
+  linkType: hard
+
+"postgres-array@npm:3.0.4":
+  version: 3.0.4
+  resolution: "postgres-array@npm:3.0.4"
+  checksum: 47f3e648da512bacdd6a5ed55cf770605ec271330789faeece0fd13805a49f376d6e5c9e0e353377be11a9545e727dceaa2473566c505432bf06366ccd04c6b2
   languageName: node
   linkType: hard
 
