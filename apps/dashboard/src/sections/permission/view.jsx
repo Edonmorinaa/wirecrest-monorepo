@@ -48,7 +48,6 @@ export function PermissionDeniedView() {
         </ToggleButtonGroup>
       </Box>
 
-      <RoleGuard requireRole="ADMIN" sx={{ py: 10 }}>
         <Box sx={{ gap: 3, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
           {Array.from({ length: 8 }, (_, index) => (
             <Card key={index}>
@@ -62,7 +61,6 @@ export function PermissionDeniedView() {
             </Card>
           ))}
         </Box>
-      </RoleGuard>
     </DashboardContent>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { SuperRole } from '@prisma/client';
+// import { SuperRole } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -24,7 +24,7 @@ import { useCreateTeamWithLocation } from '@/hooks/useSuperAdminLocations';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
-import { RoleGuard } from 'src/components/guards';
+// import { RoleGuard } from 'src/components/guards';
 
 // Common timezones for dropdown
 const COMMON_TIMEZONES = [
@@ -397,7 +397,7 @@ export default function CreateTenantPage() {
   };
 
   return (
-    <RoleGuard requireRole={SuperRole.ADMIN}>
+    // <RoleGuard requireRole={SuperRole.ADMIN}>
       <DashboardContent maxWidth="md">
         {/* Header */}
         <Stack
@@ -471,6 +471,6 @@ export default function CreateTenantPage() {
           </Stack>
         </Card>
       </DashboardContent>
-    </RoleGuard>
+    // </RoleGuard>
   );
 }

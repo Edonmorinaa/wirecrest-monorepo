@@ -5,7 +5,9 @@
   "types": "dist/index.d.ts",
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",
-    "@prisma/client": "6.18.0"
+    "@prisma/client": "6.18.0",
+    "pg": "^8.13.1",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@wirecrest/typescript-config": "workspace:*",

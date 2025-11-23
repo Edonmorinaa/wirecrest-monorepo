@@ -4,7 +4,7 @@
 
 export interface InstagramBusinessProfile {
   id: string;
-  teamId: string;
+  locationId: string;
   username: string;
   userId: string;
   profileUrl: string;
@@ -145,126 +145,6 @@ export interface InstagramCommentSnapshot {
   snapshotAt: Date;
 }
 
-export interface InstagramWeeklyAggregation {
-  id: string;
-  businessProfileId: string;
-
-  // Week identification
-  weekStartDate: Date;
-  weekEndDate: Date;
-  year: number;
-  weekNumber: number;
-
-  // Growth metrics
-  followersGrowth: number;
-  followersGrowthPercent: number;
-  followingGrowth: number;
-  followingGrowthPercent: number;
-  mediaGrowth: number;
-
-  // Engagement metrics
-  totalLikes: number;
-  totalComments: number;
-  totalViews: number;
-  totalSaves: number;
-  totalShares: number;
-
-  // Average daily metrics
-  avgDailyLikes: number;
-  avgDailyComments: number;
-  avgDailyViews: number;
-
-  // Best performing content
-  bestPerformingPost?: {
-    mediaId: string;
-    likes: number;
-    comments: number;
-    engagementRate: number;
-  };
-  topHashtags?: Array<{
-    hashtag: string;
-    count: number;
-    reach: number;
-  }>;
-
-  // Sentiment analysis
-  sentimentBreakdown?: {
-    positive: number;
-    neutral: number;
-    negative: number;
-    total: number;
-  };
-  topKeywords?: Array<{
-    keyword: string;
-    count: number;
-    sentiment: number;
-  }>;
-  responseRate: number;
-
-  // Timestamps
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface InstagramMonthlyAggregation {
-  id: string;
-  businessProfileId: string;
-
-  // Month identification
-  monthStartDate: Date;
-  monthEndDate: Date;
-  year: number;
-  month: number;
-
-  // Growth metrics
-  followersGrowth: number;
-  followersGrowthPercent: number;
-  followingGrowth: number;
-  followingGrowthPercent: number;
-  mediaGrowth: number;
-
-  // Engagement metrics
-  totalLikes: number;
-  totalComments: number;
-  totalViews: number;
-  totalSaves: number;
-  totalShares: number;
-
-  // Average metrics
-  avgDailyLikes: number;
-  avgDailyComments: number;
-  avgDailyViews: number;
-  avgEngagementRate: number;
-
-  // Content analysis
-  totalPosts: number;
-  totalStories: number;
-  totalReels: number;
-  bestPerformingContent?: any;
-
-  // Sentiment analysis
-  sentimentBreakdown?: {
-    positive: number;
-    neutral: number;
-    negative: number;
-    total: number;
-  };
-  topKeywords?: Array<{
-    keyword: string;
-    count: number;
-    sentiment: number;
-  }>;
-  responseRate: number;
-
-  // Trends
-  growthTrend: "increasing" | "decreasing" | "stable";
-  engagementTrend: "increasing" | "decreasing" | "stable";
-
-  // Timestamps
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface InstagramSnapshotSchedule {
   id: string;
   businessProfileId: string;
@@ -293,7 +173,7 @@ export interface InstagramSnapshotSchedule {
 // ===========================================
 
 export interface CreateInstagramProfileRequest {
-  teamId: string;
+  locationId: string;
   instagramUsername: string;
   snapshotTime?: string; // Optional custom snapshot time
   timezone?: string; // Optional timezone

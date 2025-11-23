@@ -3,7 +3,7 @@
  * Type-safe billing and subscription management with Stripe-derived types
  */
 
-import { SubscriptionTier, SubscriptionStatus, UsageType } from '@wirecrest/db';
+import { SubscriptionTier, SubscriptionStatus, UsageType } from '@prisma/client';
 import Stripe from 'stripe';
 import { Decimal } from 'decimal.js';
 import { Metadata } from '@stripe/stripe-js';

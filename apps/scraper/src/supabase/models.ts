@@ -1,9 +1,9 @@
-import type { SubscriptionStatus } from "@wirecrest/db";
-import type { MarketPlatform } from "@wirecrest/db";
+import type { SubscriptionStatus } from "@prisma/client";
+import type { MarketPlatform } from "@prisma/client";
 import type { SubscriptionPlan } from "@wirecrest/billing";
-import type { TripAdvisorBusinessType } from "@wirecrest/db";
-import type { TripAdvisorRankingTrend } from "@wirecrest/db";
-import type { BookingGuestType, BookingPropertyType } from "@wirecrest/db";
+import type { TripAdvisorBusinessType } from "@prisma/client";
+import type { TripAdvisorRankingTrend } from "@prisma/client";
+import type { BookingGuestType, BookingPropertyType } from "@prisma/client";
 
 export interface GoogleBusinessProfile {
   id: string;

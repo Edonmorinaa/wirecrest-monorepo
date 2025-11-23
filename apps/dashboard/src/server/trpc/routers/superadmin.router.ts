@@ -408,14 +408,6 @@ export const superadminRouter = router({
                 },
               },
             },
-            instagramBusinessProfile: {
-              select: {
-                id: true,
-                username: true,
-                fullName: true,
-                _count: { select: { dailySnapshots: true } },
-              },
-            },
             tiktokBusinessProfile: {
               select: {
                 id: true,
@@ -786,18 +778,19 @@ export const superadminRouter = router({
                     _count: { select: { reviews: true } },
                   },
                 },
-              },
-            },
-            instagramBusinessProfile: {
-              include: {
-                dailySnapshots: {
-                  select: {
-                    id: true,
-                    snapshotDate: true,
-                    followersCount: true,
+                instagramBusinessProfile: {
+                  include: {
+                    dailySnapshots: {
+                      select: {
+                        id: true,
+                        snapshotDate: true,
+                        followersCount: true,
+                      },
+                      orderBy: { snapshotDate: 'desc' },
+                      take: 1,
+                    },
+                    snapshotSchedule: true,
                   },
-                  orderBy: { snapshotDate: 'desc' },
-                  take: 1,
                 },
               },
             },
@@ -837,7 +830,7 @@ export const superadminRouter = router({
           });
         }
 
-        // Process social platforms (team-level: Instagram, TikTok)
+        // Process social platforms (team-level: TikTok only now, Instagram moved to location-level)
         // Note: Social platforms don't use market identifiers
         const processSocialPlatformData = (platform: string) => {
           const marketIdentifier = null;
@@ -850,13 +843,7 @@ export const superadminRouter = router({
           let snapshotsCount = 0;
           let lastSnapshotDate = null;
 
-          if (platform === 'INSTAGRAM') {
-              profile = tenant.instagramBusinessProfile;
-              if (profile?.dailySnapshots) {
-              snapshotsCount = profile.dailySnapshots.length;
-              lastSnapshotDate = profile.dailySnapshots[0]?.snapshotDate || null;
-              }
-          } else if (platform === 'TIKTOK') {
+          if (platform === 'TIKTOK') {
               profile = tenant.tiktokBusinessProfile;
               if (profile?.dailySnapshots) {
               snapshotsCount = profile.dailySnapshots.length;
@@ -895,9 +882,9 @@ export const superadminRouter = router({
           };
         };
 
-        // Process social platforms
+        // Process social platforms (TikTok only at team level)
         const socialPlatforms = {
-          instagram: processSocialPlatformData('INSTAGRAM'),
+          instagram: null, // Instagram is now location-level
           tiktok: processSocialPlatformData('TIKTOK'),
         };
 

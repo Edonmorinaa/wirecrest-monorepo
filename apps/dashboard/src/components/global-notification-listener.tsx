@@ -14,11 +14,11 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@wirecrest/auth-next';
-import {
-  subscribeToTeamNotifications,
-  subscribeToSuperNotifications,
-  subscribeToUserNotifications,
-} from '@wirecrest/notifications';
+// import {
+//   subscribeToTeamNotifications,
+//   subscribeToSuperNotifications,
+//   subscribeToUserNotifications,
+// } from '@wirecrest/notifications/client';
 
 import { getUserTeamIds } from '../actions/notifications';
 
@@ -30,76 +30,76 @@ import { getUserTeamIds } from '../actions/notifications';
  * - Push notifications are sent server-side (not from postgres_changes)
  */
 export function GlobalNotificationListener() {
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   // Subscribe to all relevant notification channels
   // This keeps the realtime connection alive globally
-  useEffect(() => {
-    if (!user?.id) {
-      return;
-    }
+  // useEffect(() => {
+  //   if (!user?.id) {
+  //     return;
+  //   }
 
-    console.log('🔌 GlobalNotificationListener: Setting up global subscriptions for user:', user.id);
+  //   console.log('🔌 GlobalNotificationListener: Setting up global subscriptions for user:', user.id);
 
-    let isMounted = true;
-    const unsubscribers: Array<() => void> = [];
+  //   let isMounted = true;
+  //   const unsubscribers: Array<() => void> = [];
 
-    // Minimal event handler - just log for debugging
-    const handleNotificationEvent = () => {
-      // Do nothing - useNotifications hook handles UI updates
-      // Push notifications are sent from server
-    };
+  //   // Minimal event handler - just log for debugging
+  //   const handleNotificationEvent = () => {
+  //     // Do nothing - useNotifications hook handles UI updates
+  //     // Push notifications are sent from server
+  //   };
 
-    const setupSubscriptions = async () => {
-      if (!isMounted) return;
+  //   const setupSubscriptions = async () => {
+  //     if (!isMounted) return;
 
-      try {
-        // Subscribe to personal notifications
-        const unsubUser = subscribeToUserNotifications(user.id, handleNotificationEvent);
-        unsubscribers.push(unsubUser);
+  //     try {
+  //       // Subscribe to personal notifications
+  //       const unsubUser = subscribeToUserNotifications(user.id, handleNotificationEvent);
+  //       unsubscribers.push(unsubUser);
 
-        // Fetch and subscribe to all team notifications
-        try {
-          const userTeamIds = await getUserTeamIds();
+  //       // Fetch and subscribe to all team notifications
+  //       try {
+  //         const userTeamIds = await getUserTeamIds();
           
-          if (!isMounted) return;
+  //         if (!isMounted) return;
 
-          // Subscribe to each team's notifications
-          userTeamIds.forEach((teamId) => {
-            const unsubTeam = subscribeToTeamNotifications(teamId, handleNotificationEvent);
-            unsubscribers.push(unsubTeam);
-          });
-        } catch (err) {
-          console.error('❌ GlobalNotificationListener: Failed to fetch team memberships:', err);
-        }
+  //         // Subscribe to each team's notifications
+  //         userTeamIds.forEach((teamId) => {
+  //           const unsubTeam = subscribeToTeamNotifications(teamId, handleNotificationEvent);
+  //           unsubscribers.push(unsubTeam);
+  //         });
+  //       } catch (err) {
+  //         console.error('❌ GlobalNotificationListener: Failed to fetch team memberships:', err);
+  //       }
 
-        // Subscribe to super role notifications if applicable
-        if (user.superRole && user.superRole !== 'TENANT') {
-          const unsubSuper = subscribeToSuperNotifications(user.superRole, handleNotificationEvent);
-          unsubscribers.push(unsubSuper);
-        }
+  //       // Subscribe to super role notifications if applicable
+  //       if (user.superRole && user.superRole !== 'TENANT') {
+  //         const unsubSuper = subscribeToSuperNotifications(user.superRole, handleNotificationEvent);
+  //         unsubscribers.push(unsubSuper);
+  //       }
 
-        console.log(`✅ GlobalNotificationListener: ${unsubscribers.length} channel(s) subscribed`);
-      } catch (error) {
-        console.error('❌ GlobalNotificationListener: Error setting up subscriptions:', error);
-      }
-    };
+  //       console.log(`✅ GlobalNotificationListener: ${unsubscribers.length} channel(s) subscribed`);
+  //     } catch (error) {
+  //       console.error('❌ GlobalNotificationListener: Error setting up subscriptions:', error);
+  //     }
+  //   };
 
-    setupSubscriptions();
+  //   setupSubscriptions();
 
-    // Cleanup function
-    // eslint-disable-next-line consistent-return
-    return () => {
-      isMounted = false;
-      unsubscribers.forEach((unsub) => {
-        try {
-          unsub();
-        } catch (err) {
-          console.error('❌ GlobalNotificationListener: Error during unsubscribe:', err);
-        }
-      });
-    };
-  }, [user?.id, user?.superRole]);
+  //   // Cleanup function
+  //   // eslint-disable-next-line consistent-return
+  //   return () => {
+  //     isMounted = false;
+  //     unsubscribers.forEach((unsub) => {
+  //       try {
+  //         unsub();
+  //       } catch (err) {
+  //         console.error('❌ GlobalNotificationListener: Error during unsubscribe:', err);
+  //       }
+  //     });
+  //   };
+  // }, [user?.id, user?.superRole]);
 
   return null;
 }

@@ -14,7 +14,7 @@ import {
   subscribeToTeamNotifications,
   subscribeToUserNotifications,
   subscribeToSuperNotifications,
-} from '@wirecrest/notifications';
+} from '@wirecrest/notifications/client';
 
 import { trpc } from 'src/lib/trpc/client';
 

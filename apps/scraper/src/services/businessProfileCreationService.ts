@@ -105,7 +105,7 @@ export class BusinessProfileCreationService {
           // Always trigger upsert to refresh data
           return null;
 
-        case MarketPlatform.FACEBOOK:
+        case MarketPlatform.FACEBOOK: {
           // Check if URL is used by a different team
           const facebookConflict = await prisma.facebookBusinessProfile.findFirst({
             where: {
@@ -123,8 +123,9 @@ export class BusinessProfileCreationService {
 
           // Always trigger upsert to refresh data
           return null;
+        }
 
-        case MarketPlatform.TRIPADVISOR:
+        case MarketPlatform.TRIPADVISOR: {
           // Check if this URL is already used by another team (tripAdvisorUrl is globally unique)
           const tripAdvisorConflict = await prisma.tripAdvisorBusinessProfile.findFirst(
             {
@@ -144,8 +145,9 @@ export class BusinessProfileCreationService {
 
           // Always trigger upsert to refresh data
           return null;
+        }
 
-        case MarketPlatform.BOOKING:
+        case MarketPlatform.BOOKING: {
           // Check if URL is used by a different team
           const bookingConflict = await prisma.bookingBusinessProfile.findFirst({
             where: {
@@ -161,6 +163,32 @@ export class BusinessProfileCreationService {
             );
           }
 
+          // Always trigger upsert to refresh data
+          return null;
+        }
+
+        case MarketPlatform.INSTAGRAM: {
+          // Check if username is used by a different team
+          const instagramConflict = await prisma.instagramBusinessProfile.findFirst({
+            where: {
+              username: identifier,
+              location: { teamId: { not: teamId } },
+            },
+            select: { id: true, location: { select: { teamId: true } } },
+          });
+
+          if (instagramConflict) {
+            throw new Error(
+              `Instagram username ${identifier} is already registered to another team (${instagramConflict.location?.teamId})`,
+            );
+          }
+
+          // Always trigger upsert to refresh data
+          return null;
+        }
+
+        case MarketPlatform.TIKTOK:
+          // TikTok is team-level, not location-level
           // Always trigger upsert to refresh data
           return null;
 
@@ -278,6 +306,18 @@ export class BusinessProfileCreationService {
           locationId,
           identifier,
         );
+      } else if (platform === MarketPlatform.INSTAGRAM) {
+        return await this.createInstagramBusinessProfile(
+          teamId,
+          locationId,
+          identifier,
+        );
+      } else if (platform === MarketPlatform.TIKTOK) {
+        // TikTok is team-level, not location-level
+        return {
+          success: false,
+          error: "TikTok profiles are team-level and should be handled separately",
+        };
       } else {
         return {
           success: false,
@@ -1430,5 +1470,114 @@ export class BusinessProfileCreationService {
     if (upperPrice.includes("EXPENSIVE")) return "EXPENSIVE";
     if (upperPrice.includes("VERY_EXPENSIVE")) return "VERY_EXPENSIVE";
     return "MODERATE"; // Default
+  }
+
+  /**
+   * Create Instagram Business Profile using InstagramDataService
+   */
+  private async createInstagramBusinessProfile(
+    teamId: string,
+    locationId: string,
+    instagramUsername: string,
+  ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
+    try {
+      // Update progress: Starting
+      await this.updateTaskProgress(
+        teamId,
+        "INSTAGRAM",
+        "CREATING_PROFILE",
+        "IN_PROGRESS",
+        "Creating Instagram business profile...",
+        10,
+      );
+
+      console.log(
+        `[Instagram] Creating profile for location: ${locationId}, username: ${instagramUsername}`,
+      );
+
+      // Import Instagram service dynamically
+      const { InstagramDataService } = await import("./instagramDataService");
+      const { SentimentAnalyzer } = await import("../sentimentAnalyzer/sentimentAnalyzer");
+      
+      const sentimentAnalyzer = new SentimentAnalyzer();
+      const instagramService = new InstagramDataService(
+        process.env.HIKER_API_KEY || "",
+        prisma,
+        sentimentAnalyzer,
+      );
+
+      await this.updateTaskProgress(
+        teamId,
+        "INSTAGRAM",
+        "CREATING_PROFILE",
+        "IN_PROGRESS",
+        "Fetching Instagram profile data...",
+        40,
+      );
+
+      // Create or update business profile
+      const result = await instagramService.createBusinessProfile(
+        locationId,
+        instagramUsername,
+      );
+
+      if (!result.success) {
+        await this.updateTaskProgress(
+          teamId,
+          "INSTAGRAM",
+          "CREATING_PROFILE",
+          "FAILED",
+          result.error || "Failed to create Instagram profile",
+          0,
+        );
+
+        return {
+          success: false,
+          error: result.error || "Failed to create Instagram profile",
+        };
+      }
+
+      await this.updateTaskProgress(
+        teamId,
+        "INSTAGRAM",
+        "CREATING_PROFILE",
+        "COMPLETED",
+        "Instagram business profile created successfully!",
+        100,
+      );
+
+      // Emit event for market identifier creation
+      marketIdentifierEvents.emit("identifierCreated", {
+        teamId,
+        platform: MarketPlatform.INSTAGRAM,
+        identifier: instagramUsername,
+        businessProfileId: result.businessProfileId,
+      });
+
+      console.log(
+        `✅ [Instagram] Profile created successfully for location ${locationId}`,
+      );
+
+      return {
+        success: true,
+        businessProfileId: result.businessProfileId,
+      };
+    } catch (error) {
+      console.error("[Instagram] Error:", error);
+
+      await this.updateTaskProgress(
+        teamId,
+        "INSTAGRAM",
+        "CREATING_PROFILE",
+        "FAILED",
+        error instanceof Error ? error.message : "Unknown error",
+        0,
+      );
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
   }
 }

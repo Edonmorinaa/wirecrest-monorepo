@@ -133,10 +133,10 @@ export async function deleteMarketIdentifier(data: { locationId: string; platfor
       }
 
       case 'INSTAGRAM': {
-        // Instagram is team-level, so delete for the entire team
-        console.log(`🗑️ Deleting Instagram business profile and ALL related data for team ${teamId}`);
+        // Instagram is location-level, so delete for the specific location
+        console.log(`🗑️ Deleting Instagram business profile and ALL related data for location ${locationId}`);
         const deletedInstagramProfiles = await tx.instagramBusinessProfile.deleteMany({
-          where: { teamId },
+          where: { locationId },
         });
         console.log(`✅ Deleted ${deletedInstagramProfiles.count} Instagram business profiles and ALL related data`);
         break;
@@ -1306,6 +1306,7 @@ export async function checkPlatformStatus(data: {
 // Instagram Controls
 export async function executeInstagramControl(data: {
   teamId: string;
+  locationId?: string;
   action:
     | 'create_profile'
     | 'take_snapshot'
@@ -1323,45 +1324,60 @@ export async function executeInstagramControl(data: {
 }) {
   await throwIfNotSuperAdmin();
 
-  const { teamId, action, options = {} } = data;
+  const { teamId, locationId, action, options = {} } = data;
 
   if (!teamId || !action) {
     throw new ApiError(400, 'teamId and action are required');
   }
 
-  // Verify team exists
+  if (!locationId) {
+    throw new ApiError(400, 'locationId is required for Instagram operations');
+  }
+
+  // Verify team and location exist
   const team = await prisma.team.findUnique({
     where: { id: teamId },
+    include: {
+      locations: {
+        where: { id: locationId },
+      },
+    },
   });
 
   if (!team) {
     throw new ApiError(404, 'Team not found');
   }
 
+  if (!team.locations || team.locations.length === 0) {
+    throw new ApiError(404, 'Location not found');
+  }
+
+  const location = team.locations[0];
+
   // Get backend API URL
   const backendApiUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
-  console.log(`🔄 Instagram control action: ${action} for team: ${teamId}`);
+  console.log(`🔄 Instagram control action: ${action} for location: ${locationId}`);
 
   switch (action) {
     case 'create_profile': {
-      // Get Instagram market identifier (from any location, since Instagram is team-level)
+      // Get Instagram market identifier for this location
       const marketIdentifier = await prisma.businessMarketIdentifier.findFirst({
         where: {
-          location: { teamId },
+          locationId: location.id,
           platform: 'INSTAGRAM',
         },
       });
 
       if (!marketIdentifier?.identifier) {
-        throw new ApiError(400, 'Instagram username not configured');
+        throw new ApiError(400, 'Instagram username not configured for this location');
       }
 
       const response = await fetch(`${backendApiUrl}/api/instagram/profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teamId,
+          locationId: location.id,
           instagramUsername: marketIdentifier.identifier,
           snapshotTime: options.snapshotTime || '09:00:00',
           timezone: options.timezone || 'UTC',
@@ -1386,7 +1402,7 @@ export async function executeInstagramControl(data: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teamId,
+          locationId: location.id,
           instagramUsername: options.instagramUsername,
           forceRefresh: true,
           includeMedia: options.includeMedia ?? true,

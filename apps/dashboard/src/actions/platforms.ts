@@ -459,7 +459,7 @@ export async function getFacebookReviewsAction(
 }
 
 // Instagram Business Profile Actions
-export async function getInstagramBusinessProfile(teamSlug: string) {
+export async function getInstagramBusinessProfile(teamSlug: string, locationSlug: string) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
@@ -467,10 +467,20 @@ export async function getInstagramBusinessProfile(teamSlug: string) {
 
   const team = await prisma.team.findUnique({
     where: { slug: teamSlug },
+    include: {
+      locations: {
+        where: { slug: locationSlug },
+      },
+    },
   });
 
   if (!team) {
     throw new ApiError(404, 'Team not found');
+  }
+
+  const location = team.locations[0];
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
   }
 
   // Check if user is a member of this team
@@ -486,7 +496,7 @@ export async function getInstagramBusinessProfile(teamSlug: string) {
   }
 
   const profile = await prisma.instagramBusinessProfile.findFirst({
-    where: { teamId: team.id },
+    where: { locationId: location.id },
     include: {
       dailySnapshots: {
         orderBy: { snapshotDate: 'desc' },
@@ -499,14 +509,6 @@ export async function getInstagramBusinessProfile(teamSlug: string) {
       commentSnapshots: {
         orderBy: { snapshotAt: 'desc' },
         take: 10,
-      },
-      weeklyAggregations: {
-        orderBy: { weekStartDate: 'desc' },
-        take: 12,
-      },
-      monthlyAggregations: {
-        orderBy: { monthStartDate: 'desc' },
-        take: 12,
       },
       snapshotSchedule: true,
     },
@@ -739,7 +741,7 @@ export async function getTripAdvisorBusinessProfile(slug: string) {
   return profile;
 }
 
-export async function triggerInstagramSnapshot(slug: string) {
+export async function triggerInstagramSnapshot(slug: string, locationSlug: string) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
@@ -751,6 +753,9 @@ export async function triggerInstagramSnapshot(slug: string) {
       members: {
         where: { userId: session.user.id },
       },
+      locations: {
+        where: { slug: locationSlug },
+      },
     },
   });
 
@@ -758,10 +763,15 @@ export async function triggerInstagramSnapshot(slug: string) {
     throw new ApiError(403, 'Access denied');
   }
 
+  const location = team.locations[0];
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
+  }
+
   // Check if Instagram profile exists
   const instagramProfile = await prisma.instagramBusinessProfile.findUnique({
     where: {
-      teamId: team.id,
+      locationId: location.id,
     },
   });
 
@@ -779,6 +789,200 @@ export async function triggerInstagramSnapshot(slug: string) {
     snapshotId: `snap_${Date.now()}`,
     snapshotDate: new Date().toISOString(),
     message: 'Instagram snapshot triggered successfully',
+  };
+}
+
+export async function getInstagramAnalytics(
+  slug: string,
+  locationSlug: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { slug },
+    include: {
+      members: {
+        where: { userId: session.user.id },
+      },
+      locations: {
+        where: { slug: locationSlug },
+      },
+    },
+  });
+
+  if (!team || team.members.length === 0) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  const location = team.locations[0];
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
+  }
+
+  // Check if Instagram profile exists
+  const instagramProfile = await prisma.instagramBusinessProfile.findUnique({
+    where: {
+      locationId: location.id,
+    },
+  });
+
+  if (!instagramProfile) {
+    throw new ApiError(404, 'Instagram business profile not found');
+  }
+
+  // Calculate date range (default to last 30 days)
+  const end = endDate ? new Date(endDate) : new Date();
+  const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Import and use analytics service
+  const { InstagramAnalyticsServiceV2 } = await import('@/services/instagram-analytics-service-v2');
+  const analyticsService = new InstagramAnalyticsServiceV2();
+  
+  const result = await analyticsService.getAnalyticsData(
+    instagramProfile.id,
+    start,
+    end
+  );
+
+  return result;
+}
+
+export async function enableInstagramSchedule(
+  slug: string,
+  locationSlug: string,
+  snapshotTime: string = '09:00:00',
+  timezone: string = 'UTC'
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { slug },
+    include: {
+      members: {
+        where: { userId: session.user.id },
+      },
+      locations: {
+        where: { slug: locationSlug },
+      },
+    },
+  });
+
+  if (!team || team.members.length === 0) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  const location = team.locations[0];
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
+  }
+
+  // Check if Instagram profile exists
+  const instagramProfile = await prisma.instagramBusinessProfile.findUnique({
+    where: {
+      locationId: location.id,
+    },
+  });
+
+  if (!instagramProfile) {
+    throw new ApiError(404, 'Instagram business profile not found');
+  }
+
+  // Update or create snapshot schedule
+  const schedule = await prisma.instagramSnapshotSchedule.upsert({
+    where: {
+      businessProfileId: instagramProfile.id,
+    },
+    update: {
+      isEnabled: true,
+      snapshotTime,
+      timezone,
+      updatedAt: new Date(),
+    },
+    create: {
+      businessProfileId: instagramProfile.id,
+      isEnabled: true,
+      snapshotTime,
+      timezone,
+      maxRetries: 3,
+      retryDelayMinutes: 5,
+      consecutiveFailures: 0,
+    },
+  });
+
+  recordMetric('instagram.schedule.enabled');
+
+  return {
+    success: true,
+    scheduleId: schedule.id,
+    message: 'Instagram snapshot schedule enabled',
+  };
+}
+
+export async function disableInstagramSchedule(
+  slug: string,
+  locationSlug: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { slug },
+    include: {
+      members: {
+        where: { userId: session.user.id },
+      },
+      locations: {
+        where: { slug: locationSlug },
+      },
+    },
+  });
+
+  if (!team || team.members.length === 0) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  const location = team.locations[0];
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
+  }
+
+  // Check if Instagram profile exists
+  const instagramProfile = await prisma.instagramBusinessProfile.findUnique({
+    where: {
+      locationId: location.id,
+    },
+  });
+
+  if (!instagramProfile) {
+    throw new ApiError(404, 'Instagram business profile not found');
+  }
+
+  // Update snapshot schedule
+  const schedule = await prisma.instagramSnapshotSchedule.updateMany({
+    where: {
+      businessProfileId: instagramProfile.id,
+    },
+    data: {
+      isEnabled: false,
+      updatedAt: new Date(),
+    },
+  });
+
+  recordMetric('instagram.schedule.disabled');
+
+  return {
+    success: true,
+    message: 'Instagram snapshot schedule disabled',
   };
 }
 

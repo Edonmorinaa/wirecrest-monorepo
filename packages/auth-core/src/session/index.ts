@@ -6,7 +6,6 @@
  * NextAuth v5 handles crypto compatibility internally
  */
 
-import { prisma } from '@wirecrest/db';
 import { SuperRole } from '@prisma/client';
 // Use dynamic import to support CJS consumers (jose is ESM-only)
 type JwtVerifyFn = (token: string | Uint8Array, key: unknown) => Promise<{ payload: any }>;

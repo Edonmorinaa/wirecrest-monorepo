@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { format } from 'date-fns';
+import { useParams } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -11,7 +13,10 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
+import CircularProgress from '@mui/material/CircularProgress';
 
+import { trpc } from 'src/lib/trpc/client';
+import { useTeamSlug } from 'src/hooks/use-subdomain';
 import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
 
 import { Iconify } from 'src/components/iconify';
@@ -19,13 +24,69 @@ import { Iconify } from 'src/components/iconify';
 // ----------------------------------------------------------------------
 
 export function InstagramSnapshotControls() {
-  const { businessProfile, isLoading } = useInstagramBusinessProfile();
+  const params = useParams();
+  const teamSlug = useTeamSlug();
+  const locationSlug = params?.locationSlug as string;
+  
+  const { businessProfile, isLoading, mutateBusinessProfile } = useInstagramBusinessProfile();
+  const [isEnabling, setIsEnabling] = useState(false);
+  const [isDisabling, setIsDisabling] = useState(false);
+
+  const enableScheduleMutation = trpc.platforms.enableInstagramSchedule.useMutation({
+    onSuccess: async () => {
+      await mutateBusinessProfile();
+      setIsEnabling(false);
+    },
+    onError: (error) => {
+      console.error('Failed to enable schedule:', error);
+      setIsEnabling(false);
+    },
+  });
+
+  const disableScheduleMutation = trpc.platforms.disableInstagramSchedule.useMutation({
+    onSuccess: async () => {
+      await mutateBusinessProfile();
+      setIsDisabling(false);
+    },
+    onError: (error) => {
+      console.error('Failed to disable schedule:', error);
+      setIsDisabling(false);
+    },
+  });
 
   if (isLoading || !businessProfile) {
     return null;
   }
 
   const snapshotSchedule = businessProfile.snapshotSchedule;
+
+  const handleEnableSnapshots = async () => {
+    if (!teamSlug || !locationSlug) return;
+    setIsEnabling(true);
+    try {
+      await enableScheduleMutation.mutateAsync({
+        slug: teamSlug,
+        locationSlug,
+        snapshotTime: '09:00:00',
+        timezone: 'UTC',
+      });
+    } catch (error) {
+      console.error('Error enabling snapshots:', error);
+    }
+  };
+
+  const handleDisableSnapshots = async () => {
+    if (!teamSlug || !locationSlug) return;
+    setIsDisabling(true);
+    try {
+      await disableScheduleMutation.mutateAsync({
+        slug: teamSlug,
+        locationSlug,
+      });
+    } catch (error) {
+      console.error('Error disabling snapshots:', error);
+    }
+  };
 
   return (
     <Card>
@@ -131,27 +192,23 @@ export function InstagramSnapshotControls() {
               <Button
                 variant="outlined"
                 size="small"
-                startIcon={<Iconify icon="solar:bell-off-bold" />}
-                onClick={() => {
-                  // TODO: Implement disable snapshots
-                  console.log('Disable automatic snapshots');
-                }}
+                startIcon={isDisabling ? <CircularProgress size={18} color="inherit" /> : <Iconify icon="solar:bell-off-bold" />}
+                onClick={handleDisableSnapshots}
+                disabled={isDisabling}
                 sx={{ flex: 1 }}
               >
-                Disable Snapshots
+                {isDisabling ? 'Disabling...' : 'Disable Snapshots'}
               </Button>
             ) : (
               <Button
                 variant="contained"
                 size="small"
-                startIcon={<Iconify icon="solar:bell-bold" />}
-                onClick={() => {
-                  // TODO: Implement enable snapshots
-                  console.log('Enable automatic snapshots');
-                }}
+                startIcon={isEnabling ? <CircularProgress size={18} color="inherit" /> : <Iconify icon="solar:bell-bold" />}
+                onClick={handleEnableSnapshots}
+                disabled={isEnabling}
                 sx={{ flex: 1 }}
               >
-                Enable Snapshots
+                {isEnabling ? 'Enabling...' : 'Enable Snapshots'}
               </Button>
             )}
             

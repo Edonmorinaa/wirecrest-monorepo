@@ -90,7 +90,7 @@ export function LocationOverviewView() {
 
   // Fetch social media profiles
   const { businessProfile: instagramProfile, isLoading: instagramLoading } =
-    useInstagramBusinessProfile(teamSlug);
+    useInstagramBusinessProfile(teamSlug, locationSlug);
   const { businessProfile: tiktokProfile, isLoading: tiktokLoading } =
     useTikTokBusinessProfile(teamSlug);
 

@@ -20,7 +20,7 @@ export { AuthWrapper } from './components/AuthWrapper';
 export { useAuth } from './wrappers/authWrapper';
 export { useUser } from './hooks/useUser';
 export { useTeam } from './hooks/useTeam';
-export { useSuperRole } from './hooks/useSuperRole';
+// export { useSuperRole } from '@wirecrest/auth-next';
 
 // Client-side auth actions (using next-auth/react)
 export { signIn, signOut } from './wrappers/nextAuthWrapper';

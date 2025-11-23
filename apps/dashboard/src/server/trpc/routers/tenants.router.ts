@@ -83,9 +83,6 @@ export const tenantsRouter = router({
               },
             },
           },
-          instagramBusinessProfile: {
-            select: { id: true },
-          },
           tiktokBusinessProfile: {
             select: { id: true },
           },
@@ -289,7 +286,6 @@ export const tenantsRouter = router({
               },
             },
           },
-          instagramBusinessProfile: true,
           tiktokBusinessProfile: true,
         },
       });
@@ -352,7 +348,6 @@ export const tenantsRouter = router({
         completedLocations,
         overallProgress,
         locations: team.locations,
-        instagramBusinessProfile: team.instagramBusinessProfile,
         tiktokBusinessProfile: team.tiktokBusinessProfile,
       };
     } catch (error) {

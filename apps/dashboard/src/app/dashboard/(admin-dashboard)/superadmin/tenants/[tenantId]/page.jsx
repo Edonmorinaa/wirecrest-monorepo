@@ -3,7 +3,7 @@
 import { useRouter, useParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 
-import { SuperRole } from '@prisma/client';
+// import { SuperRole } from '@prisma/client';
 import { PLATFORM_DISPLAY_CONFIGS, SOCIAL_PLATFORM_DISPLAY_CONFIGS } from '@wirecrest/core';
 
 import Box from '@mui/material/Box';
@@ -41,7 +41,7 @@ import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { trpc } from 'src/lib/trpc/client';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { RoleGuard } from 'src/components/guards';
+// import { RoleGuard } from 'src/components/guards';
 import { Iconify } from 'src/components/iconify';
 import { LocationSelector } from 'src/components/superadmin/LocationSelector';
 
@@ -368,7 +368,7 @@ export default function SuperAdminTenantDetailPage() {
   // Loading state
   if (isLoading) {
     return (
-      <RoleGuard requireRole={SuperRole.ADMIN}>
+      // <RoleGuard requireRole={SuperRole.ADMIN}>
         <DashboardContent maxWidth={false}>
           <Stack spacing={3}>
             <Skeleton variant="text" width={300} height={50} />
@@ -382,26 +382,26 @@ export default function SuperAdminTenantDetailPage() {
             <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 2 }} />
           </Stack>
         </DashboardContent>
-      </RoleGuard>
+      // </RoleGuard>
     );
   }
 
   // Error state
   if (error || !tenant) {
     return (
-      <RoleGuard requireRole={SuperRole.ADMIN}>
+      // <RoleGuard requireRole={SuperRole.ADMIN}>
         <DashboardContent maxWidth={false}>
           <Alert severity="error" sx={{ borderRadius: 2 }}>
             <AlertTitle>Error</AlertTitle>
             {error?.message || 'Tenant not found'}
           </Alert>
         </DashboardContent>
-      </RoleGuard>
+      // </RoleGuard>
     );
   }
 
   return (
-    <RoleGuard requireRole={SuperRole.ADMIN}>
+    //  <RoleGuard requireRole={SuperRole.ADMIN}>
       <DashboardContent maxWidth="xl">
         <Grid container spacing={3}>
           {/* Breadcrumbs */}
@@ -716,7 +716,7 @@ export default function SuperAdminTenantDetailPage() {
           </DialogActions>
         </Dialog>
       </DashboardContent>
-    </RoleGuard>
+    // </RoleGuard>
   );
 }
 

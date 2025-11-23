@@ -84,7 +84,6 @@ model Team {
   locations                  BusinessLocation[]
   businessCreationTasks      BusinessCreationTask[]
   demoAccount                DemoAccount?
-  instagramBusinessProfile   InstagramBusinessProfile?
   invitations                Invitation[]
   paymentMethods             PaymentMethod[]
   members                    TeamMember[]
@@ -363,6 +362,7 @@ model BusinessLocation {
   facebookBusinessProfile    FacebookBusinessProfile?
   tripAdvisorBusinessProfile TripAdvisorBusinessProfile?
   bookingBusinessProfile     BookingBusinessProfile?
+  instagramBusinessProfile   InstagramBusinessProfile?
   
   // Market identifiers (location-specific)
   marketIdentifiers          BusinessMarketIdentifier[]
@@ -1271,7 +1271,7 @@ model BookingBusinessMetadata {
 
 model InstagramBusinessProfile {
   id                    String                        @id @default(uuid())
-  teamId                String                        @unique
+  locationId            String                        @unique
   username              String                        @unique
   userId                String                        @unique
   profileUrl            String
@@ -1294,15 +1294,13 @@ model InstagramBusinessProfile {
   contactEmail          String?
   contactPhone          String?
   analytics             InstagramAnalytics[]
-  team                  Team                          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  location              BusinessLocation              @relation(fields: [locationId], references: [id], onDelete: Cascade)
   commentSnapshots      InstagramCommentSnapshot[]
   dailySnapshots        InstagramDailySnapshot[]
   mediaSnapshots        InstagramMediaSnapshot[]
-  monthlyAggregations   InstagramMonthlyAggregation[]
   snapshotSchedule      InstagramSnapshotSchedule?
-  weeklyAggregations    InstagramWeeklyAggregation[]
 
-  @@index([teamId])
+  @@index([locationId])
   @@index([username])
   @@index([isActive])
 }
@@ -1404,77 +1402,6 @@ model InstagramCommentSnapshot {
   @@index([businessProfileId])
   @@index([dailySnapshotId])
   @@index([sentiment])
-}
-
-model InstagramWeeklyAggregation {
-  id                     String                   @id @default(uuid())
-  businessProfileId      String
-  weekStartDate          DateTime
-  weekEndDate            DateTime
-  year                   Int
-  weekNumber             Int
-  followersGrowth        Int                      @default(0)
-  followersGrowthPercent Float                    @default(0)
-  followingGrowth        Int                      @default(0)
-  followingGrowthPercent Float                    @default(0)
-  mediaGrowth            Int                      @default(0)
-  totalLikes             Int                      @default(0)
-  totalComments          Int                      @default(0)
-  totalViews             Int                      @default(0)
-  totalSaves             Int                      @default(0)
-  totalShares            Int                      @default(0)
-  avgDailyLikes          Float                    @default(0)
-  avgDailyComments       Float                    @default(0)
-  avgDailyViews          Float                    @default(0)
-  bestPerformingPost     Json?
-  topHashtags            Json?
-  sentimentBreakdown     Json?
-  topKeywords            Json?
-  responseRate           Float                    @default(0)
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  businessProfile        InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
-
-  @@index([businessProfileId])
-  @@index([weekStartDate])
-}
-
-model InstagramMonthlyAggregation {
-  id                     String                   @id @default(uuid())
-  businessProfileId      String
-  monthStartDate         DateTime
-  monthEndDate           DateTime
-  year                   Int
-  month                  Int
-  followersGrowth        Int                      @default(0)
-  followersGrowthPercent Float                    @default(0)
-  followingGrowth        Int                      @default(0)
-  followingGrowthPercent Float                    @default(0)
-  mediaGrowth            Int                      @default(0)
-  totalLikes             Int                      @default(0)
-  totalComments          Int                      @default(0)
-  totalViews             Int                      @default(0)
-  totalSaves             Int                      @default(0)
-  totalShares            Int                      @default(0)
-  avgDailyLikes          Float                    @default(0)
-  avgDailyComments       Float                    @default(0)
-  avgDailyViews          Float                    @default(0)
-  avgEngagementRate      Float                    @default(0)
-  totalPosts             Int                      @default(0)
-  totalStories           Int                      @default(0)
-  totalReels             Int                      @default(0)
-  bestPerformingContent  Json?
-  sentimentBreakdown     Json?
-  topKeywords            Json?
-  responseRate           Float                    @default(0)
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  growthTrend            InstagramTrendDirection  @default(STABLE)
-  engagementTrend        InstagramTrendDirection  @default(STABLE)
-  businessProfile        InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
-
-  @@index([businessProfileId])
-  @@index([monthStartDate])
 }
 
 model InstagramSnapshotSchedule {

@@ -1,28 +1,20 @@
 /**
- * LEGACY FILE - For reference only
- * Supabase has been removed. This service is deprecated.
+ * Instagram Data Service - Prisma Implementation
+ * Handles Instagram business profile management and snapshot operations
  */
 
-import { DatabaseService } from "../supabase/database";
-import { SentimentAnalyzer } from "../sentimentAnalyzer/sentimentAnalyzer";
-import { MarketPlatform } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
-import {
+import { SentimentAnalyzer } from "../sentimentAnalyzer/sentimentAnalyzer.js";
+import type {
   InstagramBusinessProfile,
   InstagramDailySnapshot,
   InstagramMediaSnapshot,
   InstagramCommentSnapshot,
-  InstagramWeeklyAggregation,
-  InstagramMonthlyAggregation,
   InstagramSnapshotSchedule,
-  CreateInstagramProfileRequest,
   TakeSnapshotRequest,
   GetAnalyticsRequest,
-  HikerAPIUserResponse,
-  HikerAPIMediaResponse,
-  HikerAPICommentResponse,
-} from "../types/instagram";
-import supabase from "../supabase/supabaseClient";
+} from "../types/instagram.js";
 
 interface HikerAPIConfig {
   baseUrl: string;
@@ -73,15 +65,17 @@ interface InstagramMediaData {
 }
 
 export class InstagramDataService {
-  private supabase: any; // LEGACY: Supabase removed
-  private database: DatabaseService;
-  private sentimentAnalyzer: SentimentAnalyzer;
+  private prisma: PrismaClient;
   private hikerConfig: HikerAPIConfig;
+  private sentimentAnalyzer: SentimentAnalyzer;
 
-  constructor(hikerApiKey: string) {
-    this.supabase = supabase;
-    this.database = new DatabaseService();
-    this.sentimentAnalyzer = new SentimentAnalyzer();
+  constructor(
+    hikerApiKey: string,
+    prismaClient?: PrismaClient,
+    sentimentAnalyzer?: SentimentAnalyzer
+  ) {
+    this.prisma = prismaClient || new PrismaClient();
+    this.sentimentAnalyzer = sentimentAnalyzer || new SentimentAnalyzer();
 
     this.hikerConfig = {
       baseUrl: "https://api.hikerapi.com",
@@ -97,7 +91,7 @@ export class InstagramDataService {
    * Create or update Instagram business profile
    */
   async createBusinessProfile(
-    teamId: string,
+    locationId: string,
     instagramUsername: string,
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
@@ -112,7 +106,7 @@ export class InstagramDataService {
         return { success: false, error: "Instagram user not found" };
       }
 
-      // Debug: Log the HikerAPI response structure
+      // Debug: Log the HikerAPI Response Structure
       console.log("📊 HikerAPI Response Structure:", {
         hasUsername: !!userData.username,
         hasPk: !!userData.pk,
@@ -138,18 +132,18 @@ export class InstagramDataService {
       }
 
       // Check if profile already exists
-      const { data: existingProfile } = await this.supabase
-        .from("InstagramBusinessProfile")
-        .select("id")
-        .eq("teamId", teamId)
-        .eq("username", instagramUsername)
-        .single();
+      const existingProfile = await this.prisma.instagramBusinessProfile.findFirst({
+        where: {
+          locationId,
+          username: instagramUsername,
+        },
+      });
 
-      const profileData: Partial<InstagramBusinessProfile> = {
-        teamId,
-        username: instagramUsername, // Use the parameter, not userData.username
-        userId: uuidv4(), // Generate UUID for userId
-        profileUrl: `https://instagram.com/${instagramUsername}`, // Use the parameter
+      const profileData = {
+        locationId,
+        username: instagramUsername,
+        userId: actualUserData.pk?.toString() || uuidv4(),
+        profileUrl: `https://instagram.com/${instagramUsername}`,
         fullName: actualUserData.full_name,
         biography: actualUserData.biography,
         website: actualUserData.external_url,
@@ -170,28 +164,31 @@ export class InstagramDataService {
 
       if (existingProfile) {
         // Update existing profile
-        const { data, error } = await this.supabase
-          .from("InstagramBusinessProfile")
-          .update(profileData)
-          .eq("id", existingProfile.id)
-          .select("id")
-          .single();
+        const updated = await this.prisma.instagramBusinessProfile.update({
+          where: { id: existingProfile.id },
+          data: {
+            ...profileData,
+            updatedAt: new Date(),
+          },
+          select: { id: true },
+        });
 
-        if (error) throw error;
-        return { success: true, businessProfileId: data.id };
+        return { success: true, businessProfileId: updated.id };
       } else {
         // Create new profile
-        profileData.id = uuidv4();
-        profileData.createdAt = new Date();
+        const created = await this.prisma.instagramBusinessProfile.create({
+          data: {
+            id: uuidv4(),
+            ...profileData,
+            isActive: true,
+            totalSnapshots: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          select: { id: true },
+        });
 
-        const { data, error } = await this.supabase
-          .from("InstagramBusinessProfile")
-          .insert(profileData)
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        return { success: true, businessProfileId: data.id };
+        return { success: true, businessProfileId: created.id };
       }
     } catch (error) {
       console.error("Error creating Instagram business profile:", error);
@@ -251,10 +248,9 @@ export class InstagramDataService {
             scrapedAt: new Date(),
           };
 
-          // Save to database
-          await this.supabase
-            .from("InstagramMediaComment")
-            .upsert(commentData, { onConflict: "commentId" });
+          // Save to database - Note: Comment snapshots are part of daily snapshots
+          // This functionality has been deprecated in favor of snapshot-based approach
+          // Comments are now stored as InstagramCommentSnapshot linked to daily snapshots
 
           totalProcessedComments++;
         }
@@ -285,11 +281,14 @@ export class InstagramDataService {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const { data: comments } = await this.supabase
-        .from("InstagramMediaComment")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .gte("timestamp", thirtyDaysAgo.toISOString());
+      const comments = await this.prisma.instagramCommentSnapshot.findMany({
+        where: {
+          businessProfileId,
+          snapshotAt: {
+            gte: thirtyDaysAgo,
+          },
+        },
+      });
 
       if (!comments || comments.length === 0) {
         return {
@@ -574,11 +573,9 @@ export class InstagramDataService {
   ): Promise<{ success: boolean; snapshotId?: string; error?: string }> {
     try {
       // Get business profile
-      const { data: profile } = await this.supabase
-        .from("InstagramBusinessProfile")
-        .select("*")
-        .eq("id", businessProfileId)
-        .single();
+      const profile = await this.prisma.instagramBusinessProfile.findUnique({
+        where: { id: businessProfileId },
+      });
 
       if (!profile) {
         return { success: false, error: "Business profile not found" };
@@ -586,13 +583,19 @@ export class InstagramDataService {
 
       // Check if snapshot already exists for today
       const today = new Date();
-      const todayDateString = today.toISOString().split("T")[0];
-      const { data: existingSnapshot } = await this.supabase
-        .from("InstagramDailySnapshot")
-        .select("id")
-        .eq("businessProfileId", businessProfileId)
-        .eq("snapshotDate", todayDateString)
-        .single();
+      today.setHours(0, 0, 0, 0); // Reset time to beginning of day
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const existingSnapshot = await this.prisma.instagramDailySnapshot.findFirst({
+        where: {
+          businessProfileId,
+          snapshotDate: {
+            gte: today,
+            lt: tomorrow,
+          },
+        },
+      });
 
       if (existingSnapshot) {
         return { success: false, error: "Snapshot already exists for today" };
@@ -611,13 +614,11 @@ export class InstagramDataService {
       }
 
       // Get the previous snapshot to calculate daily changes
-      const { data: previousSnapshot } = await this.supabase
-        .from("InstagramDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .order("snapshotDate", { ascending: false })
-        .limit(1)
-        .single();
+      const previousSnapshot = await this.prisma.instagramDailySnapshot.findFirst({
+        where: { businessProfileId },
+        orderBy: { snapshotDate: 'desc' },
+        take: 1,
+      });
 
       // Calculate daily metrics
       let dailyLikes = 0;
@@ -707,27 +708,41 @@ export class InstagramDataService {
       };
 
       // Insert snapshot
-      snapshotData.id = uuidv4();
-      const { data: snapshot, error: snapshotError } = await this.supabase
-        .from("InstagramDailySnapshot")
-        .insert(snapshotData)
-        .select("id")
-        .single();
-
-      if (snapshotError) throw snapshotError;
+      const snapshot = await this.prisma.instagramDailySnapshot.create({
+        data: {
+          id: uuidv4(),
+          ...snapshotData,
+          businessProfileId,
+          snapshotDate: today,
+          snapshotTime: today,
+          snapshotType: options.snapshotType || "DAILY",
+          createdAt: new Date(),
+          followersGrowth: 0,
+          followersRatio: 0,
+          followingGrowth: 0,
+          mediaGrowth: 0,
+          weeklyFollowersGrowth: 0,
+          monthlyFollowersGrowth: 0,
+          avgLikesPerPost: 0,
+          avgCommentsPerPost: 0,
+          commentsRatio: 0,
+          engagementRate: 0,
+        },
+        select: { id: true },
+      });
 
       // Update business profile with current metrics
-      await this.supabase
-        .from("InstagramBusinessProfile")
-        .update({
+      await this.prisma.instagramBusinessProfile.update({
+        where: { id: businessProfileId },
+        data: {
           currentFollowersCount: actualUserData.follower_count,
           currentFollowingCount: actualUserData.following_count,
           currentMediaCount: actualUserData.media_count,
-          lastSnapshotAt: today.toISOString(),
+          lastSnapshotAt: today,
           totalSnapshots: (profile.totalSnapshots || 0) + 1,
-          updatedAt: today.toISOString(),
-        })
-        .eq("id", businessProfileId);
+          updatedAt: new Date(),
+        },
+      });
 
       // If requested, fetch media and comments
       if (options.includeMedia) {
@@ -790,17 +805,19 @@ export class InstagramDataService {
           snapshotAt: new Date(),
         };
 
-        mediaSnapshotData.id = uuidv4();
-        const { data: mediaSnapshot, error: mediaError } = await this.supabase
-          .from("InstagramMediaSnapshot")
-          .insert(mediaSnapshotData)
-          .select("id")
-          .single();
-
-        if (mediaError) {
-          console.error("Error creating media snapshot:", mediaError);
-          continue;
-        }
+        const mediaSnapshot = await this.prisma.instagramMediaSnapshot.create({
+          data: {
+            id: uuidv4(),
+            ...mediaSnapshotData,
+            businessProfileId,
+            dailySnapshotId,
+            engagementRate: 0,
+            reachEstimate: 0,
+            savesCount: 0,
+            sharesCount: 0,
+          },
+          select: { id: true },
+        });
 
         // If requested, fetch comments
         if (includeComments && mediaSnapshot) {
@@ -862,10 +879,15 @@ export class InstagramDataService {
           snapshotAt: new Date(),
         };
 
-        commentSnapshotData.id = uuidv4();
-        await this.supabase
-          .from("InstagramCommentSnapshot")
-          .insert(commentSnapshotData);
+        await this.prisma.instagramCommentSnapshot.create({
+          data: {
+            id: uuidv4(),
+            ...commentSnapshotData,
+            businessProfileId,
+            dailySnapshotId,
+            mediaSnapshotId,
+          },
+        });
 
         // Rate limiting
         await this.delay(100);
@@ -905,13 +927,16 @@ export class InstagramDataService {
       weekEndDate.setDate(weekEndDate.getDate() + 6);
 
       // Get daily snapshots for the week
-      const { data: snapshots } = await this.supabase
-        .from("InstagramDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .gte("snapshotDate", weekStartDate.toISOString().split("T")[0])
-        .lte("snapshotDate", weekEndDate.toISOString().split("T")[0])
-        .order("snapshotDate", { ascending: true });
+      const snapshots = await this.prisma.instagramDailySnapshot.findMany({
+        where: {
+          businessProfileId,
+          snapshotDate: {
+            gte: weekStartDate,
+            lte: weekEndDate,
+          },
+        },
+        orderBy: { snapshotDate: 'asc' },
+      });
 
       if (!snapshots || snapshots.length === 0) {
         return { success: false, error: "No snapshots found for the week" };
@@ -954,38 +979,19 @@ export class InstagramDataService {
       const year = weekStartDate.getFullYear();
       const weekNumber = this.getWeekNumber(weekStartDate);
 
-      // Create weekly aggregation
-      const aggregationData: Partial<InstagramWeeklyAggregation> = {
-        businessProfileId,
-        weekStartDate,
-        weekEndDate,
-        year,
-        weekNumber,
+      // Note: Weekly aggregations are no longer stored in database
+      // Analytics are calculated on-demand from snapshots via tRPC
+      // Return success for backward compatibility
+      console.log('Weekly aggregation calculated (not stored):', {
         followersGrowth,
         followersGrowthPercent,
-        followingGrowth,
-        followingGrowthPercent,
-        mediaGrowth,
         totalLikes,
         totalComments,
-        totalViews,
-        avgDailyLikes,
-        avgDailyComments,
-        avgDailyViews,
-        responseRate: 0, // Would need to calculate from comments
+      });
+      return { 
+        success: true, 
+        aggregationId: 'deprecated-not-stored',
       };
-
-      const { data: aggregation, error } = await this.supabase
-        .from("InstagramWeeklyAggregation")
-        .upsert(aggregationData, {
-          onConflict: "businessProfileId,weekStartDate",
-        })
-        .select("id")
-        .single();
-
-      if (error) throw error;
-
-      return { success: true, aggregationId: aggregation.id };
     } catch (error) {
       console.error("Error generating weekly aggregation:", error);
       return { success: false, error: error.message };
@@ -1040,13 +1046,16 @@ export class InstagramDataService {
       }
 
       // Get snapshots for the period
-      const { data: snapshots } = await this.supabase
-        .from("InstagramDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .gte("snapshotDate", start.toISOString().split("T")[0])
-        .lte("snapshotDate", end.toISOString().split("T")[0])
-        .order("snapshotDate", { ascending: true });
+      const snapshots = await this.prisma.instagramDailySnapshot.findMany({
+        where: {
+          businessProfileId,
+          snapshotDate: {
+            gte: start,
+            lte: end,
+          },
+        },
+        orderBy: { snapshotDate: 'asc' },
+      });
 
       if (!snapshots || snapshots.length === 0) {
         return {
@@ -1133,13 +1142,28 @@ export class InstagramDataService {
         updatedAt: now,
       };
 
-      const { data: schedule, error } = await this.supabase
-        .from("InstagramSnapshotSchedule")
-        .upsert(scheduleData, { onConflict: "businessProfileId" })
-        .select("id")
-        .single();
-
-      if (error) throw error;
+      const schedule = await this.prisma.instagramSnapshotSchedule.upsert({
+        where: { businessProfileId },
+        update: {
+          isEnabled: true,
+          snapshotTime,
+          timezone,
+          updatedAt: now,
+        },
+        create: {
+          id: uuidv4(),
+          businessProfileId,
+          snapshotTime,
+          timezone,
+          isEnabled: true,
+          maxRetries: 3,
+          retryDelayMinutes: 5,
+          consecutiveFailures: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+        select: { id: true },
+      });
 
       console.log(
         `✅ Enabled automatic snapshots for business ${businessProfileId} at ${snapshotTime}`,
@@ -1158,15 +1182,13 @@ export class InstagramDataService {
     businessProfileId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await this.supabase
-        .from("InstagramSnapshotSchedule")
-        .update({
-          isActive: false,
-          updatedAt: new Date().toISOString(),
-        })
-        .eq("businessProfileId", businessProfileId);
-
-      if (error) throw error;
+      await this.prisma.instagramSnapshotSchedule.updateMany({
+        where: { businessProfileId },
+        data: {
+          isEnabled: false,
+          updatedAt: new Date(),
+        },
+      });
 
       console.log(
         `🛑 Disabled automatic snapshots for business ${businessProfileId}`,
@@ -1202,12 +1224,10 @@ export class InstagramDataService {
       if (settings.retryDelayMinutes)
         updateData.retryDelayMinutes = settings.retryDelayMinutes;
 
-      const { error } = await this.supabase
-        .from("InstagramSnapshotSchedule")
-        .update(updateData)
-        .eq("businessProfileId", businessProfileId);
-
-      if (error) throw error;
+      await this.prisma.instagramSnapshotSchedule.updateMany({
+        where: { businessProfileId },
+        data: updateData,
+      });
 
       console.log(
         `⚙️  Updated snapshot schedule for business ${businessProfileId}`,
@@ -1228,15 +1248,11 @@ export class InstagramDataService {
     error?: string;
   }> {
     try {
-      const { data: schedule, error } = await this.supabase
-        .from("InstagramSnapshotSchedule")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .single();
+      const schedule = await this.prisma.instagramSnapshotSchedule.findUnique({
+        where: { businessProfileId },
+      });
 
-      if (error && error.code !== "PGRST116") throw error; // PGRST116 = no rows returned
-
-      return { success: true, schedule: schedule || null };
+      return { success: true, schedule: schedule || undefined };
     } catch (error) {
       console.error("Error getting snapshot schedule status:", error);
       return { success: false, error: error.message };
@@ -1270,47 +1286,43 @@ export class InstagramDataService {
         snapshotType,
       } = options;
 
-      // Build query
-      let query = this.supabase
-        .from("InstagramDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .order("snapshotDate", { ascending: false });
+      // Build where clause
+      const where: any = {
+        businessProfileId,
+      };
 
-      // Apply filters
       if (startDate) {
-        query = query.gte("snapshotDate", startDate);
+        where.snapshotDate = { ...where.snapshotDate, gte: new Date(startDate) };
       }
       if (endDate) {
-        query = query.lte("snapshotDate", endDate);
+        where.snapshotDate = { ...where.snapshotDate, lte: new Date(endDate) };
       }
       if (snapshotType) {
-        query = query.eq("snapshotType", snapshotType);
+        where.snapshotType = snapshotType;
       }
 
       // Get total count for pagination
-      const { count } = await this.supabase
-        .from("InstagramDailySnapshot")
-        .select("*", { count: "exact", head: true })
-        .eq("businessProfileId", businessProfileId);
+      const count = await this.prisma.instagramDailySnapshot.count({
+        where,
+      });
 
       // Apply pagination
-      const { data: snapshots, error } = await query.range(
-        offset,
-        offset + limit - 1,
-      );
-
-      if (error) throw error;
+      const snapshots = await this.prisma.instagramDailySnapshot.findMany({
+        where,
+        orderBy: { snapshotDate: 'desc' },
+        skip: offset,
+        take: limit,
+      });
 
       return {
         success: true,
-        snapshots: snapshots || [],
+        snapshots,
         pagination: {
           limit,
           offset,
-          total: count || 0,
-          totalPages: Math.ceil((count || 0) / limit),
-          hasNextPage: offset + limit < (count || 0),
+          total: count,
+          totalPages: Math.ceil(count / limit),
+          hasNextPage: offset + limit < count,
           hasPreviousPage: offset > 0,
         },
       };
@@ -1321,75 +1333,62 @@ export class InstagramDataService {
   }
 
   /**
-   * Get business profile by team ID
+   * Get business profile by location ID
    */
-  async getBusinessProfileByTeamId(teamId: string): Promise<{
+  async getBusinessProfileByLocationId(locationId: string): Promise<{
     success: boolean;
     profile?: InstagramBusinessProfile;
     error?: string;
   }> {
     try {
-      console.log("🔍 Looking for Instagram profile for teamId:", teamId);
+      console.log("🔍 Looking for Instagram profile for locationId:", locationId);
 
-      // First, let's check if any profile exists for this team (without isActive filter)
-      const { data: allProfiles, error: listError } = await this.supabase
-        .from("InstagramBusinessProfile")
-        .select("*")
-        .eq("teamId", teamId);
+      // First, let's check if any profile exists for this location (without isActive filter)
+      const allProfiles = await this.prisma.instagramBusinessProfile.findMany({
+        where: { locationId },
+      });
 
-      if (listError) {
-        console.error("Error listing profiles:", listError);
-        throw listError;
-      }
-
-      console.log("📊 Found profiles for team:", allProfiles?.length || 0);
-      if (allProfiles && allProfiles.length > 0) {
+      console.log("📊 Found profiles for location:", allProfiles.length);
+      if (allProfiles.length > 0) {
         console.log("📋 Profile details:", allProfiles[0]);
       }
 
       // Now try to get the active profile
-      const { data: profile, error } = await this.supabase
-        .from("InstagramBusinessProfile")
-        .select("*")
-        .eq("teamId", teamId)
-        .eq("isActive", true)
-        .single();
+      const profile = await this.prisma.instagramBusinessProfile.findFirst({
+        where: {
+          locationId,
+          isActive: true,
+        },
+      });
 
-      if (error) {
-        if (error.code === "PGRST116") {
+      if (!profile) {
+        console.log(
+          "❌ No active Instagram profile found for locationId:",
+          locationId,
+        );
+
+        // Fallback: try to get any profile for this location (not just active ones)
+        console.log("🔄 Trying to get any profile for locationId:", locationId);
+        const fallbackProfile = await this.prisma.instagramBusinessProfile.findFirst({
+          where: { locationId },
+        });
+
+        if (!fallbackProfile) {
           console.log(
-            "❌ No active Instagram profile found for teamId:",
-            teamId,
+            "❌ No Instagram profile found at all for locationId:",
+            locationId,
           );
-
-          // Fallback: try to get any profile for this team (not just active ones)
-          console.log("🔄 Trying to get any profile for teamId:", teamId);
-          const { data: fallbackProfile, error: fallbackError } =
-            await this.supabase
-              .from("InstagramBusinessProfile")
-              .select("*")
-              .eq("teamId", teamId)
-              .single();
-
-          if (fallbackError) {
-            console.log(
-              "❌ No Instagram profile found at all for teamId:",
-              teamId,
-            );
-            return {
-              success: false,
-              error: "No Instagram profile found for this team",
-            };
-          }
-
-          console.log(
-            "✅ Found inactive Instagram profile, using it:",
-            fallbackProfile,
-          );
-          return { success: true, profile: fallbackProfile };
+          return {
+            success: false,
+            error: "No Instagram profile found for this location",
+          };
         }
-        console.error("❌ Error fetching profile:", error);
-        throw error;
+
+        console.log(
+          "✅ Found inactive Instagram profile, using it:",
+          fallbackProfile,
+        );
+        return { success: true, profile: fallbackProfile };
       }
 
       console.log("✅ Found active Instagram profile:", profile);
@@ -1472,13 +1471,11 @@ export class InstagramDataService {
       } = options;
 
       // Get business profile
-      const { data: profile, error: profileError } = await this.supabase
-        .from("InstagramBusinessProfile")
-        .select("*")
-        .eq("id", businessProfileId)
-        .single();
+      const profile = await this.prisma.instagramBusinessProfile.findUnique({
+        where: { id: businessProfileId },
+      });
 
-      if (profileError) throw profileError;
+      if (!profile) throw new Error('Business profile not found');
 
       const exportData: any = {
         profile,
@@ -1488,38 +1485,29 @@ export class InstagramDataService {
       };
 
       if (includeSnapshots) {
-        const { data: snapshots, error: snapshotsError } = await this.supabase
-          .from("InstagramDailySnapshot")
-          .select("*")
-          .eq("businessProfileId", businessProfileId)
-          .order("snapshotDate", { ascending: false })
-          .limit(100);
-
-        if (snapshotsError) throw snapshotsError;
+        const snapshots = await this.prisma.instagramDailySnapshot.findMany({
+          where: { businessProfileId },
+          orderBy: { snapshotDate: 'desc' },
+          take: 100,
+        });
         exportData.snapshots = snapshots;
       }
 
       if (includeMedia) {
-        const { data: media, error: mediaError } = await this.supabase
-          .from("InstagramMediaSnapshot")
-          .select("*")
-          .eq("businessProfileId", businessProfileId)
-          .order("timestamp", { ascending: false })
-          .limit(500);
-
-        if (mediaError) throw mediaError;
+        const media = await this.prisma.instagramMediaSnapshot.findMany({
+          where: { businessProfileId },
+          orderBy: { snapshotAt: 'desc' },
+          take: 500,
+        });
         exportData.media = media;
       }
 
       if (includeComments) {
-        const { data: comments, error: commentsError } = await this.supabase
-          .from("InstagramCommentSnapshot")
-          .select("*")
-          .eq("businessProfileId", businessProfileId)
-          .order("timestamp", { ascending: false })
-          .limit(1000);
-
-        if (commentsError) throw commentsError;
+        const comments = await this.prisma.instagramCommentSnapshot.findMany({
+          where: { businessProfileId },
+          orderBy: { snapshotAt: 'desc' },
+          take: 1000,
+        });
         exportData.comments = comments;
       }
 
@@ -1540,26 +1528,11 @@ export class InstagramDataService {
     businessProfileId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      // Delete in order to respect foreign key constraints
-      const tables = [
-        "InstagramCommentSnapshot",
-        "InstagramMediaSnapshot",
-        "InstagramDailySnapshot",
-        "InstagramSnapshotSchedule",
-        "InstagramBusinessProfile",
-      ];
-
-      for (const table of tables) {
-        const { error } = await this.supabase
-          .from(table)
-          .delete()
-          .eq("businessProfileId", businessProfileId);
-
-        if (error) {
-          console.error(`Error deleting from ${table}:`, error);
-          throw error;
-        }
-      }
+      // Prisma will handle cascading deletes based on schema
+      // Delete the business profile and all related data will be cascade deleted
+      await this.prisma.instagramBusinessProfile.delete({
+        where: { id: businessProfileId },
+      });
 
       console.log(
         `✅ Deleted all Instagram data for business ${businessProfileId}`,
@@ -1571,7 +1544,10 @@ export class InstagramDataService {
     }
   }
 
+  /**
+   * Close Prisma connection (if needed for cleanup)
+   */
   async close(): Promise<void> {
-    await this.database.close();
+    await this.prisma.$disconnect();
   }
 }

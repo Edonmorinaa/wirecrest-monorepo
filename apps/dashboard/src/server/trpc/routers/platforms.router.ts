@@ -25,6 +25,9 @@ import {
   getGoogleReviewsSchema,
   createFacebookProfileSchema,
   getFacebookReviewsSchema,
+  locationSlugSchema,
+  getInstagramAnalyticsSchema,
+  enableInstagramScheduleSchema,
 } from '../schemas/platforms.schema';
 import { getFacebookReviews as _getFacebookReviews } from 'src/actions/facebook-reviews';
 import {
@@ -42,6 +45,9 @@ import {
   triggerInstagramSnapshot as _triggerInstagramSnapshot,
   triggerTikTokSnapshot as _triggerTikTokSnapshot,
   getBookingOverview as _getBookingOverview,
+  getInstagramAnalytics as _getInstagramAnalytics,
+  enableInstagramSchedule as _enableInstagramSchedule,
+  disableInstagramSchedule as _disableInstagramSchedule,
 } from 'src/actions/platforms';
 import {
   getGoogleReviews as _getGoogleReviews,
@@ -238,16 +244,83 @@ export const platformsRouter = router({
    * Requires: instagram_overview feature
    */
   instagramProfile: protectedProcedure
-    .input(platformSlugSchema)
+    .input(locationSlugSchema)
     .use(requireFeature('instagram_overview'))
     .query(async ({ input }) => {
       try {
-        const result = await _getInstagramBusinessProfile(input.slug);
+        const result = await _getInstagramBusinessProfile(input.slug, input.locationSlug);
         return result;
       } catch (error: any) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: error.message || 'Failed to get Instagram profile',
+        });
+      }
+    }),
+
+  /**
+   * Get Instagram analytics with date range
+   * Requires: instagram_analytics feature
+   */
+  instagramAnalytics: protectedProcedure
+    .input(getInstagramAnalyticsSchema)
+    .use(requireFeature('instagram_analytics'))
+    .query(async ({ input }) => {
+      try {
+        const result = await _getInstagramAnalytics(
+          input.slug,
+          input.locationSlug,
+          input.startDate,
+          input.endDate
+        );
+        return result;
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Failed to get Instagram analytics',
+        });
+      }
+    }),
+
+  /**
+   * Enable Instagram snapshot schedule
+   * Requires: instagram_analytics feature
+   */
+  enableInstagramSchedule: protectedProcedure
+    .input(enableInstagramScheduleSchema)
+    .use(requireFeature('instagram_analytics'))
+    .mutation(async ({ input }) => {
+      try {
+        const result = await _enableInstagramSchedule(
+          input.slug,
+          input.locationSlug,
+          input.snapshotTime,
+          input.timezone
+        );
+        return result;
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Failed to enable Instagram schedule',
+        });
+      }
+    }),
+
+  /**
+   * Disable Instagram snapshot schedule
+   * Requires: instagram_analytics feature
+   */
+  disableInstagramSchedule: protectedProcedure
+    .input(locationSlugSchema)
+    .use(requireFeature('instagram_analytics'))
+    .mutation(async ({ input }) => {
+      try {
+        const result = await _disableInstagramSchedule(input.slug, input.locationSlug);
+        return result;
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Failed to disable Instagram schedule',
         });
       }
     }),
@@ -350,11 +423,11 @@ export const platformsRouter = router({
    * Requires: instagram_analytics feature
    */
   triggerInstagramSnapshot: protectedProcedure
-    .input(platformSlugSchema)
+    .input(locationSlugSchema)
     .use(requireFeature('instagram_analytics'))
     .mutation(async ({ input }) => {
       try {
-        const result = await _triggerInstagramSnapshot(input.slug);
+        const result = await _triggerInstagramSnapshot(input.slug, input.locationSlug);
         return result;
       } catch (error: any) {
         throw new TRPCError({

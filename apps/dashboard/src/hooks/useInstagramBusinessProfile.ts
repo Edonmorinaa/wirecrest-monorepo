@@ -31,23 +31,29 @@ export interface InstagramBusinessProfileWithRelations extends InstagramBusiness
  * Hook for Instagram Business Profile data using tRPC
  * Replaces SWR with React Query (via tRPC)
  */
-const useInstagramBusinessProfile = (slug?: string) => {
+const useInstagramBusinessProfile = (slug?: string, locationSlug?: string) => {
   const params = useParams();
   const subdomainTeamSlug = useTeamSlug();
   const rawTeamSlug = slug || subdomainTeamSlug || (params?.slug as string);
   const teamSlug = typeof rawTeamSlug === 'string' ? rawTeamSlug : null;
+  
+  // Get location slug from params if not provided
+  const rawLocationSlug = locationSlug || (params?.locationSlug as string);
+  const resolvedLocationSlug = typeof rawLocationSlug === 'string' ? rawLocationSlug : null;
 
   const [hasAttemptedAutoSync, setHasAttemptedAutoSync] = useState(false);
   const previousTeamSlugRef = useRef<string | null>(null);
 
   console.log('Instagram hook - teamSlug:', teamSlug);
+  console.log('Instagram hook - locationSlug:', resolvedLocationSlug);
   console.log('Instagram hook - params:', params);
   
   // Use tRPC query instead of SWR
   const { data, error, isLoading, refetch } = trpc.platforms.instagramProfile.useQuery(
-    { slug: teamSlug! },
+    { slug: teamSlug!, locationSlug: resolvedLocationSlug! },
     {
-      suspense: true,
+      enabled: !!teamSlug && !!resolvedLocationSlug,
+      suspense: false,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       staleTime: CACHE_TIMES.PLATFORM_PROFILE.staleTime,
@@ -111,16 +117,16 @@ const useInstagramBusinessProfile = (slug?: string) => {
   }, [teamSlug, isLoading, hasAttemptedAutoSync]);
 
   const mutateBusinessProfile = async () => {
-    if (teamSlug) {
+    if (teamSlug && resolvedLocationSlug) {
       await refetch();
     }
   };
 
   const takeSnapshot = async () => {
-    if (!teamSlug) return null;
+    if (!teamSlug || !resolvedLocationSlug) return null;
 
     try {
-      return await triggerSnapshotMutation.mutateAsync({ slug: teamSlug });
+      return await triggerSnapshotMutation.mutateAsync({ slug: teamSlug, locationSlug: resolvedLocationSlug });
     } catch (error) {
       console.error('Error taking Instagram snapshot:', error);
       throw error;

@@ -1,5 +1,5 @@
 import type { Team } from "@prisma/client";
-import { MarketPlatform } from "@wirecrest/db";
+import type { MarketPlatform } from "@prisma/client";
 import { prisma } from "@wirecrest/db";
 
 export class TeamService {

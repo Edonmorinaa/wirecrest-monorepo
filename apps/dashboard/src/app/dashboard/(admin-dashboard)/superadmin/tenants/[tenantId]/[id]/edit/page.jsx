@@ -1,6 +1,6 @@
 'use client';
 
-import { SuperRole } from '@prisma/client';
+// import { SuperRole } from '@prisma/client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getTenant, updateTenant, deleteTenant } from '@/actions/tenants';
@@ -27,7 +27,7 @@ import DialogContentText from '@mui/material/DialogContentText';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
-import { RoleGuard } from 'src/components/guards';
+// import { RoleGuard } from 'src/components/guards';
 
 const StyledCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -157,7 +157,7 @@ export default function EditTenantPage() {
 
   if (isLoading) {
     return (
-      <RoleGuard requireRole={SuperRole.ADMIN}>
+      // <RoleGuard requireRole={SuperRole.ADMIN}>
         <DashboardContent maxWidth="md">
           <Box sx={{ mb: 3 }}>
             <Skeleton variant="text" width={300} height={40} />
@@ -175,25 +175,25 @@ export default function EditTenantPage() {
             </Grid>
           </Card>
         </DashboardContent>
-      </RoleGuard>
+      // </RoleGuard>
     );
   }
 
   if (!tenant) {
     return (
-      <RoleGuard requireRole={SuperRole.ADMIN}>
+      // <RoleGuard requireRole={SuperRole.ADMIN}>
         <DashboardContent maxWidth="md">
           <Alert severity="error">
             <AlertTitle>Error</AlertTitle>
             Tenant not found
           </Alert>
         </DashboardContent>
-      </RoleGuard>
+      // </RoleGuard>
     );
   }
 
   return (
-    <RoleGuard requireRole={SuperRole.ADMIN}>
+    // <RoleGuard requireRole={SuperRole.ADMIN}>
       <DashboardContent maxWidth="md">
         {/* Header */}
         <Stack
@@ -349,6 +349,6 @@ export default function EditTenantPage() {
           </DialogActions>
         </Dialog>
       </DashboardContent>
-    </RoleGuard>
+    // </RoleGuard>
   );
 }

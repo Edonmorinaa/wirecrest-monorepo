@@ -545,6 +545,7 @@ export const locationsRouter = router({
           facebookBusinessProfile: { select: { id: true, title: true, likes: true } },
           tripAdvisorBusinessProfile: { select: { id: true, name: true, rating: true, numberOfReviews: true } },
           bookingBusinessProfile: { select: { id: true, name: true, rating: true, numberOfReviews: true } },
+          instagramBusinessProfile: { select: { id: true, username: true, currentFollowersCount: true, currentMediaCount: true } },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -602,6 +603,7 @@ export const locationsRouter = router({
           facebookBusinessProfile: true,
           tripAdvisorBusinessProfile: true,
           bookingBusinessProfile: true,
+          instagramBusinessProfile: true,
         },
       });
 

@@ -1,4 +1,3 @@
-export { useSuperRole } from './useSuperRole';
 // User and Authentication hooks
 export { default as useUser } from './useUser';
 export { default as useTeam } from './useTeam';

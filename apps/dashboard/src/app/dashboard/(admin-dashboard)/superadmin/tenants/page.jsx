@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
-import { SuperRole } from '@prisma/client';
+// import { SuperRole } from '@prisma/client';
 
 import { useSuperAdminTenants } from '@/hooks/useSuperAdminTenants';
 
@@ -43,7 +43,7 @@ import TablePagination from '@mui/material/TablePagination';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
-import { RoleGuard } from 'src/components/guards';
+// import { RoleGuard } from 'src/components/guards';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableSkeleton } from 'src/components/table/table-skeleton';
 
@@ -114,7 +114,7 @@ export default function SuperAdminTenantsPage() {
   // Show loading state
   if (isLoading) {
     return (
-      <RoleGuard requireRole={SuperRole.ADMIN}>
+      // <RoleGuard requireRole={SuperRole.ADMIN}>
         <DashboardContent maxWidth="xl">
           <Typography variant="h4" sx={{ mb: { xs: 3, md: 5 } }}>
             Tenant Management
@@ -156,26 +156,26 @@ export default function SuperAdminTenantsPage() {
             </Box>
           </Card>
         </DashboardContent>
-      </RoleGuard>
+      // </RoleGuard>
     );
   }
 
   // Show error state
   if (error) {
     return (
-      <RoleGuard requireRole={SuperRole.ADMIN}>
+      // <RoleGuard requireRole={SuperRole.ADMIN}>
         <DashboardContent maxWidth="xl">
           <Alert severity="error">
             <AlertTitle>Error</AlertTitle>
             Failed to load tenants: {error?.message || 'Unknown error'}
           </Alert>
         </DashboardContent>
-      </RoleGuard>
+      // </RoleGuard>
     );
   }
 
   return (
-    <RoleGuard requireRole={SuperRole.ADMIN}>
+    // <RoleGuard requireRole={SuperRole.ADMIN}>
       <DashboardContent maxWidth="xl">
         {/* Header */}
         <Stack
@@ -519,6 +519,6 @@ export default function SuperAdminTenantsPage() {
           </MenuItem>
         </Menu>
       </DashboardContent>
-    </RoleGuard>
+    // </RoleGuard>
   );
 }

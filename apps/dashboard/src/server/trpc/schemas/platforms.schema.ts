@@ -83,3 +83,31 @@ export const getFacebookReviewsSchema = z.object({
   }).optional(),
 });
 
+/**
+ * Schema for location-based platform operations
+ */
+export const locationSlugSchema = z.object({
+  slug: z.string().min(1, 'Team slug is required'),
+  locationSlug: z.string().min(1, 'Location slug is required'),
+});
+
+/**
+ * Schema for Instagram analytics with date range
+ */
+export const getInstagramAnalyticsSchema = z.object({
+  slug: z.string().min(1, 'Team slug is required'),
+  locationSlug: z.string().min(1, 'Location slug is required'),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+/**
+ * Schema for enabling Instagram snapshot schedule
+ */
+export const enableInstagramScheduleSchema = z.object({
+  slug: z.string().min(1, 'Team slug is required'),
+  locationSlug: z.string().min(1, 'Location slug is required'),
+  snapshotTime: z.string().optional().default('09:00:00'),
+  timezone: z.string().optional().default('UTC'),
+});
+
