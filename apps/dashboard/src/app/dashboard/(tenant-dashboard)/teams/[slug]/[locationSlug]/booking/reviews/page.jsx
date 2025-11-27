@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 
 import { CONFIG } from 'src/global-config';
 
-import { TeamBookingReviewsView } from 'src/sections/teams/booking/view';
+import { BookingReviewsView } from 'src/sections/overview/booking-reviews/view';
 import { PageLoading } from 'src/components/loading/page-loading';
 
 // ----------------------------------------------------------------------
@@ -12,7 +12,7 @@ export const metadata = { title: `Booking Reviews | Team Dashboard - ${CONFIG.ap
 export default function Page() {
   return (
     <Suspense fallback={<PageLoading message="Loading reviews..." />}>
-      <TeamBookingReviewsView />
+      <BookingReviewsView />
     </Suspense>
   );
 }

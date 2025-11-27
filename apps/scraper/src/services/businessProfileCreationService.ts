@@ -105,7 +105,7 @@ export class BusinessProfileCreationService {
           // Always trigger upsert to refresh data
           return null;
 
-        case MarketPlatform.FACEBOOK: {
+        case MarketPlatform.FACEBOOK:
           // Check if URL is used by a different team
           const facebookConflict = await prisma.facebookBusinessProfile.findFirst({
             where: {
@@ -123,9 +123,8 @@ export class BusinessProfileCreationService {
 
           // Always trigger upsert to refresh data
           return null;
-        }
 
-        case MarketPlatform.TRIPADVISOR: {
+        case MarketPlatform.TRIPADVISOR:
           // Check if this URL is already used by another team (tripAdvisorUrl is globally unique)
           const tripAdvisorConflict = await prisma.tripAdvisorBusinessProfile.findFirst(
             {
@@ -145,9 +144,8 @@ export class BusinessProfileCreationService {
 
           // Always trigger upsert to refresh data
           return null;
-        }
 
-        case MarketPlatform.BOOKING: {
+        case MarketPlatform.BOOKING:
           // Check if URL is used by a different team
           const bookingConflict = await prisma.bookingBusinessProfile.findFirst({
             where: {
@@ -163,32 +161,6 @@ export class BusinessProfileCreationService {
             );
           }
 
-          // Always trigger upsert to refresh data
-          return null;
-        }
-
-        case MarketPlatform.INSTAGRAM: {
-          // Check if username is used by a different team
-          const instagramConflict = await prisma.instagramBusinessProfile.findFirst({
-            where: {
-              username: identifier,
-              location: { teamId: { not: teamId } },
-            },
-            select: { id: true, location: { select: { teamId: true } } },
-          });
-
-          if (instagramConflict) {
-            throw new Error(
-              `Instagram username ${identifier} is already registered to another team (${instagramConflict.location?.teamId})`,
-            );
-          }
-
-          // Always trigger upsert to refresh data
-          return null;
-        }
-
-        case MarketPlatform.TIKTOK:
-          // TikTok is team-level, not location-level
           // Always trigger upsert to refresh data
           return null;
 
@@ -306,18 +278,6 @@ export class BusinessProfileCreationService {
           locationId,
           identifier,
         );
-      } else if (platform === MarketPlatform.INSTAGRAM) {
-        return await this.createInstagramBusinessProfile(
-          teamId,
-          locationId,
-          identifier,
-        );
-      } else if (platform === MarketPlatform.TIKTOK) {
-        // TikTok is team-level, not location-level
-        return {
-          success: false,
-          error: "TikTok profiles are team-level and should be handled separately",
-        };
       } else {
         return {
           success: false,
@@ -572,47 +532,47 @@ export class BusinessProfileCreationService {
           // Related data - create nested
           location: placeData.location
             ? {
-                create: {
-                  lat: placeData.location.latitude,
-                  lng: placeData.location.longitude,
-                },
-              }
+              create: {
+                lat: placeData.location.latitude,
+                lng: placeData.location.longitude,
+              },
+            }
             : undefined,
 
           categories:
             placeData.types && placeData.types.length > 0
               ? {
-                  create: placeData.types.map((type: string) => ({
-                    name: type,
-                  })),
-                }
+                create: placeData.types.map((type: string) => ({
+                  name: type,
+                })),
+              }
               : undefined,
 
           addressComponents:
             placeData.addressComponents &&
-            placeData.addressComponents.length > 0
+              placeData.addressComponents.length > 0
               ? {
-                  create: placeData.addressComponents.map((ac) => ({
-                    longText: ac.longText,
-                    shortText: ac.shortText,
-                    types: ac.types,
-                    languageCode: ac.languageCode,
-                  })),
-                }
+                create: placeData.addressComponents.map((ac) => ({
+                  longText: ac.longText,
+                  shortText: ac.shortText,
+                  types: ac.types,
+                  languageCode: ac.languageCode,
+                })),
+              }
               : undefined,
 
           photos:
             placeData.photos && placeData.photos.length > 0
               ? {
-                  create: placeData.photos.slice(0, 20).map((p) => ({
-                    name: p.name,
-                    widthPx: p.widthPx,
-                    heightPx: p.heightPx,
-                    authorAttributions: p.authorAttributions
-                      ? (p.authorAttributions as unknown as Prisma.InputJsonValue)
-                      : null,
-                  })),
-                }
+                create: placeData.photos.slice(0, 20).map((p) => ({
+                  name: p.name,
+                  widthPx: p.widthPx,
+                  heightPx: p.heightPx,
+                  authorAttributions: p.authorAttributions
+                    ? (p.authorAttributions as unknown as Prisma.InputJsonValue)
+                    : null,
+                })),
+              }
               : undefined,
 
           metadata: {
@@ -691,64 +651,64 @@ export class BusinessProfileCreationService {
           // Related data - create nested (already deleted old ones above)
           location: placeData.location
             ? {
-                create: {
-                  lat: placeData.location.latitude,
-                  lng: placeData.location.longitude,
-                },
-              }
+              create: {
+                lat: placeData.location.latitude,
+                lng: placeData.location.longitude,
+              },
+            }
             : undefined,
 
           categories:
             placeData.types && placeData.types.length > 0
               ? {
-                  create: placeData.types.map((type: string) => ({
-                    name: type,
-                  })),
-                }
+                create: placeData.types.map((type: string) => ({
+                  name: type,
+                })),
+              }
               : undefined,
 
           addressComponents:
             placeData.addressComponents &&
-            placeData.addressComponents.length > 0
+              placeData.addressComponents.length > 0
               ? {
-                  create: placeData.addressComponents.map((ac) => ({
-                    longText: ac.longText,
-                    shortText: ac.shortText,
-                    types: ac.types,
-                    languageCode: ac.languageCode,
-                  })),
-                }
+                create: placeData.addressComponents.map((ac) => ({
+                  longText: ac.longText,
+                  shortText: ac.shortText,
+                  types: ac.types,
+                  languageCode: ac.languageCode,
+                })),
+              }
               : undefined,
 
           photos:
             placeData.photos && placeData.photos.length > 0
               ? {
-                  create: placeData.photos.slice(0, 20).map((p) => ({
-                    name: p.name,
-                    widthPx: p.widthPx,
-                    heightPx: p.heightPx,
-                    authorAttributions: p.authorAttributions
-                      ? (p.authorAttributions as unknown as Prisma.InputJsonValue)
-                      : null,
-                  })),
-                }
+                create: placeData.photos.slice(0, 20).map((p) => ({
+                  name: p.name,
+                  widthPx: p.widthPx,
+                  heightPx: p.heightPx,
+                  authorAttributions: p.authorAttributions
+                    ? (p.authorAttributions as unknown as Prisma.InputJsonValue)
+                    : null,
+                })),
+              }
               : undefined,
 
           metadata: existingBusiness
             ? {
-                update: {
-                  lastUpdateAt: new Date(),
-                  nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
-                },
-              }
-            : {
-                create: {
-                  updateFrequencyMinutes: 360,
-                  nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
-                  lastUpdateAt: new Date(),
-                  isActive: true,
-                },
+              update: {
+                lastUpdateAt: new Date(),
+                nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
               },
+            }
+            : {
+              create: {
+                updateFrequencyMinutes: 360,
+                nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+                lastUpdateAt: new Date(),
+                isActive: true,
+              },
+            },
         },
       });
 
@@ -941,19 +901,19 @@ export class BusinessProfileCreationService {
           scrapedAt: new Date(),
           businessMetadata: existingBusiness
             ? {
-                update: {
-                  lastUpdateAt: new Date(),
-                  nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
-                },
-              }
-            : {
-                create: {
-                  updateFrequencyMinutes: 360,
-                  nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
-                  lastUpdateAt: new Date(),
-                  isActive: true,
-                },
+              update: {
+                lastUpdateAt: new Date(),
+                nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
               },
+            }
+            : {
+              create: {
+                updateFrequencyMinutes: 360,
+                nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+                lastUpdateAt: new Date(),
+                isActive: true,
+              },
+            },
         },
       });
 
@@ -1044,7 +1004,7 @@ export class BusinessProfileCreationService {
       const input = {
         startUrls: [{ url: tripAdvisorUrl }],
         maxItemsPerQuery: 1,
-        scrapeReviewerInfo: false,
+        scrapeReviewerInfo: true,
       };
 
       const run = await this.apifyClient.actor(actorId).call(input);
@@ -1085,7 +1045,7 @@ export class BusinessProfileCreationService {
       const existingUrlProfile =
         await prisma.tripAdvisorBusinessProfile.findUnique({
           where: { tripAdvisorUrl },
-          select: { 
+          select: {
             businessLocation: {
               select: {
                 teamId: true
@@ -1103,7 +1063,7 @@ export class BusinessProfileCreationService {
       // Upsert TripAdvisor business profile - always update with fresh data from Apify
       const profileData = {
         tripAdvisorUrl,
-        locationId: pageData.locationId || randomUUID(),
+        locationId: pageData.id || pageData.locationId, // Use TripAdvisor's location ID from Apify
         name: pageData.name || "Unknown",
         type: businessType,
         category: pageData.category || "Unknown",
@@ -1229,7 +1189,7 @@ export class BusinessProfileCreationService {
       } catch (urlError) {
         const errorMessage = `Invalid Booking.com URL: ${bookingUrl}. Please provide a valid Booking.com property URL (e.g., https://www.booking.com/hotel/...). Received identifier looks like: ${bookingUrl.substring(0, 50)}`;
         console.error(`[Booking Apify] ${errorMessage}`);
-        
+
         await this.updateTaskProgress(
           teamId,
           "BOOKING",
@@ -1402,19 +1362,19 @@ export class BusinessProfileCreationService {
           scrapedAt: new Date(),
           businessMetadata: existingBusiness
             ? {
-                update: {
-                  lastUpdateAt: new Date(),
-                  nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
-                },
-              }
-            : {
-                create: {
-                  updateFrequencyMinutes: 360,
-                  nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
-                  lastUpdateAt: new Date(),
-                  isActive: true,
-                },
+              update: {
+                lastUpdateAt: new Date(),
+                nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
               },
+            }
+            : {
+              create: {
+                updateFrequencyMinutes: 360,
+                nextUpdateAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+                lastUpdateAt: new Date(),
+                isActive: true,
+              },
+            },
         },
       });
 
@@ -1470,114 +1430,5 @@ export class BusinessProfileCreationService {
     if (upperPrice.includes("EXPENSIVE")) return "EXPENSIVE";
     if (upperPrice.includes("VERY_EXPENSIVE")) return "VERY_EXPENSIVE";
     return "MODERATE"; // Default
-  }
-
-  /**
-   * Create Instagram Business Profile using InstagramDataService
-   */
-  private async createInstagramBusinessProfile(
-    teamId: string,
-    locationId: string,
-    instagramUsername: string,
-  ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
-    try {
-      // Update progress: Starting
-      await this.updateTaskProgress(
-        teamId,
-        "INSTAGRAM",
-        "CREATING_PROFILE",
-        "IN_PROGRESS",
-        "Creating Instagram business profile...",
-        10,
-      );
-
-      console.log(
-        `[Instagram] Creating profile for location: ${locationId}, username: ${instagramUsername}`,
-      );
-
-      // Import Instagram service dynamically
-      const { InstagramDataService } = await import("./instagramDataService");
-      const { SentimentAnalyzer } = await import("../sentimentAnalyzer/sentimentAnalyzer");
-      
-      const sentimentAnalyzer = new SentimentAnalyzer();
-      const instagramService = new InstagramDataService(
-        process.env.HIKER_API_KEY || "",
-        prisma,
-        sentimentAnalyzer,
-      );
-
-      await this.updateTaskProgress(
-        teamId,
-        "INSTAGRAM",
-        "CREATING_PROFILE",
-        "IN_PROGRESS",
-        "Fetching Instagram profile data...",
-        40,
-      );
-
-      // Create or update business profile
-      const result = await instagramService.createBusinessProfile(
-        locationId,
-        instagramUsername,
-      );
-
-      if (!result.success) {
-        await this.updateTaskProgress(
-          teamId,
-          "INSTAGRAM",
-          "CREATING_PROFILE",
-          "FAILED",
-          result.error || "Failed to create Instagram profile",
-          0,
-        );
-
-        return {
-          success: false,
-          error: result.error || "Failed to create Instagram profile",
-        };
-      }
-
-      await this.updateTaskProgress(
-        teamId,
-        "INSTAGRAM",
-        "CREATING_PROFILE",
-        "COMPLETED",
-        "Instagram business profile created successfully!",
-        100,
-      );
-
-      // Emit event for market identifier creation
-      marketIdentifierEvents.emit("identifierCreated", {
-        teamId,
-        platform: MarketPlatform.INSTAGRAM,
-        identifier: instagramUsername,
-        businessProfileId: result.businessProfileId,
-      });
-
-      console.log(
-        `✅ [Instagram] Profile created successfully for location ${locationId}`,
-      );
-
-      return {
-        success: true,
-        businessProfileId: result.businessProfileId,
-      };
-    } catch (error) {
-      console.error("[Instagram] Error:", error);
-
-      await this.updateTaskProgress(
-        teamId,
-        "INSTAGRAM",
-        "CREATING_PROFILE",
-        "FAILED",
-        error instanceof Error ? error.message : "Unknown error",
-        0,
-      );
-
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
   }
 }

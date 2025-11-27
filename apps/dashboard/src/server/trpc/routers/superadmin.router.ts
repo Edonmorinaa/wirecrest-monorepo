@@ -191,7 +191,7 @@ export const superadminRouter = router({
       try {
         // Fetch market identifiers (now location-based)
         const identifiers = await prisma.businessMarketIdentifier.findMany({
-          where: { 
+          where: {
             location: {
               teamId: input.teamId,
             },
@@ -208,7 +208,7 @@ export const superadminRouter = router({
         // Fetch team-level social platforms
         const [instagram, tiktok] = await Promise.all([
           prisma.instagramBusinessProfile.findFirst({
-              where: { teamId: input.teamId },
+            where: { teamId: input.teamId },
             select: {
               id: true,
               username: true,
@@ -339,11 +339,11 @@ export const superadminRouter = router({
         return result;
       } catch (error) {
         console.error('Error creating team with location:', error);
-        
+
         if (error instanceof TRPCError) {
           throw error;
         }
-        
+
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to create team with location',
@@ -472,7 +472,6 @@ export const superadminRouter = router({
 
         // Add social platforms count
         const socialPlatformsCount =
-          (team.instagramBusinessProfile ? 1 : 0) +
           (team.tiktokBusinessProfile ? 1 : 0);
 
         recordMetric('superadmin.team_with_locations.fetched');
@@ -488,7 +487,7 @@ export const superadminRouter = router({
           },
           locations: locationsWithPlatformCounts,
           socialPlatforms: {
-            instagram: team.instagramBusinessProfile,
+            instagram: null,
             tiktok: team.tiktokBusinessProfile,
             count: socialPlatformsCount,
           },
@@ -502,13 +501,13 @@ export const superadminRouter = router({
             ),
           },
         };
-        } catch (error) {
+      } catch (error) {
         console.error('Error fetching team with locations:', error);
-        
+
         if (error instanceof TRPCError) {
           throw error;
         }
-        
+
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to fetch team with locations',
@@ -538,7 +537,7 @@ export const superadminRouter = router({
                     publishedAtDate: true,
                     rating: true,
                   },
-                orderBy: { publishedAtDate: 'desc' },
+                  orderBy: { publishedAtDate: 'desc' },
                   take: 1,
                 },
                 _count: { select: { reviews: true } },
@@ -552,7 +551,7 @@ export const superadminRouter = router({
                     date: true,
                     isRecommended: true,
                   },
-                orderBy: { date: 'desc' },
+                  orderBy: { date: 'desc' },
                   take: 1,
                 },
                 _count: { select: { reviews: true } },
@@ -566,7 +565,7 @@ export const superadminRouter = router({
                     publishedDate: true,
                     rating: true,
                   },
-                orderBy: { publishedDate: 'desc' },
+                  orderBy: { publishedDate: 'desc' },
                   take: 1,
                 },
                 _count: { select: { reviews: true } },
@@ -580,7 +579,7 @@ export const superadminRouter = router({
                     publishedDate: true,
                     rating: true,
                   },
-                orderBy: { publishedDate: 'desc' },
+                  orderBy: { publishedDate: 'desc' },
                   take: 1,
                 },
                 _count: { select: { reviews: true } },
@@ -609,7 +608,7 @@ export const superadminRouter = router({
             'TRIPADVISOR': 'TRIPADVISOR',
             'BOOKING': 'BOOKING',
           };
-          
+
           const dbPlatform = platformMapping[platform] || platform;
           const marketIdentifier = marketIdentifiers.find(
             (mi) => mi.platform === dbPlatform
@@ -655,11 +654,11 @@ export const superadminRouter = router({
           (sum, p) => sum + (p.reviewsCount || 0),
           0
         );
-        
+
         const completedPlatforms = Object.values(platforms).filter(
           (p) => p.status === 'completed'
         ).length;
-        
+
         const completionPercentage = (completedPlatforms / 4) * 100; // 4 business platforms
 
         recordMetric('superadmin.location_platform_data.fetched');
@@ -684,11 +683,11 @@ export const superadminRouter = router({
         };
       } catch (error) {
         console.error('Error fetching location platform data:', error);
-        
+
         if (error instanceof TRPCError) {
           throw error;
         }
-        
+
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to fetch location platform data',
@@ -723,73 +722,59 @@ export const superadminRouter = router({
             locations: {
               include: {
                 googleBusinessProfile: {
-              include: {
-                reviews: {
-                  select: {
-                    id: true,
-                    publishedAtDate: true,
-                    rating: true,
-                  },
-                  orderBy: { publishedAtDate: 'desc' },
-                  take: 1,
-                },
-                    _count: { select: { reviews: true } },
-              },
-            },
-                facebookBusinessProfile: {
-              include: {
-                reviews: {
-                  select: {
-                    id: true,
-                    date: true,
-                    isRecommended: true,
-                  },
-                  orderBy: { date: 'desc' },
-                  take: 1,
-                },
-                    _count: { select: { reviews: true } },
-              },
-            },
-            tripAdvisorBusinessProfile: {
-              include: {
-                reviews: {
-                  select: {
-                    id: true,
-                    publishedDate: true,
-                    rating: true,
-                  },
-                  orderBy: { publishedDate: 'desc' },
-                  take: 1,
-                },
-                    _count: { select: { reviews: true } },
-              },
-            },
-            bookingBusinessProfile: {
-              include: {
-                reviews: {
-                  select: {
-                    id: true,
-                    publishedDate: true,
-                    rating: true,
-                  },
-                  orderBy: { publishedDate: 'desc' },
-                  take: 1,
-                    },
-                    _count: { select: { reviews: true } },
-                  },
-                },
-                instagramBusinessProfile: {
                   include: {
-                    dailySnapshots: {
+                    reviews: {
                       select: {
                         id: true,
-                        snapshotDate: true,
-                        followersCount: true,
+                        publishedAtDate: true,
+                        rating: true,
                       },
-                      orderBy: { snapshotDate: 'desc' },
+                      orderBy: { publishedAtDate: 'desc' },
                       take: 1,
                     },
-                    snapshotSchedule: true,
+                    _count: { select: { reviews: true } },
+                  },
+                },
+                facebookBusinessProfile: {
+                  include: {
+                    reviews: {
+                      select: {
+                        id: true,
+                        date: true,
+                        isRecommended: true,
+                      },
+                      orderBy: { date: 'desc' },
+                      take: 1,
+                    },
+                    _count: { select: { reviews: true } },
+                  },
+                },
+                tripAdvisorBusinessProfile: {
+                  include: {
+                    reviews: {
+                      select: {
+                        id: true,
+                        publishedDate: true,
+                        rating: true,
+                      },
+                      orderBy: { publishedDate: 'desc' },
+                      take: 1,
+                    },
+                    _count: { select: { reviews: true } },
+                  },
+                },
+                bookingBusinessProfile: {
+                  include: {
+                    reviews: {
+                      select: {
+                        id: true,
+                        publishedDate: true,
+                        rating: true,
+                      },
+                      orderBy: { publishedDate: 'desc' },
+                      take: 1,
+                    },
+                    _count: { select: { reviews: true } },
                   },
                 },
               },
@@ -844,11 +829,11 @@ export const superadminRouter = router({
           let lastSnapshotDate = null;
 
           if (platform === 'TIKTOK') {
-              profile = tenant.tiktokBusinessProfile;
-              if (profile?.dailySnapshots) {
+            profile = tenant.tiktokBusinessProfile;
+            if (profile?.dailySnapshots) {
               snapshotsCount = profile.dailySnapshots.length;
               lastSnapshotDate = profile.dailySnapshots[0]?.snapshotDate || null;
-              }
+            }
           }
 
           // Determine status
@@ -921,8 +906,8 @@ export const superadminRouter = router({
             }
             if (location.tripAdvisorBusinessProfile.rating) {
               totalRating += location.tripAdvisorBusinessProfile.rating;
-            ratingCount++;
-          }
+              ratingCount++;
+            }
             locationCompletedCount++;
           }
 
@@ -945,8 +930,8 @@ export const superadminRouter = router({
 
         // Calculate completion percentage based on locations
         const totalLocations = tenant.locations.length;
-        const completionPercentage = totalLocations > 0 
-          ? (completedLocations / totalLocations) * 100 
+        const completionPercentage = totalLocations > 0
+          ? (completedLocations / totalLocations) * 100
           : 0;
 
         // Count active tasks
@@ -988,8 +973,8 @@ export const superadminRouter = router({
 
         const recentActivity = activities.map(activity => ({
           id: activity.id,
-          type: activity.status === 'COMPLETED' ? 'task_completed' : 
-                activity.status === 'FAILED' ? 'task_failed' : 'status_message',
+          type: activity.status === 'COMPLETED' ? 'task_completed' :
+            activity.status === 'FAILED' ? 'task_failed' : 'status_message',
           platform: activity.businessCreation.platform,
           message: activity.message,
           timestamp: activity.timestamp,

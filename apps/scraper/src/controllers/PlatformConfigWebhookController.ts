@@ -92,20 +92,6 @@ export class PlatformConfigWebhookController {
       );
 
       // STEP 2: Trigger initial scrape + add to schedule
-      // Instagram doesn't use Apify, so handle it separately
-      if (platform === 'instagram') {
-        console.log(`📸 Instagram profile created, skipping Apify scheduling`);
-        res.json({
-          success: true,
-          message: "Instagram profile created successfully",
-          profileCreated: profileResult.created,
-          businessProfileId: profileResult.businessProfileId,
-          initialTaskStarted: false,
-          businessAdded: true,
-        });
-        return;
-      }
-
       const apifyPlatform = this.mapPlatformToApifyPlatform(platform);
       const result = await this.orchestrator.handlePlatformAdded(
         teamId,
@@ -171,8 +157,6 @@ export class PlatformConfigWebhookController {
       facebook: MarketPlatform.FACEBOOK,
       tripadvisor: MarketPlatform.TRIPADVISOR,
       booking: MarketPlatform.BOOKING,
-      instagram: MarketPlatform.INSTAGRAM,
-      tiktok: MarketPlatform.TIKTOK,
     };
     return mapping[platform] || MarketPlatform.GOOGLE_MAPS; // Default fallback
   }

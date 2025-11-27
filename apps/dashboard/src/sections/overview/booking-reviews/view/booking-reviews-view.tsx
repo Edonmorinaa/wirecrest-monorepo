@@ -80,18 +80,18 @@ export function BookingReviewsView() {
   useEffect(() => {
     const hasPage = searchParams.has('page');
     const hasLimit = searchParams.has('limit');
-    
+
     // Only update URL if page or limit is missing (initial load)
     if (!hasPage || !hasLimit) {
       const queryParams = new URLSearchParams(searchParams.toString());
-      
+
       if (!hasPage) {
         queryParams.set('page', '1');
       }
       if (!hasLimit) {
         queryParams.set('limit', '10');
       }
-      
+
       // Only update if we actually changed something
       router.replace(`?${queryParams.toString()}`, { scroll: false });
     }
@@ -106,9 +106,9 @@ export function BookingReviewsView() {
       limit: query.limit ? parseInt(query.limit) : 10,
       ratings: query.ratings
         ? query.ratings
-            .split(',')
-            .map((r) => parseInt(r.trim()))
-            .filter((r) => !isNaN(r))
+          .split(',')
+          .map((r) => parseInt(r.trim()))
+          .filter((r) => !isNaN(r))
         : undefined,
       hasResponse:
         query.hasResponse === 'true' ? true : query.hasResponse === 'false' ? false : undefined,
@@ -192,7 +192,7 @@ export function BookingReviewsView() {
         verifiedStays: aggregates?.verifiedStays || 0,
       };
     }
-    
+
     // If loading and we have previous stats, use them
     if (isLoading && previousStatsRef.current) {
       return {
@@ -205,7 +205,7 @@ export function BookingReviewsView() {
         verifiedStays: aggregates?.verifiedStays || 0,
       };
     }
-    
+
     // Fallback to defaults if no previous data
     return {
       total: allTimeStats?.totalReviews || previousStatsRef.current?.total || 0,
@@ -274,7 +274,7 @@ export function BookingReviewsView() {
           [field]: value,
         },
       });
-      
+
       // Refetch reviews to get updated data
       await refetch();
     } catch (error) {
@@ -290,7 +290,7 @@ export function BookingReviewsView() {
       { name: 'Dashboard', href: paths.dashboard.root },
       { name: 'Teams', href: paths.dashboard.teams.root },
       { name: team?.name || '', href: paths.dashboard.teams.bySlug(teamSlug) },
-      { name: location?.name || '', href: paths.dashboard.teams.locations(teamSlug) },
+      { name: location?.name || '', href: "" },
       { name: 'Booking.com Reviews' },
     ],
     [team?.name, location?.name, teamSlug]
@@ -318,63 +318,63 @@ export function BookingReviewsView() {
         {/* Welcome Section */}
         {location && (
           <>
-        <BookingReviewsWelcome
-          team={team}
-          businessProfile={businessProfile}
-          stats={stats}
-          sx={{}}
-        />
-
-        {/* Stats Cards */}
-        <BookingReviewsStats stats={stats} />
-
-        {/* Analytics Chart - Lazy Loaded */}
-        <Grid size={{ xs: 12 }}>
-          <Suspense
-            fallback={
-              <Card sx={{ p: 3 }}>
-                <Box
-                  sx={{
-                    height: 400,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    Loading analytics...
-                  </Typography>
-                </Box>
-              </Card>
-            }
-          >
-            <BookingReviewsAnalytics2 teamSlug={teamSlug} locationId={locationId} />
-          </Suspense>
-        </Grid>
-
-        {/* Filters and Reviews List */}
-        <Card>
-          <Box sx={{ p: 3, borderBottom: `solid 1px ${theme.palette.divider}` }}>
-            <BookingReviewsFilters 
-              filters={filters} 
-              onFilterChange={updateFilter} 
-              onResetFilters={resetFilters}
-              stats={stats} 
+            <BookingReviewsWelcome
+              team={team}
+              businessProfile={businessProfile}
+              stats={stats}
+              sx={{}}
             />
-          </Box>
 
-          <Box sx={{ p: 3 }}>
-            <BookingReviewsList
-              reviews={(reviews || []) as any}
-              pagination={pagination}
-              filters={filters}
-              isLoading={isLoading}
-              onUpdateMetadata={handleUpdateMetadata}
-              onPageChange={(page) => updateFilter('page', page)}
-              onRefresh={refetch}
-            />
-          </Box>
-        </Card>
+            {/* Stats Cards */}
+            <BookingReviewsStats stats={stats} />
+
+            {/* Analytics Chart - Lazy Loaded */}
+            <Grid size={{ xs: 12 }}>
+              <Suspense
+                fallback={
+                  <Card sx={{ p: 3 }}>
+                    <Box
+                      sx={{
+                        height: 400,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        Loading analytics...
+                      </Typography>
+                    </Box>
+                  </Card>
+                }
+              >
+                <BookingReviewsAnalytics2 teamSlug={teamSlug} locationId={locationId} />
+              </Suspense>
+            </Grid>
+
+            {/* Filters and Reviews List */}
+            <Card>
+              <Box sx={{ p: 3, borderBottom: `solid 1px ${theme.palette.divider}` }}>
+                <BookingReviewsFilters
+                  filters={filters}
+                  onFilterChange={updateFilter}
+                  onResetFilters={resetFilters}
+                  stats={stats}
+                />
+              </Box>
+
+              <Box sx={{ p: 3 }}>
+                <BookingReviewsList
+                  reviews={(reviews || []) as any}
+                  pagination={pagination}
+                  filters={filters}
+                  isLoading={isLoading}
+                  onUpdateMetadata={handleUpdateMetadata}
+                  onPageChange={(page) => updateFilter('page', page)}
+                  onRefresh={refetch}
+                />
+              </Box>
+            </Card>
           </>
         )}
       </Stack>

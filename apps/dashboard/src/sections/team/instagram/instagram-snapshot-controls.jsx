@@ -26,8 +26,8 @@ import { Iconify } from 'src/components/iconify';
 export function InstagramSnapshotControls() {
   const params = useParams();
   const teamSlug = useTeamSlug();
-  const locationSlug = params?.locationSlug as string;
-  
+  const locationSlug = params?.locationSlug;
+
   const { businessProfile, isLoading, mutateBusinessProfile } = useInstagramBusinessProfile();
   const [isEnabling, setIsEnabling] = useState(false);
   const [isDisabling, setIsDisabling] = useState(false);
@@ -99,7 +99,7 @@ export function InstagramSnapshotControls() {
         }
         subheader="Configure automatic daily snapshots with rate limiting and time gaps"
       />
-      
+
       <CardContent>
         <Stack spacing={3}>
           {/* Snapshot Status */}
@@ -157,7 +157,7 @@ export function InstagramSnapshotControls() {
                   Last Success
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                  {snapshotSchedule.lastSuccessAt 
+                  {snapshotSchedule.lastSuccessAt
                     ? format(new Date(snapshotSchedule.lastSuccessAt), 'MMM dd, HH:mm')
                     : 'Never'}
                 </Typography>
@@ -211,7 +211,7 @@ export function InstagramSnapshotControls() {
                 {isEnabling ? 'Enabling...' : 'Enable Snapshots'}
               </Button>
             )}
-            
+
             <Button
               variant="outlined"
               size="small"

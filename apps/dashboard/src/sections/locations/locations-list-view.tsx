@@ -173,9 +173,6 @@ export function LocationsListView() {
                         {location.bookingBusinessProfile && (
                           <Chip label="Booking" size="small" color="warning" variant="outlined" />
                         )}
-                        {location.instagramBusinessProfile && (
-                          <Chip label="Instagram" size="small" color="secondary" variant="outlined" />
-                        )}
                       </Stack>
                     </TableCell>
                     <TableCell align="right">

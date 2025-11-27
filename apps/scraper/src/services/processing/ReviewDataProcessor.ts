@@ -26,14 +26,14 @@ export class ReviewDataProcessor {
 
   constructor(apifyToken?: string) {
     this.databaseService = new DatabaseService();
-    
+
     // Initialize Apify client with token from env or parameter
     const token = apifyToken || process.env.APIFY_TOKEN;
     if (!token) {
       throw new Error('APIFY_TOKEN is required for ReviewDataProcessor');
     }
     this.apifyClient = new ApifyClient({ token });
-    
+
     // Analytics services removed - analytics now computed on-demand via tRPC
     // this.googleAnalytics = new GoogleReviewAnalyticsService();
     // this.facebookAnalytics = new FacebookReviewAnalyticsService();
@@ -46,11 +46,11 @@ export class ReviewDataProcessor {
    */
   private async fetchDatasetItems<T = any>(datasetId: string): Promise<T[]> {
     console.log(`📥 Fetching data from Apify dataset: ${datasetId}`);
-    
+
     try {
       const dataset = this.apifyClient.dataset(datasetId);
       const { items } = await dataset.listItems();
-      
+
       console.log(`✅ Successfully fetched ${items.length} items from dataset`);
       return items as T[];
     } catch (error) {
@@ -71,17 +71,17 @@ export class ReviewDataProcessor {
   ): Promise<void> {
     // Notify on initial sync OR when new reviews found
     const shouldNotify = isInitial || result.reviewsNew >= 1;
-    
+
     if (!shouldNotify) {
       console.log(`  ℹ️  No notification needed for team ${teamId} - no new reviews`);
       return;
     }
-    
+
     const platformName = platform.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
     const notificationTitle = isInitial
       ? `<p>Initial <strong>${platformName}</strong> sync complete</p>`
       : `<p><strong>${result.reviewsNew}</strong> new review${result.reviewsNew > 1 ? 's' : ''} from <strong>${platformName}</strong></p>`;
-    
+
     try {
       await sendNotification({
         type: 'delivery',
@@ -210,7 +210,7 @@ export class ReviewDataProcessor {
   ): Promise<Omit<SyncResult, 'processingTimeMs'>> {
     const teamInfo = teamId ? `team ${teamId}` : 'all teams';
     console.log(`📍 Processing Google reviews for ${teamInfo}...`);
-    
+
     // Get unique place IDs from dataset
     const uniquePlaceIds = [...new Set(rawData.map((r) => r.placeId).filter(Boolean))];
     console.log(`Found ${uniquePlaceIds.length} unique place(s)`);
@@ -218,18 +218,18 @@ export class ReviewDataProcessor {
     // Fetch all business profiles - filter by team if provided (through businessLocation relation)
     const whereClause: Prisma.GoogleBusinessProfileWhereInput = {
       placeId: { in: uniquePlaceIds },
-      ...(teamId && { 
-        businessLocation: { 
-          teamId 
-        } 
+      ...(teamId && {
+        businessLocation: {
+          teamId
+        }
       }),
     };
 
     const businessProfiles = await prisma.googleBusinessProfile.findMany({
       where: whereClause,
-      select: { 
-        id: true, 
-        placeId: true, 
+      select: {
+        id: true,
+        placeId: true,
         lastReviewDate: true,
         businessLocation: {
           select: {
@@ -241,7 +241,7 @@ export class ReviewDataProcessor {
     const profileMap = new Map<string, { id: string; placeId: string | null; lastReviewDate: Date | null; businessLocation: { teamId: string } }>(
       businessProfiles.map((p) => [p.placeId || '', p])
     );
-    
+
     let reviewsNew = 0;
     let reviewsDuplicate = 0;
     const businessesUpdated = new Set<string>();
@@ -259,7 +259,7 @@ export class ReviewDataProcessor {
 
       for (const review of placeReviews) {
         const reviewDate = review.publishedAtDate ? new Date(review.publishedAtDate) : null;
-        
+
         // Skip if older than last known review (deduplication)
         if (!isInitial && profile.lastReviewDate && reviewDate && reviewDate <= profile.lastReviewDate) {
           reviewsDuplicate++;
@@ -268,7 +268,7 @@ export class ReviewDataProcessor {
 
         // Use consistent reviewerId for deduplication
         const reviewerId = review.reviewerId || review.userId || `reviewer-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Check if review already exists (atomic check for proper deduplication)
         const existingReview = await prisma.googleReview.findFirst({
           where: {
@@ -286,17 +286,17 @@ export class ReviewDataProcessor {
         // Use upsert to avoid duplicates - using reviewMetadata compound key
         const fid = review.fid || `${profile.placeId}-${reviewerId}-${reviewDate?.getTime() || Date.now()}`;
         const externalId = review.reviewId || review.id || fid;
-        
+
         // Prepare review metadata - check if it exists first
         const existingMetadata = await prisma.reviewMetadata.findFirst({
-          where: { 
+          where: {
             externalId,
             source: 'GOOGLE_MAPS',
           },
         });
 
         const reviewMetadata = await prisma.reviewMetadata.upsert({
-          where: { 
+          where: {
             externalId_source: {
               externalId,
               source: 'GOOGLE_MAPS',
@@ -473,8 +473,8 @@ export class ReviewDataProcessor {
           teamId,
           title: `<p><strong>${negativeReviews.length}</strong> new negative review${negativeReviews.length > 1 ? 's' : ''} received</p>`,
           category: 'Reviews',
-          metadata: { 
-            platform: 'google_reviews', 
+          metadata: {
+            platform: 'google_reviews',
             businessProfileId: uniquePlaceIds[0],
             count: negativeReviews.length,
           },
@@ -483,7 +483,7 @@ export class ReviewDataProcessor {
       }
 
       // Detect urgent reviews (negative + high response urgency)
-      const urgentReviews = newReviewsData.filter(r => 
+      const urgentReviews = newReviewsData.filter(r =>
         (r.stars || r.rating || 0) <= 2
       );
       if (urgentReviews.length > 0) {
@@ -493,8 +493,8 @@ export class ReviewDataProcessor {
           teamId,
           title: `<p><strong>URGENT:</strong> ${urgentReviews.length} review${urgentReviews.length > 1 ? 's' : ''} require immediate response</p>`,
           category: 'Reviews',
-          metadata: { 
-            platform: 'google_reviews', 
+          metadata: {
+            platform: 'google_reviews',
             businessProfileId: uniquePlaceIds[0],
             count: urgentReviews.length,
           },
@@ -522,7 +522,7 @@ export class ReviewDataProcessor {
   ): Promise<Omit<SyncResult, 'processingTimeMs'>> {
     const teamInfo = teamId ? `team ${teamId}` : 'all teams';
     console.log(`📘 Processing Facebook reviews for ${teamInfo}...`);
-    
+
     // Get unique Facebook URLs from dataset
     const uniqueUrls = [...new Set(rawData.map((r) => r.facebookUrl).filter(Boolean))];
     console.log(`Found ${uniqueUrls.length} unique page(s)`);
@@ -530,18 +530,18 @@ export class ReviewDataProcessor {
     // Fetch all business profiles - filter by team if provided (through businessLocation relation)
     const whereClause: Prisma.FacebookBusinessProfileWhereInput = {
       facebookUrl: { in: uniqueUrls },
-      ...(teamId && { 
-        businessLocation: { 
-          teamId 
-        } 
+      ...(teamId && {
+        businessLocation: {
+          teamId
+        }
       }),
     };
 
     const businessProfiles = await prisma.facebookBusinessProfile.findMany({
       where: whereClause,
-      select: { 
-        id: true, 
-        facebookUrl: true, 
+      select: {
+        id: true,
+        facebookUrl: true,
         lastReviewDate: true,
         businessLocation: {
           select: {
@@ -553,7 +553,7 @@ export class ReviewDataProcessor {
     const profileMap = new Map<string, { id: string; facebookUrl: string | null; lastReviewDate: Date | null; businessLocation: { teamId: string } }>(
       businessProfiles.map((p) => [p.facebookUrl || '', p])
     );
-    
+
     let reviewsNew = 0;
     let reviewsDuplicate = 0;
     const businessesUpdated = new Set<string>();
@@ -571,7 +571,7 @@ export class ReviewDataProcessor {
 
       for (const review of pageReviews) {
         const reviewDate = review.date ? new Date(review.date) : null;
-        
+
         // Skip if older than last known review (deduplication)
         if (!isInitial && profile.lastReviewDate && reviewDate && reviewDate <= profile.lastReviewDate) {
           reviewsDuplicate++;
@@ -596,7 +596,7 @@ export class ReviewDataProcessor {
 
         // Check if metadata exists
         const existingMetadata = await prisma.reviewMetadata.findFirst({
-          where: { 
+          where: {
             externalId: review.id,
             source: 'FACEBOOK',
           },
@@ -604,7 +604,7 @@ export class ReviewDataProcessor {
 
         // Upsert review metadata
         const reviewMetadata = await prisma.reviewMetadata.upsert({
-          where: { 
+          where: {
             externalId_source: {
               externalId: review.id,
               source: 'FACEBOOK',
@@ -796,8 +796,8 @@ export class ReviewDataProcessor {
           teamId,
           title: `<p><strong>${negativeReviews.length}</strong> new negative Facebook review${negativeReviews.length > 1 ? 's' : ''} received</p>`,
           category: 'Reviews',
-          metadata: { 
-            platform: 'facebook', 
+          metadata: {
+            platform: 'facebook',
             businessProfileId: uniqueUrls[0],
             count: negativeReviews.length,
           },
@@ -806,7 +806,7 @@ export class ReviewDataProcessor {
       }
 
       // Detect urgent reviews
-      const urgentReviews = newReviewsData.filter(r => 
+      const urgentReviews = newReviewsData.filter(r =>
         !r.isRecommended && (r.reviewMetadata?.responseUrgency || 0) >= 8
       );
       if (urgentReviews.length > 0) {
@@ -816,8 +816,8 @@ export class ReviewDataProcessor {
           teamId,
           title: `<p><strong>URGENT:</strong> ${urgentReviews.length} Facebook review${urgentReviews.length > 1 ? 's' : ''} require immediate response</p>`,
           category: 'Reviews',
-          metadata: { 
-            platform: 'facebook', 
+          metadata: {
+            platform: 'facebook',
             businessProfileId: uniqueUrls[0],
             count: urgentReviews.length,
           },
@@ -845,7 +845,7 @@ export class ReviewDataProcessor {
   ): Promise<Omit<SyncResult, 'processingTimeMs'>> {
     const teamInfo = teamId ? `team ${teamId}` : 'all teams';
     console.log(`🌍 Processing TripAdvisor reviews for ${teamInfo}...`);
-    
+
     // Get unique location IDs from dataset (TripAdvisor uses locationId as unique identifier)
     const uniqueLocationIds = [...new Set(rawData.map((r) => r.locationId || r.tripAdvisorLocationId).filter(Boolean))];
     console.log(`Found ${uniqueLocationIds.length} unique location(s)`);
@@ -853,19 +853,19 @@ export class ReviewDataProcessor {
     // Fetch all business profiles - filter by team if provided (through businessLocation relation)
     const whereClause: Prisma.TripAdvisorBusinessProfileWhereInput = {
       locationId: { in: uniqueLocationIds },
-      ...(teamId && { 
-        businessLocation: { 
-          teamId 
-        } 
+      ...(teamId && {
+        businessLocation: {
+          teamId
+        }
       }),
     };
 
     const businessProfiles = await prisma.tripAdvisorBusinessProfile.findMany({
       where: whereClause,
-      select: { 
-        id: true, 
+      select: {
+        id: true,
         locationId: true,
-        tripAdvisorUrl: true, 
+        tripAdvisorUrl: true,
         lastReviewDate: true,
         name: true,
         type: true,
@@ -879,7 +879,7 @@ export class ReviewDataProcessor {
     const profileMap = new Map<string, { id: string; locationId: string; tripAdvisorUrl: string; lastReviewDate: Date | null; name: string; type: any; businessLocation: { teamId: string } }>(
       businessProfiles.map((p) => [p.locationId || '', p])
     );
-    
+
     let reviewsNew = 0;
     let reviewsDuplicate = 0;
     const businessesUpdated = new Set<string>();
@@ -897,7 +897,7 @@ export class ReviewDataProcessor {
 
       for (const review of locationReviews) {
         const reviewDate = review.publishedDate ? new Date(review.publishedDate) : null;
-        
+
         // Skip if older than last known review (deduplication)
         if (!isInitial && profile.lastReviewDate && reviewDate && reviewDate <= profile.lastReviewDate) {
           reviewsDuplicate++;
@@ -906,7 +906,7 @@ export class ReviewDataProcessor {
 
         // Check if metadata exists
         const existingMetadata = await prisma.reviewMetadata.findFirst({
-          where: { 
+          where: {
             externalId: review.id,
             source: 'TRIPADVISOR',
           },
@@ -914,7 +914,7 @@ export class ReviewDataProcessor {
 
         // Upsert review metadata
         const reviewMetadata = await prisma.reviewMetadata.upsert({
-          where: { 
+          where: {
             externalId_source: {
               externalId: review.id,
               source: 'TRIPADVISOR',
@@ -957,9 +957,9 @@ export class ReviewDataProcessor {
           },
         });
 
-        // Upsert TripAdvisor review using tripAdvisorReviewId as unique identifier
+        // Upsert TripAdvisor review using reviewMetadataId as unique identifier
         await prisma.tripAdvisorReview.upsert({
-          where: { tripAdvisorReviewId: review.id },
+          where: { reviewMetadataId: reviewMetadata.id },
           create: {
             businessProfile: {
               connect: { id: profile.id },
@@ -1064,8 +1064,8 @@ export class ReviewDataProcessor {
           teamId,
           title: `<p><strong>${negativeReviews.length}</strong> new negative TripAdvisor review${negativeReviews.length > 1 ? 's' : ''} received</p>`,
           category: 'Reviews',
-          metadata: { 
-            platform: 'tripadvisor', 
+          metadata: {
+            platform: 'tripadvisor',
             businessProfileId: uniqueLocationIds[0],
             count: negativeReviews.length,
           },
@@ -1074,7 +1074,7 @@ export class ReviewDataProcessor {
       }
 
       // Detect urgent reviews
-      const urgentReviews = newReviewsData.filter(r => 
+      const urgentReviews = newReviewsData.filter(r =>
         (r.rating || 0) <= 2 && (r.reviewMetadata?.responseUrgency || 0) >= 8
       );
       if (urgentReviews.length > 0) {
@@ -1084,8 +1084,8 @@ export class ReviewDataProcessor {
           teamId,
           title: `<p><strong>URGENT:</strong> ${urgentReviews.length} TripAdvisor review${urgentReviews.length > 1 ? 's' : ''} require immediate response</p>`,
           category: 'Reviews',
-          metadata: { 
-            platform: 'tripadvisor', 
+          metadata: {
+            platform: 'tripadvisor',
             businessProfileId: uniqueLocationIds[0],
             count: urgentReviews.length,
           },
@@ -1103,6 +1103,68 @@ export class ReviewDataProcessor {
   }
 
   /**
+   * Transform Booking review from Apify format to expected format
+   */
+  private transformBookingReviewFromApify(apifyReview: any): any {
+    // Extract sub-ratings from hotelRatingScores array
+    const getRating = (codeName: string): number | null => {
+      const score = apifyReview.hotelRatingScores?.find((s: any) => s.codeName === codeName);
+      return score ? parseFloat(score.score) : null;
+    };
+
+    // Map travelerType to guestType enum
+    const mapGuestType = (travelerType: string): string => {
+      const typeMap: Record<string, string> = {
+        'Couple': 'COUPLE',
+        'Family': 'FAMILY_WITH_YOUNG_CHILDREN', // Default to young children as generic family
+        'Group': 'GROUP_OF_FRIENDS',
+        'Solo traveler': 'SOLO',
+        'Business': 'BUSINESS',
+      };
+      return typeMap[travelerType] || 'OTHER';
+    };
+
+    // Combine liked and disliked text for full review text
+    const reviewText = [
+      apifyReview.likedText ? `What I liked: ${apifyReview.likedText}` : null,
+      apifyReview.dislikedText ? `What I disliked: ${apifyReview.dislikedText}` : null,
+    ].filter(Boolean).join('\n\n') || null;
+
+    return {
+      // Map Apify fields to expected fields
+      fid: apifyReview.id,
+      reviewTitle: apifyReview.reviewTitle,
+      reviewText,
+      rating: apifyReview.rating,
+      reviewDate: apifyReview.reviewDate,
+      stayDate: apifyReview.checkInDate,
+      userId: null, // Not provided by Apify
+      userName: apifyReview.userName,
+      userNationality: apifyReview.userLocation,
+      lengthOfStay: apifyReview.numberOfNights,
+      roomType: apifyReview.roomInfo,
+      guestType: mapGuestType(apifyReview.travelerType),
+      likedMost: apifyReview.likedText,
+      dislikedMost: apifyReview.dislikedText,
+      // Extract sub-ratings
+      cleanlinessRating: getRating('hotel_clean'),
+      comfortRating: getRating('hotel_comfort'),
+      locationRating: getRating('hotel_location'),
+      facilitiesRating: getRating('hotel_services'),
+      staffRating: getRating('hotel_staff'),
+      valueForMoneyRating: getRating('hotel_value'),
+      wifiRating: null, // Not commonly in Apify data
+      responseFromOwnerText: apifyReview.propertyResponse,
+      responseFromOwnerDate: null, // Not provided separately in Apify data
+      isVerifiedStay: true, // Booking.com reviews are typically verified
+      url: apifyReview.startUrl,
+      bookingUrl: apifyReview.startUrl,
+      // Keep original for reference
+      _original: apifyReview,
+    };
+  }
+
+  /**
    * Process Booking reviews (Booking.com Reviews Scraper output)
    * Handles multiple hotel URLs in single dataset
    */
@@ -1113,26 +1175,27 @@ export class ReviewDataProcessor {
   ): Promise<Omit<SyncResult, 'processingTimeMs'>> {
     const teamInfo = teamId ? `team ${teamId}` : 'all teams';
     console.log(`🏨 Processing Booking.com reviews for ${teamInfo}...`);
-    
-    // Get unique booking URLs from dataset
-    const uniqueUrls = [...new Set(rawData.map((r) => r.bookingUrl || r.url).filter(Boolean))];
-    console.log(`Found ${uniqueUrls.length} unique hotel(s)`);
+
+    // Get unique hotel IDs from dataset (more reliable than URLs)
+    const uniqueHotelIds = [...new Set(rawData.map((r) => r.hotelId).filter(Boolean))];
+    console.log(`Found ${uniqueHotelIds.length} unique hotel(s)`);
 
     // Fetch all business profiles - filter by team if provided (through businessLocation relation)
     const whereClause: Prisma.BookingBusinessProfileWhereInput = {
-      bookingUrl: { in: uniqueUrls },
-      ...(teamId && { 
-        businessLocation: { 
-          teamId 
-        } 
+      hotelId: { in: uniqueHotelIds.map(String) }, // Match by hotelId instead of URL
+      ...(teamId && {
+        businessLocation: {
+          teamId
+        }
       }),
     };
 
     const businessProfiles = await prisma.bookingBusinessProfile.findMany({
       where: whereClause,
-      select: { 
-        id: true, 
-        bookingUrl: true, 
+      select: {
+        id: true,
+        hotelId: true,
+        bookingUrl: true,
         lastReviewDate: true,
         businessLocation: {
           select: {
@@ -1141,28 +1204,31 @@ export class ReviewDataProcessor {
         }
       },
     });
-    const profileMap = new Map<string, { id: string; bookingUrl: string; lastReviewDate: Date | null; businessLocation: { teamId: string } }>(
-      businessProfiles.map((p) => [p.bookingUrl || '', p])
+    const profileMap = new Map<string, { id: string; hotelId: string | null; bookingUrl: string; lastReviewDate: Date | null; businessLocation: { teamId: string } }>(
+      businessProfiles.map((p) => [p.hotelId || '', p])
     );
-    
+
     let reviewsNew = 0;
     let reviewsDuplicate = 0;
     const businessesUpdated = new Set<string>();
 
     // Process reviews for each hotel
-    for (const bookingUrl of uniqueUrls) {
-      const profile = profileMap.get(bookingUrl);
+    for (const hotelId of uniqueHotelIds) {
+      const profile = profileMap.get(String(hotelId));
       if (!profile) {
-        console.log(`⚠️  No profile found for URL ${bookingUrl}, skipping...`);
+        console.log(`⚠️  No profile found for hotelId ${hotelId}, skipping...`);
         continue;
       }
 
-      const hotelReviews = rawData.filter((r) => (r.bookingUrl || r.url) === bookingUrl);
-      console.log(`Processing ${hotelReviews.length} reviews for hotel ${bookingUrl}`);
+      const hotelReviews = rawData.filter((r) => r.hotelId === hotelId);
+      console.log(`Processing ${hotelReviews.length} reviews for hotel ${hotelId}`);
 
-      for (const review of hotelReviews) {
+      for (const apifyReview of hotelReviews) {
+        // Transform Apify format to expected format
+        const review = this.transformBookingReviewFromApify(apifyReview);
+
         const reviewDate = review.reviewDate ? new Date(review.reviewDate) : null;
-        
+
         // Skip if older than last known review (deduplication)
         if (!isInitial && profile.lastReviewDate && reviewDate && reviewDate <= profile.lastReviewDate) {
           reviewsDuplicate++;
@@ -1171,22 +1237,30 @@ export class ReviewDataProcessor {
 
         // Check if metadata exists
         const existingMetadata = await prisma.reviewMetadata.findFirst({
-          where: { externalId: review.id },
+          where: {
+            externalId: review.fid,
+            source: 'BOOKING',
+          },
         });
 
         // Upsert review metadata
         const reviewMetadata = await prisma.reviewMetadata.upsert({
-          where: { externalId: review.id },
+          where: {
+            externalId_source: {
+              externalId: review.fid,
+              source: 'BOOKING',
+            },
+          },
           create: {
-            externalId: review.id,
+            externalId: review.fid,
             source: 'BOOKING',
             author: review.userName || 'Anonymous',
-            authorImage: null,
+            authorImage: apifyReview.userAvatar || null,
             rating: parseFloat(review.rating) || 0,
             text: review.reviewText || null,
             date: reviewDate || new Date(),
-            photoCount: 0,
-            photoUrls: [],
+            photoCount: apifyReview.images?.length || 0,
+            photoUrls: apifyReview.images || [],
             reply: review.responseFromOwnerText || null,
             replyDate: review.responseFromOwnerDate ? new Date(review.responseFromOwnerDate) : null,
             hasReply: !!review.responseFromOwnerText,
@@ -1201,7 +1275,7 @@ export class ReviewDataProcessor {
             isRead: false,
             isImportant: false,
             labels: [],
-            language: 'en',
+            language: apifyReview.reviewLanguage || 'en',
             scrapedAt: new Date(),
             sourceUrl: review.url || null,
           },
@@ -1214,9 +1288,9 @@ export class ReviewDataProcessor {
           },
         });
 
-        // Upsert Booking review using bookingReviewId as unique identifier
+        // Upsert Booking review using reviewMetadataId as unique identifier
         await prisma.bookingReview.upsert({
-          where: { id: review.fid },
+          where: { reviewMetadataId: reviewMetadata.id },
           create: {
             businessProfile: {
               connect: { id: profile.id },
@@ -1224,7 +1298,7 @@ export class ReviewDataProcessor {
             reviewMetadata: {
               connect: { id: reviewMetadata.id },
             },
-            id: review.fid,
+            bookingReviewId: review.fid || null,
             title: review.reviewTitle || null,
             text: review.reviewText || null,
             rating: parseFloat(review.rating) || 0,
@@ -1324,9 +1398,9 @@ export class ReviewDataProcessor {
           teamId,
           title: `<p><strong>${negativeReviews.length}</strong> new negative Booking review${negativeReviews.length > 1 ? 's' : ''} received</p>`,
           category: 'Reviews',
-          metadata: { 
-            platform: 'booking', 
-            businessProfileId: uniqueUrls[0],
+          metadata: {
+            platform: 'booking',
+            businessProfileId: String(uniqueHotelIds[0]),
             count: negativeReviews.length,
           },
           expiresInDays: 7,
@@ -1334,7 +1408,7 @@ export class ReviewDataProcessor {
       }
 
       // Detect urgent reviews
-      const urgentReviews = newReviewsData.filter(r => 
+      const urgentReviews = newReviewsData.filter(r =>
         (r.rating || 0) <= 2 && (r.reviewMetadata?.responseUrgency || 0) >= 8
       );
       if (urgentReviews.length > 0) {
@@ -1344,9 +1418,9 @@ export class ReviewDataProcessor {
           teamId,
           title: `<p><strong>URGENT:</strong> ${urgentReviews.length} Booking review${urgentReviews.length > 1 ? 's' : ''} require immediate response</p>`,
           category: 'Reviews',
-          metadata: { 
-            platform: 'booking', 
-            businessProfileId: uniqueUrls[0],
+          metadata: {
+            platform: 'booking',
+            businessProfileId: String(uniqueHotelIds[0]),
             count: urgentReviews.length,
           },
           expiresInDays: 3,

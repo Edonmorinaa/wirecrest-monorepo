@@ -50,7 +50,7 @@ async function verifyTeamMembership(teamId: string, userId: string) {
  * Helper: Verify location ownership
  */
 async function verifyLocationOwnership(locationId: string, userId: string) {
-    console.log('verifyLocationOwnership', locationId, userId);
+  console.log('verifyLocationOwnership', locationId, userId);
   const location = await prisma.businessLocation.findUnique({
     where: { id: locationId },
     include: { team: { include: { members: true } } },
@@ -92,7 +92,7 @@ interface RatingDistribution {
 
 function calculateRatingDistribution(ratings: number[]): RatingDistribution {
   const distribution: RatingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  
+
   ratings.forEach((rating) => {
     const rounded = Math.max(1, Math.min(5, Math.round(rating))) as 1 | 2 | 3 | 4 | 5;
     distribution[rounded]++;
@@ -545,7 +545,6 @@ export const locationsRouter = router({
           facebookBusinessProfile: { select: { id: true, title: true, likes: true } },
           tripAdvisorBusinessProfile: { select: { id: true, name: true, rating: true, numberOfReviews: true } },
           bookingBusinessProfile: { select: { id: true, name: true, rating: true, numberOfReviews: true } },
-          instagramBusinessProfile: { select: { id: true, username: true, currentFollowersCount: true, currentMediaCount: true } },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -559,7 +558,7 @@ export const locationsRouter = router({
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, '-')
               .replace(/^-+|-+$/g, '');
-            
+
             // Ensure uniqueness by appending a counter if needed
             let uniqueSlug = autoSlug;
             let counter = 1;
@@ -603,7 +602,6 @@ export const locationsRouter = router({
           facebookBusinessProfile: true,
           tripAdvisorBusinessProfile: true,
           bookingBusinessProfile: true,
-          instagramBusinessProfile: true,
         },
       });
 
@@ -1129,7 +1127,7 @@ export const locationsRouter = router({
 
         const recommendations = calculateFacebookRecommendations(reviews);
         const engagement = calculateFacebookEngagement(reviews);
-        
+
         // Calculate sentiment from recommendations (recommended = positive, not recommended = negative)
         const sentiment = {
           positive: recommendations.recommendedCount,
@@ -1159,7 +1157,7 @@ export const locationsRouter = router({
         if (reviews.length > 0) {
           const wordCount = new Map<string, number>();
           const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'was', 'are', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their']);
-          
+
           reviews.forEach((review) => {
             if (review.text) {
               const words = review.text.toLowerCase().match(/\b[a-z]+\b/g) || [];
@@ -1176,7 +1174,7 @@ export const locationsRouter = router({
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10)
             .map(([word, count]) => ({ word, count }));
-          
+
           keywords.push(...sortedKeywords);
         }
 
@@ -1428,14 +1426,22 @@ export const locationsRouter = router({
           });
         }
 
-        // Upsert the review metadata
-        const reviewMetadata = await prisma.reviewMetadata.upsert({
-          where: { id: review.reviewMetadataId || 'new' },
-          create: {
-            ...input.metadata,
-            facebookReview: { connect: { id: input.reviewId } },
-          },
-          update: input.metadata,
+        // Get the existing review metadata
+        const existingMetadata = await prisma.reviewMetadata.findUnique({
+          where: { id: review.reviewMetadataId },
+        });
+
+        if (!existingMetadata) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Review metadata not found',
+          });
+        }
+
+        // Update the review metadata
+        const reviewMetadata = await prisma.reviewMetadata.update({
+          where: { id: review.reviewMetadataId },
+          data: input.metadata,
         });
 
         return reviewMetadata;
@@ -1755,14 +1761,22 @@ export const locationsRouter = router({
           });
         }
 
-        // Upsert the review metadata
-        const reviewMetadata = await prisma.reviewMetadata.upsert({
-          where: { id: review.reviewMetadataId || 'new' },
-          create: {
-            ...input.metadata,
-            tripAdvisorReview: { connect: { id: input.reviewId } },
-          },
-          update: input.metadata,
+        // Get the existing review metadata
+        const existingMetadata = await prisma.reviewMetadata.findUnique({
+          where: { id: review.reviewMetadataId },
+        });
+
+        if (!existingMetadata) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Review metadata not found',
+          });
+        }
+
+        // Update the review metadata
+        const reviewMetadata = await prisma.reviewMetadata.update({
+          where: { id: review.reviewMetadataId },
+          data: input.metadata,
         });
 
         return reviewMetadata;
@@ -1843,7 +1857,7 @@ export const locationsRouter = router({
         // Booking uses 1-10 scale
         const ratingsOn10Scale = reviews.map((r) => r.rating);
         const ratingsOn5Scale = ratingsOn10Scale.map(convertBookingRatingTo5Scale);
-        
+
         const ratingDistribution = calculateRatingDistribution(ratingsOn5Scale);
         const avgRating = calculateAverageRating(ratingsOn10Scale); // Keep 1-10 for average
         const sentiment = calculateSentimentFromRatings(ratingsOn10Scale, 10);
@@ -2098,14 +2112,22 @@ export const locationsRouter = router({
           });
         }
 
-        // Upsert the review metadata
-        const reviewMetadata = await prisma.reviewMetadata.upsert({
-          where: { id: review.reviewMetadataId || 'new' },
-          create: {
-            ...input.metadata,
-            bookingReview: { connect: { id: input.reviewId } },
-          },
-          update: input.metadata,
+        // Get the existing review metadata
+        const existingMetadata = await prisma.reviewMetadata.findUnique({
+          where: { id: review.reviewMetadataId },
+        });
+
+        if (!existingMetadata) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Review metadata not found',
+          });
+        }
+
+        // Update the review metadata
+        const reviewMetadata = await prisma.reviewMetadata.update({
+          where: { id: review.reviewMetadataId },
+          data: input.metadata,
         });
 
         return reviewMetadata;

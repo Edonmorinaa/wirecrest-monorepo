@@ -34,6 +34,8 @@ import { fShortenNumber } from 'src/utils/format-number';
 import { Iconify } from 'src/components/iconify';
 import { Chart, useChart, ChartLegends } from 'src/components/chart';
 import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
+import { BookingOwnerResponseModal } from 'src/components/owner-response-modal/platform-specific/booking-owner-response-modal';
+import { ReviewData } from 'src/components/review-card';
 
 // ----------------------------------------------------------------------
 
@@ -91,18 +93,19 @@ interface ReviewCardProps {
   searchTerm?: string;
   onImageClick: (images: string[], startIndex: number) => void;
   onUpdateMetadata: (reviewId: string, field: 'isRead' | 'isImportant', value: boolean) => void;
+  onGenerateResponse: (review: Review) => void;
 }
 
-function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata }: ReviewCardProps) {
+function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata, onGenerateResponse }: ReviewCardProps) {
   const theme = useTheme();
 
   const highlightSearchTerms = (text: string, searchTermParam?: string) => {
     if (!searchTermParam || !text) return text;
-    
+
     const regex = new RegExp(`(${searchTermParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
+
+    return parts.map((part, index) =>
       regex.test(part) ? (
         <Box
           key={index}
@@ -141,8 +144,8 @@ function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata }: Revi
   };
 
   return (
-    <Card sx={{ 
-      transition: 'all 0.2s', 
+    <Card sx={{
+      transition: 'all 0.2s',
       '&:hover': { boxShadow: theme.shadows[8] },
       minHeight: 'auto',
       width: '100%',
@@ -160,7 +163,7 @@ function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata }: Revi
             >
               {review.reviewerName.charAt(0)}
             </Avatar>
-            
+
             <Box sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -176,7 +179,7 @@ function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata }: Revi
                   />
                 )}
               </Box>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <Chip
@@ -203,6 +206,16 @@ function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata }: Revi
 
             {/* Action Buttons */}
             <Stack direction="row" spacing={1}>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Iconify icon="solar:magic-stick-3-bold-duotone" />}
+                onClick={() => onGenerateResponse(review)}
+                sx={{ borderRadius: 3 }}
+              >
+                Generate Reply
+              </Button>
+
               <Tooltip title={review.reviewMetadata?.isRead ? 'Mark as unread' : 'Mark as read'}>
                 <IconButton
                   size="small"
@@ -217,7 +230,7 @@ function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata }: Revi
                   />
                 </IconButton>
               </Tooltip>
-              
+
               <Tooltip title={review.reviewMetadata?.isImportant ? 'Remove from important' : 'Mark as important'}>
                 <IconButton
                   size="small"
@@ -382,7 +395,7 @@ function ReviewCard({ review, searchTerm, onImageClick, onUpdateMetadata }: Revi
                   {review.lengthOfStay} night{review.lengthOfStay > 1 ? 's' : ''}
                 </Typography>
               )}
-              
+
               {/* Metadata Badges */}
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 {review.reviewMetadata?.sentiment !== undefined && (
@@ -430,7 +443,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Mutation for updating review metadata
   const updateMetadataMutation = useUpdateBookingReviewMetadata();
 
@@ -449,16 +462,16 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
       });
 
       // Update the local state
-      setReviews(prevReviews => 
-        prevReviews.map(review => 
-          review.id === reviewId 
+      setReviews(prevReviews =>
+        prevReviews.map(review =>
+          review.id === reviewId
             ? {
-                ...review,
-                reviewMetadata: {
-                  ...review.reviewMetadata,
-                  [field]: value
-                }
+              ...review,
+              reviewMetadata: {
+                ...review.reviewMetadata,
+                [field]: value
               }
+            }
             : review
         )
       );
@@ -470,14 +483,14 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
   // Calculate date range for the query
   const dateRangeForQuery = useMemo(() => {
     if (!date) return null;
-    
+
     const startDate = new Date(date);
     const endDate = dateEnd ? new Date(dateEnd) : new Date(date);
-    
+
     // Set time to start and end of day
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
-    
+
     return {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
@@ -485,8 +498,8 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
   }, [date, dateEnd]);
 
   // Use useBookingReviews hook to fetch reviews for this specific date
-  const { 
-    reviews: fetchedReviews, 
+  const {
+    reviews: fetchedReviews,
     isLoading: isFetchingReviews,
     error: fetchError
   } = useBookingReviews(
@@ -495,9 +508,9 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
       startDate: dateRangeForQuery?.startDate,
       endDate: dateRangeForQuery?.endDate,
     },
-    { 
-      page: 1, 
-      limit: 100 
+    {
+      page: 1,
+      limit: 100
     },
     isOpen && !!locationId && !!dateRangeForQuery
   );
@@ -510,12 +523,12 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
 
     // Cast to Review type
     let filtered = fetchedReviews as unknown as Review[];
-    
+
     // Filter by sentiment if specified
     if (sentiment && sentiment !== 'all') {
       filtered = filtered.filter((review) => {
         const reviewSentiment = review.reviewMetadata?.sentiment;
-        
+
         // If no sentiment data, classify by rating (convert 1-10 to 1-5 scale for classification)
         if (reviewSentiment === null || reviewSentiment === undefined) {
           const normalizedScore = (review.rating || 0) / 2; // Convert 10-point to 5-point scale
@@ -530,7 +543,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
               return true;
           }
         }
-        
+
         // Use sentiment score
         switch (sentiment) {
           case 'positive':
@@ -544,27 +557,27 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
         }
       });
     }
-    
+
     return filtered;
   }, [fetchedReviews, sentiment]);
 
   // Track previous filtered reviews to prevent unnecessary state updates
   const prevFilteredReviewsRef = useRef<string>('');
-  
+
   // Update reviews state only when filtered reviews actually change
   useEffect(() => {
     const currentKey = filteredReviews.map(r => r.id).join(',');
-    
+
     if (prevFilteredReviewsRef.current !== currentKey) {
       prevFilteredReviewsRef.current = currentKey;
-      
+
       console.log('Modal reviews filtered:', {
         total: fetchedReviews?.length || 0,
         filtered: filteredReviews.length,
         sentiment,
         dateRange: dateRangeForQuery
       });
-      
+
       setReviews(filteredReviews);
     }
   }, [filteredReviews, fetchedReviews?.length, sentiment, dateRangeForQuery]);
@@ -595,19 +608,19 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
 
   const getFormattedDateRange = () => {
     if (!date) return '';
-    
+
     if (dateEnd && dateEnd !== date) {
       const startDate = new Date(date);
       const endDate = new Date(dateEnd);
       return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
     }
-    
+
     return new Date(date).toLocaleDateString();
   };
 
   return (
-    <Dialog 
-      open={isOpen} 
+    <Dialog
+      open={isOpen}
       onClose={onClose}
       maxWidth="xl"
       fullWidth
@@ -634,33 +647,33 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
             <Typography variant="h6">
               Reviews for {getFormattedDateRange()}
             </Typography>
-            
+
             {/* Sentiment Filter Indicator */}
             {sentiment && sentiment !== 'all' && (
               <Chip
                 label={`${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)} sentiment`}
                 size="small"
                 sx={{
-                  backgroundColor: sentiment === 'positive' ? 'success.main' : 
-                                  sentiment === 'negative' ? 'error.main' : 
-                                  'warning.main',
+                  backgroundColor: sentiment === 'positive' ? 'success.main' :
+                    sentiment === 'negative' ? 'error.main' :
+                      'warning.main',
                   color: 'white',
                   fontWeight: 600
                 }}
               />
             )}
-            
+
             {reviews.length > 0 && (
-              <Chip 
-                label={`${reviews.length} ${sentiment ? 'filtered' : 'total'} reviews`} 
-                size="small" 
-                color="primary" 
+              <Chip
+                label={`${reviews.length} ${sentiment ? 'filtered' : 'total'} reviews`}
+                size="small"
+                color="primary"
               />
             )}
           </Stack>
         </Stack>
       </DialogTitle>
-      
+
       <DialogContent sx={{ p: 0, minHeight: '60vh' }}>
         {isLoading ? (
           <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -681,9 +694,9 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
             </Typography>
             <Box sx={{ maxHeight: '60vh', overflow: 'auto', pr: 1 }}>
               {reviews.map((review) => (
-                <Box 
-                  key={review.id} 
-                  sx={{ 
+                <Box
+                  key={review.id}
+                  sx={{
                     mb: 3,
                     '&:last-child': { mb: 0 },
                     position: 'relative',
@@ -692,8 +705,9 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
                 >
                   <ReviewCard
                     review={review}
-                    onImageClick={() => {}}
+                    onImageClick={() => { }}
                     onUpdateMetadata={handleUpdateMetadata}
+                    onGenerateResponse={() => { }} // Disabled in modal to avoid nested modals
                   />
                 </Box>
               ))}
@@ -701,7 +715,7 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
           </Box>
         )}
       </DialogContent>
-      
+
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
@@ -709,30 +723,30 @@ function EnhancedDateReviewsModal({ isOpen, onClose, date, dateEnd, teamSlug, lo
   );
 }
 
-export function BookingReviewsAnalytics2({ 
+export function BookingReviewsAnalytics2({
   teamSlug,
   locationId,
-  title = "Review Analytics", 
+  title = "Review Analytics",
   subheader,
   sx,
-  ...other 
+  ...other
 }: BookingReviewsAnalytics2Props) {
   console.log('BookingReviewsAnalytics2 rendered with teamSlug:', teamSlug, 'locationId:', locationId, 'at:', new Date().toISOString());
-  
+
   const theme = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // State management
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Chart series selection state
   const [selectedSeries, setSelectedSeries] = useState('all');
-  
+
   // Ensure chartData is always an array
   const safeChartData = useMemo(() => Array.isArray(chartData) ? chartData : [], [chartData]);
-  
+
   // Modal state for showing reviews for a specific date
   const [dateModal, setDateModal] = useState<{
     isOpen: boolean;
@@ -751,6 +765,35 @@ export function BookingReviewsAnalytics2({
   const [tempFromDate, setTempFromDate] = useState<Date | null>(null);
   const [tempToDate, setTempToDate] = useState<Date | null>(null);
 
+  // Response Modal State
+  const [responseModal, setResponseModal] = useState<{
+    open: boolean;
+    review: ReviewData | null;
+  }>({
+    open: false,
+    review: null,
+  });
+
+  const handleGenerateResponse = (review: Review) => {
+    // Map BookingReview to ReviewData for the modal
+    const reviewData: ReviewData = {
+      id: review.id,
+      name: review.reviewerName,
+      text: review.text || [review.likedMost, review.dislikedMost].filter(Boolean).join('\n\n') || '',
+      publishedAtDate: new Date(review.publishedDate).toISOString(),
+      stars: review.rating ? review.rating / 2 : 0, // Convert 10-point to 5-point for generic components
+      reviewUrl: '', // Booking reviews don't have direct URLs usually
+      reviewerPhotoUrl: undefined,
+      responseFromOwnerText: undefined, // Booking doesn't expose this easily yet
+      responseFromOwnerDate: undefined,
+    };
+
+    setResponseModal({
+      open: true,
+      review: reviewData,
+    });
+  };
+
   // Get state from URL - memoized to prevent infinite loops
   const timeRange = useMemo(() => searchParams.get('timeRange') || '90d', [searchParams]);
 
@@ -758,7 +801,7 @@ export function BookingReviewsAnalytics2({
     const customFrom = searchParams.get('customFrom');
     const customTo = searchParams.get('customTo');
     const customAgg = searchParams.get('customAgg');
-    
+
     if (customFrom && customTo && customAgg) {
       return {
         from: new Date(customFrom),
@@ -786,16 +829,16 @@ export function BookingReviewsAnalytics2({
         endDate: customRange.to.toISOString(),
       };
     }
-    
+
     // Calculate date range based on timeRange
     const now = new Date();
     const end = now.toISOString();
     const selectedRange = timeRanges.find((r) => r.value === timeRange);
     const days = selectedRange?.days || 90;
-    
+
     const start = new Date();
     start.setDate(start.getDate() - days);
-    
+
     return {
       startDate: start.toISOString(),
       endDate: end,
@@ -810,15 +853,15 @@ export function BookingReviewsAnalytics2({
       const periods: ChartDataPoint[] = [];
       const currentDate = new Date(rangeStart);
       currentDate.setHours(0, 0, 0, 0);
-      
+
       const rangeEndDate = new Date(rangeEnd);
       rangeEndDate.setHours(0, 0, 0, 0);
-      
+
       while (currentDate <= rangeEndDate) {
         const periodStart = new Date(currentDate);
         const periodEnd = new Date(currentDate);
         periodEnd.setDate(periodEnd.getDate() + Math.min(periodDays - 1, Math.floor((rangeEndDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))));
-        
+
         let dateDisplay: string;
         if (periodDays === 1) {
           dateDisplay = periodStart.toLocaleDateString();
@@ -833,7 +876,7 @@ export function BookingReviewsAnalytics2({
         } else {
           dateDisplay = `${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()}`;
         }
-        
+
         periods.push({
           date: periodStart.toISOString().split('T')[0],
           dateEnd: periodEnd.toISOString().split('T')[0],
@@ -843,27 +886,27 @@ export function BookingReviewsAnalytics2({
           negative: 0,
           neutral: 0,
         });
-        
+
         currentDate.setDate(currentDate.getDate() + periodDays);
       }
-      
+
       return periods;
     }
-    
+
     if (periodDays <= 1) {
       const periods: ChartDataPoint[] = [];
       const dataMap = new Map(dailyData.map(d => [d.date, d]));
-      
+
       const currentDate = new Date(rangeStart);
       currentDate.setHours(0, 0, 0, 0);
-      
+
       const rangeEndDate = new Date(rangeEnd);
       rangeEndDate.setHours(0, 0, 0, 0);
-      
+
       while (currentDate <= rangeEndDate) {
         const dateKey = currentDate.toISOString().split('T')[0];
         const dayData = dataMap.get(dateKey);
-        
+
         periods.push({
           date: dateKey,
           dateEnd: dateKey,
@@ -873,53 +916,53 @@ export function BookingReviewsAnalytics2({
           negative: dayData?.negativeCount || dayData?.negative || 0,
           neutral: dayData?.neutralCount || dayData?.neutral || 0,
         });
-        
+
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      
+
       return periods;
     }
 
     // Create a map for quick lookup
     const dataMap = new Map(dailyData.map(d => [d.date, d]));
-    
+
     // Group data into fixed periods
     const periods: ChartDataPoint[] = [];
     let currentDate = new Date(rangeStart);
     currentDate.setHours(0, 0, 0, 0);
-    
+
     const rangeEndDate = new Date(rangeEnd);
     rangeEndDate.setHours(0, 0, 0, 0);
-    
+
     while (currentDate <= rangeEndDate) {
       const periodStart = new Date(currentDate);
       const periodEnd = new Date(currentDate);
       periodEnd.setDate(periodEnd.getDate() + periodDays - 1);
-      
+
       if (periodEnd > rangeEndDate) {
         periodEnd.setTime(rangeEndDate.getTime());
       }
-      
+
       let total = 0;
       let positive = 0;
       let negative = 0;
       let neutral = 0;
-      
+
       const checkDate = new Date(periodStart);
       while (checkDate <= periodEnd && checkDate <= rangeEndDate) {
         const dateKey = checkDate.toISOString().split('T')[0];
         const dayData = dataMap.get(dateKey);
-        
+
         if (dayData) {
           total += dayData.count || 0;
           positive += dayData.positiveCount || dayData.positive || 0;
           negative += dayData.negativeCount || dayData.negative || 0;
           neutral += dayData.neutralCount || dayData.neutral || 0;
         }
-        
+
         checkDate.setDate(checkDate.getDate() + 1);
       }
-      
+
       let dateDisplay: string;
       if (periodDays === 1) {
         dateDisplay = periodStart.toLocaleDateString();
@@ -934,7 +977,7 @@ export function BookingReviewsAnalytics2({
       } else {
         dateDisplay = `${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()}`;
       }
-      
+
       periods.push({
         date: periodStart.toISOString().split('T')[0],
         dateEnd: periodEnd.toISOString().split('T')[0],
@@ -944,7 +987,7 @@ export function BookingReviewsAnalytics2({
         negative,
         neutral,
       });
-      
+
       currentDate.setDate(currentDate.getDate() + periodDays);
     }
 
@@ -959,7 +1002,7 @@ export function BookingReviewsAnalytics2({
 
     const selectedRange = timeRanges.find(r => r.value === timeRange);
     const days = selectedRange?.days || 90;
-    
+
     if (days <= 7) {
       return 1;
     } else if (days <= 30) {
@@ -989,7 +1032,7 @@ export function BookingReviewsAnalytics2({
     const rangeEnd = new Date(endDate);
 
     const aggregatedData = aggregateDataByPeriod(analyticsData, aggregationPeriod, rangeStart, rangeEnd);
-    
+
     console.log('Aggregated chart data:', aggregatedData);
     setChartData(aggregatedData);
   }, [analyticsData, aggregateDataByPeriod, getAggregationPeriod, startDate, endDate]);
@@ -1007,16 +1050,16 @@ export function BookingReviewsAnalytics2({
     }
   }, [analyticsError]);
 
-  const updateURL = useCallback((updates: { 
-    timeRange?: string; 
-    customRange?: CustomDateRange | null; 
+  const updateURL = useCallback((updates: {
+    timeRange?: string;
+    customRange?: CustomDateRange | null;
   }) => {
     const params = new URLSearchParams(searchParams);
-    
+
     if (updates.timeRange !== undefined) {
       params.set('timeRange', updates.timeRange);
     }
-    
+
     if (updates.customRange) {
       params.set('customFrom', updates.customRange.from.toISOString().split('T')[0]);
       params.set('customTo', updates.customRange.to.toISOString().split('T')[0]);
@@ -1026,7 +1069,7 @@ export function BookingReviewsAnalytics2({
       params.delete('customTo');
       params.delete('customAgg');
     }
-    
+
     router.replace(`?${params.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
@@ -1034,14 +1077,14 @@ export function BookingReviewsAnalytics2({
     const currentCustomFrom = searchParams.get('customFrom');
     const currentCustomTo = searchParams.get('customTo');
     const currentCustomAgg = searchParams.get('customAgg');
-    
+
     const currentCustomRange = currentCustomFrom && currentCustomTo && currentCustomAgg ? {
       from: new Date(currentCustomFrom),
       to: new Date(currentCustomTo),
       aggregation: parseInt(currentCustomAgg)
     } : null;
 
-    updateURL({ 
+    updateURL({
       timeRange: newTimeRange,
       customRange: newTimeRange !== 'custom' ? null : currentCustomRange
     });
@@ -1051,9 +1094,17 @@ export function BookingReviewsAnalytics2({
     updateURL({ customRange: newCustomRange });
   }, [updateURL]);
 
+  const updateCustomRange = useCallback((from: Date, to: Date) => {
+    handleCustomRangeChange({
+      from,
+      to,
+      aggregation: customRange?.aggregation || 7
+    });
+  }, [handleCustomRangeChange, customRange]);
+
   const handleDataPointClick = useCallback((data: ChartDataPoint) => {
     console.log('Chart data point clicked:', data);
-    
+
     if (data.total > 0) {
       setDateModal({
         isOpen: true,
@@ -1080,7 +1131,7 @@ export function BookingReviewsAnalytics2({
   // Get the appropriate description based on time range
   const getChartDescription = useCallback(() => {
     const aggregationPeriod = getAggregationPeriod();
-    
+
     if (timeRange === 'custom' && customRange) {
       if (aggregationPeriod === 1) {
         return 'Showing daily review data for your custom date range. Click on a data point to see reviews for that specific day.';
@@ -1293,15 +1344,15 @@ export function BookingReviewsAnalytics2({
     },
   ], [safeChartData]);
 
-  const currentSeries = useMemo(() => 
-    selectedSeries === 'all' 
-      ? allSeries 
-      : allSeries.filter(series => series.name.toLowerCase() === selectedSeries.toLowerCase()), 
+  const currentSeries = useMemo(() =>
+    selectedSeries === 'all'
+      ? allSeries
+      : allSeries.filter(series => series.name.toLowerCase() === selectedSeries.toLowerCase()),
     [selectedSeries, allSeries]
   );
 
   const seriesOptions = ['all', 'positive', 'neutral', 'negative'];
-  
+
   const getSentimentColor = (sentiment: string) => {
     switch (sentiment) {
       case 'positive': return theme.palette.success.main;
@@ -1310,7 +1361,7 @@ export function BookingReviewsAnalytics2({
       default: return theme.palette.text.secondary;
     }
   };
-  
+
   const getSentimentLabel = (sentiment: string) => {
     switch (sentiment) {
       case 'all': return 'All Sentiments';
@@ -1348,13 +1399,13 @@ export function BookingReviewsAnalytics2({
                 else if (aggregationPeriod === 30) label = 'Monthly';
                 else if (aggregationPeriod === 90) label = 'Quarterly';
                 else label = `${aggregationPeriod}-Day`;
-                
+
                 return (
-                  <Chip 
+                  <Chip
                     label={label}
                     size="small"
                     icon={<Iconify icon="eva:pie-chart-2-fill" width={14} height={14} className="" sx={{}} />}
-                    sx={{ 
+                    sx={{
                       height: 24,
                       fontSize: '0.75rem',
                       fontWeight: 600,
@@ -1430,7 +1481,7 @@ export function BookingReviewsAnalytics2({
                   </FormControl>
                 </>
               )}
-              
+
               <FormControl size="small" sx={{ minWidth: 140 }}>
                 <Select
                   value={selectedSeries}
@@ -1512,18 +1563,18 @@ export function BookingReviewsAnalytics2({
               <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
                 Click on any data point to view detailed reviews for that period
               </Typography>
-              
+
               <ChartLegends
                 colors={getChartColors}
                 labels={currentSeries.map(series => series.name)}
-                values={currentSeries.map(series => 
+                values={currentSeries.map(series =>
                   fShortenNumber(series.data.reduce((sum, val) => sum + val, 0))
                 )}
                 sx={{ px: 3, gap: 3, mb: 2 }}
                 className=""
                 slotProps={{}}
               />
-              
+
               <Chart
                 type="area"
                 series={currentSeries}
@@ -1570,11 +1621,8 @@ export function BookingReviewsAnalytics2({
         error={tempFromDate && tempToDate ? tempFromDate > tempToDate : false}
         onSubmit={() => {
           if (tempFromDate && tempToDate && tempFromDate <= tempToDate) {
-            handleCustomRangeChange({
-              from: tempFromDate,
-              to: tempToDate,
-              aggregation: customRange?.aggregation || 7
-            });
+            updateCustomRange(tempFromDate, tempToDate);
+            setDatePickerOpen(false);
           }
         }}
         slotProps={{
@@ -1584,6 +1632,13 @@ export function BookingReviewsAnalytics2({
             }
           }
         }}
+      />
+
+      {/* Booking Owner Response Modal */}
+      <BookingOwnerResponseModal
+        open={responseModal.open}
+        onClose={() => setResponseModal({ open: false, review: null })}
+        review={responseModal.review}
       />
 
       {/* Enhanced Date Reviews Modal */}

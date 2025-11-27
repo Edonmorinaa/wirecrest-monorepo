@@ -5,6 +5,7 @@ import { varAlpha } from 'minimal-shared/utils';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
+import Skeleton from '@mui/material/Skeleton';
 import { useTheme } from '@mui/material/styles';
 import LinearProgress from '@mui/material/LinearProgress';
 
@@ -87,6 +88,7 @@ export function TripAdvisorMetricsWidgetSummary({
     ...(chart?.options || {}),
   });
 
+
   return (
     <Card
       sx={[
@@ -104,6 +106,8 @@ export function TripAdvisorMetricsWidgetSummary({
     >
       <Box sx={{ width: 48, height: 48, mb: 3 }}>{icon}</Box>
 
+      {/* {renderTrending()} */}
+
       <Box
         sx={{
           top: 16,
@@ -114,38 +118,13 @@ export function TripAdvisorMetricsWidgetSummary({
           alignItems: 'center',
         }}
       >
-        {percent !== undefined && percent !== 0 && (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              mr: 1,
-            }}
-          >
-            <Iconify
-              width={16}
-              icon={percent < 0 ? 'eva:trending-down-fill' : 'eva:trending-up-fill'}
-              color={percent < 0 ? 'error.main' : 'success.main'}
-            />
-            <Box
-              component="span"
-              sx={{
-                typography: 'caption',
-                color: percent < 0 ? 'error.main' : 'success.main',
-                fontWeight: 600,
-              }}
-            >
-              {percent > 0 && '+'}
-              {percent}%
-            </Box>
-          </Box>
-        )}
         <Chart
           type="line"
           series={[{ data: chart?.series || [] }]}
           options={chartOptions}
           sx={{ width: 84, height: 76 }}
+          slotProps={{}}
+          className=""
         />
       </Box>
       <Box
@@ -160,10 +139,6 @@ export function TripAdvisorMetricsWidgetSummary({
           <Box sx={{ mb: 1, typography: 'subtitle2' }}>{title}</Box>
 
           <Box sx={{ typography: 'h4' }}>{total}</Box>
-
-          {subtitle && (
-            <Box sx={{ typography: 'caption', color: 'text.secondary', mt: 0.5 }}>{subtitle}</Box>
-          )}
 
           {showProgress && (
             <Box sx={{ width: '100%', mt: 1 }}>
@@ -183,10 +158,119 @@ export function TripAdvisorMetricsWidgetSummary({
             </Box>
           )}
         </Box>
+
+
       </Box>
 
       <SvgColor
         src={`${CONFIG.assetsDir}/assets/background/shape-square.svg`}
+        className=""
+        sx={{
+          top: 0,
+          left: -20,
+          width: 240,
+          zIndex: -1,
+          height: 240,
+          opacity: 0.24,
+          position: 'absolute',
+          color: `${color}.main`,
+        }}
+      />
+    </Card>
+  );
+}
+
+// Loading Skeleton for Metric Card
+function MetricCardSkeleton({ color = 'primary' }: { color?: 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' }) {
+  const theme = useTheme();
+
+  return (
+    <Card
+      sx={{
+        p: 2,
+        boxShadow: 'none',
+        position: 'relative',
+        color: `${color}.dark`,
+        backgroundColor: 'common.white',
+        backgroundImage: `linear-gradient(135deg, ${varAlpha(theme.vars.palette[color].lightChannel, 0.48)}, ${varAlpha(theme.vars.palette[color].lightChannel, 0.48)})`,
+      }}
+    >
+      {/* Icon skeleton */}
+      <Box sx={{ width: 48, height: 48, mb: 3 }}>
+        <Skeleton
+          variant="circular"
+          width={48}
+          height={48}
+          sx={{ bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.2) }}
+        />
+      </Box>
+
+      <Box
+        sx={{
+          top: 16,
+          gap: 0.5,
+          right: 16,
+          display: 'flex',
+          position: 'absolute',
+          alignItems: 'center',
+        }}
+      >
+        <Skeleton
+          variant="rectangular"
+          width={84}
+          height={76}
+          sx={{
+            bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.15),
+            borderRadius: 1,
+          }}
+        />
+      </Box>
+
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'flex-end',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <Box sx={{ flexGrow: 1, minWidth: 112 }}>
+          <Box sx={{ mb: 1 }}>
+            <Skeleton
+              variant="text"
+              width="70%"
+              height={24}
+              sx={{ bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.15) }}
+            />
+          </Box>
+
+          <Box sx={{ mb: 0.5 }}>
+            <Skeleton
+              variant="text"
+              width="50%"
+              height={40}
+              sx={{ bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.2) }}
+            />
+          </Box>
+
+          {/* Progress bar skeleton */}
+          <Box sx={{ width: '100%', mt: 1 }}>
+            <Skeleton
+              variant="rectangular"
+              width="100%"
+              height={6}
+              sx={{
+                bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.12),
+                borderRadius: 3,
+              }}
+            />
+          </Box>
+        </Box>
+      </Box>
+
+      <SvgColor
+        src={`${CONFIG.assetsDir}/assets/background/shape-square.svg`}
+        className=""
         sx={{
           top: 0,
           left: -20,
@@ -211,10 +295,25 @@ type TMetricsOverviewProps = {
   };
   periodicalMetrics?: TPeriodicalMetric[];
   currentPeriodKey: string;
+  isLoading?: boolean;
 };
 
-export function TripAdvisorMetricsOverview({ metrics, periodicalMetrics, currentPeriodKey }: TMetricsOverviewProps) {
+export function TripAdvisorMetricsOverview({ metrics, periodicalMetrics, currentPeriodKey, isLoading = false }: TMetricsOverviewProps) {
   const theme = useTheme();
+
+  // Show loading skeletons
+  if (isLoading) {
+    const skeletonColors = ['warning', 'info', 'success', 'primary'] as const;
+    return (
+      <Grid container spacing={3}>
+        {skeletonColors.map((color, index) => (
+          <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
+            <MetricCardSkeleton color={color} />
+          </Grid>
+        ))}
+      </Grid>
+    );
+  }
 
   if (!metrics) return null;
 
@@ -279,7 +378,7 @@ export function TripAdvisorMetricsOverview({ metrics, periodicalMetrics, current
 
   // Get current period data based on periodKey
   const getCurrentPeriodData = (metricKey: string): number => {
-    const currentPeriod = periodicalMetrics.find(
+    const currentPeriod = periodicalMetrics?.find(
       (metric) => metric.periodKey.toString() === currentPeriodKey
     );
 
@@ -289,9 +388,9 @@ export function TripAdvisorMetricsOverview({ metrics, periodicalMetrics, current
       case 'averageRating':
         return Number(currentPeriod.averageRating) || 0;
       case 'responseRate':
-        return currentPeriod.responseRatePercent;
+        return currentPeriod.responseRatePercent || 0;
       case 'averageResponseTime':
-        return currentPeriod.avgResponseTimeHours;
+        return currentPeriod.avgResponseTimeHours || 0;
       case 'totalReviews':
         return Number(currentPeriod.reviewCount) || 0;
       default:
