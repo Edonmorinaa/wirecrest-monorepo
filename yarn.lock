@@ -9532,6 +9532,7 @@ __metadata:
     "@types/express": "npm:^4.17.0"
     "@types/node": "npm:^20.0.0"
     "@wirecrest/db": "workspace:^"
+    "@wirecrest/email": "workspace:^"
     bcryptjs: "npm:^2.4.3"
     cookie-parser: "npm:^1.4.6"
     cors: "npm:^2.8.5"
@@ -9749,7 +9750,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wirecrest/email@workspace:packages/email":
+"@wirecrest/email@workspace:^, @wirecrest/email@workspace:packages/email":
   version: 0.0.0-use.local
   resolution: "@wirecrest/email@workspace:packages/email"
   dependencies:

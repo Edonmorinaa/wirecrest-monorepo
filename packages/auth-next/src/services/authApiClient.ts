@@ -147,12 +147,12 @@ export class AuthApiClient {
   /**
    * Initiates password reset process
    * @param email - User's email address
-   * @param recaptchaToken - reCAPTCHA validation token
+   * @param recaptchaToken - reCAPTCHA validation token (optional)
    */
-  async forgotPassword(email: string, recaptchaToken: string): Promise<{ success: boolean }> {
+  async forgotPassword(email: string, recaptchaToken?: string): Promise<{ success: boolean }> {
     const response: AxiosResponse = await this.client.post('/forgot-password', {
       email,
-      recaptchaToken,
+      ...(recaptchaToken && { recaptchaToken }),
     });
     return response.data;
   }

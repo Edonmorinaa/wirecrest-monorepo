@@ -13,7 +13,7 @@ export const sendPasswordResetEmail = async (
 ): Promise<void> => {
   const app = getAppConfig();
   const subject = `Reset your ${app.name} password`;
-  const url = `${app.url}/auth/reset-password/${token}`;
+  const url = `https://auth.wirecrest.com/reset-password/${token}`;
 
   const html = await render(
     ResetPasswordEmail({ url, subject, email: user.email })

@@ -1,7 +1,9 @@
 {
   "extends": "@wirecrest/typescript-config/react.json",
   "compilerOptions": {
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "module": "CommonJS",
+    "moduleResolution": "node"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

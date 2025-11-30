@@ -1,4 +1,5 @@
 import { prisma } from '@wirecrest/db';
+import { sendPasswordResetEmail } from '@wirecrest/email';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
@@ -60,9 +61,11 @@ export class AuthService {
    * @param recaptchaToken - reCAPTCHA validation token
    * @returns Promise with success status
    */
-  async forgotPassword(email: string, recaptchaToken: string): Promise<{ success: boolean }> {
-    // TODO: Implement reCAPTCHA validation
-    // await validateRecaptcha(recaptchaToken);
+  async forgotPassword(email: string, recaptchaToken?: string): Promise<{ success: boolean }> {
+    // TODO: Implement reCAPTCHA validation when recaptchaToken is provided
+    // if (recaptchaToken) {
+    //   await validateRecaptcha(recaptchaToken);
+    // }
 
     if (!email || !validateEmail(email)) {
       throw new ApiError(422, 'The e-mail address you entered is invalid');
@@ -84,9 +87,21 @@ export class AuthService {
       },
     });
 
-    // TODO: Implement email sending
-    // await sendPasswordResetEmail(user, encodeURIComponent(resetToken));
-    console.log(`Password reset token for ${email}: ${resetToken}`);
+    // Send password reset email
+    try {
+      await sendPasswordResetEmail(
+        {
+          id: user.id,
+          name: user.name || 'User',
+          email: user.email,
+        },
+        resetToken
+      );
+    } catch (emailError) {
+      // Log error but don't fail the request - token is still created
+      console.error('Failed to send password reset email:', emailError);
+      // In production, you might want to queue this for retry
+    }
 
     recordMetric('user.password.request');
 

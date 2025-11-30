@@ -1,11 +1,16 @@
 'use client';
 
 import * as z from 'zod';
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
+import { forgotPassword } from '@wirecrest/auth-next';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+
+import { useRouter } from 'src/routes/hooks/use-router';
 
 import { PasswordIcon } from 'src/assets/icons';
 
@@ -23,6 +28,10 @@ export const ResetPasswordSchema = z.object({
 // ----------------------------------------------------------------------
 
 export function NextAuthResetPasswordView() {
+  const router = useRouter();
+  const [error, setError] = React.useState(null);
+  const [success, setSuccess] = React.useState(false);
+
   const defaultValues = {
     email: '',
   };
@@ -39,21 +48,52 @@ export function NextAuthResetPasswordView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      console.info('DATA', data);
-    } catch (error) {
-      console.error(error);
+      setError(null);
+      setSuccess(false);
+      
+      // Call auth-service API
+      await forgotPassword({
+        email: data.email.toLowerCase(),
+        // recaptchaToken is optional until reCAPTCHA is implemented
+      });
+
+      setSuccess(true);
+      
+      // Optionally redirect after a delay
+      setTimeout(() => {
+        router.push('/sign-in');
+      }, 3000);
+    } catch (err) {
+      console.error('Password reset error:', err);
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to send password reset email. Please try again.';
+      setError(errorMessage);
     }
   });
 
   const renderForm = () => (
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success">
+          Password reset email sent! Please check your inbox. Redirecting to sign in...
+        </Alert>
+      )}
+
       <Field.Text
         autoFocus
         name="email"
         label="Email address"
         placeholder="example@gmail.com"
         slotProps={{ inputLabel: { shrink: true } }}
+        disabled={success}
       />
 
       <Button
@@ -63,6 +103,7 @@ export function NextAuthResetPasswordView() {
         variant="contained"
         loading={isSubmitting}
         loadingIndicator="Send request..."
+        disabled={success}
       >
         Send request
       </Button>

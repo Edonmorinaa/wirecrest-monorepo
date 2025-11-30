@@ -1,7 +1,6 @@
 {
   "name": "@wirecrest/email",
   "version": "1.0.0",
-  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

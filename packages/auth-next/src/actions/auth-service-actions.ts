@@ -6,7 +6,7 @@ import { authApiClient } from '../services/authApiClient';
  * but delegate to the auth-service behind the scenes
  */
 
-export const forgotPassword = async (data: { email: string; recaptchaToken: string }) => {
+export const forgotPassword = async (data: { email: string; recaptchaToken?: string }) => {
   return await authApiClient.forgotPassword(data.email, data.recaptchaToken);
 };
 

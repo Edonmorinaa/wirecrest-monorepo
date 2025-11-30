@@ -31,12 +31,13 @@ export class AuthController {
   async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
       const { email, recaptchaToken } = req.body;
-      
-      if (!email || !recaptchaToken) {
-        throw new ApiError(400, 'Email and recaptcha token are required');
+      console.log('email', email);
+      if (!email) {
+        throw new ApiError(400, 'Email is required');
       }
 
-      const result = await this.authService.forgotPassword(email, recaptchaToken);
+      // recaptchaToken is optional until reCAPTCHA validation is implemented
+      const result = await this.authService.forgotPassword(email, recaptchaToken || '');
       
       res.json({
         success: true,
