@@ -65,7 +65,7 @@ export interface TikTokAnalytics {
 
 export interface TikTokBusinessProfile {
   id: string;
-  teamId: string;
+  locationId: string;
   username: string;
   nickname?: string;
   avatarUrl?: string;

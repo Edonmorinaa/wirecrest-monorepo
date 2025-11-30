@@ -1,19 +1,16 @@
-import { SupabaseClient } from "@supabase/supabase-js";
-import { TikTokDataService } from "./tiktokDataService";
-import { TikTokSnapshotSchedule } from "../types/tiktok";
+import { PrismaClient } from "@prisma/client";
+import { TikTokDataService } from "./tiktokDataService.js";
+import type { TikTokSnapshotSchedule } from "../types/tiktok.js";
 
 export class TikTokSchedulerService {
-  private supabase: SupabaseClient;
+  private prisma: PrismaClient;
   private tiktokService: TikTokDataService;
   private schedulerInterval: NodeJS.Timeout | null = null;
   private isRunning: boolean = false;
   private lastSnapshotTimes: Map<string, Date> = new Map(); // Track last snapshot time per business
 
-  constructor(tiktokService: TikTokDataService) {
-    this.supabase = new SupabaseClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+  constructor(tiktokService: TikTokDataService, prismaClient?: PrismaClient) {
+    this.prisma = prismaClient || new PrismaClient();
     this.tiktokService = tiktokService;
   }
 
@@ -54,22 +51,16 @@ export class TikTokSchedulerService {
       const currentDate = now.toISOString().split("T")[0];
 
       // Get all enabled schedules
-      const { data: schedules, error } = await this.supabase
-        .from("TikTokSnapshotSchedule")
-        .select(
-          `
-          *,
-          businessProfile: TikTokBusinessProfile(*)
-        `,
-        )
-        .eq("isActive", true);
+      const schedules = await this.prisma.tikTokSnapshotSchedule.findMany({
+        where: {
+          isEnabled: true,
+        },
+        include: {
+          businessProfile: true,
+        },
+      });
 
-      if (error) {
-        console.error("Error fetching TikTok schedules:", error);
-        return;
-      }
-
-      for (const schedule of schedules || []) {
+      for (const schedule of schedules) {
         await this.processSchedule(schedule, currentTime, currentDate, now);
       }
     } catch (error) {
@@ -101,13 +92,13 @@ export class TikTokSchedulerService {
       }
 
       // Check database for today's snapshot
-      const { data: existingSnapshot } = await this.supabase
-        .from("TikTokDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .eq("snapshotDate", currentDate)
-        .eq("snapshotType", "DAILY")
-        .single();
+      const existingSnapshot = await this.prisma.tikTokDailySnapshot.findFirst({
+        where: {
+          businessProfileId,
+          snapshotDate: new Date(currentDate),
+          snapshotType: "DAILY",
+        },
+      });
 
       if (existingSnapshot) {
         this.lastSnapshotTimes.set(
@@ -118,17 +109,21 @@ export class TikTokSchedulerService {
       }
 
       // Enforce minimum 6-hour gap between snapshots
-      const lastSnapshot = await this.supabase
-        .from("TikTokDailySnapshot")
-        .select("createdAt")
-        .eq("businessProfileId", businessProfileId)
-        .order("createdAt", { ascending: false })
-        .limit(1)
-        .single();
+      const lastSnapshot = await this.prisma.tikTokDailySnapshot.findFirst({
+        where: {
+          businessProfileId,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          createdAt: true,
+        },
+      });
 
-      if (lastSnapshot.data) {
+      if (lastSnapshot) {
         const timeSinceLastSnapshot =
-          now.getTime() - new Date(lastSnapshot.data.createdAt).getTime();
+          now.getTime() - new Date(lastSnapshot.createdAt).getTime();
         const sixHoursInMs = 6 * 60 * 60 * 1000;
 
         if (timeSinceLastSnapshot < sixHoursInMs) {
@@ -140,13 +135,14 @@ export class TikTokSchedulerService {
       }
 
       // Check daily limit (max 2 snapshots per day)
-      const todaySnapshots = await this.supabase
-        .from("TikTokDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .eq("snapshotDate", currentDate);
+      const todaySnapshotsCount = await this.prisma.tikTokDailySnapshot.count({
+        where: {
+          businessProfileId,
+          snapshotDate: new Date(currentDate),
+        },
+      });
 
-      if (todaySnapshots.data && todaySnapshots.data.length >= 2) {
+      if (todaySnapshotsCount >= 2) {
         console.log(
           `Skipping TikTok snapshot for ${businessProfileId} - daily limit reached`,
         );
@@ -169,16 +165,18 @@ export class TikTokSchedulerService {
         this.lastSnapshotTimes.set(businessProfileId, now);
 
         // Update schedule with last snapshot time
-        await this.supabase
-          .from("TikTokSnapshotSchedule")
-          .update({
+        await this.prisma.tikTokSnapshotSchedule.update({
+          where: {
+            businessProfileId,
+          },
+          data: {
             lastSnapshotAt: now,
             nextSnapshotAt: this.calculateNextSnapshotTime(
               snapshotTime,
               timezone,
             ),
-          })
-          .eq("businessProfileId", businessProfileId);
+          },
+        });
 
         console.log(`TikTok snapshot completed for ${businessProfileId}`);
       } else {
@@ -216,20 +214,19 @@ export class TikTokSchedulerService {
     errors: number;
   }> {
     try {
-      const { data: schedules, error } = await this.supabase
-        .from("TikTokSnapshotSchedule")
-        .select("businessProfileId")
-        .eq("isActive", true);
-
-      if (error) {
-        console.error("Error fetching TikTok schedules:", error);
-        return { success: false, processed: 0, errors: 1 };
-      }
+      const schedules = await this.prisma.tikTokSnapshotSchedule.findMany({
+        where: {
+          isEnabled: true,
+        },
+        select: {
+          businessProfileId: true,
+        },
+      });
 
       let processed = 0;
       let errors = 0;
 
-      for (const schedule of schedules || []) {
+      for (const schedule of schedules) {
         try {
           const result = await this.tiktokService.takeDailySnapshot(
             schedule.businessProfileId,
@@ -287,18 +284,15 @@ export class TikTokSchedulerService {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-      const { data, error } = await this.supabase
-        .from("TikTokDailySnapshot")
-        .delete()
-        .lt("createdAt", cutoffDate.toISOString())
-        .select("id");
+      const result = await this.prisma.tikTokDailySnapshot.deleteMany({
+        where: {
+          createdAt: {
+            lt: cutoffDate,
+          },
+        },
+      });
 
-      if (error) {
-        console.error("Error cleaning up old TikTok snapshots:", error);
-        return { success: false, deleted: 0 };
-      }
-
-      const deleted = data?.length || 0;
+      const deleted = result.count;
       console.log(`Cleaned up ${deleted} old TikTok snapshots`);
 
       return { success: true, deleted };

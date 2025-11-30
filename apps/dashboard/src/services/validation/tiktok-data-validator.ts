@@ -1,4 +1,4 @@
-import { 
+import {
   TikTokAnalytics,
   CalculationResult,
   TikTokDailySnapshot,
@@ -15,24 +15,24 @@ export class TikTokDataValidator {
    */
   static validateDateRange(startDate: Date, endDate: Date): CalculationResult<boolean> {
     const errors: string[] = [];
-    
+
     if (!startDate || !endDate) {
       errors.push('Start date and end date are required');
     }
-    
+
     if (startDate >= endDate) {
       errors.push('Start date must be before end date');
     }
-    
+
     const daysDiff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
     if (daysDiff > 90) {
       errors.push('Date range cannot exceed 90 days');
     }
-    
+
     if (daysDiff < 0) {
       errors.push('Invalid date range');
     }
-    
+
     return {
       data: errors.length === 0,
       isValid: errors.length === 0,
@@ -51,18 +51,18 @@ export class TikTokDataValidator {
     endDate: Date
   ): CalculationResult<boolean> {
     const errors: string[] = [];
-    
+
     // Validate date range
     const dateValidation = this.validateDateRange(startDate, endDate);
     if (!dateValidation.isValid) {
       errors.push(...dateValidation.errors);
     }
-    
+
     // Validate snapshots
     if (snapshots.length === 0) {
       errors.push('No snapshots available for the selected date range');
     }
-    
+
     snapshots.forEach((snapshot, index) => {
       if (snapshot.followerCount < 0) {
         errors.push(`Invalid follower count at snapshot ${index}`);
@@ -83,7 +83,7 @@ export class TikTokDataValidator {
         errors.push(`Invalid total views at snapshot ${index}`);
       }
     });
-    
+
     // Validate business profile
     if (!businessProfile) {
       errors.push('Business profile not found');
@@ -91,11 +91,11 @@ export class TikTokDataValidator {
       if (!businessProfile.username) {
         errors.push('Business profile username is required');
       }
-      if (!businessProfile.teamId) {
-        errors.push('Business profile team ID is required');
+      if (!businessProfile.locationId) {
+        errors.push('Business profile location ID is required');
       }
     }
-    
+
     // Validate analytics data
     analytics.forEach((analytic, index) => {
       if (analytic.followersGrowthRate90d < -100 || analytic.followersGrowthRate90d > 10000) {
@@ -105,7 +105,7 @@ export class TikTokDataValidator {
         errors.push(`Invalid engagement rate at analytics ${index}`);
       }
     });
-    
+
     return {
       data: errors.length === 0,
       isValid: errors.length === 0,
@@ -118,11 +118,11 @@ export class TikTokDataValidator {
    */
   static validateSnapshotData(snapshots: TikTokDailySnapshot[]): CalculationResult<boolean> {
     const errors: string[] = [];
-    
+
     if (snapshots.length === 0) {
       errors.push('No snapshots available');
     }
-    
+
     snapshots.forEach((snapshot, index) => {
       if (snapshot.followerCount < 0) {
         errors.push(`Invalid follower count at index ${index}`);
@@ -149,7 +149,7 @@ export class TikTokDataValidator {
         errors.push(`Invalid total downloads at index ${index}`);
       }
     });
-    
+
     return {
       data: errors.length === 0,
       isValid: errors.length === 0,
@@ -162,7 +162,7 @@ export class TikTokDataValidator {
    */
   static validateBusinessProfile(businessProfile: TikTokBusinessProfile | null): CalculationResult<boolean> {
     const errors: string[] = [];
-    
+
     if (!businessProfile) {
       errors.push('Business profile is required');
       return {
@@ -171,19 +171,19 @@ export class TikTokDataValidator {
         errors
       };
     }
-    
+
     if (!businessProfile.username) {
       errors.push('Username is required');
     }
-    
-    if (!businessProfile.teamId) {
-      errors.push('Team ID is required');
+
+    if (!businessProfile.locationId) {
+      errors.push('Location ID is required');
     }
-    
-    if (!businessProfile.userId) {
-      errors.push('User ID is required');
+
+    if (!businessProfile.id) {
+      errors.push('Profile ID is required');
     }
-    
+
     return {
       data: errors.length === 0,
       isValid: errors.length === 0,

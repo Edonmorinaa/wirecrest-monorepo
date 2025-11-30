@@ -1,15 +1,16 @@
 'use client';
 
-import { useMemo } from 'react';
-
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
+import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
-import { AnalyticsWebsiteVisits } from 'src/sections/overview/analytics/analytics-website-visits';
+import { Iconify } from 'src/components/iconify';
+import { ChartBar, ChartArea, ChartLine } from 'src/components/chart';
 
 import { TikTokMetricsWidget } from '../components/tiktok-metrics-widget';
 
@@ -43,55 +44,12 @@ interface TikTokEngagementTabProps {
 }
 
 export function TikTokEngagementTab({ data, startDate, endDate }: TikTokEngagementTabProps) {
-  // Process chart data from the analytics data
-  const processedChartData = useMemo(() => {
-    if (!data) return null;
+  const theme = useTheme();
 
-    const formatChartData = (chartData: Array<{ date: string; value: number }> | undefined) => {
-      if (!chartData || chartData.length === 0) return null;
-      
-      const categories = chartData.map(item => 
-        new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      );
-      
-      const series = [{
-        name: 'Value',
-        data: chartData.map(item => item.value),
-        type: 'area'
-      }];
-
-      return { 
-        categories, 
-        series,
-        chart: {
-          type: 'area',
-          height: 350,
-          sparkline: {
-            enabled: false
-          },
-          toolbar: {
-            show: true
-          }
-        }
-      };
-    };
-
-    return {
-      engagementRate: formatChartData(data.engagementRateChart),
-      avgLikes: formatChartData(data.avgLikesChart),
-      avgViews: formatChartData(data.avgViewsChart),
-      weeklyEngagementRate: formatChartData(data.weeklyEngagementRateChart),
-      weeklyVideos: formatChartData(data.weeklyVideosChart),
-      avgComments: formatChartData(data.avgCommentsChart),
-      avgShares: formatChartData(data.avgSharesChart),
-      avgDownloads: formatChartData(data.avgDownloadsChart),
-      commentsRatio: formatChartData(data.commentsRatioChart)
-    };
-  }, [data]);
-
+  // Handle missing or invalid data
   if (!data) {
     return (
-      <Alert severity="info">
+      <Alert severity="warning">
         <Typography variant="body2">
           No engagement data available for the selected date range.
         </Typography>
@@ -99,223 +57,353 @@ export function TikTokEngagementTab({ data, startDate, endDate }: TikTokEngageme
     );
   }
 
-  const formatNumber = (num: number | undefined): string => {
+  const formatNumber = (num: number | null | undefined): string => {
     if (num == null || isNaN(num)) return '0';
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toFixed(1);
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
   };
 
-  const formatPercentage = (num: number | undefined): string => {
+  const formatPercentage = (num: number | null | undefined): string => {
     if (num == null || isNaN(num)) return '0%';
     return `${num.toFixed(1)}%`;
   };
 
-  const engagementMetrics = [
+  // Safe data access with fallbacks
+  const safeData: Required<EngagementData> = {
+    engagementRate: data?.engagementRate || 0,
+    avgLikes: data?.avgLikes || 0,
+    avgComments: data?.avgComments || 0,
+    avgViews: data?.avgViews || 0,
+    avgShares: data?.avgShares || 0,
+    avgDownloads: data?.avgDownloads || 0,
+    weeklyEngagementRate: data?.weeklyEngagementRate || 0,
+    weeklyVideos: data?.weeklyVideos || 0,
+    commentsRatio: data?.commentsRatio || 0,
+    engagementRateChart: data?.engagementRateChart || [],
+    avgLikesChart: data?.avgLikesChart || [],
+    avgViewsChart: data?.avgViewsChart || [],
+    weeklyEngagementRateChart: data?.weeklyEngagementRateChart || [],
+    weeklyVideosChart: data?.weeklyVideosChart || [],
+    avgCommentsChart: data?.avgCommentsChart || [],
+    avgSharesChart: data?.avgSharesChart || [],
+    avgDownloadsChart: data?.avgDownloadsChart || [],
+    commentsRatioChart: data?.commentsRatioChart || []
+  };
+
+  // Prepare chart data with safe access
+  const engagementRateChartData = {
+    categories: safeData.engagementRateChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Engagement Rate (%)',
+        data: safeData.engagementRateChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#2065d1'],
+  };
+
+  const avgLikesChartData = {
+    categories: safeData.avgLikesChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Average Likes',
+        data: safeData.avgLikesChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#00b8d4'],
+  };
+
+  const avgViewsChartData = {
+    categories: safeData.avgViewsChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Average Views',
+        data: safeData.avgViewsChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#00a76f'],
+  };
+
+  const weeklyEngagementRateChartData = {
+    categories: safeData.weeklyEngagementRateChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Weekly Engagement Rate (%)',
+        data: safeData.weeklyEngagementRateChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#ff5630'],
+  };
+
+  const weeklyVideosChartData = {
+    categories: safeData.weeklyVideosChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Weekly Videos',
+        data: safeData.weeklyVideosChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#7635dc'],
+  };
+
+  const avgCommentsChartData = {
+    categories: safeData.avgCommentsChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Average Comments',
+        data: safeData.avgCommentsChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#ff5630'],
+  };
+
+  const commentsRatioChartData = {
+    categories: safeData.commentsRatioChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Comments Ratio (%)',
+        data: safeData.commentsRatioChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#ff5630'],
+  };
+
+  // Metric cards data
+  const metricCards = [
     {
       title: 'Engagement Rate',
-      value: formatPercentage(data.engagementRate),
-      icon: 'eva:heart-fill',
-      color: 'error' as const,
-      trend: (data.engagementRate && data.engagementRate > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
-    },
-    {
-      title: 'Avg Likes',
-      value: formatNumber(data.avgLikes),
-      icon: 'eva:heart-fill',
-      color: 'warning' as const,
-      trend: (data.avgLikes && data.avgLikes > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
-    },
-    {
-      title: 'Avg Comments',
-      value: formatNumber(data.avgComments),
-      icon: 'eva:message-circle-fill',
-      color: 'success' as const,
-      trend: (data.avgComments && data.avgComments > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
-    },
-    {
-      title: 'Avg Views',
-      value: formatNumber(data.avgViews),
-      icon: 'eva:eye-fill',
-      color: 'info' as const,
-      trend: (data.avgViews && data.avgViews > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
-    },
-    {
-      title: 'Avg Shares',
-      value: formatNumber(data.avgShares),
-      icon: 'eva:share-fill',
+      total: formatPercentage(safeData.engagementRate),
+      icon: <Iconify icon="solar:heart-bold" width={24} height={24} className="" sx={{}} />,
       color: 'primary' as const,
-      trend: (data.avgShares && data.avgShares > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      chart: {
+        series: safeData.engagementRateChart.map(item => item?.value || 0),
+        categories: safeData.engagementRateChart.map(item => item?.date || ''),
+      },
+      infoDescription: 'The average engagement for recent videos compared to the number of followers',
     },
     {
-      title: 'Avg Downloads',
-      value: formatNumber(data.avgDownloads),
-      icon: 'eva:download-fill',
-      color: 'secondary' as const,
-      trend: (data.avgDownloads && data.avgDownloads > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      title: 'Average Likes',
+      total: formatNumber(safeData.avgLikes),
+      icon: <Iconify icon="solar:like-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'success' as const,
+      chart: {
+        series: safeData.avgLikesChart.map(item => item?.value || 0),
+        categories: safeData.avgLikesChart.map(item => item?.date || ''),
+      },
     },
     {
       title: 'Weekly Engagement Rate',
-      value: formatPercentage(data.weeklyEngagementRate),
-      icon: 'eva:activity-fill',
-      color: 'error' as const,
-      trend: (data.weeklyEngagementRate && data.weeklyEngagementRate > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      total: formatPercentage(safeData.weeklyEngagementRate),
+      icon: <Iconify icon="solar:chart-2-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'info' as const,
+      chart: {
+        series: safeData.weeklyEngagementRateChart.map(item => item?.value || 0),
+        categories: safeData.weeklyEngagementRateChart.map(item => item?.date || ''),
+      },
+      infoDescription: 'The cumulative engagement rate for all videos in the last 7 days. This is a better indicator of engagement than just the engagement rate as it takes into account the weekly videos.',
     },
     {
       title: 'Weekly Videos',
-      value: formatNumber(data.weeklyVideos),
-      icon: 'eva:video-fill',
+      total: formatNumber(safeData.weeklyVideos),
+      icon: <Iconify icon="solar:video-bold" width={24} height={24} className="" sx={{}} />,
       color: 'warning' as const,
-      trend: (data.weeklyVideos && data.weeklyVideos > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      chart: {
+        series: safeData.weeklyVideosChart.map(item => item?.value || 0),
+        categories: safeData.weeklyVideosChart.map(item => item?.date || ''),
+      },
+    },
+    {
+      title: 'Average Comments',
+      total: formatNumber(safeData.avgComments),
+      icon: <Iconify icon="solar:chat-round-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'secondary' as const,
+      chart: {
+        series: safeData.avgCommentsChart.map(item => item?.value || 0),
+        categories: safeData.avgCommentsChart.map(item => item?.date || ''),
+      },
     },
     {
       title: 'Comments Ratio',
-      value: formatPercentage(data.commentsRatio),
-      icon: 'eva:message-circle-outline',
-      color: 'success' as const,
-      trend: (data.commentsRatio && data.commentsRatio > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
-    }
+      total: formatPercentage(safeData.commentsRatio),
+      icon: <Iconify icon="solar:chat-round-dots-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'error' as const,
+      chart: {
+        series: safeData.commentsRatioChart.map(item => item?.value || 0),
+        categories: safeData.commentsRatioChart.map(item => item?.date || ''),
+      },
+      infoDescription: 'The number of comments received for each 100 likes',
+    },
   ];
 
   return (
-    <Stack spacing={3}>
-      {/* Engagement Metrics Grid */}
-      <Grid container spacing={3}>
-        {engagementMetrics.map((metric, index) => (
-          <Grid key={index} size={{ xs: 12, sm: 6, md: 4 }}>
+    <Box>
+      {/* Key Metrics Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {metricCards.map((card) => (
+          <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
             <TikTokMetricsWidget
-              title={metric.title}
-              value={metric.value}
-              icon={metric.icon}
-              color={metric.color}
-              trend={metric.trend}
+              title={card.title}
+              total={card.total}
+              icon={card.icon}
+              color={card.color}
+              chart={card.chart}
+              infoDescription={card.infoDescription}
+              sx={{
+                height: '100%',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: theme.shadows[8],
+                },
+              }}
             />
           </Grid>
         ))}
       </Grid>
 
-      {/* Engagement Charts */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            Engagement Analytics
-          </Typography>
-          
-          <Grid container spacing={3}>
-            {/* Engagement Rate Chart */}
-            {processedChartData?.engagementRate && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Engagement Rate Over Time"
-                  subheader="Monitor engagement rate to understand audience interaction quality"
-                  chart={processedChartData.engagementRate}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+      {/* Charts */}
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Engagement Rate"
+              subheader="Daily engagement rate percentage"
+              action={
+                <Iconify icon="solar:heart-bold" width={24} height={24} className="" sx={{ color: 'primary.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartLine
+                series={engagementRateChartData.series}
+                categories={engagementRateChartData.categories}
+                colors={engagementRateChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Average Likes Chart */}
-            {processedChartData?.avgLikes && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Average Likes Over Time"
-                  subheader="Track average likes received on your content"
-                  chart={processedChartData.avgLikes}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Average Likes"
+              subheader="Daily average likes per video"
+              action={
+                <Iconify icon="solar:like-bold" width={24} height={24} className="" sx={{ color: 'success.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={avgLikesChartData.series}
+                categories={avgLikesChartData.categories}
+                colors={avgLikesChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Average Views Chart */}
-            {processedChartData?.avgViews && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Average Views Over Time"
-                  subheader="Track average views on your content"
-                  chart={processedChartData.avgViews}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Average Views"
+              subheader="Daily average views per video"
+              action={
+                <Iconify icon="solar:eye-bold" width={24} height={24} className="" sx={{ color: 'info.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={avgViewsChartData.series}
+                categories={avgViewsChartData.categories}
+                colors={avgViewsChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Weekly Engagement Rate Chart */}
-            {processedChartData?.weeklyEngagementRate && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Weekly Engagement Rate"
-                  subheader="Track weekly engagement rate trends"
-                  chart={processedChartData.weeklyEngagementRate}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Weekly Engagement Rate"
+              subheader="Weekly cumulative engagement rate"
+              action={
+                <Iconify icon="solar:chart-2-bold" width={24} height={24} className="" sx={{ color: 'warning.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartLine
+                series={weeklyEngagementRateChartData.series}
+                categories={weeklyEngagementRateChartData.categories}
+                colors={weeklyEngagementRateChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Weekly Videos Chart */}
-            {processedChartData?.weeklyVideos && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Weekly Videos Posted"
-                  subheader="Track your weekly video posting activity"
-                  chart={processedChartData.weeklyVideos}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Weekly Videos"
+              subheader="Number of videos per week"
+              action={
+                <Iconify icon="solar:video-bold" width={24} height={24} className="" sx={{ color: 'secondary.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartBar
+                series={weeklyVideosChartData.series}
+                categories={weeklyVideosChartData.categories}
+                colors={weeklyVideosChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Average Comments Chart */}
-            {processedChartData?.avgComments && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Average Comments Over Time"
-                  subheader="Track average comments received on your content"
-                  chart={processedChartData.avgComments}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Average Comments"
+              subheader="Daily average comments per video"
+              action={
+                <Iconify icon="solar:chat-round-bold" width={24} height={24} className="" sx={{ color: 'error.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={avgCommentsChartData.series}
+                categories={avgCommentsChartData.categories}
+                colors={avgCommentsChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Average Shares Chart */}
-            {processedChartData?.avgShares && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Average Shares Over Time"
-                  subheader="Track average shares of your content"
-                  chart={processedChartData.avgShares}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
-
-            {/* Average Downloads Chart */}
-            {processedChartData?.avgDownloads && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Average Downloads Over Time"
-                  subheader="Track average downloads of your content"
-                  chart={processedChartData.avgDownloads}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
-
-            {/* Comments Ratio Chart */}
-            {processedChartData?.commentsRatio && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Comments Ratio Over Time"
-                  subheader="Track comments to likes ratio"
-                  chart={processedChartData.commentsRatio}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
-          </Grid>
-        </CardContent>
-      </Card>
-    </Stack>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Comments Ratio"
+              subheader="Comments per 100 likes"
+              action={
+                <Iconify icon="solar:chat-round-dots-bold" width={24} height={24} className="" sx={{ color: 'error.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartLine
+                series={commentsRatioChartData.series}
+                categories={commentsRatioChartData.categories}
+                colors={commentsRatioChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
   );
 }

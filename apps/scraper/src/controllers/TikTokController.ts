@@ -37,30 +37,20 @@ export class TikTokController {
         tiktokUsername,
       });
 
-      // Note: TikTok data service uses legacy Supabase and is currently disabled
-      // Return a service unavailable error
-      res.status(503).json({
-        error: "TikTok snapshot service is currently unavailable (legacy Supabase dependency)",
-        message: "TikTok integration is being migrated to the new database system",
-      });
-      return;
-
-      // Original implementation (commented out until Supabase migration is complete):
-      /*
       // Check if business profile exists, create if not
       const profileResult =
-        await this.tiktokDataService.getBusinessProfileByLocationId(locationId);
- 
+        await this.tiktokService.getBusinessProfileByLocationId(locationId);
+
       let businessProfileId: string;
- 
+
       if (!profileResult.success || !profileResult.profile) {
         // Create new profile
         const createResult =
-          await this.tiktokDataService.createBusinessProfile(
+          await this.tiktokService.createBusinessProfile(
             locationId,
             tiktokUsername,
           );
- 
+
         if (!createResult.success) {
           console.error(
             "[TikTokController] Failed to create business profile:",
@@ -72,14 +62,14 @@ export class TikTokController {
           });
           return;
         }
- 
+
         businessProfileId = createResult.businessProfileId!;
       } else {
         businessProfileId = profileResult.profile.id;
       }
- 
+
       // Trigger snapshot
-      const snapshotResult = await this.tiktokDataService.takeDailySnapshot(
+      const snapshotResult = await this.tiktokService.takeDailySnapshot(
         businessProfileId,
         {
           snapshotType: "MANUAL",
@@ -89,7 +79,7 @@ export class TikTokController {
           maxComments,
         },
       );
- 
+
       if (!snapshotResult.success) {
         console.error(
           "[TikTokController] Failed to take snapshot:",
@@ -101,17 +91,16 @@ export class TikTokController {
         });
         return;
       }
- 
+
       console.log("[TikTokController] Snapshot created successfully:", {
         snapshotId: snapshotResult.snapshotId,
       });
- 
+
       res.status(200).json({
         success: true,
         snapshotId: snapshotResult.snapshotId,
         message: "TikTok snapshot triggered successfully",
       });
-      */
     } catch (error) {
       console.error("[TikTokController] Error in triggerSnapshot:", error);
       res.status(500).json({

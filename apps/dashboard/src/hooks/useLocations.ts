@@ -698,3 +698,54 @@ export function useInstagramAnalytics(
     refetch,
   };
 }
+// ==========================================
+// TIKTOK PLATFORM HOOKS
+// ==========================================
+
+/**
+ * Hook to get TikTok Analytics with date range
+ */
+export function useTikTokAnalytics(
+  teamSlug: string,
+  locationSlug: string,
+  startDate: string,
+  endDate: string,
+  enabled = true
+) {
+  const { data, error, isLoading, refetch } = trpc.platforms.tiktokAnalytics.useQuery(
+    { slug: teamSlug, locationSlug, startDate, endDate },
+    {
+      enabled: enabled && !!teamSlug && !!locationSlug && !!startDate && !!endDate,
+      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 seconds
+    }
+  );
+
+  return {
+    analytics: data || null,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+/**
+ * Hook to get TikTok Header Data (Profile + 30-day stats)
+ */
+export function useTikTokHeaderData(teamSlug: string, locationSlug: string, enabled = true) {
+  const { data, error, isLoading, refetch } = trpc.platforms.tiktokHeader.useQuery(
+    { slug: teamSlug, locationSlug },
+    {
+      enabled: enabled && !!teamSlug && !!locationSlug,
+      refetchOnWindowFocus: false,
+      staleTime: 60000, // 1 minute
+    }
+  );
+
+  return {
+    data: data || null,
+    isLoading,
+    error,
+    refetch,
+  };
+}

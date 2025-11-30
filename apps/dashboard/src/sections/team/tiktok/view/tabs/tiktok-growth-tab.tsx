@@ -1,15 +1,16 @@
 'use client';
 
-import { useMemo } from 'react';
-
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
+import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
-import { AnalyticsWebsiteVisits } from 'src/sections/overview/analytics/analytics-website-visits';
+import { Iconify } from 'src/components/iconify';
+import { ChartArea, ChartLine } from 'src/components/chart';
 
 import { TikTokMetricsWidget } from '../components/tiktok-metrics-widget';
 
@@ -34,50 +35,12 @@ interface TikTokGrowthTabProps {
 }
 
 export function TikTokGrowthTab({ data, startDate, endDate }: TikTokGrowthTabProps) {
-  // Process chart data from the analytics data
-  const processedChartData = useMemo(() => {
-    if (!data) return null;
+  const theme = useTheme();
 
-    const formatChartData = (chartData: Array<{ date: string; value: number }> | undefined) => {
-      if (!chartData || chartData.length === 0) return null;
-      
-      const categories = chartData.map(item => 
-        new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      );
-      
-      const series = [{
-        name: 'Value',
-        data: chartData.map(item => item.value),
-        type: 'area'
-      }];
-
-      return { 
-        categories, 
-        series,
-        chart: {
-          type: 'area',
-          height: 350,
-          sparkline: {
-            enabled: false
-          },
-          toolbar: {
-            show: true
-          }
-        }
-      };
-    };
-
-    return {
-      followers: formatChartData(data.followersChart),
-      following: formatChartData(data.followingChart),
-      newDailyFollowers: formatChartData(data.newDailyFollowersChart),
-      predictedFollowers: formatChartData(data.predictedFollowersChart)
-    };
-  }, [data]);
-
+  // Handle missing or invalid data
   if (!data) {
     return (
-      <Alert severity="info">
+      <Alert severity="warning">
         <Typography variant="body2">
           No growth data available for the selected date range.
         </Typography>
@@ -85,135 +48,246 @@ export function TikTokGrowthTab({ data, startDate, endDate }: TikTokGrowthTabPro
     );
   }
 
-  const formatNumber = (num: number | undefined): string => {
+  const formatNumber = (num: number | null | undefined): string => {
     if (num == null || isNaN(num)) return '0';
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toFixed(1);
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
   };
 
-  const formatPercentage = (num: number | undefined): string => {
+  const formatPercentage = (num: number | null | undefined): string => {
     if (num == null || isNaN(num)) return '0%';
     return `${num.toFixed(1)}%`;
   };
 
-  const growthMetrics = [
+  // Helper to get latest value from chart data
+  const getLatestValue = (chartData: { value: number }[] | undefined): number => {
+    if (!chartData || chartData.length === 0) return 0;
+    return chartData[chartData.length - 1].value;
+  };
+
+  // Safe data access with fallbacks
+  const safeData = {
+    followersGrowthRate90d: data?.followersGrowthRate90d || 0,
+    steadyGrowthRate: data?.steadyGrowthRate || 0,
+    dailyFollowers: getLatestValue(data?.newDailyFollowersChart),
+    weeklyFollowers: getLatestValue(data?.followersChart),
+    monthlyFollowers: getLatestValue(data?.followersChart),
+    followersChart: data?.followersChart || [],
+    followingChart: data?.followingChart || [],
+    newDailyFollowersChart: data?.newDailyFollowersChart || [],
+    predictedFollowersChart: data?.predictedFollowersChart || []
+  };
+
+  // Prepare chart data with safe access
+  const followersChartData = {
+    categories: safeData.followersChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Followers',
+        data: safeData.followersChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#2065d1'],
+  };
+
+  const followingChartData = {
+    categories: safeData.followingChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Following',
+        data: safeData.followingChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#00b8d4'],
+  };
+
+  const newDailyFollowersChartData = {
+    categories: safeData.newDailyFollowersChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'New Daily Followers',
+        data: safeData.newDailyFollowersChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#00a76f'],
+  };
+
+  const predictedFollowersChartData = {
+    categories: safeData.predictedFollowersChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Predicted Followers',
+        data: safeData.predictedFollowersChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#ff5630'],
+  };
+
+  // Metric cards data
+  const metricCards = [
     {
       title: '90-Day Growth Rate',
-      value: formatPercentage(data.followersGrowthRate90d),
-      icon: 'eva:trending-up-fill',
+      total: formatPercentage(safeData.followersGrowthRate90d),
+      icon: <Iconify icon="solar:chart-2-bold" width={24} height={24} className="" sx={{}} />,
       color: 'primary' as const,
-      trend: (data.followersGrowthRate90d && data.followersGrowthRate90d > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      chart: {
+        series: safeData.followersChart.map(item => item?.value || 0),
+        categories: safeData.followersChart.map(item => item?.date || ''),
+      },
+      infoDescription: 'The percentage of gained followers over the past 90 days',
     },
     {
       title: 'Steady Growth Rate',
-      value: formatPercentage(data.steadyGrowthRate),
-      icon: 'eva:activity-fill',
-      color: 'info' as const,
-      trend: (data.steadyGrowthRate && data.steadyGrowthRate > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      total: formatPercentage(safeData.steadyGrowthRate),
+      icon: <Iconify icon="solar:trend-up-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'success' as const,
+      chart: {
+        series: safeData.followersChart.map(item => item?.value || 0),
+        categories: safeData.followersChart.map(item => item?.date || ''),
+      },
+      infoDescription: 'The consistency of followers growth. 100% means a very consistent and predictable growth. Less than 40% is very inconsistent (Might be a result of gaining followers the wrong way).',
     },
     {
       title: 'Daily Followers',
-      value: formatNumber(data.dailyFollowers),
-      icon: 'eva:calendar-fill',
-      color: 'success' as const,
-      trend: (data.dailyFollowers && data.dailyFollowers > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      total: formatNumber(safeData.dailyFollowers),
+      icon: <Iconify icon="solar:calendar-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'info' as const,
+      chart: {
+        series: safeData.newDailyFollowersChart.map(item => item?.value || 0),
+        categories: safeData.newDailyFollowersChart.map(item => item?.date || ''),
+      },
     },
     {
       title: 'Weekly Followers',
-      value: formatNumber(data.weeklyFollowers),
-      icon: 'eva:clock-fill',
+      total: formatNumber(safeData.weeklyFollowers),
+      icon: <Iconify icon="solar:users-group-rounded-bold" width={24} height={24} className="" sx={{}} />,
       color: 'warning' as const,
-      trend: (data.weeklyFollowers && data.weeklyFollowers > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      chart: {
+        series: safeData.followersChart.map(item => item?.value || 0),
+        categories: safeData.followersChart.map(item => item?.date || ''),
+      },
     },
     {
       title: 'Monthly Followers',
-      value: formatNumber(data.monthlyFollowers),
-      icon: 'eva:calendar-outline',
+      total: formatNumber(safeData.monthlyFollowers),
+      icon: <Iconify icon="solar:calendar-mark-bold" width={24} height={24} className="" sx={{}} />,
       color: 'secondary' as const,
-      trend: (data.monthlyFollowers && data.monthlyFollowers > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
-    }
+      chart: {
+        series: safeData.followersChart.map(item => item?.value || 0),
+        categories: safeData.followersChart.map(item => item?.date || ''),
+      },
+    },
   ];
 
   return (
-    <Stack spacing={3}>
-      {/* Growth Metrics Grid */}
-      <Grid container spacing={3}>
-        {growthMetrics.map((metric, index) => (
-          <Grid key={index} size={{ xs: 12, sm: 6, md: 4 }}>
+    <Box>
+      {/* Key Metrics Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {metricCards.map((card) => (
+          <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
             <TikTokMetricsWidget
-              title={metric.title}
-              value={metric.value}
-              icon={metric.icon}
-              color={metric.color}
-              trend={metric.trend}
+              title={card.title}
+              total={card.total}
+              icon={card.icon}
+              color={card.color}
+              chart={card.chart}
+              infoDescription={card.infoDescription}
+              sx={{
+                height: '100%',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: theme.shadows[8],
+                },
+              }}
             />
           </Grid>
         ))}
       </Grid>
 
-      {/* Growth Charts */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            Growth Analytics
-          </Typography>
-          
-          <Grid container spacing={3}>
-            {/* Followers Growth Chart */}
-            {processedChartData?.followers && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Followers Growth Over Time"
-                  subheader="Track your follower count growth"
-                  chart={processedChartData.followers}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+      {/* Charts */}
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Followers Growth"
+              subheader="Daily followers count over time"
+              action={
+                <Iconify icon="solar:users-group-rounded-bold" width={24} height={24} className="" sx={{ color: 'primary.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={followersChartData.series}
+                categories={followersChartData.categories}
+                colors={followersChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Following Chart */}
-            {processedChartData?.following && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Following Count Over Time"
-                  subheader="Track your following count changes"
-                  chart={processedChartData.following}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Following Count"
+              subheader="Daily following count over time"
+              action={
+                <Iconify icon="solar:user-plus-bold" width={24} height={24} className="" sx={{ color: 'success.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={followingChartData.series}
+                categories={followingChartData.categories}
+                colors={followingChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Daily New Followers Chart */}
-            {processedChartData?.newDailyFollowers && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Daily New Followers"
-                  subheader="Track daily follower acquisition"
-                  chart={processedChartData.newDailyFollowers}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="New Daily Followers"
+              subheader="Daily new followers gained"
+              action={
+                <Iconify icon="solar:user-plus-bold" width={24} height={24} className="" sx={{ color: 'info.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartLine
+                series={newDailyFollowersChartData.series}
+                categories={newDailyFollowersChartData.categories}
+                colors={newDailyFollowersChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Predicted Followers Chart */}
-            {processedChartData?.predictedFollowers && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Predicted Followers Growth"
-                  subheader="Forecast future follower growth based on current trends"
-                  chart={processedChartData.predictedFollowers}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
-          </Grid>
-        </CardContent>
-      </Card>
-    </Stack>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Predicted Followers"
+              subheader="Projected followers based on growth trend"
+              action={
+                <Iconify icon="solar:chart-2-bold" width={24} height={24} className="" sx={{ color: 'warning.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartLine
+                series={predictedFollowersChartData.series}
+                categories={predictedFollowersChartData.categories}
+                colors={predictedFollowersChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
   );
 }

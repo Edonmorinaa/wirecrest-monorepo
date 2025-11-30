@@ -64,7 +64,7 @@ export function TikTokAnalyticsTabs({ data, startDate, endDate }: TikTokAnalytic
   const renderTabContent = () => {
     switch (currentTab) {
       case 'overview':
-        return <TikTokOverviewTab data={data.overview} startDate={startDate} endDate={endDate} />;
+        return <TikTokOverviewTab data={data.overview} overviewData={data.history} startDate={startDate} endDate={endDate} />;
       case 'growth':
         return <TikTokGrowthTab data={data.growth} startDate={startDate} endDate={endDate} />;
       case 'engagement':
@@ -72,7 +72,7 @@ export function TikTokAnalyticsTabs({ data, startDate, endDate }: TikTokAnalytic
       case 'history':
         return <TikTokHistoryTab data={data.history} startDate={startDate} endDate={endDate} />;
       default:
-        return <TikTokOverviewTab data={data.overview} startDate={startDate} endDate={endDate} />;
+        return <TikTokOverviewTab data={data.overview} overviewData={data.history} startDate={startDate} endDate={endDate} />;
     }
   };
 

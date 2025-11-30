@@ -12,14 +12,19 @@ interface UseTikTokBusinessProfileReturn {
 
 /**
  * Hook for TikTok Business Profile data using tRPC
- * Replaces manual state management with React Query (via tRPC)
+ * Supports both team-based and location-based queries
+ * @param teamSlug - Team slug (required)
+ * @param locationSlug - Location slug (optional, for location-specific queries)
  */
-export default function useTikTokBusinessProfile(teamSlug: string): UseTikTokBusinessProfileReturn {
+export default function useTikTokBusinessProfile(
+  teamSlug: string,
+  locationSlug?: string
+): UseTikTokBusinessProfileReturn {
   // Use tRPC query for automatic caching and state management
   const { data, error, isLoading, refetch } = trpc.platforms.tiktokProfile.useQuery(
-    { slug: teamSlug },
+    { slug: teamSlug, locationSlug },
     {
-      suspense: true,
+      enabled: !!teamSlug,
       refetchOnWindowFocus: false,
       staleTime: CACHE_TIMES.PLATFORM_PROFILE.staleTime,
       gcTime: CACHE_TIMES.PLATFORM_PROFILE.gcTime,
@@ -28,7 +33,7 @@ export default function useTikTokBusinessProfile(teamSlug: string): UseTikTokBus
   );
 
   return {
-    businessProfile: (data as TikTokBusinessProfile) || null,
+    businessProfile: (data as unknown as TikTokBusinessProfile) || null,
     isLoading,
     error: error?.message || null,
     refetch: async () => {

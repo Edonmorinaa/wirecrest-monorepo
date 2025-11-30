@@ -102,6 +102,16 @@ export const getInstagramAnalyticsSchema = z.object({
 });
 
 /**
+ * Schema for TikTok analytics with date range
+ */
+export const getTikTokAnalyticsSchema = z.object({
+  slug: z.string().min(1, 'Team slug is required'),
+  locationSlug: z.string().min(1, 'Location slug is required'),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+/**
  * Schema for enabling Instagram snapshot schedule
  */
 export const enableInstagramScheduleSchema = z.object({

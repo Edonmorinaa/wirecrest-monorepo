@@ -61,7 +61,7 @@ export interface TikTokAnalytics {
 
 // Request/Response types
 export interface CreateTikTokProfileRequest {
-  teamId: string;
+  locationId: string;
   username: string;
 }
 

@@ -106,7 +106,7 @@ export class PlatformConfigWebhookController {
       const platformLower = platform.toLowerCase();
 
       // Instagram and TikTok use direct snapshot triggering
-      if (platformLower === 'instagram' && this.instagramService) {
+      if (platformLower === "instagram" && this.instagramService) {
         console.log(`📸 Triggering Instagram snapshot for ${identifier}`);
 
         const snapshotResult = await this.instagramService.takeDailySnapshot(
@@ -123,7 +123,10 @@ export class PlatformConfigWebhookController {
         if (!snapshotResult.success) {
           console.error(`❌ Instagram snapshot failed:`, snapshotResult.error);
         } else {
-          console.log(`✅ Instagram snapshot completed:`, snapshotResult.snapshotId);
+          console.log(
+            `✅ Instagram snapshot completed:`,
+            snapshotResult.snapshotId,
+          );
         }
 
         res.json({
@@ -137,15 +140,36 @@ export class PlatformConfigWebhookController {
         return;
       }
 
-      if (platformLower === 'tiktok' && this.tiktokService) {
-        console.log(`📸 TikTok snapshot currently unavailable (legacy Supabase)`);
+      if (platformLower === "tiktok" && this.tiktokService) {
+        console.log(`📸 Triggering TikTok snapshot for ${identifier}`);
+
+        const snapshotResult = await this.tiktokService.takeDailySnapshot(
+          profileResult.businessProfileId,
+          {
+            snapshotType: "INITIAL",
+            includeVideos: true,
+            includeComments: true,
+            maxVideos: 10,
+            maxComments: 50,
+          },
+        );
+
+        if (!snapshotResult.success) {
+          console.error(`❌ TikTok snapshot failed:`, snapshotResult.error);
+        } else {
+          console.log(
+            `✅ TikTok snapshot completed:`,
+            snapshotResult.snapshotId,
+          );
+        }
 
         res.json({
           success: true,
-          message: "TikTok profile configured (snapshot unavailable - awaiting migration)",
+          message: "TikTok profile configured and snapshot triggered",
           profileCreated: profileResult.created,
           businessProfileId: profileResult.businessProfileId,
-          snapshotTriggered: false,
+          snapshotTriggered: snapshotResult.success,
+          snapshotId: snapshotResult.snapshotId,
         });
         return;
       }
@@ -165,12 +189,12 @@ export class PlatformConfigWebhookController {
         profileCreated: profileResult.created,
         businessProfileId: profileResult.businessProfileId,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error handling platform configuration:", error);
       res.status(500).json({
         success: false,
         error: "Failed to handle platform configuration",
-        message: error.message,
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
@@ -179,7 +203,10 @@ export class PlatformConfigWebhookController {
    * Get team subscription status using Stripe-First approach
    * This checks Stripe directly via the billing package
    */
-  private async getTeamSubscription(teamId: string): Promise<any | null> {
+  private async getTeamSubscription(teamId: string): Promise<{
+    tier: string;
+    stripeSubscriptionId?: string;
+  } | null> {
     try {
       const subscriptionService = new StripeFirstSubscriptionService();
       const subscription =

@@ -75,7 +75,7 @@ export interface TikTokComment {
 
 export interface TikTokBusinessProfile {
   id: string;
-  teamId: string;
+  locationId: string;
   username: string;
   nickname: string;
   avatarUrl: string;
@@ -438,8 +438,8 @@ export interface LamaTokHashtagMediasResponse {
 }
 
 // Legacy types for backward compatibility
-export interface ScrapeCreatorsTikTokUserResponse extends LamaTokUserResponse {}
+export interface ScrapeCreatorsTikTokUserResponse extends LamaTokUserResponse { }
 export interface ScrapeCreatorsTikTokVideoResponse
-  extends LamaTokVideoResponse {}
+  extends LamaTokVideoResponse { }
 export interface ScrapeCreatorsTikTokCommentResponse
-  extends LamaTokCommentResponse {}
+  extends LamaTokCommentResponse { }

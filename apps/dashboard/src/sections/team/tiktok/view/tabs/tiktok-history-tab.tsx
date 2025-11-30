@@ -4,11 +4,13 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
+import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
-import { AnalyticsWebsiteVisits } from 'src/sections/overview/analytics/analytics-website-visits';
+import { Iconify } from 'src/components/iconify';
+import { ChartArea, ChartLine } from 'src/components/chart';
 
 import { TikTokMetricsWidget } from '../components/tiktok-metrics-widget';
 
@@ -33,9 +35,11 @@ interface TikTokHistoryTabProps {
 }
 
 export function TikTokHistoryTab({ data, startDate, endDate }: TikTokHistoryTabProps) {
+  const theme = useTheme();
+
   if (!data || data.length === 0) {
     return (
-      <Alert severity="info">
+      <Alert severity="warning">
         <Typography variant="body2">
           No historical data available for the selected date range.
         </Typography>
@@ -43,88 +47,49 @@ export function TikTokHistoryTab({ data, startDate, endDate }: TikTokHistoryTabP
     );
   }
 
-  // Process chart data for historical charts
-  const chartData = {
-    followers: {
-      categories: data.map(point => new Date(point.date).toLocaleDateString()),
-      series: [
-        {
-          name: 'Followers',
-          data: data.map(point => point.followerCount),
-          type: 'area'
-        }
-      ],
-      chart: {
-        type: 'area',
-        height: 350,
-        sparkline: {
-          enabled: false
-        },
-        toolbar: {
-          show: true
-        }
-      }
-    },
-    following: {
-      categories: data.map(point => new Date(point.date).toLocaleDateString()),
-      series: [
-        {
-          name: 'Following',
-          data: data.map(point => point.followingCount),
-          type: 'area'
-        }
-      ],
-      chart: {
-        type: 'area',
-        height: 350,
-        sparkline: {
-          enabled: false
-        },
-        toolbar: {
-          show: true
-        }
-      }
-    },
-    videos: {
-      categories: data.map(point => new Date(point.date).toLocaleDateString()),
-      series: [
-        {
-          name: 'Videos',
-          data: data.map(point => point.videoCount),
-          type: 'area'
-        }
-      ],
-      chart: {
-        type: 'area',
-        height: 350,
-        sparkline: {
-          enabled: false
-        },
-        toolbar: {
-          show: true
-        }
-      }
-    },
-    engagementRate: {
-      categories: data.map(point => new Date(point.date).toLocaleDateString()),
-      series: [
-        {
-          name: 'Engagement Rate',
-          data: data.map(point => point.engagementRate),
-          type: 'area'
-        }
-      ],
-      chart: {
-        type: 'area',
-        height: 350,
-        sparkline: {
-          enabled: false
-        },
-        toolbar: {
-          show: true
-        }
-      }
-    }
+  // Prepare chart data for large charts
+  const followersChartData = {
+    categories: data.map(point => new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    series: [
+      {
+        name: 'Followers',
+        data: data.map(point => point.followerCount),
+      },
+    ],
+    colors: ['#2065d1'],
+  };
+
+  const followingChartData = {
+    categories: data.map(point => new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    series: [
+      {
+        name: 'Following',
+        data: data.map(point => point.followingCount),
+      },
+    ],
+    colors: ['#00b8d4'],
+  };
+
+  const videosChartData = {
+    categories: data.map(point => new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    series: [
+      {
+        name: 'Videos',
+        data: data.map(point => point.videoCount),
+      },
+    ],
+    colors: ['#00a76f'],
+  };
+
+  const engagementRateChartData = {
+    categories: data.map(point => new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    series: [
+      {
+        name: 'Engagement Rate (%)',
+        data: data.map(point => point.engagementRate),
+      },
+    ],
+    colors: ['#ff5630'],
   };
 
   const formatNumber = (num: number): string => 
@@ -145,132 +110,203 @@ export function TikTokHistoryTab({ data, startDate, endDate }: TikTokHistoryTabP
   const totalVideoGrowth = latestData.videoCount - firstData.videoCount;
   const avgEngagementRate = data.reduce((sum, point) => sum + point.engagementRate, 0) / data.length;
 
+  // Prepare chart data for sparklines in metric cards
+  const followersChartForSparkline = data.map(point => point.followerCount);
+  const followingChartForSparkline = data.map(point => point.followingCount);
+  const videosChartForSparkline = data.map(point => point.videoCount);
+  const engagementRateChartForSparkline = data.map(point => point.engagementRate);
+  const datesForSparkline = data.map(point => point.date);
+
   const historyMetrics = [
     {
       title: 'Total Followers Growth',
-      value: formatNumber(totalFollowersGrowth),
-      icon: 'eva:people-fill',
+      total: formatNumber(totalFollowersGrowth),
+      icon: <Iconify icon="solar:users-group-rounded-bold" width={24} height={24} className="" sx={{}} />,
       color: 'primary' as const,
-      trend: (totalFollowersGrowth > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      chart: {
+        series: followersChartForSparkline,
+        categories: datesForSparkline,
+      },
     },
     {
       title: 'Total Following Growth',
-      value: formatNumber(totalFollowingGrowth),
-      icon: 'eva:person-add-fill',
+      total: formatNumber(totalFollowingGrowth),
+      icon: <Iconify icon="solar:user-plus-bold" width={24} height={24} className="" sx={{}} />,
       color: 'info' as const,
-      trend: (totalFollowingGrowth > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      chart: {
+        series: followingChartForSparkline,
+        categories: datesForSparkline,
+      },
     },
     {
       title: 'Total Videos Growth',
-      value: formatNumber(totalVideoGrowth),
-      icon: 'eva:video-fill',
+      total: formatNumber(totalVideoGrowth),
+      icon: <Iconify icon="solar:video-bold" width={24} height={24} className="" sx={{}} />,
       color: 'success' as const,
-      trend: (totalVideoGrowth > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      chart: {
+        series: videosChartForSparkline,
+        categories: datesForSparkline,
+      },
     },
     {
       title: 'Average Engagement Rate',
-      value: formatPercentage(avgEngagementRate),
-      icon: 'eva:heart-fill',
+      total: formatPercentage(avgEngagementRate),
+      icon: <Iconify icon="solar:heart-bold" width={24} height={24} className="" sx={{}} />,
       color: 'error' as const,
-      trend: (avgEngagementRate > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      chart: {
+        series: engagementRateChartForSparkline,
+        categories: datesForSparkline,
+      },
     },
     {
       title: 'Current Followers',
-      value: formatNumber(latestData.followerCount),
-      icon: 'eva:people-outline',
+      total: formatNumber(latestData.followerCount),
+      icon: <Iconify icon="solar:users-group-rounded-bold" width={24} height={24} className="" sx={{}} />,
       color: 'primary' as const,
-      trend: 'neutral' as 'up' | 'down' | 'neutral'
+      chart: {
+        series: followersChartForSparkline,
+        categories: datesForSparkline,
+      },
     },
     {
       title: 'Current Following',
-      value: formatNumber(latestData.followingCount),
-      icon: 'eva:person-outline',
+      total: formatNumber(latestData.followingCount),
+      icon: <Iconify icon="solar:user-plus-bold" width={24} height={24} className="" sx={{}} />,
       color: 'info' as const,
-      trend: 'neutral' as 'up' | 'down' | 'neutral'
+      chart: {
+        series: followingChartForSparkline,
+        categories: datesForSparkline,
+      },
     },
     {
       title: 'Current Videos',
-      value: formatNumber(latestData.videoCount),
-      icon: 'eva:video-outline',
+      total: formatNumber(latestData.videoCount),
+      icon: <Iconify icon="solar:video-bold" width={24} height={24} className="" sx={{}} />,
       color: 'success' as const,
-      trend: 'neutral' as 'up' | 'down' | 'neutral'
+      chart: {
+        series: videosChartForSparkline,
+        categories: datesForSparkline,
+      },
     },
     {
       title: 'Current Engagement Rate',
-      value: formatPercentage(latestData.engagementRate),
-      icon: 'eva:heart-outline',
+      total: formatPercentage(latestData.engagementRate),
+      icon: <Iconify icon="solar:heart-bold" width={24} height={24} className="" sx={{}} />,
       color: 'error' as const,
-      trend: 'neutral' as 'up' | 'down' | 'neutral'
+      chart: {
+        series: engagementRateChartForSparkline,
+        categories: datesForSparkline,
+      },
     }
   ];
 
   return (
-    <Stack spacing={3}>
-      {/* Historical Summary Metrics */}
-      <Grid container spacing={3}>
-        {historyMetrics.map((metric, index) => (
-          <Grid key={index} size={{ xs: 12, sm: 6, md: 4 }}>
+    <Box>
+      {/* Key Metrics Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {historyMetrics.map((card) => (
+          <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
             <TikTokMetricsWidget
-              title={metric.title}
-              value={metric.value}
-              icon={metric.icon}
-              color={metric.color}
-              trend={metric.trend}
+              title={card.title}
+              total={card.total}
+              icon={card.icon}
+              color={card.color}
+              chart={card.chart}
+              sx={{
+                height: '100%',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: theme.shadows[8],
+                },
+              }}
             />
           </Grid>
         ))}
       </Grid>
 
-      {/* Historical Charts */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            Historical Performance
-          </Typography>
-          
-          <Grid container spacing={3}>
-            {/* Followers History Chart */}
-            <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Followers Count Over Time"
-                  subheader="Track your follower growth over the selected period"
-                  chart={chartData.followers}
-                  sx={{ height: 400 }}
-                />
-            </Grid>
+      {/* Charts */}
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Followers Count"
+              subheader="Daily followers count over time"
+              action={
+                <Iconify icon="solar:users-group-rounded-bold" width={24} height={24} className="" sx={{ color: 'primary.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={followersChartData.series}
+                categories={followersChartData.categories}
+                colors={followersChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Following History Chart */}
-            <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Following Count Over Time"
-                  subheader="Track your following count changes over time"
-                  chart={chartData.following}
-                  sx={{ height: 400 }}
-                />
-            </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Following Count"
+              subheader="Daily following count over time"
+              action={
+                <Iconify icon="solar:user-plus-bold" width={24} height={24} className="" sx={{ color: 'success.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={followingChartData.series}
+                categories={followingChartData.categories}
+                colors={followingChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Videos History Chart */}
-            <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Video Count Over Time"
-                  subheader="Track your video count growth over time"
-                  chart={chartData.videos}
-                  sx={{ height: 400 }}
-                />
-            </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Video Count"
+              subheader="Daily video count over time"
+              action={
+                <Iconify icon="solar:video-bold" width={24} height={24} className="" sx={{ color: 'info.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={videosChartData.series}
+                categories={videosChartData.categories}
+                colors={videosChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Engagement Rate History Chart */}
-            <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Engagement Rate Over Time"
-                  subheader="Track your engagement rate trends over time"
-                  chart={chartData.engagementRate}
-                  sx={{ height: 400 }}
-                />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Engagement Rate"
+              subheader="Daily engagement rate percentage"
+              action={
+                <Iconify icon="solar:heart-bold" width={24} height={24} className="" sx={{ color: 'error.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartLine
+                series={engagementRateChartData.series}
+                categories={engagementRateChartData.categories}
+                colors={engagementRateChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Data Table */}
       <Card>
@@ -351,6 +387,6 @@ export function TikTokHistoryTab({ data, startDate, endDate }: TikTokHistoryTabP
           </Box>
         </CardContent>
       </Card>
-    </Stack>
+    </Box>
   );
 }

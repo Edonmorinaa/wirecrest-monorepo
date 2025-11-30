@@ -518,7 +518,7 @@ export async function getInstagramBusinessProfile(teamSlug: string, locationSlug
 }
 
 // TikTok Business Profile Actions
-export async function getTikTokBusinessProfile(teamSlug: string) {
+export async function getTikTokBusinessProfile(teamSlug: string, locationSlug?: string) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
@@ -526,6 +526,11 @@ export async function getTikTokBusinessProfile(teamSlug: string) {
 
   const team = await prisma.team.findUnique({
     where: { slug: teamSlug },
+    include: locationSlug ? {
+      locations: {
+        where: { slug: locationSlug },
+      },
+    } : undefined,
   });
 
   if (!team) {
@@ -544,9 +549,16 @@ export async function getTikTokBusinessProfile(teamSlug: string) {
     throw new ApiError(403, 'Access denied. You must be a member of this team.');
   }
 
+  // If locationSlug is provided, use location-based query (matches Instagram pattern)
+  // Otherwise, fallback to team-based query for first location
+  const whereClause = locationSlug && team.locations?.[0]
+    ? { locationId: team.locations[0].id }
+    : { businessLocation: { teamId: team.id } };
+
   const profile = await prisma.tikTokBusinessProfile.findFirst({
-    where: { teamId: team.id },
+    where: whereClause,
     include: {
+      businessLocation: true,
       dailySnapshots: {
         orderBy: { snapshotDate: 'desc' },
         take: 30,
@@ -1006,7 +1018,7 @@ export async function disableInstagramSchedule(
   };
 }
 
-export async function triggerTikTokSnapshot(slug: string) {
+export async function triggerTikTokSnapshot(slug: string, locationSlug?: string) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new ApiError(401, 'Unauthorized');
@@ -1018,6 +1030,9 @@ export async function triggerTikTokSnapshot(slug: string) {
       members: {
         where: { userId: session.user.id },
       },
+      locations: locationSlug ? {
+        where: { slug: locationSlug },
+      } : true,
     },
   });
 
@@ -1025,16 +1040,25 @@ export async function triggerTikTokSnapshot(slug: string) {
     throw new ApiError(403, 'Access denied');
   }
 
-  // Get TikTok market identifier
+  // Get location - either specific location or first one
+  const location = locationSlug
+    ? team.locations.find(l => l.slug === locationSlug)
+    : team.locations[0];
+
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
+  }
+
+  // Get TikTok market identifier for the specific location
   const marketIdentifier = await prisma.businessMarketIdentifier.findFirst({
     where: {
-      location: { teamId: team.id },
+      locationId: location.id,
       platform: 'TIKTOK',
     },
   });
 
   if (!marketIdentifier?.identifier) {
-    throw new ApiError(400, 'TikTok username not configured for this team');
+    throw new ApiError(400, 'TikTok username not configured for this location');
   }
 
   // Call scraper service to trigger snapshot
@@ -1044,7 +1068,7 @@ export async function triggerTikTokSnapshot(slug: string) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      teamId: team.id,
+      locationId: location.id,
       tiktokUsername: marketIdentifier.identifier,
       includeVideos: true,
       includeComments: true,
@@ -1067,6 +1091,66 @@ export async function triggerTikTokSnapshot(slug: string) {
     snapshotDate: new Date().toISOString(),
     message: 'TikTok snapshot triggered successfully',
   };
+}
+
+export async function getTikTokAnalytics(
+  slug: string,
+  locationSlug: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { slug },
+    include: {
+      members: {
+        where: { userId: session.user.id },
+      },
+      locations: {
+        where: { slug: locationSlug },
+      },
+    },
+  });
+
+  if (!team || team.members.length === 0) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  const location = team.locations[0];
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
+  }
+
+  // Check if TikTok profile exists
+  const tiktokProfile = await prisma.tikTokBusinessProfile.findUnique({
+    where: {
+      locationId: location.id,
+    },
+  });
+
+  if (!tiktokProfile) {
+    throw new ApiError(404, 'TikTok business profile not found');
+  }
+
+  // Calculate date range (default to last 30 days)
+  const end = endDate ? new Date(endDate) : new Date();
+  const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Import and use analytics service
+  const { TikTokAnalyticsServiceV2 } = await import('@/services/tiktok-analytics-service-v2');
+  const analyticsService = new TikTokAnalyticsServiceV2();
+
+  const result = await analyticsService.getAnalyticsData(
+    tiktokProfile.id,
+    start,
+    end
+  );
+
+  return result;
 }
 
 export async function getBookingOverview(slug: string) {
@@ -1230,6 +1314,107 @@ export async function getInstagramHeaderData(teamSlug: string, locationSlug: str
       posts: {
         count: latestSnapshot?.mediaCount ?? profile.currentMediaCount ?? 0,
         delta: latestSnapshot && comparisonSnapshot ? calculateDelta(latestSnapshot.mediaCount, comparisonSnapshot.mediaCount) : 0,
+      },
+    }
+  };
+}
+
+export async function getTikTokHeaderData(teamSlug: string, locationSlug: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { slug: teamSlug },
+    include: {
+      locations: {
+        where: { slug: locationSlug },
+      },
+    },
+  });
+
+  if (!team) {
+    throw new ApiError(404, 'Team not found');
+  }
+
+  const location = team.locations[0];
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
+  }
+
+  // Check if user is a member of this team
+  const membership = await prisma.teamMember.findFirst({
+    where: {
+      teamId: team.id,
+      userId: session.user.id,
+    },
+  });
+
+  if (!membership) {
+    throw new ApiError(403, 'Access denied. You must be a member of this team.');
+  }
+
+  const profile = await prisma.tikTokBusinessProfile.findUnique({
+    where: { locationId: location.id },
+  });
+
+  if (!profile) {
+    return null;
+  }
+
+  // Get latest snapshot
+  const latestSnapshot = await prisma.tikTokDailySnapshot.findFirst({
+    where: { businessProfileId: profile.id },
+    orderBy: { snapshotDate: 'desc' },
+  });
+
+  // Get snapshot from 30 days ago
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Find the snapshot closest to 30 days ago (can be slightly older or newer if exact date missing)
+  // We'll look for one <= 30 days ago, ordered descending (closest to that date)
+  const pastSnapshot = await prisma.tikTokDailySnapshot.findFirst({
+    where: {
+      businessProfileId: profile.id,
+      snapshotDate: {
+        lte: thirtyDaysAgo
+      }
+    },
+    orderBy: { snapshotDate: 'desc' },
+  });
+
+  // If no snapshot found exactly/before 30 days, try to find the oldest one available
+  const comparisonSnapshot = pastSnapshot || await prisma.tikTokDailySnapshot.findFirst({
+    where: { businessProfileId: profile.id },
+    orderBy: { snapshotDate: 'asc' },
+  });
+
+  const calculateDelta = (current: number, past: number) => current - past;
+
+  return {
+    profile: {
+      username: profile.username,
+      nickname: profile.nickname,
+      signature: profile.signature,
+      avatarUrl: profile.avatarUrl,
+      verified: profile.verified,
+      isBusinessAccount: profile.isBusinessAccount,
+      category: profile.category,
+    },
+    stats: {
+      followers: {
+        count: latestSnapshot?.followerCount ?? profile.followerCount ?? 0,
+        delta: latestSnapshot && comparisonSnapshot ? calculateDelta(latestSnapshot.followerCount, comparisonSnapshot.followerCount) : 0,
+      },
+      following: {
+        count: latestSnapshot?.followingCount ?? profile.followingCount ?? 0,
+        delta: latestSnapshot && comparisonSnapshot ? calculateDelta(latestSnapshot.followingCount, comparisonSnapshot.followingCount) : 0,
+      },
+      videos: {
+        count: latestSnapshot?.videoCount ?? profile.videoCount ?? 0,
+        delta: latestSnapshot && comparisonSnapshot ? calculateDelta(latestSnapshot.videoCount, comparisonSnapshot.videoCount) : 0,
       },
     }
   };

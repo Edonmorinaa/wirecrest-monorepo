@@ -16,6 +16,7 @@
  */
 
 import { TRPCError } from '@trpc/server';
+import { z } from 'zod';
 
 import { router, protectedProcedure, requireFeature } from '../trpc';
 import {
@@ -27,6 +28,7 @@ import {
   getFacebookReviewsSchema,
   locationSlugSchema,
   getInstagramAnalyticsSchema,
+  getTikTokAnalyticsSchema,
   enableInstagramScheduleSchema,
 } from '../schemas/platforms.schema';
 import { getFacebookReviews as _getFacebookReviews } from 'src/actions/facebook-reviews';
@@ -44,9 +46,11 @@ import {
   getTripAdvisorBusinessProfile as _getTripAdvisorBusinessProfile,
   triggerInstagramSnapshot as _triggerInstagramSnapshot,
   triggerTikTokSnapshot as _triggerTikTokSnapshot,
+  getTikTokAnalytics as _getTikTokAnalytics,
   getBookingOverview as _getBookingOverview,
   getInstagramAnalytics as _getInstagramAnalytics,
   getInstagramHeaderData as _getInstagramHeaderData,
+  getTikTokHeaderData as _getTikTokHeaderData,
   enableInstagramSchedule as _enableInstagramSchedule,
   disableInstagramSchedule as _disableInstagramSchedule,
 } from 'src/actions/platforms';
@@ -348,18 +352,65 @@ export const platformsRouter = router({
   /**
    * Get TikTok business profile
    * Requires: tiktok_overview feature
+   * Optionally accepts locationSlug for location-specific queries
    */
   tiktokProfile: protectedProcedure
-    .input(platformSlugSchema)
+    .input(z.object({
+      slug: z.string().min(1, 'Team slug is required'),
+      locationSlug: z.string().optional(),
+    }))
     .use(requireFeature('tiktok_overview'))
     .query(async ({ input }) => {
       try {
-        const result = await _getTikTokBusinessProfile(input.slug);
+        const result = await _getTikTokBusinessProfile(input.slug, input.locationSlug);
         return result;
       } catch (error: any) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: error.message || 'Failed to get TikTok profile',
+        });
+      }
+    }),
+
+  /**
+   * Get TikTok analytics
+   * Requires: tiktok_analytics feature
+   */
+  tiktokAnalytics: protectedProcedure
+    .input(getTikTokAnalyticsSchema)
+    .use(requireFeature('tiktok_analytics'))
+    .query(async ({ input }) => {
+      try {
+        const result = await _getTikTokAnalytics(
+          input.slug,
+          input.locationSlug,
+          input.startDate,
+          input.endDate
+        );
+        return result;
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Failed to get TikTok analytics',
+        });
+      }
+    }),
+
+  /**
+   * Get TikTok header data (profile + 30-day stats)
+   * Requires: tiktok_overview feature
+   */
+  tiktokHeader: protectedProcedure
+    .input(locationSlugSchema)
+    .use(requireFeature('tiktok_overview'))
+    .query(async ({ input }) => {
+      try {
+        const result = await _getTikTokHeaderData(input.slug, input.locationSlug);
+        return result;
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Failed to get TikTok header data',
         });
       }
     }),
@@ -460,13 +511,17 @@ export const platformsRouter = router({
   /**
    * Trigger TikTok snapshot
    * Requires: tiktok_analytics feature
+   * Optionally accepts locationSlug for location-specific snapshots
    */
   triggerTikTokSnapshot: protectedProcedure
-    .input(platformSlugSchema)
+    .input(z.object({
+      slug: z.string().min(1, 'Team slug is required'),
+      locationSlug: z.string().optional(),
+    }))
     .use(requireFeature('tiktok_analytics'))
     .mutation(async ({ input }) => {
       try {
-        const result = await _triggerTikTokSnapshot(input.slug);
+        const result = await _triggerTikTokSnapshot(input.slug, input.locationSlug);
         return result;
       } catch (error: any) {
         throw new TRPCError({

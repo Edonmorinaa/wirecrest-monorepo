@@ -1,4 +1,4 @@
-import { MarketPlatform } from "@prisma/client";
+import { MarketPlatform, PrismaClient } from "@prisma/client";
 
 /**
  * TikTok Business Repository
@@ -8,7 +8,7 @@ import { MarketPlatform } from "@prisma/client";
  */
 export interface TikTokBusinessProfile {
   id: string;
-  teamId: string;
+  locationId: string;
   platform: MarketPlatform;
   username: string;
   isActive: boolean;
@@ -26,29 +26,30 @@ export type UpdateTikTokBusinessInput = Partial<
 >;
 
 export class TikTokBusinessRepository {
+  private prisma: PrismaClient;
+
+  constructor(prismaClient?: PrismaClient) {
+    this.prisma = prismaClient || new PrismaClient();
+  }
+
   /**
-   * Get business profile by team ID and platform
+   * Get business profile by location ID and platform
    */
-  async getByTeamId(
-    teamId: string,
+  async getByLocationId(
+    locationId: string,
     platform: MarketPlatform,
-  ): Promise<TikTokBusinessProfile> {
+  ): Promise<{ id: string } | null> {
     try {
       console.log(
-        `[TikTokBusinessRepository] Getting business profile for team ${teamId}`,
+        `[TikTokBusinessRepository] Getting business profile for location ${locationId}`,
       );
 
-      // This would typically query the database
-      // For now, return a mock response
-      return {
-        id: `tiktok-business-${teamId}`,
-        teamId,
-        platform,
-        username: "mock-username",
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const profile = await this.prisma.tikTokBusinessProfile.findUnique({
+        where: { locationId },
+        select: { id: true },
+      });
+
+      return profile;
     } catch (error) {
       console.error(
         "[TikTokBusinessRepository] Error getting business profile:",
@@ -62,27 +63,27 @@ export class TikTokBusinessRepository {
    * Create business profile
    */
   async create(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     data: CreateTikTokBusinessInput,
-  ): Promise<TikTokBusinessProfile> {
+  ): Promise<{ id: string }> {
     try {
       console.log(
-        `[TikTokBusinessRepository] Creating business profile for team ${teamId}`,
+        `[TikTokBusinessRepository] Creating business profile for location ${locationId}`,
       );
 
-      // This would typically insert into the database
-      const businessProfile: TikTokBusinessProfile = {
-        id: `tiktok-business-${teamId}-${Date.now()}`,
-        teamId,
-        platform,
-        username: data.username,
-        isActive: data.isActive ?? true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      // Note: The actual profile data is created by TikTokDataService
+      // This is just to ensure the location exists and return the basic info
+      const profile = await this.prisma.tikTokBusinessProfile.findUnique({
+        where: { locationId },
+        select: { id: true },
+      });
 
-      return businessProfile;
+      if (!profile) {
+        throw new Error(`No TikTok profile found for location ${locationId}`);
+      }
+
+      return profile;
     } catch (error) {
       console.error(
         "[TikTokBusinessRepository] Error creating business profile:",
@@ -96,27 +97,25 @@ export class TikTokBusinessRepository {
    * Update business profile
    */
   async update(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     data: UpdateTikTokBusinessInput,
-  ): Promise<TikTokBusinessProfile> {
+  ): Promise<{ id: string }> {
     try {
       console.log(
-        `[TikTokBusinessRepository] Updating business profile for team ${teamId}`,
+        `[TikTokBusinessRepository] Updating business profile for location ${locationId}`,
       );
 
-      // This would typically update the database
-      const businessProfile: TikTokBusinessProfile = {
-        id: `tiktok-business-${teamId}`,
-        teamId,
-        platform,
-        username: data.username ?? "mock-username",
-        isActive: data.isActive ?? true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const profile = await this.prisma.tikTokBusinessProfile.update({
+        where: { locationId },
+        data: {
+          username: data.username,
+          isActive: data.isActive,
+        },
+        select: { id: true },
+      });
 
-      return businessProfile;
+      return profile;
     } catch (error) {
       console.error(
         "[TikTokBusinessRepository] Error updating business profile:",
@@ -129,13 +128,16 @@ export class TikTokBusinessRepository {
   /**
    * Delete business profile
    */
-  async delete(teamId: string, platform: MarketPlatform): Promise<boolean> {
+  async delete(locationId: string, platform: MarketPlatform): Promise<boolean> {
     try {
       console.log(
-        `[TikTokBusinessRepository] Deleting business profile for team ${teamId}`,
+        `[TikTokBusinessRepository] Deleting business profile for location ${locationId}`,
       );
 
-      // This would typically delete from the database
+      await this.prisma.tikTokBusinessProfile.delete({
+        where: { locationId },
+      });
+
       return true;
     } catch (error) {
       console.error(

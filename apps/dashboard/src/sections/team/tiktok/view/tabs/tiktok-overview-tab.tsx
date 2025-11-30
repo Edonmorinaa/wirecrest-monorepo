@@ -1,17 +1,19 @@
 'use client';
 
-import { useMemo } from 'react';
-
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
+import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
-import { AnalyticsWebsiteVisits } from 'src/sections/overview/analytics/analytics-website-visits';
+import { Iconify } from 'src/components/iconify';
+import { ChartArea, ChartLine } from 'src/components/chart';
 
 import { TikTokMetricsWidget } from '../components/tiktok-metrics-widget';
+import { TikTokHistoryTab } from './tiktok-history-tab';
 
 // ----------------------------------------------------------------------
 
@@ -36,56 +38,18 @@ interface OverviewData {
 
 interface TikTokOverviewTabProps {
   data: OverviewData | null;
+  overviewData?: any;
   startDate: Date;
   endDate: Date;
 }
 
-export function TikTokOverviewTab({ data, startDate, endDate }: TikTokOverviewTabProps) {
-  // Process chart data from the analytics data
-  const processedChartData = useMemo(() => {
-    if (!data) return null;
+export function TikTokOverviewTab({ data, overviewData, startDate, endDate }: TikTokOverviewTabProps) {
+  const theme = useTheme();
 
-    const formatChartData = (chartData: Array<{ date: string; value: number }> | undefined) => {
-      if (!chartData || chartData.length === 0) return null;
-      
-      const categories = chartData.map(item => 
-        new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      );
-      
-      const series = [{
-        name: 'Value',
-        data: chartData.map(item => item.value),
-        type: 'area'
-      }];
-
-      return { 
-        categories, 
-        series,
-        chart: {
-          type: 'area',
-          height: 350,
-          sparkline: {
-            enabled: false
-          },
-          toolbar: {
-            show: true
-          }
-        }
-      };
-    };
-
-    return {
-      followers: formatChartData(data.followersChart),
-      following: formatChartData(data.followingChart),
-      engagementRate: formatChartData(data.engagementRateChart),
-      avgLikes: formatChartData(data.avgLikesChart),
-      avgViews: formatChartData(data.avgViewsChart)
-    };
-  }, [data]);
-
+  // Handle missing or invalid data
   if (!data) {
     return (
-      <Alert severity="info">
+      <Alert severity="warning">
         <Typography variant="body2">
           No overview data available for the selected date range.
         </Typography>
@@ -93,175 +57,314 @@ export function TikTokOverviewTab({ data, startDate, endDate }: TikTokOverviewTa
     );
   }
 
-  const formatNumber = (num: number | undefined): string => {
+  const formatNumber = (num: number | null | undefined): string => {
     if (num == null || isNaN(num)) return '0';
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toFixed(1);
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
   };
 
-  const formatPercentage = (num: number | undefined): string => {
+  const formatPercentage = (num: number | null | undefined): string => {
     if (num == null || isNaN(num)) return '0%';
     return `${num.toFixed(1)}%`;
   };
 
-  const metrics = [
+  // Safe data access with fallbacks
+  const safeData: Required<OverviewData> = {
+    followersGrowthRate90d: data?.followersGrowthRate90d || 0,
+    weeklyFollowers: data?.weeklyFollowers || 0,
+    engagementRate: data?.engagementRate || 0,
+    avgLikes: data?.avgLikes || 0,
+    avgComments: data?.avgComments || 0,
+    avgViews: data?.avgViews || 0,
+    avgShares: data?.avgShares || 0,
+    avgDownloads: data?.avgDownloads || 0,
+    weeklyVideos: data?.weeklyVideos || 0,
+    followersRatio: data?.followersRatio || 0,
+    commentsRatio: data?.commentsRatio || 0,
+    followersChart: data?.followersChart || [],
+    followingChart: data?.followingChart || [],
+    engagementRateChart: data?.engagementRateChart || [],
+    avgLikesChart: data?.avgLikesChart || [],
+    avgViewsChart: data?.avgViewsChart || [],
+  };
+
+  // Prepare chart data with safe access
+  const followersChartData = {
+    categories: safeData.followersChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Followers',
+        data: safeData.followersChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#2065d1'],
+  };
+
+  const followingChartData = {
+    categories: safeData.followingChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Following',
+        data: safeData.followingChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#00b8d4'],
+  };
+
+  const engagementRateChartData = {
+    categories: safeData.engagementRateChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Engagement Rate (%)',
+        data: safeData.engagementRateChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#00a76f'],
+  };
+
+  const avgLikesChartData = {
+    categories: safeData.avgLikesChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Average Likes',
+        data: safeData.avgLikesChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#ff5630'],
+  };
+
+  const avgViewsChartData = {
+    categories: safeData.avgViewsChart.map(item => item?.date || ''),
+    series: [
+      {
+        name: 'Average Views',
+        data: safeData.avgViewsChart.map(item => item?.value || 0),
+      },
+    ],
+    colors: ['#7635dc'],
+  };
+
+  // Metric cards data
+  const metricCards = [
     {
-      title: 'Followers Growth (90d)',
-      value: formatPercentage(data.followersGrowthRate90d),
-      icon: 'eva:trending-up-fill',
-      color: 'primary',
-      trend: (data.followersGrowthRate90d && data.followersGrowthRate90d > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      title: '90-Day Growth Rate',
+      total: formatPercentage(safeData.followersGrowthRate90d),
+      icon: <Iconify icon="solar:chart-2-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'primary' as const,
+      chart: {
+        series: safeData.followersChart.map(item => item?.value || 0),
+        categories: safeData.followersChart.map(item => item?.date || ''),
+      },
+      infoDescription: 'The percentage of gained followers over the past 90 days',
     },
     {
       title: 'Weekly Followers',
-      value: formatNumber(data.weeklyFollowers),
-      icon: 'eva:people-fill',
-      color: 'info',
-      trend: (data.weeklyFollowers && data.weeklyFollowers > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      total: formatNumber(safeData.weeklyFollowers),
+      icon: <Iconify icon="solar:users-group-rounded-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'success' as const,
+      chart: {
+        series: safeData.followingChart.map(item => item?.value || 0),
+        categories: safeData.followingChart.map(item => item?.date || ''),
+      },
     },
     {
       title: 'Engagement Rate',
-      value: formatPercentage(data.engagementRate),
-      icon: 'eva:heart-fill',
-      color: 'error',
-      trend: (data.engagementRate && data.engagementRate > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      total: formatPercentage(safeData.engagementRate),
+      icon: <Iconify icon="solar:heart-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'info' as const,
+      chart: {
+        series: safeData.engagementRateChart.map(item => item?.value || 0),
+        categories: safeData.engagementRateChart.map(item => item?.date || ''),
+      },
+      infoDescription: 'The average engagement for recent videos compared to the number of followers',
     },
     {
-      title: 'Avg Likes',
-      value: formatNumber(data.avgLikes),
-      icon: 'eva:heart-fill',
-      color: 'warning',
-      trend: (data.avgLikes && data.avgLikes > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      title: 'Average Likes',
+      total: formatNumber(safeData.avgLikes),
+      icon: <Iconify icon="solar:like-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'warning' as const,
+      chart: {
+        series: safeData.avgLikesChart.map(item => item?.value || 0),
+        categories: safeData.avgLikesChart.map(item => item?.date || ''),
+      },
     },
     {
-      title: 'Avg Comments',
-      value: formatNumber(data.avgComments),
-      icon: 'eva:message-circle-fill',
-      color: 'success',
-      trend: (data.avgComments && data.avgComments > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      title: 'Average Comments',
+      total: formatNumber(safeData.avgComments),
+      icon: <Iconify icon="solar:chat-round-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'error' as const,
+      chart: {
+        series: safeData.avgLikesChart.map(item => item?.value || 0),
+        categories: safeData.avgLikesChart.map(item => item?.date || ''),
+      },
     },
     {
-      title: 'Avg Views',
-      value: formatNumber(data.avgViews),
-      icon: 'eva:eye-fill',
-      color: 'secondary',
-      trend: (data.avgViews && data.avgViews > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      title: 'Average Views',
+      total: formatNumber(safeData.avgViews),
+      icon: <Iconify icon="solar:eye-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'secondary' as const,
+      chart: {
+        series: safeData.avgViewsChart.map(item => item?.value || 0),
+        categories: safeData.avgViewsChart.map(item => item?.date || ''),
+      },
     },
     {
-      title: 'Avg Shares',
-      value: formatNumber(data.avgShares),
-      icon: 'eva:share-fill',
-      color: 'info',
-      trend: (data.avgShares && data.avgShares > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
-    },
-    {
-      title: 'Avg Downloads',
-      value: formatNumber(data.avgDownloads),
-      icon: 'eva:download-fill',
-      color: 'primary',
-      trend: (data.avgDownloads && data.avgDownloads > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
+      title: 'Average Shares',
+      total: formatNumber(safeData.avgShares),
+      icon: <Iconify icon="solar:share-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'info' as const,
+      chart: {
+        series: safeData.avgLikesChart.map(item => item?.value || 0),
+        categories: safeData.avgLikesChart.map(item => item?.date || ''),
+      },
     },
     {
       title: 'Weekly Videos',
-      value: formatNumber(data.weeklyVideos),
-      icon: 'eva:video-fill',
-      color: 'warning',
-      trend: (data.weeklyVideos && data.weeklyVideos > 0 ? 'up' : 'down') as 'up' | 'down' | 'neutral'
-    }
+      total: formatNumber(safeData.weeklyVideos),
+      icon: <Iconify icon="solar:video-bold" width={24} height={24} className="" sx={{}} />,
+      color: 'success' as const,
+      chart: {
+        series: safeData.followersChart.map(item => item?.value || 0),
+        categories: safeData.followersChart.map(item => item?.date || ''),
+      },
+    },
   ];
 
   return (
-    <Stack spacing={3}>
-      {/* Key Metrics Grid */}
-      <Grid container spacing={3}>
-        {metrics.map((metric, index) => (
-          <Grid key={index} size={{ xs: 12, sm: 6, md: 4 }}>
+    <Box>
+      {/* Key Metrics Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {metricCards.map((card) => (
+          <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
             <TikTokMetricsWidget
-              title={metric.title}
-              value={metric.value}
-              icon={metric.icon}
-              color={metric.color as any}
-              trend={metric.trend}
+              title={card.title}
+              total={card.total}
+              icon={card.icon}
+              color={card.color}
+              chart={card.chart}
+              infoDescription={card.infoDescription}
+              sx={{
+                height: '100%',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: theme.shadows[8],
+                },
+              }}
             />
           </Grid>
         ))}
       </Grid>
 
-      {/* Charts Section */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            Performance Charts
-          </Typography>
-          
-          <Grid container spacing={3}>
-            {/* Followers Chart */}
-            {processedChartData?.followers && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Followers Growth"
-                  subheader="Track your follower count over time"
-                  chart={processedChartData.followers}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+      {/* Charts */}
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Followers Growth"
+              subheader="Daily followers count over time"
+              action={
+                <Iconify icon="solar:users-group-rounded-bold" width={24} height={24} className="" sx={{ color: 'primary.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={followersChartData.series}
+                categories={followersChartData.categories}
+                colors={followersChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Following Chart */}
-            {processedChartData?.following && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Following Count"
-                  subheader="Track your following count over time"
-                  chart={processedChartData.following}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Following Count"
+              subheader="Daily following count over time"
+              action={
+                <Iconify icon="solar:user-plus-bold" width={24} height={24} className="" sx={{ color: 'success.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={followingChartData.series}
+                categories={followingChartData.categories}
+                colors={followingChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Engagement Rate Chart */}
-            {processedChartData?.engagementRate && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Engagement Rate"
-                  subheader="Monitor engagement rate to understand audience interaction quality"
-                  chart={processedChartData.engagementRate}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Engagement Rate"
+              subheader="Daily engagement rate percentage"
+              action={
+                <Iconify icon="solar:heart-bold" width={24} height={24} className="" sx={{ color: 'info.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartLine
+                series={engagementRateChartData.series}
+                categories={engagementRateChartData.categories}
+                colors={engagementRateChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Average Likes Chart */}
-            {processedChartData?.avgLikes && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Average Likes"
-                  subheader="Track average likes received on your content"
-                  chart={processedChartData.avgLikes}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Average Likes"
+              subheader="Daily average likes per video"
+              action={
+                <Iconify icon="solar:like-bold" width={24} height={24} className="" sx={{ color: 'warning.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartLine
+                series={avgLikesChartData.series}
+                categories={avgLikesChartData.categories}
+                colors={avgLikesChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Average Views Chart */}
-            {processedChartData?.avgViews && (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <AnalyticsWebsiteVisits
-                  title="Average Views"
-                  subheader="Track average views on your content"
-                  chart={processedChartData.avgViews}
-                  sx={{ height: 400 }}
-                />
-              </Grid>
-            )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardHeader
+              title="Average Views"
+              subheader="Daily average views per video"
+              action={
+                <Iconify icon="solar:eye-bold" width={24} height={24} className="" sx={{ color: 'secondary.main' }} />
+              }
+            />
+            <CardContent>
+              <ChartArea
+                series={avgViewsChartData.series}
+                categories={avgViewsChartData.categories}
+                colors={avgViewsChartData.colors}
+                sx={{ height: 300 }}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {overviewData && (
+          <Grid size={{ xs: 12 }}>
+            <TikTokHistoryTab data={overviewData} startDate={startDate} endDate={endDate} />
           </Grid>
-        </CardContent>
-      </Card>
-    </Stack>
+        )}
+      </Grid>
+    </Box>
   );
 }

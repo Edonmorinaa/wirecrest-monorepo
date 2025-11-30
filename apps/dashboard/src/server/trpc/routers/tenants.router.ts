@@ -81,10 +81,13 @@ export const tenantsRouter = router({
               bookingBusinessProfile: {
                 select: { id: true },
               },
+              instagramBusinessProfile: {
+                select: { id: true },
+              },
+              tiktokBusinessProfile: {
+                select: { id: true },
+              },
             },
-          },
-          tiktokBusinessProfile: {
-            select: { id: true },
           },
         },
       });
@@ -97,7 +100,7 @@ export const tenantsRouter = router({
 
         team.locations.forEach((location) => {
           let locationPlatformCount = 0;
-          
+
           if (location.googleBusinessProfile) {
             totalPlatformIntegrations++;
             locationPlatformCount++;
@@ -121,14 +124,16 @@ export const tenantsRouter = router({
           }
         });
 
-        // Add social platform integrations (team-level)
-        if (team.instagramBusinessProfile) totalPlatformIntegrations++;
-        if (team.tiktokBusinessProfile) totalPlatformIntegrations++;
+        // Check for social platforms in locations (now location-based)
+        team.locations.forEach((location) => {
+          if (location.instagramBusinessProfile) totalPlatformIntegrations++;
+          if (location.tiktokBusinessProfile) totalPlatformIntegrations++;
+        });
 
         // Calculate overall progress based on locations setup
         const locationsCount = team._count.locations;
-        const overallProgress = locationsCount > 0 
-          ? (completedLocations / locationsCount) * 100 
+        const overallProgress = locationsCount > 0
+          ? (completedLocations / locationsCount) * 100
           : 0;
 
         return {
@@ -148,7 +153,7 @@ export const tenantsRouter = router({
 
       // Apply filters if provided
       let filteredTenants = tenantsWithStatus;
-      
+
       if (status) {
         filteredTenants = filteredTenants.filter((tenant) => {
           // Map status to progress ranges
@@ -213,17 +218,17 @@ export const tenantsRouter = router({
    * Get tenant by slug (protected - team members can access)
    */
   bySlug: protectedProcedure.input(tenantSlugSchema).query(async ({ input }) => prisma.team.findUnique({
-        where: { slug: input.slug },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+    where: { slug: input.slug },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   }).catch((error) => {
-      console.error('Error fetching tenant by slug:', error);
-      return null;
+    console.error('Error fetching tenant by slug:', error);
+    return null;
   })),
 
   /**
@@ -249,44 +254,49 @@ export const tenantsRouter = router({
           locations: {
             include: {
               googleBusinessProfile: {
-            include: {
-              reviews: {
+                include: {
+                  reviews: {
                     orderBy: { publishedAtDate: 'desc' },
-                take: 10,
-              },
-                  _count: { select: { reviews: true } },
-            },
-          },
-              facebookBusinessProfile: {
-            include: {
-              reviews: {
-                    orderBy: { date: 'desc' },
-                take: 10,
-              },
-                  _count: { select: { reviews: true } },
-            },
-          },
-          tripAdvisorBusinessProfile: {
-            include: {
-              reviews: {
-                    orderBy: { publishedDate: 'desc' },
-                take: 10,
-              },
-                  _count: { select: { reviews: true } },
-            },
-          },
-          bookingBusinessProfile: {
-            include: {
-              reviews: {
-                    orderBy: { publishedDate: 'desc' },
-                take: 10,
+                    take: 10,
                   },
                   _count: { select: { reviews: true } },
                 },
               },
+              facebookBusinessProfile: {
+                include: {
+                  reviews: {
+                    orderBy: { date: 'desc' },
+                    take: 10,
+                  },
+                  _count: { select: { reviews: true } },
+                },
+              },
+              tripAdvisorBusinessProfile: {
+                include: {
+                  reviews: {
+                    orderBy: { publishedDate: 'desc' },
+                    take: 10,
+                  },
+                  _count: { select: { reviews: true } },
+                },
+              },
+              bookingBusinessProfile: {
+                include: {
+                  reviews: {
+                    orderBy: { publishedDate: 'desc' },
+                    take: 10,
+                  },
+                  _count: { select: { reviews: true } },
+                },
+              },
+              instagramBusinessProfile: {
+                select: { id: true },
+              },
+              tiktokBusinessProfile: {
+                select: { id: true },
+              },
             },
           },
-          tiktokBusinessProfile: true,
         },
       });
 
@@ -303,7 +313,7 @@ export const tenantsRouter = router({
 
       team.locations.forEach((location) => {
         let locationPlatformCount = 0;
-        
+
         if (location.googleBusinessProfile) {
           totalPlatformIntegrations++;
           locationPlatformCount++;
@@ -326,13 +336,15 @@ export const tenantsRouter = router({
         }
       });
 
-      // Add social platforms
-      if (team.instagramBusinessProfile) totalPlatformIntegrations++;
-      if (team.tiktokBusinessProfile) totalPlatformIntegrations++;
+      // Check for social platforms in locations (now location-based)
+      team.locations.forEach((location) => {
+        if (location.instagramBusinessProfile) totalPlatformIntegrations++;
+        if (location.tiktokBusinessProfile) totalPlatformIntegrations++;
+      });
 
       const locationsCount = team._count.locations;
-      const overallProgress = locationsCount > 0 
-        ? (completedLocations / locationsCount) * 100 
+      const overallProgress = locationsCount > 0
+        ? (completedLocations / locationsCount) * 100
         : 0;
 
       return {
@@ -348,7 +360,6 @@ export const tenantsRouter = router({
         completedLocations,
         overallProgress,
         locations: team.locations,
-        tiktokBusinessProfile: team.tiktokBusinessProfile,
       };
     } catch (error) {
       console.error('Error fetching tenant:', error);

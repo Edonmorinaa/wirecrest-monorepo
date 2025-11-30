@@ -1503,6 +1503,17 @@ export class BusinessProfileCreationService {
       });
 
       if (existingProfile) {
+        // Update username if it has changed
+        const cleanUsername = username.replace("@", "");
+        if (existingProfile.username !== cleanUsername) {
+          console.log(
+            `[TikTok] Updating username from ${existingProfile.username} to ${cleanUsername}`,
+          );
+          await prisma.tikTokBusinessProfile.update({
+            where: { id: existingProfile.id },
+            data: { username: cleanUsername },
+          });
+        }
         console.log(`[TikTok] Profile already exists: ${existingProfile.id}`);
         return {
           success: true,
@@ -1514,7 +1525,7 @@ export class BusinessProfileCreationService {
       const profile = await prisma.tikTokBusinessProfile.create({
         data: {
           businessLocation: { connect: { id: locationId } },
-          username: username.replace('@', ''), // Remove @ if present
+          username: username.replace("@", ""), // Remove @ if present
           // Other fields will be populated by first snapshot
         },
       });
