@@ -1,59 +1,80 @@
 'use client';
 
+import { useParams } from 'next/navigation';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
+import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
+import Tooltip from '@mui/material/Tooltip';
 
 import { CONFIG } from 'src/global-config';
 
 import { Iconify } from 'src/components/iconify';
-import { GeneralMetrics, InstagramBusinessProfile } from 'src/types/instagram-analytics';
+import { useInstagramHeaderData } from 'src/hooks/useLocations';
 
 // ----------------------------------------------------------------------
 
-interface InstagramGeneralInfoProps {
-  data: GeneralMetrics | null | undefined;
-  businessProfile: InstagramBusinessProfile | null | undefined;
-}
-
-export function InstagramGeneralInfo({ data, businessProfile }: InstagramGeneralInfoProps) {
+export function InstagramGeneralInfo() {
   const theme = useTheme();
+  const params = useParams();
+  const teamSlug = params?.slug as string;
+  const locationSlug = params?.locationSlug as string;
 
-  // Handle missing or invalid data
-  if (!data && !businessProfile) {
+  const { data, isLoading, error } = useInstagramHeaderData(teamSlug, locationSlug);
+
+  if (isLoading) {
     return (
-      <Alert severity="warning">
+      <Card sx={{ p: 3, mb: 3 }}>
+        <Stack direction="row" spacing={3} alignItems="center">
+          <Skeleton variant="circular" width={80} height={80} />
+          <Stack spacing={1} flexGrow={1}>
+            <Skeleton variant="text" width={200} height={32} />
+            <Skeleton variant="text" width={150} />
+          </Stack>
+        </Stack>
+      </Card>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Alert severity="warning" sx={{ mb: 3 }}>
         <Typography variant="body2">
-          No general information available. Please try refreshing the data.
+          {error?.message || 'No general information available. Please try refreshing the data.'}
         </Typography>
       </Alert>
     );
   }
 
-  const formatNumber = (num: number | null | undefined): string => {
-    if (num == null || isNaN(num)) return '0';
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
+  const { profile, stats } = data;
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toString();
   };
 
-  // Safe data access with fallbacks
-  const safeData = {
-    profilePicture: data?.profilePicture || '',
-    bio: data?.bio || businessProfile?.biography || '',
-    followersCount: data?.followers?.count ?? businessProfile?.currentFollowersCount ?? 0,
-    followersDelta: data?.followers?.delta ?? 0,
-    followingCount: data?.following?.count ?? businessProfile?.currentFollowingCount ?? 0,
-    followingDelta: data?.following?.delta ?? 0,
-    postsCount: data?.posts?.count ?? businessProfile?.currentMediaCount ?? 0,
-    postsDelta: data?.posts?.delta ?? 0
+  const renderDelta = (delta: number) => {
+    const isPositive = delta > 0;
+    const isNegative = delta < 0;
+    const color = isPositive ? 'success.main' : isNegative ? 'error.main' : 'text.secondary';
+    const icon = isPositive ? 'eva:trending-up-fill' : isNegative ? 'eva:trending-down-fill' : 'eva:minus-fill';
+
+    return (
+      <Tooltip title="Change over the last 30 days" arrow placement="bottom">
+        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ color, mt: 0.5, cursor: 'help' }}>
+          <Iconify icon={icon} width={16} />
+          <Typography variant="caption" fontWeight="bold">
+            {Math.abs(delta)} (30d)
+          </Typography>
+        </Stack>
+      </Tooltip>
+    );
   };
 
   return (
@@ -79,6 +100,7 @@ export function InstagramGeneralInfo({ data, businessProfile }: InstagramGeneral
         border: `solid 1px ${theme.palette.background.default}`,
       }}
     >
+      {/* Left Side: Profile Info */}
       <Box
         sx={{
           display: 'flex',
@@ -87,68 +109,111 @@ export function InstagramGeneralInfo({ data, businessProfile }: InstagramGeneral
           alignItems: { xs: 'center', md: 'flex-start' },
         }}
       >
-        <Stack spacing={2} sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Iconify icon="socials:instagram" width={72} height={72} className="" sx={{ fontSize: 72 }} />
+        <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 2 }}>
+          <Avatar
+            src={profile.profilePictureUrl || ''}
+            alt={profile.username}
+            imgProps={{
+              referrerPolicy: 'no-referrer',
+              onError: (e) => {
+                // Instagram CDN URLs don't work in browser - silently fallback to avatar initial
+                e.currentTarget.src = '';
+              },
+            }}
+            sx={{
+              width: 96,
+              height: 96,
+              border: `solid 3px ${theme.palette.common.white}`,
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              fontSize: '2rem',
+              fontWeight: 'bold',
+            }}
+          >
+            {!profile.profilePictureUrl && profile.username?.charAt(0).toUpperCase()}
+          </Avatar>
 
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }} color="text.primary">
-                {businessProfile?.fullName || businessProfile?.username || 'Instagram Profile'}
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+              <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'common.white' }}>
+                @{profile.username}
               </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.8 }} color="text.secondary">
-                Instagram Business Profile
+              {profile.isVerified && (
+                <Iconify icon="solar:verified-check-bold" width={24} sx={{ color: 'primary.main' }} />
+              )}
+            </Stack>
+
+            <Typography variant="body1" sx={{ color: 'common.white', opacity: 0.9 }}>
+              {profile.fullName}
+            </Typography>
+
+            {profile.category && (
+              <Typography variant="body2" sx={{ color: 'common.white', opacity: 0.7, mt: 0.5 }}>
+                {profile.category}
+                {profile.isBusinessAccount && ' • Business Account'}
               </Typography>
-            </Box>
+            )}
           </Box>
         </Stack>
 
-        <Typography variant="h6" sx={{ whiteSpace: 'pre-line', mb: 2 }} color="text.primary">
-          Have a look at your Instagram Business Profile
-        </Typography>
-
-        <Typography variant="body2" sx={{ opacity: 0.64, maxWidth: 360, mb: 3 }} color="text.secondary">
-          Get a quick overview of your Instagram followers, engagement, and content performance. Track your social media growth and see how your audience is engaging with your content.
-        </Typography>
+        {profile.biography && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'common.white',
+              opacity: 0.85,
+              maxWidth: 500,
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {profile.biography}
+          </Typography>
+        )}
       </Box>
 
-      {/* Stats Summary */}
-      <Box sx={{ maxWidth: 300, width: '100%' }}>
+      {/* Right Side: Stats with Deltas */}
+      <Box sx={{ minWidth: 300 }}>
         <Card
           sx={{
             bgcolor: alpha(theme.palette.common.white, 0.15),
             backdropFilter: 'blur(8px)',
             border: `1px solid ${alpha(theme.palette.common.white, 0.3)}`,
             borderRadius: 2,
-            p: 2.5,
+            p: 3,
           }}
         >
-          <Stack spacing={2} alignItems="center" textAlign="center">
-            <Typography variant="h2" sx={{ fontWeight: 'bold', color: theme.palette.common.white }}>
-              {formatNumber(safeData.followersCount)}
-            </Typography>
+          <Stack direction="row" spacing={8} justifyContent="center" alignItems="flex-start">
+            {/* Followers */}
+            <Stack alignItems="center">
+              <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.common.white }}>
+                {formatNumber(stats.followers.count)}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.common.white, opacity: 0.8 }}>
+                Followers
+              </Typography>
+              {renderDelta(stats.followers.delta)}
+            </Stack>
 
-            <Typography variant="body2" sx={{ color: theme.palette.common.white }}>
-              Followers
-            </Typography>
+            {/* Following */}
+            <Stack alignItems="center">
+              <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.common.white }}>
+                {formatNumber(stats.following.count)}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.common.white, opacity: 0.8 }}>
+                Following
+              </Typography>
+              {renderDelta(stats.following.delta)}
+            </Stack>
 
-            <Stack direction="row" spacing={1} justifyContent="center">
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h6" sx={{ color: theme.palette.common.white }}>
-                  {formatNumber(safeData.followingCount)}
-                </Typography>
-                <Typography variant="caption" sx={{ color: theme.palette.common.white, opacity: 0.8 }}>
-                  Following
-                </Typography>
-              </Box>
-
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h6" sx={{ color: theme.palette.common.white }}>
-                  {formatNumber(safeData.postsCount)}
-                </Typography>
-                <Typography variant="caption" sx={{ color: theme.palette.common.white, opacity: 0.8 }}>
-                  Posts
-                </Typography>
-              </Box>
+            {/* Posts */}
+            <Stack alignItems="center">
+              <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.common.white }}>
+                {formatNumber(stats.posts.count)}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.common.white, opacity: 0.8 }}>
+                Posts
+              </Typography>
+              {renderDelta(stats.posts.delta)}
             </Stack>
           </Stack>
         </Card>

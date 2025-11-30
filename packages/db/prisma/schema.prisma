@@ -1274,7 +1274,8 @@ model InstagramBusinessProfile {
   locationId            String                        @unique
   username              String                        @unique
   userId                String                        @unique
-  profileUrl            String
+  profileUrl            String?
+  profilePictureUrl     String?
   fullName              String?
   biography             String?
   website               String?

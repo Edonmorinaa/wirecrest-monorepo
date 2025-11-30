@@ -46,6 +46,7 @@ import {
   triggerTikTokSnapshot as _triggerTikTokSnapshot,
   getBookingOverview as _getBookingOverview,
   getInstagramAnalytics as _getInstagramAnalytics,
+  getInstagramHeaderData as _getInstagramHeaderData,
   enableInstagramSchedule as _enableInstagramSchedule,
   disableInstagramSchedule as _disableInstagramSchedule,
 } from 'src/actions/platforms';
@@ -278,6 +279,25 @@ export const platformsRouter = router({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: error.message || 'Failed to get Instagram analytics',
+        });
+      }
+    }),
+
+  /**
+   * Get Instagram header data (profile + 30-day stats)
+   * Requires: instagram_overview feature
+   */
+  instagramHeader: protectedProcedure
+    .input(locationSlugSchema)
+    .use(requireFeature('instagram_overview'))
+    .query(async ({ input }) => {
+      try {
+        const result = await _getInstagramHeaderData(input.slug, input.locationSlug);
+        return result;
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Failed to get Instagram header data',
         });
       }
     }),

@@ -205,26 +205,9 @@ export const superadminRouter = router({
           },
         });
 
-        // Fetch team-level social platforms
-        const [instagram, tiktok] = await Promise.all([
-          prisma.instagramBusinessProfile.findFirst({
-            where: { teamId: input.teamId },
-            select: {
-              id: true,
-              username: true,
-              fullName: true,
-              _count: { select: { dailySnapshots: true } },
-            },
-          }),
-          prisma.tikTokBusinessProfile.findFirst({
-            where: { teamId: input.teamId },
-            select: {
-              id: true,
-              username: true,
-              _count: { select: { dailySnapshots: true } },
-            },
-          }),
-        ]);
+        // Note: Instagram and TikTok are now location-specific platforms
+        const instagram = null;
+        const tiktok = null;
 
         // Fetch locations with their platform profiles
         const locations = await prisma.businessLocation.findMany({
@@ -408,13 +391,6 @@ export const superadminRouter = router({
                 },
               },
             },
-            tiktokBusinessProfile: {
-              select: {
-                id: true,
-                username: true,
-                _count: { select: { dailySnapshots: true } },
-              },
-            },
           },
         });
 
@@ -470,9 +446,8 @@ export const superadminRouter = router({
           0
         );
 
-        // Add social platforms count
-        const socialPlatformsCount =
-          (team.tiktokBusinessProfile ? 1 : 0);
+        // Social platforms are now location-level, not team-level
+        const socialPlatformsCount = 0;
 
         recordMetric('superadmin.team_with_locations.fetched');
 
@@ -488,7 +463,7 @@ export const superadminRouter = router({
           locations: locationsWithPlatformCounts,
           socialPlatforms: {
             instagram: null,
-            tiktok: team.tiktokBusinessProfile,
+            tiktok: null,
             count: socialPlatformsCount,
           },
           stats: {
@@ -779,19 +754,6 @@ export const superadminRouter = router({
                 },
               },
             },
-            tiktokBusinessProfile: {
-              include: {
-                dailySnapshots: {
-                  select: {
-                    id: true,
-                    snapshotDate: true,
-                    followerCount: true,
-                  },
-                  orderBy: { snapshotDate: 'desc' },
-                  take: 1,
-                },
-              },
-            },
             businessCreationTasks: {
               include: {
                 statusMessages: {
@@ -828,12 +790,12 @@ export const superadminRouter = router({
           let snapshotsCount = 0;
           let lastSnapshotDate = null;
 
-          if (platform === 'TIKTOK') {
-            profile = tenant.tiktokBusinessProfile;
-            if (profile?.dailySnapshots) {
-              snapshotsCount = profile.dailySnapshots.length;
-              lastSnapshotDate = profile.dailySnapshots[0]?.snapshotDate || null;
-            }
+          // TikTok and Instagram are now location-level platforms
+          // Social platforms at team level are no longer supported
+          if (platform === 'TIKTOK' || platform === 'INSTAGRAM') {
+            profile = null;
+            snapshotsCount = 0;
+            lastSnapshotDate = null;
           }
 
           // Determine status

@@ -1133,3 +1133,104 @@ export async function getBookingOverview(slug: string) {
     ...businessProfile,
   };
 }
+
+export async function getInstagramHeaderData(teamSlug: string, locationSlug: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { slug: teamSlug },
+    include: {
+      locations: {
+        where: { slug: locationSlug },
+      },
+    },
+  });
+
+  if (!team) {
+    throw new ApiError(404, 'Team not found');
+  }
+
+  const location = team.locations[0];
+  if (!location) {
+    throw new ApiError(404, 'Location not found');
+  }
+
+  // Check if user is a member of this team
+  const membership = await prisma.teamMember.findFirst({
+    where: {
+      teamId: team.id,
+      userId: session.user.id,
+    },
+  });
+
+  if (!membership) {
+    throw new ApiError(403, 'Access denied. You must be a member of this team.');
+  }
+
+  const profile = await prisma.instagramBusinessProfile.findUnique({
+    where: { locationId: location.id },
+  });
+
+  if (!profile) {
+    return null;
+  }
+
+  // Get latest snapshot
+  const latestSnapshot = await prisma.instagramDailySnapshot.findFirst({
+    where: { businessProfileId: profile.id },
+    orderBy: { snapshotDate: 'desc' },
+  });
+
+  // Get snapshot from 30 days ago
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Find the snapshot closest to 30 days ago (can be slightly older or newer if exact date missing)
+  // We'll look for one <= 30 days ago, ordered descending (closest to that date)
+  const pastSnapshot = await prisma.instagramDailySnapshot.findFirst({
+    where: {
+      businessProfileId: profile.id,
+      snapshotDate: {
+        lte: thirtyDaysAgo
+      }
+    },
+    orderBy: { snapshotDate: 'desc' },
+  });
+
+  // If no snapshot found exactly/before 30 days, try to find the oldest one available
+  const comparisonSnapshot = pastSnapshot || await prisma.instagramDailySnapshot.findFirst({
+    where: { businessProfileId: profile.id },
+    orderBy: { snapshotDate: 'asc' },
+  });
+
+  const calculateDelta = (current: number, past: number) => current - past;
+
+  return {
+    profile: {
+      username: profile.username,
+      fullName: profile.fullName,
+      biography: profile.biography,
+      profilePictureUrl: profile.profilePictureUrl,
+      isVerified: profile.isVerified,
+      isBusinessAccount: profile.isBusinessAccount,
+      category: profile.category,
+    },
+    stats: {
+      followers: {
+        count: latestSnapshot?.followersCount ?? profile.currentFollowersCount ?? 0,
+        delta: latestSnapshot && comparisonSnapshot ? calculateDelta(latestSnapshot.followersCount, comparisonSnapshot.followersCount) : 0,
+      },
+      following: {
+        count: latestSnapshot?.followingCount ?? profile.currentFollowingCount ?? 0,
+        delta: latestSnapshot && comparisonSnapshot ? calculateDelta(latestSnapshot.followingCount, comparisonSnapshot.followingCount) : 0,
+      },
+      posts: {
+        count: latestSnapshot?.mediaCount ?? profile.currentMediaCount ?? 0,
+        delta: latestSnapshot && comparisonSnapshot ? calculateDelta(latestSnapshot.mediaCount, comparisonSnapshot.mediaCount) : 0,
+      },
+    }
+  };
+}

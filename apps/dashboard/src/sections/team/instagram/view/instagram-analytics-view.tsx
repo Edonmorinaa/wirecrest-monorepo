@@ -140,6 +140,8 @@ export function InstagramAnalyticsView() {
           backHref=""
         />
 
+        <InstagramGeneralInfo />
+
         {/* Date Range Picker */}
         <Card>
           <CardContent>
@@ -191,12 +193,6 @@ export function InstagramAnalyticsView() {
             </LocalizationProvider>
           </CardContent>
         </Card>
-
-        {/* General Information */}
-        <InstagramGeneralInfo
-          data={analyticsData?.data?.general}
-          businessProfile={businessProfile || undefined}
-        />
 
         {/* Analytics Tabs */}
         {(profileLoading || analyticsLoading) ? (

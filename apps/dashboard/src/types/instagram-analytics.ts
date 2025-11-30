@@ -91,8 +91,8 @@ export interface ChartDataPoint {
 
 // Analytics Data Interfaces
 export interface GeneralMetrics {
-  profilePicture: string;
-  bio: string;
+  profilePicture?: string;
+  bio?: string;
   followers: {
     count: number;
     delta: number;

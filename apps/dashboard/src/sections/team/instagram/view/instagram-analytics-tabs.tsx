@@ -58,7 +58,7 @@ export function InstagramAnalyticsTabs({ data, startDate, endDate }: InstagramAn
   const renderTabContent = () => {
     switch (currentTab) {
       case 'overview':
-        return <InstagramOverviewTab data={data.overview} startDate={startDate} endDate={endDate} />;
+        return <InstagramOverviewTab data={data.overview} overviewData={data.history} startDate={startDate} endDate={endDate} />;
       case 'growth':
         return <InstagramGrowthTab data={data.growth} startDate={startDate} endDate={endDate} />;
       case 'engagement':
@@ -66,7 +66,7 @@ export function InstagramAnalyticsTabs({ data, startDate, endDate }: InstagramAn
       case 'history':
         return <InstagramHistoryTab data={data.history} startDate={startDate} endDate={endDate} />;
       default:
-        return <InstagramOverviewTab data={data.overview} startDate={startDate} endDate={endDate} />;
+        return <InstagramOverviewTab data={data.overview} overviewData={data.history} startDate={startDate} endDate={endDate} />;
     }
   };
 

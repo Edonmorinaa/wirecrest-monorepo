@@ -142,7 +142,8 @@ export class InstagramDataService {
         locationId,
         username: instagramUsername,
         userId: actualUserData.pk?.toString() || uuidv4(),
-        profileUrl: `https://instagram.com/${instagramUsername}`,
+        profileUrl: `https://www.instagram.com/${instagramUsername}`,
+        profilePictureUrl: actualUserData.profile_pic_url,
         fullName: actualUserData.full_name,
         biography: actualUserData.biography,
         website: actualUserData.external_url,
@@ -667,6 +668,9 @@ export class InstagramDataService {
       await this.prisma.instagramBusinessProfile.update({
         where: { id: businessProfileId },
         data: {
+          profilePictureUrl: actualUserData.profile_pic_url,
+          biography: actualUserData.biography,
+          fullName: actualUserData.full_name,
           currentFollowersCount: actualUserData.follower_count,
           currentFollowingCount: actualUserData.following_count,
           currentMediaCount: actualUserData.media_count,

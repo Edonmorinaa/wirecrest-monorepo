@@ -11,19 +11,21 @@ import CardContent from '@mui/material/CardContent';
 
 import { Iconify } from 'src/components/iconify';
 import { ChartArea, ChartLine } from 'src/components/chart';
-import { OverviewMetrics } from 'src/types/instagram-analytics';
+import { HistoryDataPoint, OverviewMetrics } from 'src/types/instagram-analytics';
 
 import { InstagramMetricsWidget } from '../components/instagram-metrics-widget';
+import { InstagramHistoryTab } from './instagram-history-tab';
 
 // ----------------------------------------------------------------------
 
 interface InstagramOverviewTabProps {
   data: OverviewMetrics | null | undefined;
+  overviewData: HistoryDataPoint[] | null | undefined;
   startDate: Date;
   endDate: Date;
 }
 
-export function InstagramOverviewTab({ data, startDate, endDate }: InstagramOverviewTabProps) {
+export function InstagramOverviewTab({ data, overviewData, startDate, endDate }: InstagramOverviewTabProps) {
   const theme = useTheme();
 
   // Handle missing or invalid data
@@ -304,6 +306,10 @@ export function InstagramOverviewTab({ data, startDate, endDate }: InstagramOver
               />
             </CardContent>
           </Card>
+        </Grid>
+
+        <Grid size={{ xs: 12 }}>
+          <InstagramHistoryTab data={overviewData} startDate={startDate} endDate={endDate} />
         </Grid>
       </Grid>
     </Box>

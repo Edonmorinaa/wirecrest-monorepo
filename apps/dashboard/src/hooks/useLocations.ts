@@ -652,6 +652,27 @@ export function useInstagramProfile(locationSlug: string, teamSlug: string, enab
 }
 
 /**
+ * Hook to get Instagram Header Data (Profile + 30-day stats)
+ */
+export function useInstagramHeaderData(teamSlug: string, locationSlug: string, enabled = true) {
+  const { data, error, isLoading, refetch } = trpc.platforms.instagramHeader.useQuery(
+    { slug: teamSlug, locationSlug },
+    {
+      enabled: enabled && !!teamSlug && !!locationSlug,
+      refetchOnWindowFocus: false,
+      staleTime: 60000, // 1 minute
+    }
+  );
+
+  return {
+    data: data || null,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+/**
  * Hook to get Instagram Analytics with date range
  */
 export function useInstagramAnalytics(
