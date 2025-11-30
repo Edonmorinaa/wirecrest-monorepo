@@ -26,6 +26,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
+import { LoadingState, ErrorState, EmptyState } from 'src/components/states';
 
 import { BookingOverviewWelcome } from '../components/booking-overview-welcome';
 import { BookingMetricsOverview } from '../components/booking-metrics-overview';
@@ -57,7 +58,7 @@ export function OverviewBookingView() {
   const locationSlug = params.locationSlug as string;
 
   const { team } = useTeam(teamSlug);
-  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
+  const { location, isLoading: locationLoading, error: locationError } = useLocationBySlug(teamSlug, locationSlug);
 
   // Validate locationId
   const locationId = location?.id || '';
@@ -75,7 +76,7 @@ export function OverviewBookingView() {
   const customRange = useMemo(() => {
     const customFrom = searchParams.get('customFrom');
     const customTo = searchParams.get('customTo');
-    
+
     if (customFrom && customTo) {
       return {
         from: new Date(customFrom),
@@ -93,7 +94,7 @@ export function OverviewBookingView() {
         endDate: customRange.to.toISOString(),
       };
     }
-    
+
     const end = new Date();
     const start = new Date();
     const days = parseInt(selectedPeriod) || 30;
@@ -105,23 +106,23 @@ export function OverviewBookingView() {
   const updatePeriod = useCallback((newPeriod: string) => {
     const urlParams = new URLSearchParams(searchParams);
     urlParams.set('period', newPeriod);
-    
+
     // Clear custom range if switching away from custom
     if (newPeriod !== 'custom') {
       urlParams.delete('customFrom');
       urlParams.delete('customTo');
     }
-    
+
     router.replace(`?${urlParams.toString()}`, { scroll: false });
   }, [searchParams, router]);
-  
+
   // Update URL with custom range
   const updateCustomRange = useCallback((from: Date, to: Date) => {
     const urlParams = new URLSearchParams(searchParams);
     urlParams.set('period', 'custom');
     urlParams.set('customFrom', from.toISOString().split('T')[0]);
     urlParams.set('customTo', to.toISOString().split('T')[0]);
-    
+
     router.replace(`?${urlParams.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
@@ -132,7 +133,7 @@ export function OverviewBookingView() {
     return date.toISOString();
   }, []);
 
-  const { profile: businessProfile } = useBookingProfile(locationId, !!location && isValidLocationId);
+  const { profile: businessProfile, isLoading: profileLoading, error: profileError } = useBookingProfile(locationId, !!location && isValidLocationId);
   const { analytics: allTimeAnalytics } = useBookingAnalytics(
     locationId,
     allTimeStart,
@@ -172,7 +173,7 @@ export function OverviewBookingView() {
       responseRate: currentAnalytics.responseRate || 0,
       averageResponseTime: currentAnalytics.averageResponseTime || 0,
       verifiedStays: currentAnalytics.verifiedStays || 0,
-      
+
       // Category scores (if available)
       categoryScores: currentAnalytics.categoryScores || {
         cleanliness: 0,
@@ -183,14 +184,14 @@ export function OverviewBookingView() {
         valueForMoney: 0,
         wifi: 0,
       },
-      
+
       // Analysis data
       sentimentAnalysis: currentAnalytics.sentiment
         ? {
-            positive: currentAnalytics.sentiment.positive || 0,
-            neutral: currentAnalytics.sentiment.neutral || 0,
-            negative: currentAnalytics.sentiment.negative || 0,
-          }
+          positive: currentAnalytics.sentiment.positive || 0,
+          neutral: currentAnalytics.sentiment.neutral || 0,
+          negative: currentAnalytics.sentiment.negative || 0,
+        }
         : { positive: 0, neutral: 0, negative: 0 },
       topKeywords: currentAnalytics.keywords || [],
       ratingDistribution: currentAnalytics.ratingDistribution || {},
@@ -198,11 +199,82 @@ export function OverviewBookingView() {
     };
   }, [currentAnalytics, reviews]);
 
-  // Show loading state
-  if (locationLoading || !location) {
+  // 1. LOADING STATE
+  if (locationLoading || (isValidLocationId && profileLoading)) {
     return (
       <DashboardContent maxWidth="xl">
-        <Typography>Loading location...</Typography>
+        <LoadingState message="Loading Booking.com overview..." />
+      </DashboardContent>
+    );
+  }
+
+  // 2. LOCATION ERROR
+  if (locationError || !location) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <ErrorState
+          type="not-found"
+          platform="Location"
+          customMessage="The requested location could not be found. It may have been deleted or you may not have access to it."
+        />
+      </DashboardContent>
+    );
+  }
+
+  // 3. PROFILE NOT FOUND
+  if (!businessProfile && !profileLoading && isValidLocationId) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <CustomBreadcrumbs
+          heading="Booking.com Overview"
+          links={[
+            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Teams', href: paths.dashboard.teams.root },
+            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+            { name: location?.name || locationSlug, href: paths.dashboard.locations.bySlug(teamSlug, locationSlug) },
+            { name: 'Booking.com Overview', href: '' },
+          ]}
+          sx={{ mb: 3 }}
+        />
+        <EmptyState
+          icon="solar:home-2-bold"
+          title="Booking.com Profile Not Set Up"
+          message="Connect your Booking.com property to track reviews, ratings, and guest feedback."
+          action={
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<Iconify icon="solar:add-circle-bold" />}
+              sx={{ mt: 2 }}
+            >
+              Connect Booking.com
+            </Button>
+          }
+        />
+      </DashboardContent>
+    );
+  }
+
+  // 4. PROFILE ERROR
+  if (profileError) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <CustomBreadcrumbs
+          heading="Booking.com Overview"
+          links={[
+            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Teams', href: paths.dashboard.teams.root },
+            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+            { name: location?.name || locationSlug, href: paths.dashboard.locations.bySlug(teamSlug, locationSlug) },
+            { name: 'Booking.com Overview', href: '' },
+          ]}
+          sx={{ mb: 3 }}
+        />
+        <ErrorState
+          type="network"
+          platform="Booking.com"
+          onRetry={() => window.location.reload()}
+        />
       </DashboardContent>
     );
   }
@@ -307,7 +379,7 @@ export function OverviewBookingView() {
                     )}
                   </Stack>
 
-                  <BookingMetricsOverview 
+                  <BookingMetricsOverview
                     metrics={displayMetrics}
                     currentPeriodKey={selectedPeriod}
                   />

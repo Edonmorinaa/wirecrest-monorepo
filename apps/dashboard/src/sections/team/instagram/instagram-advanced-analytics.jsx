@@ -13,7 +13,7 @@ import CardContent from '@mui/material/CardContent';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
-import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
 
 import { fNumber } from 'src/utils/format-number';
 
@@ -80,7 +80,7 @@ const aggregateData = (data, period) => {
 // Helper function to format date labels
 const formatDateLabel = (dateString, period) => {
   const date = new Date(dateString);
-  
+
   switch (period) {
     case 'weekly':
       const weekEnd = new Date(date);
@@ -93,30 +93,56 @@ const formatDateLabel = (dateString, period) => {
   }
 };
 
-export function InstagramAdvancedAnalytics() {
+export function InstagramAdvancedAnalytics({ growth, engagement }) {
   const theme = useTheme();
-  const { businessProfile, isLoading } = useInstagramBusinessProfile();
   const [aggregationType, setAggregationType] = useState('daily');
 
-  // Prepare chart data from daily snapshots with aggregation
+  // Prepare chart data from props with aggregation
   const chartData = useMemo(() => {
-    if (!businessProfile?.dailySnapshots || businessProfile.dailySnapshots.length === 0) {
+    if (!growth?.followersChart || growth.followersChart.length === 0) {
       return [];
     }
 
-    const rawData = businessProfile.dailySnapshots
+    // Merge separate chart arrays into a single structure for aggregation
+    // We assume all charts are sorted by date and cover roughly the same period
+    // We use a map by date to handle potential missing points in some charts
+    const dataByDate = {};
+
+    growth.followersChart.forEach(item => {
+      if (!dataByDate[item.date]) dataByDate[item.date] = { snapshotDate: item.date };
+      dataByDate[item.date].followersCount = item.value;
+    });
+
+    if (engagement) {
+      engagement.engagementRateChart?.forEach(item => {
+        if (!dataByDate[item.date]) dataByDate[item.date] = { snapshotDate: item.date };
+        dataByDate[item.date].engagementRate = item.value;
+      });
+
+      engagement.avgLikesChart?.forEach(item => {
+        if (!dataByDate[item.date]) dataByDate[item.date] = { snapshotDate: item.date };
+        dataByDate[item.date].totalLikes = item.value;
+      });
+
+      engagement.avgCommentsChart?.forEach(item => {
+        if (!dataByDate[item.date]) dataByDate[item.date] = { snapshotDate: item.date };
+        dataByDate[item.date].totalComments = item.value;
+      });
+    }
+
+    const rawData = Object.values(dataByDate)
       .sort((a, b) => new Date(a.snapshotDate) - new Date(b.snapshotDate))
-      .map((snapshot) => ({
-        snapshotDate: snapshot.snapshotDate,
-        followersCount: snapshot.followersCount || 0,
-        totalLikes: snapshot.totalLikes || 0,
-        totalComments: snapshot.totalComments || 0,
-        totalViews: snapshot.totalViews || 0,
-        engagementRate: snapshot.engagementRate || 0,
+      .map((item) => ({
+        snapshotDate: item.snapshotDate,
+        followersCount: item.followersCount || 0,
+        totalLikes: item.totalLikes || 0,
+        totalComments: item.totalComments || 0,
+        totalViews: 0, // Views not available in current service
+        engagementRate: item.engagementRate || 0,
       }));
 
     return aggregateData(rawData, aggregationType);
-  }, [businessProfile?.dailySnapshots, aggregationType]);
+  }, [growth, engagement, aggregationType]);
 
   // Followers Growth Chart - using analytics line chart style
   const followersChartOptions = useChart({
@@ -311,7 +337,7 @@ export function InstagramAdvancedAnalytics() {
     },
   ];
 
-  if (isLoading || !businessProfile) {
+  if (!growth && !engagement) {
     return null;
   }
 
@@ -325,7 +351,7 @@ export function InstagramAdvancedAnalytics() {
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
           Track your Instagram performance with trend zones and actionable insights
         </Typography>
-        
+
         <Stack direction="row" alignItems="center" spacing={2}>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             Trend zones:

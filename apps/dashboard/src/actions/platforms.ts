@@ -273,9 +273,9 @@ export async function getGoogleReviewsAction(
 
   // Check if Google business profile exists for this team
   const existingProfile = await prisma.googleBusinessProfile.findFirst({
-    where: { 
+    where: {
       businessLocation: { teamId: team.id },
-      placeId 
+      placeId
     },
   });
 
@@ -351,7 +351,7 @@ export async function getFacebookBusinessProfile(teamSlug: string, locationId?: 
       businessMetadata: true,
       reviews: {
         orderBy: { date: 'desc' },
-            take: 10,
+        take: 10,
       },
     },
   });
@@ -495,7 +495,7 @@ export async function getInstagramBusinessProfile(teamSlug: string, locationSlug
     throw new ApiError(403, 'Access denied. You must be a member of this team.');
   }
 
-  const profile = await prisma.instagramBusinessProfile.findFirst({
+  const profile = await prisma.instagramBusinessProfile.findUnique({
     where: { locationId: location.id },
     include: {
       dailySnapshots: {
@@ -596,7 +596,7 @@ export async function getPlatformStatus(teamSlug: string) {
       include: { reviews: { take: 1 } },
     }),
     prisma.instagramBusinessProfile.findFirst({
-      where: { teamId: team.id },
+      where: { businessLocation: { teamId: team.id } },
       include: { dailySnapshots: { take: 1 } },
     }),
   ]);
@@ -651,7 +651,7 @@ export async function getBookingBusinessProfile(slug: string) {
   const bookingIdentifier = await prisma.businessMarketIdentifier.findFirst({
     where: {
       location: { teamId: team.id },
-        platform: 'BOOKING',
+      platform: 'BOOKING',
     },
   });
 
@@ -768,25 +768,45 @@ export async function triggerInstagramSnapshot(slug: string, locationSlug: strin
     throw new ApiError(404, 'Location not found');
   }
 
-  // Check if Instagram profile exists
-  const instagramProfile = await prisma.instagramBusinessProfile.findUnique({
+  // Get Instagram market identifier
+  const marketIdentifier = await prisma.businessMarketIdentifier.findFirst({
     where: {
       locationId: location.id,
+      platform: 'INSTAGRAM',
     },
   });
 
-  if (!instagramProfile) {
-    throw new ApiError(404, 'Instagram business profile not found');
+  if (!marketIdentifier?.identifier) {
+    throw new ApiError(400, 'Instagram username not configured for this location');
   }
 
-  // TODO: Implement actual snapshot triggering logic
-  // This would typically call an external service or queue a job
+  // Call scraper service to trigger snapshot
+  const backendApiUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
+  const response = await fetch(`${backendApiUrl}/api/instagram/snapshots`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      locationId: location.id,
+      instagramUsername: marketIdentifier.identifier,
+      includeMedia: true,
+      includeComments: true,
+      maxMedia: 20,
+      maxComments: 50,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new ApiError(response.status, errorData.error || 'Failed to trigger Instagram snapshot');
+  }
+
+  const result = await response.json();
   recordMetric('instagram.snapshot.triggered');
 
   return {
     success: true,
-    snapshotId: `snap_${Date.now()}`,
+    snapshotId: result.snapshotId,
     snapshotDate: new Date().toISOString(),
     message: 'Instagram snapshot triggered successfully',
   };
@@ -842,7 +862,7 @@ export async function getInstagramAnalytics(
   // Import and use analytics service
   const { InstagramAnalyticsServiceV2 } = await import('@/services/instagram-analytics-service-v2');
   const analyticsService = new InstagramAnalyticsServiceV2();
-  
+
   const result = await analyticsService.getAnalyticsData(
     instagramProfile.id,
     start,
@@ -1005,25 +1025,45 @@ export async function triggerTikTokSnapshot(slug: string) {
     throw new ApiError(403, 'Access denied');
   }
 
-  // Check if TikTok profile exists
-  const tiktokProfile = await prisma.tikTokBusinessProfile.findUnique({
+  // Get TikTok market identifier
+  const marketIdentifier = await prisma.businessMarketIdentifier.findFirst({
     where: {
-      teamId: team.id,
+      location: { teamId: team.id },
+      platform: 'TIKTOK',
     },
   });
 
-  if (!tiktokProfile) {
-    throw new ApiError(404, 'TikTok business profile not found');
+  if (!marketIdentifier?.identifier) {
+    throw new ApiError(400, 'TikTok username not configured for this team');
   }
 
-  // TODO: Implement actual snapshot triggering logic
-  // This would typically call an external service or queue a job
+  // Call scraper service to trigger snapshot
+  const backendApiUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
+  const response = await fetch(`${backendApiUrl}/api/tiktok/snapshots`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      teamId: team.id,
+      tiktokUsername: marketIdentifier.identifier,
+      includeVideos: true,
+      includeComments: true,
+      maxVideos: 10,
+      maxComments: 50,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new ApiError(response.status, errorData.error || 'Failed to trigger TikTok snapshot');
+  }
+
+  const result = await response.json();
   recordMetric('tiktok.snapshot.triggered');
 
   return {
     success: true,
-    snapshotId: `snap_${Date.now()}`,
+    snapshotId: result.snapshotId,
     snapshotDate: new Date().toISOString(),
     message: 'TikTok snapshot triggered successfully',
   };

@@ -11,33 +11,14 @@ import CardContent from '@mui/material/CardContent';
 
 import { Iconify } from 'src/components/iconify';
 import { ChartArea, ChartLine } from 'src/components/chart';
+import { OverviewMetrics } from 'src/types/instagram-analytics';
 
 import { InstagramMetricsWidget } from '../components/instagram-metrics-widget';
 
 // ----------------------------------------------------------------------
 
-interface ChartDataPoint {
-  date: string;
-  value: number;
-}
-
-interface OverviewData {
-  followersGrowthRate90d?: number;
-  weeklyFollowers?: number;
-  engagementRate?: number;
-  avgLikes?: number;
-  avgComments?: number;
-  weeklyPosts?: number;
-  followersRatio?: number;
-  commentsRatio?: number;
-  followersChart?: ChartDataPoint[];
-  followingChart?: ChartDataPoint[];
-  engagementRateChart?: ChartDataPoint[];
-  avgLikesChart?: ChartDataPoint[];
-}
-
 interface InstagramOverviewTabProps {
-  data: OverviewData | null;
+  data: OverviewMetrics | null | undefined;
   startDate: Date;
   endDate: Date;
 }
@@ -69,7 +50,7 @@ export function InstagramOverviewTab({ data, startDate, endDate }: InstagramOver
   };
 
   // Safe data access with fallbacks
-  const safeData: Required<OverviewData> = {
+  const safeData: Required<OverviewMetrics> = {
     followersGrowthRate90d: data?.followersGrowthRate90d || 0,
     weeklyFollowers: data?.weeklyFollowers || 0,
     engagementRate: data?.engagementRate || 0,
@@ -247,7 +228,7 @@ export function InstagramOverviewTab({ data, startDate, endDate }: InstagramOver
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Followers Growth"
               subheader="Daily followers count over time"
               action={
@@ -267,7 +248,7 @@ export function InstagramOverviewTab({ data, startDate, endDate }: InstagramOver
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Following Count"
               subheader="Daily following count over time"
               action={
@@ -287,7 +268,7 @@ export function InstagramOverviewTab({ data, startDate, endDate }: InstagramOver
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Engagement Rate"
               subheader="Daily engagement rate percentage"
               action={
@@ -307,7 +288,7 @@ export function InstagramOverviewTab({ data, startDate, endDate }: InstagramOver
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Average Likes"
               subheader="Daily average likes per post"
               action={

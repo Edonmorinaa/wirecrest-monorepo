@@ -1,7 +1,6 @@
-import { 
-  GrowthMetrics, 
-  InstagramAnalytics, 
-  InstagramDailySnapshot 
+import {
+  GrowthMetrics,
+  InstagramDailySnapshot
 } from '@/types/instagram-analytics';
 
 import { InstagramCalculationUtils } from './instagram-calculation-utils';
@@ -16,7 +15,7 @@ export class GrowthMetricsCalculator {
    */
   static calculate(
     snapshots: InstagramDailySnapshot[],
-    analytics: InstagramAnalytics[]
+    analytics: any[] = []
   ): GrowthMetrics | null {
     if (snapshots.length === 0) {
       return null;
@@ -27,26 +26,51 @@ export class GrowthMetricsCalculator {
 
     // Calculate growth rates
     const followersGrowthRate90d = InstagramCalculationUtils.formatPercentage(
-      latestAnalytics?.followersGrowthRate90d || 
+      latestAnalytics?.followersGrowthRate90d ||
       InstagramCalculationUtils.calculate90DayGrowthRate(snapshots)
     );
-    
+
     const steadyGrowthRate = InstagramCalculationUtils.formatPercentage(
-      latestAnalytics?.steadyGrowthRate || 
+      latestAnalytics?.steadyGrowthRate ||
       InstagramCalculationUtils.calculateSteadyGrowthRate(snapshots)
     );
 
-    // Calculate follower counts
-    const dailyFollowers = InstagramCalculationUtils.formatNumber(
-      InstagramCalculationUtils.calculateWeeklyFollowers(snapshots)
+    // Calculate follower growth charts
+    const dailyFollowers = InstagramCalculationUtils.generateChartData(
+      snapshots,
+      (snapshot, index) => {
+        if (index === 0) return 0;
+        const previous = snapshots[index - 1];
+        if (!previous) return 0;
+        return InstagramCalculationUtils.calculateGrowth(
+          snapshot.followersCount,
+          previous.followersCount
+        );
+      }
     );
-    
-    const weeklyFollowers = InstagramCalculationUtils.formatNumber(
-      InstagramCalculationUtils.calculateWeeklyFollowers(snapshots)
+
+    const weeklyFollowers = InstagramCalculationUtils.generateChartData(
+      snapshots,
+      (snapshot, index) => {
+        const weekAgoIndex = Math.max(0, index - 7);
+        const weekAgo = snapshots[weekAgoIndex];
+        return InstagramCalculationUtils.calculateGrowth(
+          snapshot.followersCount,
+          weekAgo.followersCount
+        );
+      }
     );
-    
-    const monthlyFollowers = InstagramCalculationUtils.formatNumber(
-      InstagramCalculationUtils.calculateMonthlyFollowers(snapshots)
+
+    const monthlyFollowers = InstagramCalculationUtils.generateChartData(
+      snapshots,
+      (snapshot, index) => {
+        const monthAgoIndex = Math.max(0, index - 30);
+        const monthAgo = snapshots[monthAgoIndex];
+        return InstagramCalculationUtils.calculateGrowth(
+          snapshot.followersCount,
+          monthAgo.followersCount
+        );
+      }
     );
 
     return {

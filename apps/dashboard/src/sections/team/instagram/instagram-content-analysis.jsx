@@ -12,45 +12,39 @@ import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
 
-import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
 
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function InstagramContentAnalysis() {
-  const { businessProfile, isLoading } = useInstagramBusinessProfile();
-
+export function InstagramContentAnalysis({ history, engagement }) {
   const contentAnalysis = useMemo(() => {
-    if (!businessProfile?.dailySnapshots || businessProfile.dailySnapshots.length === 0) {
+    if (!history || history.length === 0) {
       return null;
     }
 
-    const snapshots = businessProfile.dailySnapshots;
-    
     // Calculate content frequency
-    const totalNewPosts = snapshots.reduce((sum, s) => sum + (s.newPosts || 0), 0);
-    const avgContentPerDay = snapshots.length > 0 ? totalNewPosts / snapshots.length : 0;
-    
+    const totalNewPosts = history.reduce((sum, item) => sum + (item.mediaDelta || 0), 0);
+    const avgContentPerDay = history.length > 0 ? totalNewPosts / history.length : 0;
+
     // Calculate posting consistency
-    const postingDays = snapshots.filter(s => (s.newPosts || 0) > 0).length;
-    const consistencyRate = (postingDays / snapshots.length) * 100;
-    
-    // Find best performing content period
-    const bestContentPeriod = snapshots.reduce((best, snapshot) => {
-      const engagement = (snapshot.totalLikes || 0) + (snapshot.totalComments || 0);
-      return engagement > best.engagement ? { date: snapshot.snapshotDate, engagement } : best;
+    const postingDays = history.filter(item => (item.mediaDelta || 0) > 0).length;
+    const consistencyRate = (postingDays / history.length) * 100;
+
+    // Find best performing content period (using engagement rate as proxy since we don't have raw likes/comments history)
+    const bestContentPeriod = history.reduce((best, item) => {
+      const currentEngagement = item.engagementRate || 0;
+      return currentEngagement > best.engagement ? { date: item.date, engagement: currentEngagement } : best;
     }, { date: null, engagement: 0 });
 
     // Calculate content quality score
-    const totalEngagement = snapshots.reduce((sum, s) => 
-      sum + (s.totalLikes || 0) + (s.totalComments || 0), 0);
-    const avgEngagementPerPost = totalNewPosts > 0 ? totalEngagement / totalNewPosts : 0;
-    
+    const avgEngagementPerPost = engagement ? (engagement.avgLikes || 0) + (engagement.avgComments || 0) : 0;
+
     // Determine content strategy recommendation
     let strategyRecommendation = '';
     let strategyColor = 'default';
-    
+
     if (avgContentPerDay >= 1.5) {
       strategyRecommendation = 'High Frequency';
       strategyColor = 'success';
@@ -70,11 +64,11 @@ export function InstagramContentAnalysis() {
       avgEngagementPerPost,
       strategyRecommendation,
       strategyColor,
-      totalSnapshots: snapshots.length,
+      totalSnapshots: history.length,
     };
-  }, [businessProfile]);
+  }, [history, engagement]);
 
-  if (isLoading || !contentAnalysis) {
+  if (!contentAnalysis) {
     return null;
   }
 
@@ -124,7 +118,7 @@ export function InstagramContentAnalysis() {
         }
         subheader="Insights into your content strategy and performance"
       />
-      
+
       <CardContent>
         <Stack spacing={3}>
           {/* Strategy Recommendation */}
@@ -133,13 +127,13 @@ export function InstagramContentAnalysis() {
               <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                 Content Strategy
               </Typography>
-              <Chip 
-                label={contentAnalysis.strategyRecommendation} 
+              <Chip
+                label={contentAnalysis.strategyRecommendation}
                 color={contentAnalysis.strategyColor}
                 size="small"
               />
             </Stack>
-            
+
             <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block' }}>
               Based on your posting frequency and engagement patterns
             </Typography>
@@ -163,15 +157,15 @@ export function InstagramContentAnalysis() {
                   >
                     <Iconify icon={item.icon} sx={{ color: item.color, fontSize: 20 }} />
                   </Box>
-                  
+
                   <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                     {item.value}
                   </Typography>
-                  
+
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     {item.unit}
                   </Typography>
-                  
+
                   <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
                     {item.description}
                   </Typography>
@@ -189,13 +183,13 @@ export function InstagramContentAnalysis() {
                   Best Performing Day
                 </Typography>
               </Stack>
-              
+
               <Typography variant="body2" sx={{ mt: 1 }}>
                 {format(new Date(contentAnalysis.bestContentPeriod.date), 'MMMM dd, yyyy')}
               </Typography>
-              
+
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {contentAnalysis.bestContentPeriod.engagement} total interactions
+                {contentAnalysis.bestContentPeriod.engagement.toFixed(2)}% engagement rate
               </Typography>
             </Box>
           )}
@@ -205,26 +199,26 @@ export function InstagramContentAnalysis() {
             <Typography variant="body2" sx={{ fontWeight: 'medium', mb: 1 }}>
               💡 Content Insights
             </Typography>
-            
+
             <Stack spacing={1}>
               {contentAnalysis.avgContentPerDay > 1.5 && (
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   • You're posting frequently - great for audience engagement!
                 </Typography>
               )}
-              
+
               {contentAnalysis.consistencyRate > 70 && (
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   • High posting consistency - your audience knows when to expect content
                 </Typography>
               )}
-              
+
               {contentAnalysis.avgEngagementPerPost > 100 && (
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   • Strong engagement per post - your content resonates well
                 </Typography>
               )}
-              
+
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 • Analysis based on {contentAnalysis.totalSnapshots} daily snapshots
               </Typography>

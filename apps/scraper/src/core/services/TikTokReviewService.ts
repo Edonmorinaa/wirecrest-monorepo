@@ -1,6 +1,6 @@
 import { MarketPlatform } from "@prisma/client";
-import type { ReviewResult } from "../interfaces/IReviewService";
-import type { TikTokDataService } from "../../services/tiktokDataService";
+import type { IReviewService, ReviewResult } from "../interfaces/IReviewService.js";
+import { TikTokDataService } from "../../services/tiktokDataService.js";
 
 /**
  * TikTok Review Service (for snapshots)
@@ -8,11 +8,11 @@ import type { TikTokDataService } from "../../services/tiktokDataService";
  * Follows Open/Closed Principle (OCP) - open for extension, closed for modification
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
-import type { TikTokSnapshot } from "../repositories/TikTokReviewRepository";
+import type { TikTokSnapshot } from "../repositories/TikTokReviewRepository.js";
 
 export interface ITikTokReviewRepository {
-  getByTeamId(
-    teamId: string,
+  getByLocationId(
+    locationId: string,
     platform: MarketPlatform,
   ): Promise<TikTokSnapshot[]>;
   getCount(businessId: string): Promise<number>;
@@ -35,24 +35,24 @@ export class TikTokReviewService {
    * Trigger TikTok snapshot scraping
    */
   async triggerReviewScraping(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     identifier: string,
   ): Promise<ReviewResult> {
     try {
       console.log(
-        `[TikTokReviewService] Triggering snapshot for team ${teamId}, username: ${identifier}`,
+        `[TikTokReviewService] Triggering snapshot for location ${locationId}, username: ${identifier}`,
       );
 
       // Ensure business profile exists and get ID
       let businessProfileId: string | null = null;
       const profileResult =
-        await this.tiktokDataService.getBusinessProfileByTeamId(teamId);
+        await this.tiktokDataService.getBusinessProfileByLocationId(locationId);
       if (profileResult.success && profileResult.profile?.id) {
         businessProfileId = profileResult.profile.id;
       } else {
         const createResult = await this.tiktokDataService.createBusinessProfile(
-          teamId,
+          locationId,
           identifier,
         );
         if (!createResult.success || !createResult.businessProfileId) {
@@ -98,15 +98,15 @@ export class TikTokReviewService {
    * Get TikTok snapshots
    */
   async getReviews(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
   ): Promise<TikTokSnapshot[]> {
     try {
-      console.log(`[TikTokReviewService] Getting snapshots for team ${teamId}`);
+      console.log(`[TikTokReviewService] Getting snapshots for location ${locationId}`);
 
       // Get snapshots from repository
-      const snapshots = await this.reviewRepository.getByTeamId(
-        teamId,
+      const snapshots = await this.reviewRepository.getByLocationId(
+        locationId,
         platform,
       );
 

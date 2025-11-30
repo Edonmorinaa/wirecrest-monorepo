@@ -9,6 +9,8 @@ import Alert from '@mui/material/Alert';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
+import { InstagramAnalyticsData } from 'src/types/instagram-analytics';
+
 import { InstagramGrowthTab } from './tabs/instagram-growth-tab';
 import { InstagramHistoryTab } from './tabs/instagram-history-tab';
 import { InstagramOverviewTab } from './tabs/instagram-overview-tab';
@@ -25,16 +27,8 @@ const TABS = [
 
 type TabValue = typeof TABS[number]['value'];
 
-interface AnalyticsData {
-  general?: any;
-  overview?: any;
-  growth?: any;
-  engagement?: any;
-  history?: any;
-}
-
 interface InstagramAnalyticsTabsProps {
-  data: AnalyticsData | null;
+  data: InstagramAnalyticsData | null | undefined;
   startDate: Date;
   endDate: Date;
 }

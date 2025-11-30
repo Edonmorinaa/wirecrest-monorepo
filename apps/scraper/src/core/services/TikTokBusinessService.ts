@@ -2,8 +2,8 @@ import { MarketPlatform } from "@prisma/client";
 import type {
   IBusinessService,
   BusinessProfileResult,
-} from "../interfaces/IBusinessService";
-import type { TikTokDataService } from "../../services/tiktokDataService";
+} from "../interfaces/IBusinessService.js";
+import { TikTokDataService } from "../../services/tiktokDataService.js";
 
 /**
  * TikTok Business Service
@@ -12,21 +12,21 @@ import type { TikTokDataService } from "../../services/tiktokDataService";
  * Follows Dependency Inversion Principle (DIP) - depends on abstractions
  */
 export interface ITikTokBusinessRepository {
-  getByTeamId(
-    teamId: string,
+  getByLocationId(
+    locationId: string,
     platform: MarketPlatform,
   ): Promise<{ id: string } | null>;
   create(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     data: { username: string; isActive?: boolean },
   ): Promise<{ id: string }>;
   update(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     data: { username?: string; isActive?: boolean },
   ): Promise<{ id: string }>;
-  delete(teamId: string, platform: MarketPlatform): Promise<boolean>;
+  delete(locationId: string, platform: MarketPlatform): Promise<boolean>;
 }
 
 export class TikTokBusinessService {
@@ -46,18 +46,18 @@ export class TikTokBusinessService {
    * Create TikTok business profile
    */
   async createProfile(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     identifier: string,
   ): Promise<BusinessProfileResult> {
     try {
       console.log(
-        `[TikTokBusinessService] Creating profile for team ${teamId}, username: ${identifier}`,
+        `[TikTokBusinessService] Creating profile for location ${locationId}, username: ${identifier}`,
       );
 
       // Create business profile using TikTokDataService
       const result = await this.tiktokDataService.createBusinessProfile(
-        teamId,
+        locationId,
         identifier,
       );
 
@@ -72,7 +72,7 @@ export class TikTokBusinessService {
         success: true,
         businessId: result.businessProfileId!,
         profileData: {
-          teamId,
+          locationId,
           platform,
           identifier,
           businessProfileId: result.businessProfileId!,
@@ -92,15 +92,15 @@ export class TikTokBusinessService {
    * Get TikTok business profile
    */
   async getProfile(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
   ): Promise<BusinessProfileResult> {
     try {
-      console.log(`[TikTokBusinessService] Getting profile for team ${teamId}`);
+      console.log(`[TikTokBusinessService] Getting profile for location ${locationId}`);
 
       // Get business profile from repository
-      const profile = await this.businessRepository.getByTeamId(
-        teamId,
+      const profile = await this.businessRepository.getByLocationId(
+        locationId,
         platform,
       );
 
@@ -130,18 +130,18 @@ export class TikTokBusinessService {
    * Update TikTok business profile
    */
   async updateProfile(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     profileData: { username?: string; isActive?: boolean },
   ): Promise<BusinessProfileResult> {
     try {
       console.log(
-        `[TikTokBusinessService] Updating profile for team ${teamId}`,
+        `[TikTokBusinessService] Updating profile for location ${locationId}`,
       );
 
       // Update business profile in repository
       const updatedProfile = await this.businessRepository.update(
-        teamId,
+        locationId,
         platform,
         profileData,
       );
@@ -172,16 +172,16 @@ export class TikTokBusinessService {
    * Delete TikTok business profile
    */
   async deleteProfile(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
   ): Promise<BusinessProfileResult> {
     try {
       console.log(
-        `[TikTokBusinessService] Deleting profile for team ${teamId}`,
+        `[TikTokBusinessService] Deleting profile for location ${locationId}`,
       );
 
       // Delete business profile from repository
-      const deleted = await this.businessRepository.delete(teamId, platform);
+      const deleted = await this.businessRepository.delete(locationId, platform);
 
       if (!deleted) {
         return {

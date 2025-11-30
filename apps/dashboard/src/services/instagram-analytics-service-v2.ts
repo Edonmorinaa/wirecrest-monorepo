@@ -1,10 +1,9 @@
 import { prisma } from '@wirecrest/db';
-import { 
-  InstagramAnalytics, 
-  InstagramAnalyticsData, 
-  InstagramDailySnapshot, 
+import {
+  InstagramAnalyticsData,
+  InstagramDailySnapshot,
   InstagramBusinessProfile,
-  AnalyticsServiceResponse 
+  AnalyticsServiceResponse
 } from '@/types/instagram-analytics';
 
 import { InstagramDataValidator } from './validation/instagram-data-validator';
@@ -49,12 +48,12 @@ export class InstagramAnalyticsServiceV2 {
         return dataResult;
       }
 
-      const { snapshots, analytics, businessProfile } = dataResult.data!;
+      const { snapshots, businessProfile } = dataResult.data!;
 
       // Validate all data
       const dataValidation = InstagramDataValidator.validateAllData(
         snapshots,
-        analytics,
+        [],
         businessProfile,
         startDate,
         endDate
@@ -68,12 +67,11 @@ export class InstagramAnalyticsServiceV2 {
       // Calculate analytics using specialized calculators
       console.log('Analytics service - Data summary:', {
         snapshotsCount: snapshots.length,
-        analyticsCount: analytics.length,
         businessProfileId: businessProfile?.id,
         businessProfileUsername: businessProfile?.username
       });
-      
-      const analyticsData = this.calculateAnalyticsData(snapshots, analytics, businessProfile);
+
+      const analyticsData = this.calculateAnalyticsData(snapshots, businessProfile);
 
       return {
         success: true,
@@ -99,84 +97,9 @@ export class InstagramAnalyticsServiceV2 {
     endDate: Date,
     forceRefresh: boolean = false
   ): Promise<AnalyticsServiceResponse<InstagramAnalyticsData>> {
-    try {
-      // Check for recent analytics data if not forcing refresh
-      if (!forceRefresh) {
-        const recentAnalytics = await this.getRecentAnalytics(businessProfileId);
-        if (recentAnalytics) {
-          return this.getAnalyticsData(businessProfileId, startDate, endDate);
-        }
-      }
-
-      // Trigger fresh calculation
-      return this.getAnalyticsData(businessProfileId, startDate, endDate);
-
-    } catch (error) {
-      console.error('Error in getCachedAnalyticsData:', error);
-      return {
-        success: false,
-        data: null,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
-    }
-  }
-
-  /**
-   * Get summary metrics for dashboard
-   */
-  async getSummaryMetrics(businessProfileId: string): Promise<AnalyticsServiceResponse<{
-    totalFollowers: number;
-    totalFollowing: number;
-    totalPosts: number;
-    avgEngagementRate: number;
-    growthRate: number;
-    lastUpdated: Date;
-  }>> {
-    try {
-      const latestSnapshot = await prisma.instagramDailySnapshot.findFirst({
-        where: { businessProfileId },
-        orderBy: { snapshotDate: 'desc' }
-      });
-
-      const analytics = await prisma.instagramAnalytics.findFirst({
-        where: { businessProfileId },
-        orderBy: { calculatedAt: 'desc' }
-      });
-
-      if (!latestSnapshot) {
-        return {
-          success: true,
-          data: {
-            totalFollowers: 0,
-            totalFollowing: 0,
-            totalPosts: 0,
-            avgEngagementRate: 0,
-            growthRate: 0,
-            lastUpdated: new Date()
-          }
-        };
-      }
-
-      return {
-        success: true,
-        data: {
-          totalFollowers: latestSnapshot.followersCount,
-          totalFollowing: latestSnapshot.followingCount,
-          totalPosts: latestSnapshot.mediaCount,
-          avgEngagementRate: latestSnapshot.engagementRate || 0,
-          growthRate: analytics?.followersGrowthRate90d || 0,
-          lastUpdated: latestSnapshot.snapshotDate
-        }
-      };
-
-    } catch (error) {
-      console.error('Error in getSummaryMetrics:', error);
-      return {
-        success: false,
-        data: null,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
-    }
+    // Always calculate fresh since we don't have cached aggregations anymore
+    // React Query / tRPC will handle caching on the client side
+    return this.getAnalyticsData(businessProfileId, startDate, endDate);
   }
 
   /**
@@ -188,7 +111,6 @@ export class InstagramAnalyticsServiceV2 {
     endDate: Date
   ): Promise<AnalyticsServiceResponse<{
     snapshots: InstagramDailySnapshot[];
-    analytics: InstagramAnalytics[];
     businessProfile: InstagramBusinessProfile | null;
   }>> {
     try {
@@ -206,20 +128,6 @@ export class InstagramAnalyticsServiceV2 {
         }
       });
 
-      // Fetch analytics data
-      const analytics = await prisma.instagramAnalytics.findMany({
-        where: {
-          businessProfileId,
-          date: {
-            gte: startDate,
-            lte: endDate
-          }
-        },
-        orderBy: {
-          date: 'asc'
-        }
-      });
-
       // Fetch business profile
       const businessProfile = await prisma.instagramBusinessProfile.findUnique({
         where: { id: businessProfileId }
@@ -229,7 +137,6 @@ export class InstagramAnalyticsServiceV2 {
         success: true,
         data: {
           snapshots,
-          analytics,
           businessProfile
         }
       };
@@ -249,12 +156,10 @@ export class InstagramAnalyticsServiceV2 {
    */
   private calculateAnalyticsData(
     snapshots: InstagramDailySnapshot[],
-    analytics: InstagramAnalytics[],
     businessProfile: InstagramBusinessProfile | null
   ): InstagramAnalyticsData {
     console.log('calculateAnalyticsData - Input:', {
       snapshotsLength: snapshots.length,
-      analyticsLength: analytics.length,
       businessProfileExists: !!businessProfile
     });
 
@@ -269,16 +174,16 @@ export class InstagramAnalyticsServiceV2 {
     try {
       const general = GeneralMetricsCalculator.calculate(businessProfile, latestSnapshot, firstSnapshot);
       console.log('calculateAnalyticsData - General metrics calculated');
-      
-      const overview = OverviewMetricsCalculator.calculate(snapshots, analytics);
+
+      const overview = OverviewMetricsCalculator.calculate(snapshots, []);
       console.log('calculateAnalyticsData - Overview metrics calculated');
-      
-      const growth = GrowthMetricsCalculator.calculate(snapshots, analytics);
+
+      const growth = GrowthMetricsCalculator.calculate(snapshots, []);
       console.log('calculateAnalyticsData - Growth metrics calculated');
-      
-      const engagement = EngagementMetricsCalculator.calculate(snapshots, analytics);
+
+      const engagement = EngagementMetricsCalculator.calculate(snapshots, []);
       console.log('calculateAnalyticsData - Engagement metrics calculated');
-      
+
       const history = HistoryMetricsCalculator.calculate(snapshots);
       console.log('calculateAnalyticsData - History metrics calculated');
 
@@ -293,24 +198,5 @@ export class InstagramAnalyticsServiceV2 {
       console.error('calculateAnalyticsData - Error in calculation:', error);
       throw error;
     }
-  }
-
-  /**
-   * Get recent analytics data for caching
-   */
-  private async getRecentAnalytics(businessProfileId: string): Promise<InstagramAnalytics | null> {
-    const cutoffTime = new Date(Date.now() - this.CACHE_TTL_HOURS * 60 * 60 * 1000);
-    
-    return await prisma.instagramAnalytics.findFirst({
-      where: {
-        businessProfileId,
-        calculatedAt: {
-          gte: cutoffTime
-        }
-      },
-      orderBy: {
-        calculatedAt: 'desc'
-      }
-    });
   }
 }

@@ -59,7 +59,7 @@ export interface InstagramAnalytics {
 
 export interface InstagramBusinessProfile {
   id: string;
-  teamId: string;
+  locationId: string;
   username: string;
   userId: string;
   profileUrl: string;
@@ -125,9 +125,9 @@ export interface OverviewMetrics {
 export interface GrowthMetrics {
   followersGrowthRate90d: number;
   steadyGrowthRate: number;
-  dailyFollowers: number;
-  weeklyFollowers: number;
-  monthlyFollowers: number;
+  dailyFollowers: ChartDataPoint[];
+  weeklyFollowers: ChartDataPoint[];
+  monthlyFollowers: ChartDataPoint[];
   followersChart: ChartDataPoint[];
   followingChart: ChartDataPoint[];
   newDailyFollowersChart: ChartDataPoint[];

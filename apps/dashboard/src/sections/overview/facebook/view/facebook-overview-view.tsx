@@ -25,20 +25,22 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
+import { LoadingState, ErrorState, EmptyState } from 'src/components/states';
 
-import { FacebookMap, 
-        FacebookContactInfo,
-        FacebookTopKeywords,
-        FacebookBusinessInfo,
-        FacebookRecentReviews,
-        FacebookRecentActivity,
-        FacebookMetricsOverview,
-        FacebookOverviewWelcome,
-        FacebookEmotionalAnalysis,
-        FacebookEngagementMetrics,
-        FacebookSentimentAnalysis,
-        FacebookRatingDistribution,
- } from '../components';
+import {
+  FacebookMap,
+  FacebookContactInfo,
+  FacebookTopKeywords,
+  FacebookBusinessInfo,
+  FacebookRecentReviews,
+  FacebookRecentActivity,
+  FacebookMetricsOverview,
+  FacebookOverviewWelcome,
+  FacebookEmotionalAnalysis,
+  FacebookEngagementMetrics,
+  FacebookSentimentAnalysis,
+  FacebookRatingDistribution,
+} from '../components';
 
 // Time period options for metrics
 const TIME_PERIODS = [
@@ -62,7 +64,7 @@ export function FacebookOverviewView() {
   const locationSlug = params.locationSlug as string;
 
   const { team } = useTeam(teamSlug);
-  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
+  const { location, isLoading: locationLoading, error: locationError } = useLocationBySlug(teamSlug, locationSlug);
 
   // Validate locationId
   const locationId = location?.id || '';
@@ -80,7 +82,7 @@ export function FacebookOverviewView() {
   const customRange = useMemo(() => {
     const customFrom = searchParams.get('customFrom');
     const customTo = searchParams.get('customTo');
-    
+
     if (customFrom && customTo) {
       return {
         from: new Date(customFrom),
@@ -98,7 +100,7 @@ export function FacebookOverviewView() {
         endDate: customRange.to.toISOString(),
       };
     }
-    
+
     const end = new Date();
     const start = new Date();
     const days = parseInt(selectedPeriod) || 30;
@@ -110,23 +112,23 @@ export function FacebookOverviewView() {
   const updatePeriod = useCallback((newPeriod: string) => {
     const urlParams = new URLSearchParams(searchParams);
     urlParams.set('period', newPeriod);
-    
+
     // Clear custom range if switching away from custom
     if (newPeriod !== 'custom') {
       urlParams.delete('customFrom');
       urlParams.delete('customTo');
     }
-    
+
     router.replace(`?${urlParams.toString()}`, { scroll: false });
   }, [searchParams, router]);
-  
+
   // Update URL with custom range
   const updateCustomRange = useCallback((from: Date, to: Date) => {
     const urlParams = new URLSearchParams(searchParams);
     urlParams.set('period', 'custom');
     urlParams.set('customFrom', from.toISOString().split('T')[0]);
     urlParams.set('customTo', to.toISOString().split('T')[0]);
-    
+
     router.replace(`?${urlParams.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
@@ -137,7 +139,7 @@ export function FacebookOverviewView() {
     return date.toISOString();
   }, []);
 
-  const { profile: businessProfile } = useFacebookProfile(locationId, !!location && isValidLocationId);
+  const { profile: businessProfile, isLoading: profileLoading, error: profileError } = useFacebookProfile(locationId, !!location && isValidLocationId);
   const { analytics: allTimeAnalytics } = useFacebookAnalytics(
     locationId,
     allTimeStart,
@@ -184,7 +186,7 @@ export function FacebookOverviewView() {
       averageCommentsPerReview: currentAnalytics.engagement?.averageCommentsPerReview || 0,
       responseRate: currentAnalytics.responseRate || 0,
       avgResponseTime: currentAnalytics.averageResponseTime || 0,
-      
+
       // Analysis data
       sentimentAnalysis: currentAnalytics.sentiment,
       emotionalAnalysis: currentAnalytics.emotions,
@@ -195,20 +197,32 @@ export function FacebookOverviewView() {
     };
   }, [currentAnalytics, reviews]);
 
-  // Show loading state
-  if (locationLoading || !location) {
+  // 1. LOADING STATE
+  if (locationLoading || (isValidLocationId && profileLoading)) {
     return (
       <DashboardContent maxWidth="xl">
-        <Typography>Loading location...</Typography>
+        <LoadingState message="Loading Facebook Business overview..." />
       </DashboardContent>
     );
   }
 
-  return (
-    <DashboardContent maxWidth="xl">
-      <Grid container spacing={3}>
+  // 2. LOCATION ERROR
+  if (locationError || !location) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <ErrorState
+          type="not-found"
+          platform="Location"
+          customMessage="The requested location could not be found. It may have been deleted or you may not have access to it."
+        />
+      </DashboardContent>
+    );
+  }
 
-        <Grid size={{ xs: 12 }} >
+  // 3. PROFILE NOT FOUND
+  if (!businessProfile && !profileLoading && isValidLocationId) {
+    return (
+      <DashboardContent maxWidth="xl">
         <CustomBreadcrumbs
           heading="Facebook Overview"
           links={[
@@ -218,26 +232,85 @@ export function FacebookOverviewView() {
             { name: location?.name || locationSlug, href: paths.dashboard.locations.bySlug(teamSlug, locationSlug) },
             { name: 'Facebook Overview', href: '#' },
           ]}
+          sx={{ mb: 3 }}
+        />
+        <EmptyState
+          icon="solar:facebook-bold"
+          title="Facebook Business Profile Not Set Up"
+          message="Connect your Facebook Page to start tracking reviews, recommendations, and engagement metrics."
           action={
-            businessProfile?.pageUrl && (
-              <Button
-                variant="contained"
-                startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} />}
-                target="_blank"
-                href={businessProfile.pageUrl}
-              >
-                Visit Facebook Page
-              </Button>
-            )
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<Iconify icon="solar:add-circle-bold" />}
+              sx={{ mt: 2 }}
+            >
+              Connect Facebook Page
+            </Button>
           }
         />
+      </DashboardContent>
+    );
+  }
+
+  // 4. PROFILE ERROR
+  if (profileError) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <CustomBreadcrumbs
+          heading="Facebook Overview"
+          links={[
+            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Teams', href: paths.dashboard.teams.root },
+            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+            { name: location?.name || locationSlug, href: paths.dashboard.locations.bySlug(teamSlug, locationSlug) },
+            { name: 'Facebook Overview', href: '#' },
+          ]}
+          sx={{ mb: 3 }}
+        />
+        <ErrorState
+          type="network"
+          platform="Facebook"
+          onRetry={() => window.location.reload()}
+        />
+      </DashboardContent>
+    );
+  }
+
+  return (
+    <DashboardContent maxWidth="xl">
+      <Grid container spacing={3}>
+
+        <Grid size={{ xs: 12 }} >
+          <CustomBreadcrumbs
+            heading="Facebook Overview"
+            links={[
+              { name: 'Dashboard', href: paths.dashboard.root },
+              { name: 'Teams', href: paths.dashboard.teams.root },
+              { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+              { name: location?.name || locationSlug, href: paths.dashboard.locations.bySlug(teamSlug, locationSlug) },
+              { name: 'Facebook Overview', href: '#' },
+            ]}
+            action={
+              businessProfile?.pageUrl && (
+                <Button
+                  variant="contained"
+                  startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} />}
+                  target="_blank"
+                  href={businessProfile.pageUrl}
+                >
+                  Visit Facebook Page
+                </Button>
+              )
+            }
+          />
         </Grid>
 
         {/* 1. HEADER & OVERVIEW SECTION */}
         {/* Facebook Business Header */}
         <Grid size={{ xs: 12 }}>
-        <FacebookOverviewWelcome displayName={businessProfile?.pageName || businessProfile?.title || location.name} recommendationRate={allTimePeriodMetrics.recommendationRate} totalReviews={allTimePeriodMetrics.reviewCount} sx={{}} />
-      </Grid>
+          <FacebookOverviewWelcome displayName={businessProfile?.pageName || businessProfile?.title || location.name} recommendationRate={allTimePeriodMetrics.recommendationRate} totalReviews={allTimePeriodMetrics.reviewCount} sx={{}} />
+        </Grid>
 
         {/* Time Period Selector and Key Metrics */}
         <Grid size={{ xs: 12 }}>
@@ -300,8 +373,8 @@ export function FacebookOverviewView() {
                     )}
                   </Stack>
 
-                  <FacebookMetricsOverview 
-                    metrics={displayMetrics} 
+                  <FacebookMetricsOverview
+                    metrics={displayMetrics}
                     periodicalMetrics={(businessProfile as any)?.overview?.facebookPeriodicalMetric}
                     currentPeriodKey={selectedPeriod}
                   />
@@ -310,7 +383,7 @@ export function FacebookOverviewView() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         {/* Recent Reviews - Full Width */}
         <Grid size={{ xs: 12 }}>
           <FacebookRecentReviews reviews={reviews} />
@@ -319,12 +392,12 @@ export function FacebookOverviewView() {
         {/* 2. ANALYTICS & CHARTS SECTION */}
         {/* Rating Distribution - Full Width */}
         <Grid size={{ xs: 12 }}>
-          <FacebookRatingDistribution 
-            businessProfile={businessProfile as any} 
+          <FacebookRatingDistribution
+            businessProfile={businessProfile as any}
             currentPeriodMetrics={{
               recommendedCount: displayMetrics?.recommendedCount || 0,
               notRecommendedCount: displayMetrics?.notRecommendedCount || 0,
-            } as any} 
+            } as any}
           />
         </Grid>
 

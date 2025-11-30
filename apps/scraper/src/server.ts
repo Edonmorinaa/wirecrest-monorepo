@@ -20,14 +20,18 @@ import { ApifyScheduleService } from "./services/apify/ApifyScheduleService";
 import { ApifyTaskService } from "./services/apify/ApifyTaskService";
 import { ApifyDataSyncService } from "./services/apify/ApifyDataSyncService";
 import { FeatureExtractor } from "./services/subscription/FeatureExtractor";
-import { SentimentAnalyzer } from "./sentimentAnalyzer/sentimentAnalyzer";
+import { SentimentAnalyzer } from "./sentimentAnalyzer/sentimentAnalyzer.js";
+import { InstagramDataService } from "./services/instagramDataService.js";
+import { TikTokDataService } from "./services/tiktokDataService.js";
+import { InstagramController } from "./controllers/InstagramController.js";
+import { TikTokController } from "./controllers/TikTokController.js";
 
 // New SOLID-compliant architecture
-import { ServiceFactory } from "./core/container/ServiceFactory";
-import { BusinessApiController } from "./core/api/controllers/BusinessApiController";
-import { ReviewApiController } from "./core/api/controllers/ReviewApiController";
-import { AnalyticsApiController } from "./core/api/controllers/AnalyticsApiController";
-import { TaskApiController } from "./core/api/controllers/TaskApiController";
+import { ServiceFactory } from "./core/container/ServiceFactory.js";
+import { BusinessApiController } from "./core/api/controllers/BusinessApiController.js";
+import { ReviewApiController } from "./core/api/controllers/ReviewApiController.js";
+import { AnalyticsApiController } from "./core/api/controllers/AnalyticsApiController.js";
+import { TaskApiController } from "./core/api/controllers/TaskApiController.js";
 
 // Middleware
 import { validateEnv } from "./config/env";
@@ -48,6 +52,8 @@ const PORT = env.PORT;
 const APIFY_TOKEN = env.APIFY_TOKEN;
 const WEBHOOK_BASE_URL = env.WEBHOOK_BASE_URL || `http://localhost:${PORT}`;
 const STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET;
+const HIKER_API_KEY = process.env.HIKER_API_KEY || "";
+const LAMATOK_ACCESS_KEY = process.env.LAMATOK_ACCESS_KEY || "";
 
 // =================== MIDDLEWARE SETUP ===================
 
@@ -73,6 +79,10 @@ let syncService: ApifyDataSyncService;
 let featureExtractor: FeatureExtractor;
 let adminController: AdminController;
 export let sentimentAnalyzer: SentimentAnalyzer;
+let instagramDataService: InstagramDataService;
+let tikTokDataService: TikTokDataService;
+let instagramController: InstagramController;
+let tikTokController: TikTokController;
 
 // New SOLID-compliant services
 let serviceFactory: ServiceFactory;
@@ -96,9 +106,16 @@ async function initializeServices(): Promise<void> {
       STRIPE_WEBHOOK_SECRET,
     );
     apifyWebhookController = new ApifyWebhookController(APIFY_TOKEN);
+
+    // Initialize Platform Data Services first (needed by webhook controller)
+    instagramDataService = new InstagramDataService(HIKER_API_KEY);
+    tikTokDataService = new TikTokDataService(LAMATOK_ACCESS_KEY);
+
     platformConfigWebhookController = new PlatformConfigWebhookController(
       APIFY_TOKEN,
       WEBHOOK_BASE_URL,
+      instagramDataService,
+      tikTokDataService,
     );
     orchestrator = new SubscriptionOrchestrator(APIFY_TOKEN, WEBHOOK_BASE_URL);
     scheduleService = new ApifyScheduleService(APIFY_TOKEN, WEBHOOK_BASE_URL);
@@ -106,6 +123,11 @@ async function initializeServices(): Promise<void> {
     syncService = new ApifyDataSyncService(APIFY_TOKEN);
     featureExtractor = new FeatureExtractor();
     sentimentAnalyzer = new SentimentAnalyzer();
+
+    // Initialize Platform Controllers
+    instagramController = new InstagramController(instagramDataService);
+    tikTokController = new TikTokController(tikTokDataService);
+
     adminController = new AdminController(
       orchestrator,
       scheduleService,
@@ -406,6 +428,30 @@ app.get(
   },
 );
 
+// =================== PLATFORM SNAPSHOT ENDPOINTS ===================
+
+app.post(
+  "/api/instagram/snapshots",
+  async (req: Request, res: Response) => {
+    if (!instagramController) {
+      res.status(503).json({ error: "Service not ready" });
+      return;
+    }
+    await instagramController.triggerSnapshot(req, res);
+  },
+);
+
+app.post(
+  "/api/tiktok/snapshots",
+  async (req: Request, res: Response) => {
+    if (!tikTokController) {
+      res.status(503).json({ error: "Service not ready" });
+      return;
+    }
+    await tikTokController.triggerSnapshot(req, res);
+  },
+);
+
 // =================== ADMIN API ENDPOINTS ===================
 
 app.get(
@@ -540,7 +586,9 @@ async function startServer(): Promise<void> {
       console.log(`  POST   /api/admin/teams/:teamId/platforms/:platform/sync`);
       console.log(`  POST   /api/admin/teams/:teamId/schedules/refresh`);
       console.log(`  DELETE /api/admin/teams/:teamId/schedules`);
-      console.log(`  POST   /api/admin/cleanup\n`);
+      console.log(`  POST   /api/admin/cleanup`);
+      console.log(`  POST   /api/instagram/snapshots`);
+      console.log(`  POST   /api/tiktok/snapshots\n`);
 
       console.log("✨ Features:");
       console.log("  ✅ SOLID Principles Applied");

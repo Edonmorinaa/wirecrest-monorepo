@@ -16,21 +16,12 @@ import CardContent from '@mui/material/CardContent';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 
+import { HistoryDataPoint } from 'src/types/instagram-analytics';
+
 // ----------------------------------------------------------------------
 
-interface HistoryDataPoint {
-  date: string;
-  followersCount: number;
-  followersDelta: number;
-  followingCount: number;
-  mediaCount: number;
-  mediaDelta: number;
-  engagementRate: number;
-  engagementRateDelta: number;
-}
-
 interface InstagramHistoryTabProps {
-  data: HistoryDataPoint[] | null;
+  data: HistoryDataPoint[] | null | undefined;
   startDate: Date;
   endDate: Date;
 }
@@ -126,9 +117,9 @@ export function InstagramHistoryTab({ data, startDate, endDate }: InstagramHisto
       engagementRate: item?.engagementRate || 0,
       engagementRateDelta: item?.engagementRateDelta || 0
     }))
-    .sort((a, b) => 
+    .sort((a, b) =>
       // Sort by date in descending order (newest first)
-       new Date(b.date).getTime() - new Date(a.date).getTime()
+      new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
   // Pagination
@@ -143,7 +134,7 @@ export function InstagramHistoryTab({ data, startDate, endDate }: InstagramHisto
           <Typography variant="h6" sx={{ mb: 3 }}>
             Historical Data
           </Typography>
-          
+
           <TableContainer>
             <Table>
               <TableHead>

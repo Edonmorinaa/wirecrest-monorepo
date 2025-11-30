@@ -10,38 +10,20 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { CONFIG } from 'src/global-config';
 
 import { Iconify } from 'src/components/iconify';
+import { GeneralMetrics, InstagramBusinessProfile } from 'src/types/instagram-analytics';
 
 // ----------------------------------------------------------------------
 
-interface GeneralData {
-  profilePicture?: string;
-  bio?: string;
-  followersCount?: number;
-  followersDelta?: number;
-  followingCount?: number;
-  followingDelta?: number;
-  postsCount?: number;
-  postsDelta?: number;
-}
-
-interface BusinessProfile {
-  id: string;
-  username?: string;
-  fullName?: string;
-  biography?: string;
-  profilePictureUrl?: string;
-}
-
 interface InstagramGeneralInfoProps {
-  data: GeneralData | null;
-  businessProfile: BusinessProfile | null;
+  data: GeneralMetrics | null | undefined;
+  businessProfile: InstagramBusinessProfile | null | undefined;
 }
 
 export function InstagramGeneralInfo({ data, businessProfile }: InstagramGeneralInfoProps) {
   const theme = useTheme();
 
   // Handle missing or invalid data
-  if (!data) {
+  if (!data && !businessProfile) {
     return (
       <Alert severity="warning">
         <Typography variant="body2">
@@ -63,15 +45,15 @@ export function InstagramGeneralInfo({ data, businessProfile }: InstagramGeneral
   };
 
   // Safe data access with fallbacks
-  const safeData: Required<GeneralData> = {
-    profilePicture: data?.profilePicture || businessProfile?.profilePictureUrl || '',
+  const safeData = {
+    profilePicture: data?.profilePicture || '',
     bio: data?.bio || businessProfile?.biography || '',
-    followersCount: data?.followersCount || 0,
-    followersDelta: data?.followersDelta || 0,
-    followingCount: data?.followingCount || 0,
-    followingDelta: data?.followingDelta || 0,
-    postsCount: data?.postsCount || 0,
-    postsDelta: data?.postsDelta || 0
+    followersCount: data?.followers?.count ?? businessProfile?.currentFollowersCount ?? 0,
+    followersDelta: data?.followers?.delta ?? 0,
+    followingCount: data?.following?.count ?? businessProfile?.currentFollowingCount ?? 0,
+    followingDelta: data?.following?.delta ?? 0,
+    postsCount: data?.posts?.count ?? businessProfile?.currentMediaCount ?? 0,
+    postsDelta: data?.posts?.delta ?? 0
   };
 
   return (
@@ -108,7 +90,7 @@ export function InstagramGeneralInfo({ data, businessProfile }: InstagramGeneral
         <Stack spacing={2} sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Iconify icon="socials:instagram" width={72} height={72} className="" sx={{ fontSize: 72 }} />
-            
+
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }} color="text.primary">
                 {businessProfile?.fullName || businessProfile?.username || 'Instagram Profile'}
@@ -158,7 +140,7 @@ export function InstagramGeneralInfo({ data, businessProfile }: InstagramGeneral
                   Following
                 </Typography>
               </Box>
-              
+
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="h6" sx={{ color: theme.palette.common.white }}>
                   {formatNumber(safeData.postsCount)}

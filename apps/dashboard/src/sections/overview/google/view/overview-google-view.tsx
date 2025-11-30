@@ -27,6 +27,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
+import { LoadingState, ErrorState, EmptyState } from 'src/components/states';
 
 import { GoogleMap } from '../google-map';
 import { GoogleBusinessInfo } from '../google-business-info';
@@ -58,39 +59,39 @@ export function GoogleOverviewView() {
   const locationSlug = params.locationSlug as string;
 
   const { team } = useTeam(teamSlug);
-  
+
   // Get location by slug (new location-based system)
-  const { location, isLoading: locationLoading } = useLocationBySlug(teamSlug, locationSlug);
-  
+  const { location, isLoading: locationLoading, error: locationError } = useLocationBySlug(teamSlug, locationSlug);
+
   // Log location data for debugging
-  console.log('[GoogleOverviewView] Location data:', { 
-    locationSlug, 
+  console.log('[GoogleOverviewView] Location data:', {
+    locationSlug,
     location: location ? { id: location.id, name: location.name, slug: location.slug } : null,
-    locationLoading 
+    locationLoading
   });
-  
+
   // Use location-based hooks for the new system
   // Only pass locationId if it's a valid UUID
   const locationId = location?.id || '';
   const isValidLocationId = locationId && locationId.length > 20; // Basic validation
-  
-  const { profile: businessProfile } = useGoogleProfile(locationId, !!location && isValidLocationId);
+
+  const { profile: businessProfile, isLoading: profileLoading, error: profileError } = useGoogleProfile(locationId, !!location && isValidLocationId);
   const { reviews: reviewsData } = useGoogleReviews(locationId, {}, { page: 1, limit: 5 }, !!location && isValidLocationId);
   const reviews = reviewsData || [];
 
   // Get period from URL or default to '30'
   const selectedPeriod = searchParams.get('period') || '7300';
-  
+
   // Custom date picker state
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [tempFromDate, setTempFromDate] = useState<Date | null>(null);
   const [tempToDate, setTempToDate] = useState<Date | null>(null);
-  
+
   // Get custom date range from URL
   const customRange = useMemo(() => {
     const customFrom = searchParams.get('customFrom');
     const customTo = searchParams.get('customTo');
-    
+
     if (customFrom && customTo) {
       return {
         from: new Date(customFrom),
@@ -108,7 +109,7 @@ export function GoogleOverviewView() {
         endDate: customRange.to.toISOString(),
       };
     }
-    
+
     const end = new Date();
     const start = new Date();
     const days = parseInt(selectedPeriod) || 30;
@@ -120,26 +121,26 @@ export function GoogleOverviewView() {
   const updatePeriod = useCallback((newPeriod: string) => {
     const urlParams = new URLSearchParams(searchParams);
     urlParams.set('period', newPeriod);
-    
+
     // Clear custom range if switching away from custom
     if (newPeriod !== 'custom') {
       urlParams.delete('customFrom');
       urlParams.delete('customTo');
     }
-    
+
     router.replace(`?${urlParams.toString()}`, { scroll: false });
   }, [searchParams, router]);
-  
+
   // Update URL with custom range
   const updateCustomRange = useCallback((from: Date, to: Date) => {
     const urlParams = new URLSearchParams(searchParams);
     urlParams.set('period', 'custom');
     urlParams.set('customFrom', from.toISOString().split('T')[0]);
     urlParams.set('customTo', to.toISOString().split('T')[0]);
-    
+
     router.replace(`?${urlParams.toString()}`, { scroll: false });
   }, [searchParams, router]);
-  
+
   // Get all-time analytics for metric cards (20 years ago to now)
   const allTimeStart = useMemo(() => {
     const date = new Date();
@@ -176,19 +177,90 @@ export function GoogleOverviewView() {
       averageResponseTimeHours: currentAnalytics.averageResponseTimeHours,
       sentimentAnalysis: currentAnalytics.sentiment
         ? {
-            positive: currentAnalytics.sentiment.positive || 0,
-            neutral: currentAnalytics.sentiment.neutral || 0,
-            negative: currentAnalytics.sentiment.negative || 0,
-          }
+          positive: currentAnalytics.sentiment.positive || 0,
+          neutral: currentAnalytics.sentiment.neutral || 0,
+          negative: currentAnalytics.sentiment.negative || 0,
+        }
         : null,
     };
   }, [currentAnalytics]);
 
-  // Show loading state
-  if (locationLoading || !location) {
+  // 1. LOADING STATE - Show while fetching location or profile
+  if (locationLoading || (isValidLocationId && profileLoading)) {
     return (
       <DashboardContent maxWidth="xl">
-        <Typography>Loading location...</Typography>
+        <LoadingState message="Loading Google Business overview..." />
+      </DashboardContent>
+    );
+  }
+
+  // 2. LOCATION ERROR - Location not found or error fetching
+  if (locationError || !location) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <ErrorState
+          type="not-found"
+          platform="Location"
+          customMessage="The requested location could not be found. It may have been deleted or you may not have access to it."
+        />
+      </DashboardContent>
+    );
+  }
+
+  // 3. PROFILE NOT FOUND - Google Business Profile not set up
+  if (!businessProfile && !profileLoading && isValidLocationId) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <CustomBreadcrumbs
+          heading="Google Overview"
+          links={[
+            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Teams', href: paths.dashboard.teams.root },
+            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+            { name: location?.name || locationSlug, href: '#' },
+            { name: 'Google Overview', href: '#' },
+          ]}
+          sx={{ mb: 3 }}
+        />
+        <EmptyState
+          icon="solar:google-bold"
+          title="Google Business Profile Not Set Up"
+          message="Connect your Google Business Profile to start tracking reviews, analytics, and customer engagement."
+          action={
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<Iconify icon="solar:add-circle-bold" />}
+              sx={{ mt: 2 }}
+            >
+              Connect Google Business
+            </Button>
+          }
+        />
+      </DashboardContent>
+    );
+  }
+
+  // 4. PROFILE ERROR - Show error but allow retry
+  if (profileError) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <CustomBreadcrumbs
+          heading="Google Overview"
+          links={[
+            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Teams', href: paths.dashboard.teams.root },
+            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+            { name: location?.name || locationSlug, href: '#' },
+            { name: 'Google Overview', href: '#' },
+          ]}
+          sx={{ mb: 3 }}
+        />
+        <ErrorState
+          type="network"
+          platform="Google Business"
+          onRetry={() => window.location.reload()}
+        />
       </DashboardContent>
     );
   }
@@ -199,41 +271,41 @@ export function GoogleOverviewView() {
 
 
         <Grid size={{ xs: 12 }} >
-        <CustomBreadcrumbs
-          heading="Google Overview"
-          links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Teams', href: paths.dashboard.teams.root },
-            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
-            { name: location?.name || locationSlug, href: '#' },
-            { name: 'Google Overview', href: '#' },
-          ]}
-          action={
-            businessProfile?.formattedAddress && (
-              <Button
-                variant="contained"
-                startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} />}
-                target="_blank"
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessProfile.formattedAddress)}`}
-              >
-                View on Maps
-              </Button>
-            )
-          }
-        />
+          <CustomBreadcrumbs
+            heading="Google Overview"
+            links={[
+              { name: 'Dashboard', href: paths.dashboard.root },
+              { name: 'Teams', href: paths.dashboard.teams.root },
+              { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+              { name: location?.name || locationSlug, href: '#' },
+              { name: 'Google Overview', href: '#' },
+            ]}
+            action={
+              businessProfile?.formattedAddress && (
+                <Button
+                  variant="contained"
+                  startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} />}
+                  target="_blank"
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessProfile.formattedAddress)}`}
+                >
+                  View on Maps
+                </Button>
+              )
+            }
+          />
         </Grid>
 
         {/* 1. HEADER & OVERVIEW SECTION */}
         {/* Google Business Header */}
         <Grid size={{ xs: 12 }}>
-        <GoogleOverviewWelcome 
-          displayName={businessProfile?.displayName || location?.name || ""} 
-          averageRating={currentAnalytics?.averageRating || 0} 
-          totalReviews={currentAnalytics?.reviewCount || 0}
-          isLoading={isLoadingAnalytics}
-          sx={{}}
-        />
-      </Grid>
+          <GoogleOverviewWelcome
+            displayName={businessProfile?.displayName || location?.name || ""}
+            averageRating={currentAnalytics?.averageRating || 0}
+            totalReviews={currentAnalytics?.reviewCount || 0}
+            isLoading={isLoadingAnalytics}
+            sx={{}}
+          />
+        </Grid>
 
         {/* Time Period Selector and Key Metrics */}
         <Grid size={{ xs: 12 }}>
@@ -296,11 +368,11 @@ export function GoogleOverviewView() {
                     )}
                   </Stack>
 
-                  <GoogleMetricsOverview 
-                    metrics={displayMetrics} 
+                  <GoogleMetricsOverview
+                    metrics={displayMetrics}
                     periodicalMetrics={[]}
                     currentPeriodKey="all-time"
-                      isLoading={isLoadingAnalytics}
+                    isLoading={isLoadingAnalytics}
                   />
                 </Box>
               ))}
@@ -311,16 +383,16 @@ export function GoogleOverviewView() {
         {/* 2. ANALYTICS & CHARTS SECTION */}
         {/* Rating Distribution - Full Width */}
         <Grid size={{ xs: 12 }}>
-          <GoogleRatingDistribution 
-            businessProfile={businessProfile} 
-            currentPeriodMetrics={{ ratingDistribution: currentAnalytics?.ratingDistribution }} 
+          <GoogleRatingDistribution
+            businessProfile={businessProfile}
+            currentPeriodMetrics={{ ratingDistribution: currentAnalytics?.ratingDistribution }}
             sx={{}}
           />
         </Grid>
 
         {/* Sentiment Analysis and Google Map - Side by Side */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <GoogleSentimentAnalysis 
+          <GoogleSentimentAnalysis
             metrics={displayMetrics}
             title="Sentiment Analysis"
             subheader="Distribution of review sentiments"

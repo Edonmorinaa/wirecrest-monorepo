@@ -74,6 +74,7 @@ export const getLocationReviewsSchema = z.object({
   locationId: z.string().uuid('Invalid location ID'),
   platform: platformEnum,
   filters: z.object({
+    // Common filters
     rating: z.union([z.number().int().min(1).max(5), z.array(z.number().int().min(1).max(5))]).optional(),
     sentiment: z.enum(['positive', 'negative', 'neutral']).optional(),
     hasResponse: z.boolean().optional(),
@@ -84,6 +85,31 @@ export const getLocationReviewsSchema = z.object({
     endDate: z.string().datetime().optional(),
     isRead: z.boolean().optional(),
     isImportant: z.boolean().optional(),
+
+    // Facebook-specific filters
+    isRecommended: z.boolean().optional(),
+    hasLikes: z.boolean().optional(),
+    hasComments: z.boolean().optional(),
+    hasPhotos: z.boolean().optional(),
+    hasTags: z.boolean().optional(),
+    minLikes: z.number().int().min(0).optional(),
+    maxLikes: z.number().int().min(0).optional(),
+    minComments: z.number().int().min(0).optional(),
+    maxComments: z.number().int().min(0).optional(),
+
+    // TripAdvisor-specific filters
+    tripType: z.union([
+      z.enum(['FAMILY', 'COUPLES', 'SOLO', 'BUSINESS', 'FRIENDS']),
+      z.array(z.enum(['FAMILY', 'COUPLES', 'SOLO', 'BUSINESS', 'FRIENDS']))
+    ]).optional(),
+    helpfulVotes: z.boolean().optional(),
+
+    // Booking-specific filters
+    guestType: z.string().optional(),
+    lengthOfStay: z.enum(['short', 'medium', 'long']).optional(),
+    nationality: z.string().optional(),
+    roomType: z.string().optional(),
+    isVerifiedStay: z.boolean().optional(),
   }).optional(),
   pagination: z.object({
     page: z.number().int().positive().optional().default(1),

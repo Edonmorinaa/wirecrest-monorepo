@@ -8,7 +8,7 @@ import { MarketPlatform } from "@prisma/client";
  */
 export interface TikTokSnapshot {
   id: string;
-  teamId: string;
+  locationId: string;
   platform: MarketPlatform;
   snapshotDate: Date;
   followerCount: number;
@@ -22,32 +22,32 @@ export interface TikTokSnapshot {
 
 export type CreateTikTokSnapshotInput = Omit<
   TikTokSnapshot,
-  "id" | "createdAt" | "updatedAt" | "teamId" | "platform"
+  "id" | "createdAt" | "updatedAt" | "locationId" | "platform"
 >;
 
 export type UpdateTikTokSnapshotInput = Partial<
-  Omit<TikTokSnapshot, "id" | "teamId" | "platform" | "createdAt">
+  Omit<TikTokSnapshot, "id" | "locationId" | "platform" | "createdAt">
 >;
 
 export class TikTokReviewRepository {
   /**
-   * Get snapshots by team ID and platform
+   * Get snapshots by location ID and platform
    */
-  async getByTeamId(
-    teamId: string,
+  async getByLocationId(
+    locationId: string,
     platform: MarketPlatform,
   ): Promise<TikTokSnapshot[]> {
     try {
       console.log(
-        `[TikTokReviewRepository] Getting snapshots for team ${teamId}`,
+        `[TikTokReviewRepository] Getting snapshots for location ${locationId}`,
       );
 
       // This would typically query the database
       // For now, return a mock response
       return [
         {
-          id: `tiktok-snapshot-${teamId}-1`,
-          teamId,
+          id: `tiktok-snapshot-${locationId}-1`,
+          locationId,
           platform,
           snapshotDate: new Date(),
           followerCount: 1000,
@@ -88,19 +88,19 @@ export class TikTokReviewRepository {
    * Create snapshot
    */
   async create(
-    teamId: string,
+    locationId: string,
     platform: MarketPlatform,
     data: CreateTikTokSnapshotInput,
   ): Promise<TikTokSnapshot> {
     try {
       console.log(
-        `[TikTokReviewRepository] Creating snapshot for team ${teamId}`,
+        `[TikTokReviewRepository] Creating snapshot for location ${locationId}`,
       );
 
       // This would typically insert into the database
       const snapshot: TikTokSnapshot = {
-        id: `tiktok-snapshot-${teamId}-${Date.now()}`,
-        teamId,
+        id: `tiktok-snapshot-${locationId}-${Date.now()}`,
+        locationId,
         platform,
         snapshotDate: data.snapshotDate,
         followerCount: data.followerCount,
@@ -131,7 +131,7 @@ export class TikTokReviewRepository {
       // This would typically update the database
       const snapshot: TikTokSnapshot = {
         id: snapshotId,
-        teamId: "mock-team",
+        locationId: "mock-location",
         platform: MarketPlatform.GOOGLE_MAPS,
         snapshotDate: data.snapshotDate ?? new Date(),
         followerCount: data.followerCount ?? 0,

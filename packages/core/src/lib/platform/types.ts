@@ -3,14 +3,15 @@
  * Business logic for supported platforms and their configurations
  */
 
-export type PlatformType = 
+export type PlatformType =
   | 'GOOGLE'
-  | 'FACEBOOK' 
+  | 'FACEBOOK'
   | 'TRIPADVISOR'
   | 'BOOKING'
-  | 'YELP';
+  | 'YELP'
+  | 'TIKTOK';
 
-export type MarketPlatform = 
+export type MarketPlatform =
   | 'GOOGLE_MAPS'
   | 'FACEBOOK'
   | 'TRIPADVISOR'
@@ -20,14 +21,14 @@ export type MarketPlatform =
 
 export type RatingType = 'stars' | 'numeric' | 'recommendation';
 
-export type BusinessCreationStep = 
+export type BusinessCreationStep =
   | 'IDENTIFIER_SETUP'
   | 'PROFILE_CREATION'
   | 'REVIEWS_FETCH'
   | 'ANALYTICS_SETUP'
   | 'COMPLETED';
 
-export type BusinessCreationStatus = 
+export type BusinessCreationStatus =
   | 'not_started'
   | 'in_progress'
   | 'completed'

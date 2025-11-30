@@ -10,29 +10,27 @@ import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
 
-import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
 
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function InstagramPerformanceMetrics() {
-  const { businessProfile, isLoading } = useInstagramBusinessProfile();
-
-  if (isLoading || !businessProfile) {
+export function InstagramPerformanceMetrics({ profile }) {
+  if (!profile) {
     return null;
   }
 
-  const accountAge = businessProfile.createdAt 
-    ? Math.floor((Date.now() - new Date(businessProfile.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+  const accountAge = profile.createdAt
+    ? Math.floor((Date.now() - new Date(profile.createdAt).getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
-  const trackingDuration = businessProfile.firstSnapshotAt 
-    ? Math.floor((Date.now() - new Date(businessProfile.firstSnapshotAt).getTime()) / (1000 * 60 * 60 * 24))
+  const trackingDuration = profile.firstSnapshotAt
+    ? Math.floor((Date.now() - new Date(profile.firstSnapshotAt).getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
-  const snapshotFrequency = businessProfile.totalSnapshots > 1 && businessProfile.firstSnapshotAt
-    ? (businessProfile.totalSnapshots / Math.max(1, Math.floor((Date.now() - new Date(businessProfile.firstSnapshotAt).getTime()) / (1000 * 60 * 60 * 24)))).toFixed(1)
+  const snapshotFrequency = profile.totalSnapshots > 1 && profile.firstSnapshotAt
+    ? (profile.totalSnapshots / Math.max(1, Math.floor((Date.now() - new Date(profile.firstSnapshotAt).getTime()) / (1000 * 60 * 60 * 24)))).toFixed(1)
     : 'Daily';
 
   return (
@@ -57,7 +55,7 @@ export function InstagramPerformanceMetrics() {
           </Button>
         }
       />
-      
+
       <CardContent>
         <Stack spacing={2}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -84,8 +82,8 @@ export function InstagramPerformanceMetrics() {
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="body2">Account Status</Typography>
             <Chip
-              label={businessProfile.isActive ? 'Active' : 'Inactive'}
-              color={businessProfile.isActive ? 'success' : 'default'}
+              label={profile.isActive ? 'Active' : 'Inactive'}
+              color={profile.isActive ? 'success' : 'default'}
               size="small"
             />
           </Stack>
@@ -93,8 +91,8 @@ export function InstagramPerformanceMetrics() {
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="body2">Last Update</Typography>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-              {businessProfile.updatedAt 
-                ? format(new Date(businessProfile.updatedAt), 'MMM dd, HH:mm')
+              {profile.updatedAt
+                ? format(new Date(profile.updatedAt), 'MMM dd, HH:mm')
                 : 'Never'}
             </Typography>
           </Stack>
@@ -102,15 +100,15 @@ export function InstagramPerformanceMetrics() {
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="body2">Total Snapshots</Typography>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-              {businessProfile.totalSnapshots.toLocaleString()}
+              {profile.totalSnapshots.toLocaleString()}
             </Typography>
           </Stack>
 
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="body2">Last Snapshot</Typography>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-              {businessProfile.lastSnapshotAt 
-                ? format(new Date(businessProfile.lastSnapshotAt), 'MMM dd, HH:mm')
+              {profile.lastSnapshotAt
+                ? format(new Date(profile.lastSnapshotAt), 'MMM dd, HH:mm')
                 : 'Never'}
             </Typography>
           </Stack>

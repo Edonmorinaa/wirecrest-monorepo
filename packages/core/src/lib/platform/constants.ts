@@ -66,6 +66,17 @@ export const PLATFORM_CONFIGS: Record<PlatformType, PlatformConfig> = {
     buttonText: 'View on Yelp',
     buttonIcon: 'eva:external-link-fill',
   },
+  TIKTOK: {
+    name: 'TikTok',
+    icon: 'logos:tiktok',
+    ratingType: 'stars',
+    maxRating: 5,
+    hasEngagementMetrics: true,
+    hasVisitedIn: false,
+    hasReviewerStats: false,
+    buttonText: 'View on TikTok',
+    buttonIcon: 'eva:external-link-fill',
+  },
 };
 
 // Platform display configurations for admin interface
@@ -110,6 +121,14 @@ export const PLATFORM_DISPLAY_CONFIGS: Record<PlatformType, PlatformDisplayConfi
     identifierPlaceholder: 'https://yelp.com/...',
     identifierPrefix: '',
   },
+  TIKTOK: {
+    name: 'TikTok Business',
+    icon: 'logos:tiktok',
+    color: '#000000',
+    identifierLabel: 'TikTok Username',
+    identifierPlaceholder: '@username',
+    identifierPrefix: '@',
+  },
 };
 
 // Extended platform display configurations for social media platforms
@@ -139,6 +158,7 @@ export const PLATFORM_MAPPING: Record<PlatformType, string> = {
   TRIPADVISOR: 'tripadvisor',
   BOOKING: 'booking',
   YELP: 'yelp',
+  TIKTOK: 'tiktok',
 };
 
 // Supported platforms list
@@ -148,12 +168,13 @@ export const SUPPORTED_PLATFORMS: PlatformType[] = [
   'TRIPADVISOR',
   'BOOKING',
   'YELP',
+  'TIKTOK',
 ];
 
 // Platform categories
 export const PLATFORM_CATEGORIES = {
   REVIEW_PLATFORMS: ['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING', 'YELP'],
-  BUSINESS_PLATFORMS: ['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING', 'YELP'],
+  BUSINESS_PLATFORMS: ['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING', 'YELP', 'TIKTOK'],
 } as const;
 
 // Platform features

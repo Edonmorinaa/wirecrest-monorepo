@@ -278,6 +278,18 @@ export class BusinessProfileCreationService {
           locationId,
           identifier,
         );
+      } else if (platform === MarketPlatform.INSTAGRAM) {
+        return await this.createInstagramBusinessProfile(
+          teamId,
+          locationId,
+          identifier,
+        );
+      } else if (platform === MarketPlatform.TIKTOK) {
+        return await this.createTikTokBusinessProfile(
+          teamId,
+          locationId,
+          identifier,
+        );
       } else {
         return {
           success: false,
@@ -1407,6 +1419,118 @@ export class BusinessProfileCreationService {
         100,
       );
 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Create Instagram Business Profile
+   * Note: This only creates the profile record. Data fetching is handled by InstagramDataService.takeDailySnapshot
+   */
+  private async createInstagramBusinessProfile(
+    teamId: string,
+    locationId: string,
+    username: string,
+  ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
+    try {
+      console.log(`[Instagram] Creating business profile for @${username}`);
+
+      // Check if profile already exists for this location
+      const existingProfile = await prisma.instagramBusinessProfile.findUnique({
+        where: { locationId },
+        select: { id: true, username: true },
+      });
+
+      if (existingProfile) {
+        console.log(`[Instagram] Profile already exists: ${existingProfile.id}`);
+        return {
+          success: true,
+          businessProfileId: existingProfile.id,
+        };
+      }
+
+      // Create new Instagram profile (minimal data)
+      // userId and profileUrl will be updated by first snapshot
+      const cleanUsername = username.replace('@', '');
+      const profile = await prisma.instagramBusinessProfile.create({
+        data: {
+          businessLocation: { connect: { id: locationId } },
+          username: cleanUsername,
+          userId: `temp_${cleanUsername}_${Date.now()}`, // Temporary, will be updated by snapshot
+          profileUrl: `https://www.instagram.com/${cleanUsername}/`, // Will be updated by snapshot
+          // Other fields will be populated by first snapshot
+        },
+      });
+
+      console.log(`[Instagram] Profile created: ${profile.id}`);
+
+      marketIdentifierEvents.emit("identifierCreated", {
+        teamId,
+        platform: MarketPlatform.INSTAGRAM,
+        identifier: username,
+        businessProfileId: profile.id,
+      });
+
+      return { success: true, businessProfileId: profile.id };
+    } catch (error) {
+      console.error("[Instagram] Error creating profile:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Create TikTok Business Profile
+   * Note: This only creates the profile record. Data fetching is handled by TikTokDataService.takeDailySnapshot
+   */
+  private async createTikTokBusinessProfile(
+    teamId: string,
+    locationId: string,
+    username: string,
+  ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
+    try {
+      console.log(`[TikTok] Creating business profile for @${username}`);
+
+      // Check if profile already exists for this location
+      const existingProfile = await prisma.tikTokBusinessProfile.findUnique({
+        where: { locationId },
+        select: { id: true, username: true },
+      });
+
+      if (existingProfile) {
+        console.log(`[TikTok] Profile already exists: ${existingProfile.id}`);
+        return {
+          success: true,
+          businessProfileId: existingProfile.id,
+        };
+      }
+
+      // Create new TikTok profile (minimal data)
+      const profile = await prisma.tikTokBusinessProfile.create({
+        data: {
+          businessLocation: { connect: { id: locationId } },
+          username: username.replace('@', ''), // Remove @ if present
+          // Other fields will be populated by first snapshot
+        },
+      });
+
+      console.log(`[TikTok] Profile created: ${profile.id}`);
+
+      marketIdentifierEvents.emit("identifierCreated", {
+        teamId,
+        platform: MarketPlatform.TIKTOK,
+        identifier: username,
+        businessProfileId: profile.id,
+      });
+
+      return { success: true, businessProfileId: profile.id };
+    } catch (error) {
+      console.error("[TikTok] Error creating profile:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",

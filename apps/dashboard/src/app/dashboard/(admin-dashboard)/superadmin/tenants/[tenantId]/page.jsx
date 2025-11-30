@@ -144,7 +144,7 @@ export default function SuperAdminTenantDetailPage() {
 
     // Extract identifiers from location platform data
     const newIdentifiers = {};
-    
+
     if (locationPlatformData?.platforms) {
       Object.entries(locationPlatformData.platforms).forEach(([key, platformData]) => {
         const platform = key.toUpperCase();
@@ -153,7 +153,7 @@ export default function SuperAdminTenantDetailPage() {
         }
       });
     }
-    
+
     setMarketIdentifiers(prev => ({
       ...prev,
       ...newIdentifiers,
@@ -164,15 +164,15 @@ export default function SuperAdminTenantDetailPage() {
   // Keep social platform identifiers in sync
   useEffect(() => {
     if (!socialPlatforms) return;
-    
+
     const socialIdentifiers = {};
     if (socialPlatforms.instagram?.identifier) {
       socialIdentifiers.INSTAGRAM = socialPlatforms.instagram.identifier;
     }
     if (socialPlatforms.tiktok?.identifier) {
       socialIdentifiers.TIKTOK = socialPlatforms.tiktok.identifier;
-        }
-    
+    }
+
     setMarketIdentifiers(prev => ({
       ...prev,
       ...socialIdentifiers,
@@ -201,7 +201,7 @@ export default function SuperAdminTenantDetailPage() {
 
     // Business platforms require a selected location
     const isBusinessPlatform = ['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING'].includes(platform);
-    
+
     if (isBusinessPlatform && !selectedLocationId) {
       alert('Please select a location first to configure business platforms.');
       return;
@@ -235,7 +235,7 @@ export default function SuperAdminTenantDetailPage() {
       // For business platforms, require locationId
       const platformKey = PLATFORM_MAPPING[platform] || platform.toUpperCase();
       const isBusinessPlatform = ['GOOGLE_MAPS', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING'].includes(platformKey);
-      
+
       if (isBusinessPlatform && !selectedLocationId) {
         alert('Please select a location first');
         return;
@@ -271,7 +271,7 @@ export default function SuperAdminTenantDetailPage() {
       await deletePlatformData({
         teamId: tenantId,
         locationId: selectedLocationId,
-        platform:  deletePlatform
+        platform: deletePlatform
       });
       setMarketIdentifiers(prev => ({ ...prev, [deletePlatform]: '' }));
       await refresh();
@@ -299,15 +299,15 @@ export default function SuperAdminTenantDetailPage() {
     if (!platforms) return 'not_started';
     const platformKey = platform.toLowerCase();
     const platformData = platforms[platformKey];
-    
+
     // Check if we have an identifier saved for this platform
     const hasIdentifier = !!marketIdentifiers[platform];
-    
+
     // If we have identifier but no profile, show identifier_set
     if (hasIdentifier && !platformData?.profile) {
       return 'identifier_set';
     }
-    
+
     // Otherwise use the status from platform data
     return platformData?.status || 'not_started';
   }, [platforms, marketIdentifiers]);
@@ -316,15 +316,15 @@ export default function SuperAdminTenantDetailPage() {
     if (!socialPlatforms) return 'not_started';
     const platformKey = platform.toLowerCase();
     const platformData = socialPlatforms[platformKey];
-    
+
     // Check if we have an identifier saved
     const hasIdentifier = !!marketIdentifiers[platform];
-    
+
     // If we have identifier but no profile, show identifier_set
     if (hasIdentifier && !platformData?.profile) {
       return 'identifier_set';
     }
-    
+
     // Otherwise use the status from platform data
     return platformData?.status || 'not_started';
   }, [socialPlatforms, marketIdentifiers]);
@@ -369,19 +369,19 @@ export default function SuperAdminTenantDetailPage() {
   if (isLoading) {
     return (
       // <RoleGuard requireRole={SuperRole.ADMIN}>
-        <DashboardContent maxWidth={false}>
-          <Stack spacing={3}>
-            <Skeleton variant="text" width={300} height={50} />
-            <Grid container spacing={3}>
-              {[1, 2, 3, 4].map((i) => (
-                <Grid item xs={12} sm={6} md={3} key={i}>
-                  <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
-                </Grid>
-              ))}
-            </Grid>
-            <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 2 }} />
-          </Stack>
-        </DashboardContent>
+      <DashboardContent maxWidth={false}>
+        <Stack spacing={3}>
+          <Skeleton variant="text" width={300} height={50} />
+          <Grid container spacing={3}>
+            {[1, 2, 3, 4].map((i) => (
+              <Grid item xs={12} sm={6} md={3} key={i}>
+                <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
+              </Grid>
+            ))}
+          </Grid>
+          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 2 }} />
+        </Stack>
+      </DashboardContent>
       // </RoleGuard>
     );
   }
@@ -390,236 +390,225 @@ export default function SuperAdminTenantDetailPage() {
   if (error || !tenant) {
     return (
       // <RoleGuard requireRole={SuperRole.ADMIN}>
-        <DashboardContent maxWidth={false}>
-          <Alert severity="error" sx={{ borderRadius: 2 }}>
-            <AlertTitle>Error</AlertTitle>
-            {error?.message || 'Tenant not found'}
-          </Alert>
-        </DashboardContent>
+      <DashboardContent maxWidth={false}>
+        <Alert severity="error" sx={{ borderRadius: 2 }}>
+          <AlertTitle>Error</AlertTitle>
+          {error?.message || 'Tenant not found'}
+        </Alert>
+      </DashboardContent>
       // </RoleGuard>
     );
   }
 
   return (
     //  <RoleGuard requireRole={SuperRole.ADMIN}>
-      <DashboardContent maxWidth="xl">
-        <Grid container spacing={3}>
-          {/* Breadcrumbs */}
-          <Grid size={{ xs: 12 }}>
-            <CustomBreadcrumbs
-              heading={tenant.name}
-              links={[
-                { name: 'Dashboard', href: '/dashboard/superadmin' },
-                { name: 'Tenants', href: '/tenants' },
-                { name: tenant.name },
-              ]}
-              sx={{ mb: 3 }}
-            />
-          </Grid>
+    <DashboardContent maxWidth="xl">
+      <Grid container spacing={3}>
+        {/* Breadcrumbs */}
+        <Grid size={{ xs: 12 }}>
+          <CustomBreadcrumbs
+            heading={tenant.name}
+            links={[
+              { name: 'Dashboard', href: '/dashboard/superadmin' },
+              { name: 'Tenants', href: '/tenants' },
+              { name: tenant.name },
+            ]}
+            sx={{ mb: 3 }}
+          />
+        </Grid>
 
-          {/* Header */}
-          <Grid size={{ xs: 12 }}>
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              alignItems={{ xs: 'flex-start', sm: 'center' }}
-              justifyContent="space-between"
-              spacing={2}
-              sx={{ mb: 4 }}
-            >
-              <Box>
-                <Typography variant="h4" gutterBottom>
-                  {tenant.name}
+        {/* Header */}
+        <Grid size={{ xs: 12 }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            justifyContent="space-between"
+            spacing={2}
+            sx={{ mb: 4 }}
+          >
+            <Box>
+              <Typography variant="h4" gutterBottom>
+                {tenant.name}
+              </Typography>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Iconify icon="solar:link-bold" width={16} sx={{ color: 'text.secondary' }} />
+                <Typography variant="body2" color="text.secondary">
+                  @{tenant.slug}
                 </Typography>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Iconify icon="solar:link-bold" width={16} sx={{ color: 'text.secondary' }} />
+              </Stack>
+            </Box>
+
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <LocationSelector
+                locations={locations}
+                selectedLocation={selectedLocation}
+                onLocationChange={handleLocationChange}
+                onAddLocation={() => {
+                  // TODO: Implement add location modal/page
+                  console.log('Add location clicked');
+                }}
+                isLoading={isLoading}
+              />
+
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+              <Button
+                variant="outlined"
+                startIcon={<Iconify icon="solar:arrow-left-bold" />}
+                onClick={() => router.back()}
+              >
+                Back
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Iconify icon="solar:refresh-bold" />}
+                onClick={() => refresh()}
+              >
+                Refresh
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<Iconify icon="solar:settings-bold" />}
+                onClick={() => router.push(`/tenants/${tenantId}/custom-plan`)}
+              >
+                Manage Plan
+              </Button>
+            </Stack>
+          </Stack>
+        </Grid>
+
+        {/* Stats Cards */}
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <StatsCard
+            title="Members"
+            value={tenant.members?.length || 0}
+            subtitle="Team members"
+            icon="solar:users-group-rounded-bold"
+            color="primary"
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <StatsCard
+            title="Reviews"
+            value={stats.totalReviews}
+            subtitle={selectedLocation ? `From ${selectedLocation.name}` : 'Total reviews'}
+            icon="solar:star-bold"
+            color="warning"
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <StatsCard
+            title="Progress"
+            value={`${Math.round(stats.completionPercentage)}%`}
+            subtitle="Setup completion"
+            icon="solar:chart-bold"
+            color="success"
+            showProgress
+            progressValue={stats.completionPercentage}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <StatsCard
+            title="Active Tasks"
+            value={stats.activeTasksCount}
+            subtitle="In progress"
+            icon="solar:pulse-bold"
+            color="info"
+          />
+        </Grid>
+
+        {/* Tabs */}
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ borderRadius: 2 }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
+                <Tab
+                  label="Platform Setup"
+                  icon={<Iconify icon="solar:widget-5-bold" />}
+                  iconPosition="start"
+                />
+                <Tab
+                  label={`Members (${tenant.members?.length || 0})`}
+                  icon={<Iconify icon="solar:users-group-rounded-bold" />}
+                  iconPosition="start"
+                />
+                <Tab
+                  label="Activity"
+                  icon={<Iconify icon="solar:history-bold" />}
+                  iconPosition="start"
+                />
+              </Tabs>
+            </Box>
+
+            {/* Platform Setup Tab */}
+            <TabPanel value={tabValue} index={0}>
+              <Box sx={{ p: 3 }}>
+                {/* Social Platforms Section (Team-level) */}
+                <Stack spacing={2} sx={{ mb: 4 }}>
+                  <Typography variant="h6">Social Media Platforms</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    @{tenant.slug}
+                    Team-level social media integrations for {tenant.name}
                   </Typography>
                 </Stack>
-              </Box>
 
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <LocationSelector
-                  locations={locations}
-                  selectedLocation={selectedLocation}
-                  onLocationChange={handleLocationChange}
-                  onAddLocation={() => {
-                    // TODO: Implement add location modal/page
-                    console.log('Add location clicked');
-                  }}
-                  isLoading={isLoading}
-                />
-                
-                <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-                
-                <Button
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:arrow-left-bold" />}
-                  onClick={() => router.back()}
-                >
-                  Back
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:refresh-bold" />}
-                  onClick={() => refresh()}
-                >
-                  Refresh
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<Iconify icon="solar:settings-bold" />}
-                  onClick={() => router.push(`/tenants/${tenantId}/custom-plan`)}
-                >
-                  Manage Plan
-                </Button>
-              </Stack>
-            </Stack>
-          </Grid>
-
-          {/* Stats Cards */}
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <StatsCard
-              title="Members"
-              value={tenant.members?.length || 0}
-              subtitle="Team members"
-              icon="solar:users-group-rounded-bold"
-              color="primary"
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <StatsCard
-              title="Reviews"
-              value={stats.totalReviews}
-              subtitle={selectedLocation ? `From ${selectedLocation.name}` : 'Total reviews'}
-              icon="solar:star-bold"
-              color="warning"
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <StatsCard
-              title="Progress"
-              value={`${Math.round(stats.completionPercentage)}%`}
-              subtitle="Setup completion"
-              icon="solar:chart-bold"
-              color="success"
-              showProgress
-              progressValue={stats.completionPercentage}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <StatsCard
-              title="Active Tasks"
-              value={stats.activeTasksCount}
-              subtitle="In progress"
-              icon="solar:pulse-bold"
-              color="info"
-            />
-          </Grid>
-
-          {/* Tabs */}
-          <Grid size={{ xs: 12 }}>
-            <Card sx={{ borderRadius: 2 }}>
-              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
-                  <Tab
-                    label="Platform Setup"
-                    icon={<Iconify icon="solar:widget-5-bold" />}
-                    iconPosition="start"
-                  />
-                  <Tab
-                    label={`Members (${tenant.members?.length || 0})`}
-                    icon={<Iconify icon="solar:users-group-rounded-bold" />}
-                    iconPosition="start"
-                  />
-                  <Tab
-                    label="Activity"
-                    icon={<Iconify icon="solar:history-bold" />}
-                    iconPosition="start"
-                  />
-                </Tabs>
-              </Box>
-
-              {/* Platform Setup Tab */}
-              <TabPanel value={tabValue} index={0}>
-                <Box sx={{ p: 3 }}>
-                  {/* Social Platforms Section (Team-level) */}
-                  <Stack spacing={2} sx={{ mb: 4 }}>
-                    <Typography variant="h6">Social Media Platforms</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Team-level social media integrations for {tenant.name}
-                    </Typography>
-                  </Stack>
-
-                  <Grid container spacing={3} sx={{ mb: 6 }}>
-                  {/* Instagram Card (Featured) */}
-                    <Grid size={{ xs: 12 }} sx={{ mb: 2 }}>
-                    <InstagramCard
+                {/* <Grid container> */}
+                {/* <InstagramCard
+                    identifier={marketIdentifiers.INSTAGRAM || ''}
+                    status={getSocialPlatformStatus('INSTAGRAM')}
+                    platformData={socialPlatforms?.instagram}
+                    currentStepMessage={getSocialPlatformCurrentStepMessage('INSTAGRAM')}
+                    loading={platformLoadingStates.INSTAGRAM || false}
+                    onIdentifierChange={handleIdentifierChange}
+                    onSave={handleSaveIdentifier}
+                    onAction={handlePlatformAction}
+                    onRefresh={refresh}
+                  /> */}
+                {/* <Grid size={{ xs: 12, md: 6 }}>
+                    <PlatformCard
+                      platform="INSTAGRAM"
+                      config={socialPlatformConfig.INSTAGRAM}
                       identifier={marketIdentifiers.INSTAGRAM || ''}
-                        status={getSocialPlatformStatus('INSTAGRAM')}
-                        platformData={socialPlatforms?.instagram}
-                        currentStepMessage={getSocialPlatformCurrentStepMessage('INSTAGRAM')}
-                      loading={platformLoadingStates.INSTAGRAM || false}
+                      status={getSocialPlatformStatus('INSTAGRAM')}
+                      syncStatus={getPlatformSyncStatus('instagram')}
+                      platformData={socialPlatforms?.instagram}
+                      currentStepMessage={getSocialPlatformCurrentStepMessage('INSTAGRAM')}
+                      loading={platformLoadingStates.instagram || false}
+                      isLoadingData={isLoading}
                       onIdentifierChange={handleIdentifierChange}
                       onSave={handleSaveIdentifier}
                       onAction={handlePlatformAction}
-                      onRefresh={refresh}
+                      onMenuOpen={handleMenuOpen}
                     />
-                  </Grid>
+                  </Grid> */}
 
-                    {/* TikTok Card */}
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <PlatformCard
-                        platform="TIKTOK"
-                        config={socialPlatformConfig.TIKTOK}
-                        identifier={marketIdentifiers.TIKTOK || ''}
-                        status={getSocialPlatformStatus('TIKTOK')}
-                        syncStatus={getPlatformSyncStatus('tiktok')}
-                        platformData={socialPlatforms?.tiktok}
-                        currentStepMessage={getSocialPlatformCurrentStepMessage('TIKTOK')}
-                        loading={platformLoadingStates.TIKTOK || false}
-                        isLoadingData={isLoading}
-                        onIdentifierChange={handleIdentifierChange}
-                        onSave={handleSaveIdentifier}
-                        onAction={handlePlatformAction}
-                        onMenuOpen={handleMenuOpen}
-                      />
-                    </Grid>
-                  </Grid>
-
-                  <Divider sx={{ my: 4 }} />
-
-                  {/* Business Platforms Section (Location-level) */}
-                  <Stack spacing={2} sx={{ mb: 4 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                      <Box>
-                        <Typography variant="h6">Business Platforms</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Location-specific business platform integrations
-                          {selectedLocation && ` for ${selectedLocation.name}`}
-                        </Typography>
-                      </Box>
-                      
-                      {selectedLocation && (
-                        <Chip
-                          icon={<Iconify icon="mdi:map-marker" />}
-                          label={selectedLocation.name}
-                          color="primary"
-                          variant="outlined"
-                        />
-                      )}
-                    </Stack>
-                  </Stack>
-
-                  {selectedLocation ? (
+                {/* TikTok Card */}
+                {/* <Grid size={{ xs: 12, md: 6 }}>
+                    <PlatformCard
+                      platform="TIKTOK"
+                      config={socialPlatformConfig.TIKTOK}
+                      identifier={marketIdentifiers.TIKTOK || ''}
+                      status={getSocialPlatformStatus('TIKTOK')}
+                      syncStatus={getPlatformSyncStatus('tiktok')}
+                      platformData={socialPlatforms?.tiktok}
+                      currentStepMessage={getSocialPlatformCurrentStepMessage('TIKTOK')}
+                      loading={platformLoadingStates.TIKTOK || false}
+                      isLoadingData={isLoading}
+                      onIdentifierChange={handleIdentifierChange}
+                      onSave={handleSaveIdentifier}
+                      onAction={handlePlatformAction}
+                      onMenuOpen={handleMenuOpen}
+                    /> */}
+                {/* </Grid> */}
+                {/* </Grid> */}
+                {selectedLocation ? (
                   <Grid container spacing={3}>
-                      {['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING'].map((platform) => {
+                    {['INSTAGRAM', 'TIKTOK'].map((platform) => {
                       const platformKey = PLATFORM_MAPPING[platform] || platform;
                       return (
                         <Grid size={{ xs: 12, md: 6 }} key={platform}>
                           <PlatformCard
                             platform={platform}
-                              config={platformConfig[platform]}
+                            config={socialPlatformConfig[platform]}
                             identifier={marketIdentifiers[platform] || ''}
                             status={getPlatformStatus(platform)}
                             syncStatus={getPlatformSyncStatus(platformKey.toLowerCase())}
@@ -636,86 +625,144 @@ export default function SuperAdminTenantDetailPage() {
                       );
                     })}
                   </Grid>
-                  ) : (
-                    <Alert severity="info" sx={{ mt: 2 }}>
-                      <AlertTitle>No Location Selected</AlertTitle>
-                      {locations.length > 0
-                        ? 'Please select a location from the dropdown above to manage business platforms.'
-                        : 'No locations found. Add a location to start configuring business platforms.'}
-                    </Alert>
-                  )}
-                </Box>
-              </TabPanel>
-
-              {/* Members Tab */}
-              <TabPanel value={tabValue} index={1}>
-                <TenantMembersTab tenant={tenant} />
-              </TabPanel>
-
-              {/* Activity Tab */}
-              <TabPanel value={tabValue} index={2}>
-                <ActivityTab recentActivity={recentActivity} />
-              </TabPanel>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Platform Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleMenuClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <MenuItem
-            onClick={() => {
-              if (selectedPlatform) handleDeletePlatformData(selectedPlatform);
-              handleMenuClose();
-            }}
-            sx={{ color: 'error.main' }}
-          >
-            <ListItemIcon>
-              <Iconify icon="solar:trash-bin-trash-bold" sx={{ color: 'error.main' }} />
-            </ListItemIcon>
-            <ListItemText primary="Delete Platform Data" />
-          </MenuItem>
-        </Menu>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog
-          open={deleteDialogOpen}
-          onClose={() => setDeleteDialogOpen(false)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Delete Platform Data</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to delete all {deletePlatform} data? This will remove the business profile
-              and all reviews for this platform. This action cannot be undone.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-            <Button
-              onClick={confirmDeletePlatformData}
-              color="error"
-              variant="contained"
-              disabled={deletePlatform ? platformLoadingStates[deletePlatform] : false}
-              startIcon={
-                deletePlatform && platformLoadingStates[deletePlatform] ? (
-                  <CircularProgress size={18} color="inherit" />
                 ) : (
-                  <Iconify icon="solar:trash-bin-trash-bold" />
-                )
-              }
-            >
-              {deletePlatform && platformLoadingStates[deletePlatform] ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </DashboardContent>
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    <AlertTitle>No Location Selected</AlertTitle>
+                    {locations.length > 0
+                      ? 'Please select a location from the dropdown above to manage business platforms.'
+                      : 'No locations found. Add a location to start configuring business platforms.'}
+                  </Alert>
+                )}
+
+                <Divider sx={{ my: 4 }} />
+
+                {/* Business Platforms Section (Location-level) */}
+                <Stack spacing={2} sx={{ mb: 4 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="h6">Business Platforms</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Location-specific business platform integrations
+                        {selectedLocation && ` for ${selectedLocation.name}`}
+                      </Typography>
+                    </Box>
+
+                    {selectedLocation && (
+                      <Chip
+                        icon={<Iconify icon="mdi:map-marker" />}
+                        label={selectedLocation.name}
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                  </Stack>
+                </Stack>
+
+                {selectedLocation ? (
+                  <Grid container spacing={3}>
+                    {['GOOGLE', 'FACEBOOK', 'TRIPADVISOR', 'BOOKING'].map((platform) => {
+                      const platformKey = PLATFORM_MAPPING[platform] || platform;
+                      return (
+                        <Grid size={{ xs: 12, md: 6 }} key={platform}>
+                          <PlatformCard
+                            platform={platform}
+                            config={platformConfig[platform]}
+                            identifier={marketIdentifiers[platform] || ''}
+                            status={getPlatformStatus(platform)}
+                            syncStatus={getPlatformSyncStatus(platformKey.toLowerCase())}
+                            platformData={platforms?.[platform.toLowerCase()]}
+                            currentStepMessage={getCurrentStepMessage(platform)}
+                            loading={platformLoadingStates[platform] || false}
+                            isLoadingData={isLoading}
+                            onIdentifierChange={handleIdentifierChange}
+                            onSave={handleSaveIdentifier}
+                            onAction={handlePlatformAction}
+                            onMenuOpen={handleMenuOpen}
+                          />
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                ) : (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    <AlertTitle>No Location Selected</AlertTitle>
+                    {locations.length > 0
+                      ? 'Please select a location from the dropdown above to manage business platforms.'
+                      : 'No locations found. Add a location to start configuring business platforms.'}
+                  </Alert>
+                )}
+              </Box>
+            </TabPanel>
+
+            {/* Members Tab */}
+            <TabPanel value={tabValue} index={1}>
+              <TenantMembersTab tenant={tenant} />
+            </TabPanel>
+
+            {/* Activity Tab */}
+            <TabPanel value={tabValue} index={2}>
+              <ActivityTab recentActivity={recentActivity} />
+            </TabPanel>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Platform Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem
+          onClick={() => {
+            if (selectedPlatform) handleDeletePlatformData(selectedPlatform);
+            handleMenuClose();
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon>
+            <Iconify icon="solar:trash-bin-trash-bold" sx={{ color: 'error.main' }} />
+          </ListItemIcon>
+          <ListItemText primary="Delete Platform Data" />
+        </MenuItem>
+      </Menu>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Platform Data</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete all {deletePlatform} data? This will remove the business profile
+            and all reviews for this platform. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={confirmDeletePlatformData}
+            color="error"
+            variant="contained"
+            disabled={deletePlatform ? platformLoadingStates[deletePlatform] : false}
+            startIcon={
+              deletePlatform && platformLoadingStates[deletePlatform] ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <Iconify icon="solar:trash-bin-trash-bold" />
+              )
+            }
+          >
+            {deletePlatform && platformLoadingStates[deletePlatform] ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </DashboardContent >
     // </RoleGuard>
   );
 }

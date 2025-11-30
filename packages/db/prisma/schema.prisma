@@ -84,12 +84,10 @@ model Team {
   locations                  BusinessLocation[]
   businessCreationTasks      BusinessCreationTask[]
   demoAccount                DemoAccount?
-  instagramBusinessProfile   InstagramBusinessProfile?
   invitations                Invitation[]
   paymentMethods             PaymentMethod[]
   members                    TeamMember[]
   subscription               TeamSubscription?
-  tiktokBusinessProfile      TikTokBusinessProfile?
   twitterAlerts              TwitterAlert[]
   twitterAlertConfig         TwitterAlertConfig?
   twitterAlertEngagements    TwitterAlertEngagement[]
@@ -363,6 +361,8 @@ model BusinessLocation {
   facebookBusinessProfile    FacebookBusinessProfile?
   tripAdvisorBusinessProfile TripAdvisorBusinessProfile?
   bookingBusinessProfile     BookingBusinessProfile?
+  instagramBusinessProfile   InstagramBusinessProfile?
+  tiktokBusinessProfile      TikTokBusinessProfile?
   
   // Market identifiers (location-specific)
   marketIdentifiers          BusinessMarketIdentifier[]
@@ -1271,7 +1271,7 @@ model BookingBusinessMetadata {
 
 model InstagramBusinessProfile {
   id                    String                        @id @default(uuid())
-  teamId                String                        @unique
+  locationId            String                        @unique
   username              String                        @unique
   userId                String                        @unique
   profileUrl            String
@@ -1293,16 +1293,13 @@ model InstagramBusinessProfile {
   contactAddress        String?
   contactEmail          String?
   contactPhone          String?
-  analytics             InstagramAnalytics[]
-  team                  Team                          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  businessLocation      BusinessLocation              @relation(fields: [locationId], references: [id], onDelete: Cascade)
   commentSnapshots      InstagramCommentSnapshot[]
   dailySnapshots        InstagramDailySnapshot[]
   mediaSnapshots        InstagramMediaSnapshot[]
-  monthlyAggregations   InstagramMonthlyAggregation[]
   snapshotSchedule      InstagramSnapshotSchedule?
-  weeklyAggregations    InstagramWeeklyAggregation[]
 
-  @@index([teamId])
+  @@index([locationId])
   @@index([username])
   @@index([isActive])
 }
@@ -1406,77 +1403,6 @@ model InstagramCommentSnapshot {
   @@index([sentiment])
 }
 
-model InstagramWeeklyAggregation {
-  id                     String                   @id @default(uuid())
-  businessProfileId      String
-  weekStartDate          DateTime
-  weekEndDate            DateTime
-  year                   Int
-  weekNumber             Int
-  followersGrowth        Int                      @default(0)
-  followersGrowthPercent Float                    @default(0)
-  followingGrowth        Int                      @default(0)
-  followingGrowthPercent Float                    @default(0)
-  mediaGrowth            Int                      @default(0)
-  totalLikes             Int                      @default(0)
-  totalComments          Int                      @default(0)
-  totalViews             Int                      @default(0)
-  totalSaves             Int                      @default(0)
-  totalShares            Int                      @default(0)
-  avgDailyLikes          Float                    @default(0)
-  avgDailyComments       Float                    @default(0)
-  avgDailyViews          Float                    @default(0)
-  bestPerformingPost     Json?
-  topHashtags            Json?
-  sentimentBreakdown     Json?
-  topKeywords            Json?
-  responseRate           Float                    @default(0)
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  businessProfile        InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
-
-  @@index([businessProfileId])
-  @@index([weekStartDate])
-}
-
-model InstagramMonthlyAggregation {
-  id                     String                   @id @default(uuid())
-  businessProfileId      String
-  monthStartDate         DateTime
-  monthEndDate           DateTime
-  year                   Int
-  month                  Int
-  followersGrowth        Int                      @default(0)
-  followersGrowthPercent Float                    @default(0)
-  followingGrowth        Int                      @default(0)
-  followingGrowthPercent Float                    @default(0)
-  mediaGrowth            Int                      @default(0)
-  totalLikes             Int                      @default(0)
-  totalComments          Int                      @default(0)
-  totalViews             Int                      @default(0)
-  totalSaves             Int                      @default(0)
-  totalShares            Int                      @default(0)
-  avgDailyLikes          Float                    @default(0)
-  avgDailyComments       Float                    @default(0)
-  avgDailyViews          Float                    @default(0)
-  avgEngagementRate      Float                    @default(0)
-  totalPosts             Int                      @default(0)
-  totalStories           Int                      @default(0)
-  totalReels             Int                      @default(0)
-  bestPerformingContent  Json?
-  sentimentBreakdown     Json?
-  topKeywords            Json?
-  responseRate           Float                    @default(0)
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  growthTrend            InstagramTrendDirection  @default(STABLE)
-  engagementTrend        InstagramTrendDirection  @default(STABLE)
-  businessProfile        InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
-
-  @@index([businessProfileId])
-  @@index([monthStartDate])
-}
-
 model InstagramSnapshotSchedule {
   id                  String                   @id @default(uuid())
   businessProfileId   String                   @unique
@@ -1494,40 +1420,9 @@ model InstagramSnapshotSchedule {
   @@index([businessProfileId])
 }
 
-model InstagramAnalytics {
-  id                     String                   @id @default(uuid())
-  businessProfileId      String
-  date                   DateTime                 @db.Date
-  period                 InstagramAnalyticsPeriod @default(DAILY)
-  followersGrowthRate90d Float                    @default(0)
-  steadyGrowthRate       Float                    @default(0)
-  dailyFollowersGrowth   Int                      @default(0)
-  weeklyFollowersGrowth  Int                      @default(0)
-  monthlyFollowersGrowth Int                      @default(0)
-  engagementRate         Float                    @default(0)
-  weeklyEngagementRate   Float                    @default(0)
-  avgLikes               Float                    @default(0)
-  avgComments            Float                    @default(0)
-  commentsRatio          Float                    @default(0)
-  weeklyPosts            Int                      @default(0)
-  followersRatio         Float                    @default(0)
-  predictedFollowers     Int?
-  growthTrend            InstagramTrendDirection  @default(STABLE)
-  calculatedAt           DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  businessProfile        InstagramBusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
-
-  @@unique([businessProfileId, date, period])
-  @@index([businessProfileId])
-  @@index([date])
-  @@index([period])
-  @@index([followersGrowthRate90d])
-  @@index([engagementRate])
-}
-
 model TikTokBusinessProfile {
   id                String                  @id @default(uuid())
-  teamId            String                  @unique
+  locationId        String                  @unique
   username          String                  @unique
   nickname          String?
   avatarUrl         String?
@@ -1551,13 +1446,13 @@ model TikTokBusinessProfile {
   firstSnapshotAt   DateTime?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @default(now()) @updatedAt
-  team              Team                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  businessLocation  BusinessLocation        @relation(fields: [locationId], references: [id], onDelete: Cascade)
   commentSnapshots  TikTokCommentSnapshot[]
   dailySnapshots    TikTokDailySnapshot[]
   snapshotSchedule  TikTokSnapshotSchedule?
   videoSnapshots    TikTokVideoSnapshot[]
 
-  @@index([teamId])
+  @@index([locationId])
   @@index([username])
 }
 

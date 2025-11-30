@@ -5,6 +5,11 @@ import { useParams } from 'next/navigation';
 import { useTeamSlug } from '@/hooks/use-subdomain';
 import { useRef, useMemo, useState, useEffect } from 'react';
 import { PlatformFeatureGate } from '@/components/feature-gates/PlatformFeatureGate';
+import dayjs from 'dayjs';
+
+import { useLocationBySlug, useInstagramProfile, useInstagramAnalytics } from 'src/hooks/useLocations';
+import { LoadingState, ErrorState, EmptyState } from 'src/components/states';
+import { CustomDateRangePicker } from 'src/components/custom-date-range-picker';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -24,7 +29,7 @@ import CardContent from '@mui/material/CardContent';
 
 import { paths } from 'src/routes/paths';
 
-import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -58,183 +63,193 @@ export function InstagramOverviewView() {
   const params = useParams();
   const theme = useTheme();
   const subdomainTeamSlug = useTeamSlug();
-  const slug = subdomainTeamSlug || params.slug;
-  const tenantId = slug;
+  const teamSlug = subdomainTeamSlug || params.slug;
+  const locationSlug = params.locationSlug;
 
-  const { team, isLoading: teamLoading, error: teamError } = useTeam(slug);
-  const {
-    businessProfile,
-    isLoading: instagramLoading,
-    error: instagramError,
-  } = useInstagramBusinessProfile();
+  const { team } = useTeam(teamSlug);
 
+  // Get location by slug
+  const { location, isLoading: locationLoading, error: locationError } = useLocationBySlug(teamSlug, locationSlug);
+
+  // Get Instagram profile
+  const { profile: businessProfile, isLoading: profileLoading, error: profileError, refetch: refetchProfile } = useInstagramProfile(locationSlug, teamSlug, !!location);
+
+  // Date range state
   const [selectedPeriod, setSelectedPeriod] = useState('30');
-  const hasSetInitialPeriod = useRef(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [tempFromDate, setTempFromDate] = useState(null);
+  const [tempToDate, setTempToDate] = useState(null);
+  const [customRange, setCustomRange] = useState(null);
 
-  // Filter time periods to only show those with data
-  const availableTimePeriods = useMemo(() => {
-    if (!businessProfile?.overview?.periodicalMetrics) {
-      return TIME_PERIODS.filter((period) => period.key === '0'); // Only show "All Time" if no metrics
+  // Calculate date range
+  const { startDate, endDate } = useMemo(() => {
+    if (selectedPeriod === 'custom' && customRange) {
+      return {
+        startDate: customRange.from.toISOString(),
+        endDate: customRange.to.toISOString(),
+      };
     }
 
-    const metrics = businessProfile.overview.periodicalMetrics;
-    return TIME_PERIODS.filter((period) => {
-      const metric = metrics.find((m) => m.periodKey.toString() === period.key);
-      // Always include "All Time" period, and include others only if they have data
-      return period.key === '0' || (metric && metric.followerCount > 0);
-    });
-  }, [businessProfile?.overview?.periodicalMetrics]);
+    const end = new Date();
+    const start = new Date();
+    const days = parseInt(selectedPeriod) || 30;
 
-  // Auto-select first available period if current selection is not available
-  useEffect(() => {
-    if (availableTimePeriods.length > 0 && !hasSetInitialPeriod.current) {
-      const isCurrentPeriodAvailable = availableTimePeriods.some((p) => p.key === selectedPeriod);
-      if (!isCurrentPeriodAvailable) {
-        setSelectedPeriod(availableTimePeriods[0].key);
-        hasSetInitialPeriod.current = true;
-      }
+    if (selectedPeriod === '0') { // All time (approx 20 years)
+      start.setFullYear(end.getFullYear() - 20);
+    } else {
+      start.setDate(end.getDate() - days);
     }
-  }, [availableTimePeriods, selectedPeriod]);
 
-  // Get periodic metrics for selected period
-  const currentPeriodMetrics = useMemo(() => {
-    const metrics = businessProfile?.overview?.periodicalMetrics?.find(
-      (metric) => metric.periodKey.toString() === selectedPeriod
-    );
-    return metrics;
-  }, [businessProfile?.overview?.periodicalMetrics, selectedPeriod]);
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  }, [selectedPeriod, customRange]);
 
-  // Get periodic metrics for selected period
-  const allTimePeriodMetrics = useMemo(() => {
-    const metrics = businessProfile?.overview?.periodicalMetrics?.find(
-      (metric) => metric.periodKey.toString() === '0'
-    );
-    return metrics;
-  }, [businessProfile?.overview?.periodicalMetrics]);
+  // Get analytics
+  const { analytics, isLoading: analyticsLoading, error: analyticsError } = useInstagramAnalytics(
+    teamSlug,
+    locationSlug,
+    startDate,
+    endDate,
+    !!businessProfile
+  );
 
-  // Use current period data if available, fallback to overview snapshot data, then to profile data
-  const displayMetrics = useMemo(() => {
-    if (!businessProfile) return null;
-
-    return {
-      followerCount:
-        currentPeriodMetrics?.followerCount ||
-        businessProfile.overview?.currentFollowerCount ||
-        businessProfile.followersCount,
-      followingCount:
-        currentPeriodMetrics?.followingCount ||
-        businessProfile.overview?.currentFollowingCount ||
-        businessProfile.followsCount,
-      mediaCount:
-        currentPeriodMetrics?.mediaCount ||
-        businessProfile.overview?.currentMediaCount ||
-        businessProfile.mediaCount,
-      engagementRate: currentPeriodMetrics?.engagementRatePercent,
-      averageLikes: currentPeriodMetrics?.avgLikes,
-      averageComments: currentPeriodMetrics?.avgComments,
-    };
-  }, [businessProfile, currentPeriodMetrics]);
-
-  // Show loading state
-  if (teamLoading || instagramLoading) {
+  // 1. LOADING STATE
+  if (locationLoading || (location && profileLoading)) {
     return (
       <DashboardContent maxWidth="xl">
-        <Box sx={{ p: 3 }}>
-          <Stack spacing={3}>
-            <Skeleton variant="rectangular" height={200} />
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={8}>
-                <Skeleton variant="rectangular" height={400} />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Skeleton variant="rectangular" height={400} />
-              </Grid>
-            </Grid>
-          </Stack>
-        </Box>
+        <LoadingState message="Loading Instagram overview..." />
       </DashboardContent>
     );
   }
 
-  // Show error state
-  if (teamError || instagramError) {
+  // 2. LOCATION ERROR
+  if (locationError || !location) {
     return (
       <DashboardContent maxWidth="xl">
-        <Box sx={{ p: 3 }}>
-          <Alert severity="error">
-            <AlertTitle>Error Loading Data</AlertTitle>
-            Failed to load Instagram Business Profile data. Please try refreshing the page.
-          </Alert>
-        </Box>
+        <ErrorState
+          type="not-found"
+          platform="Location"
+          customMessage="The requested location could not be found."
+        />
       </DashboardContent>
     );
   }
 
-  // Show not found state
-  if (!team || !businessProfile) {
+  // 3. PROFILE NOT FOUND
+  if (!businessProfile && !profileLoading) {
     return (
       <DashboardContent maxWidth="xl">
-        <Box sx={{ p: 3 }}>
-          <Alert severity="warning">
-            <AlertTitle>No Data Found</AlertTitle>
-            No Instagram Business Profile found for this tenant.
-          </Alert>
-        </Box>
+        <CustomBreadcrumbs
+          heading="Instagram Overview"
+          links={[
+            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Teams', href: paths.dashboard.teams.root },
+            { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+            { name: location?.name || locationSlug, href: '#' },
+            { name: 'Instagram Overview', href: '#' },
+          ]}
+          sx={{ mb: 3 }}
+        />
+        <EmptyState
+          icon="solar:instagram-bold"
+          title="Instagram Not Connected"
+          message="Connect your Instagram Business Profile to start tracking analytics."
+          action={
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<Iconify icon="solar:add-circle-bold" />}
+              sx={{ mt: 2 }}
+              onClick={() => window.location.href = paths.dashboard.teams.settings(teamSlug)}
+            >
+              Connect Instagram
+            </Button>
+          }
+        />
+      </DashboardContent>
+    );
+  }
+
+  // 4. PROFILE ERROR
+  if (profileError) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <ErrorState
+          type="network"
+          platform="Instagram"
+          onRetry={() => window.location.reload()}
+        />
       </DashboardContent>
     );
   }
 
   return (
-    <PlatformFeatureGate 
-      platform="instagram" 
-      tenantId={tenantId}
+    <PlatformFeatureGate
+      platform="instagram"
+      tenantId={teamSlug}
       showUpgradePrompt
-      upgradeMessage="Instagram features are not available on your current plan. Please upgrade to access Instagram analytics and management."
+      upgradeMessage="Instagram features are not available on your current plan."
     >
       <DashboardContent maxWidth="xl">
         <Grid container spacing={3}>
-        <Grid size={{ xs: 12 }}>
-          <CustomBreadcrumbs
-            heading="Instagram Overview"
-            links={[
-              { name: 'Dashboard', href: paths.dashboard.root },
-              { name: 'Teams', href: paths.dashboard.teams.root },
-              { name: team.name, href: paths.dashboard.teams.bySlug(slug) },
-              { name: 'Instagram Overview' },
-            ]}
-            action={
-              <Button
-                variant="contained"
-                startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} />}
-                target="_blank"
-                href={`https://instagram.com/${businessProfile.username}`}
-              >
-                Visit Profile
-              </Button>
-            }
-          />
-        </Grid>
-
-        {/* 1. HEADER & OVERVIEW SECTION */}
-        {/* Instagram Business Header */}
-        <Grid size={{ xs: 12 }}>
-          <InstagramProfileOverview />
-        </Grid>
-
-        {/* Time Period Selector and Key Metrics */}
-        <Grid size={{ xs: 12 }}>
-          <Card>
-            <CardHeader
-              title={
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Iconify icon="solar:chart-2-bold" />
-                  <Typography variant="h6">Business Metrics</Typography>
-                </Stack>
+          <Grid size={{ xs: 12 }}>
+            <CustomBreadcrumbs
+              heading="Instagram Overview"
+              links={[
+                { name: 'Dashboard', href: paths.dashboard.root },
+                { name: 'Teams', href: paths.dashboard.teams.root },
+                { name: team?.name || teamSlug, href: paths.dashboard.teams.bySlug(teamSlug) },
+                { name: location?.name || locationSlug, href: '#' },
+                { name: 'Instagram Overview', href: '#' },
+              ]}
+              action={
+                <Button
+                  variant="contained"
+                  startIcon={<Iconify icon="solar:arrow-right-up-linear" width={20} height={20} />}
+                  target="_blank"
+                  href={`https://instagram.com/${businessProfile.username}`}
+                >
+                  Visit Profile
+                </Button>
               }
-              subheader="Select a time period to view metrics for that specific timeframe"
             />
-            <CardContent>
-              {availableTimePeriods.length > 1 && (
+          </Grid>
+
+          {/* 1. HEADER & OVERVIEW SECTION */}
+          <Grid size={{ xs: 12 }}>
+            <InstagramProfileOverview profile={businessProfile} generalMetrics={analytics?.general} />
+          </Grid>
+
+          {/* Time Period Selector */}
+          <Grid size={{ xs: 12 }}>
+            <Card>
+              <CardHeader
+                title={
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Iconify icon="solar:chart-2-bold" />
+                    <Typography variant="h6">Business Metrics</Typography>
+                  </Stack>
+                }
+                subheader="Select a time period to view metrics"
+                action={
+                  selectedPeriod === 'custom' && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Iconify icon="eva:calendar-outline" />}
+                      onClick={() => {
+                        setTempFromDate(customRange?.from || null);
+                        setTempToDate(customRange?.to || null);
+                        setDatePickerOpen(true);
+                      }}
+                    >
+                      {customRange?.from && customRange?.to
+                        ? `${dayjs(customRange.from).format('MMM D')} - ${dayjs(customRange.to).format('MMM D')}`
+                        : 'Select Dates'}
+                    </Button>
+                  )
+                }
+              />
+              <CardContent>
                 <Tabs
                   value={selectedPeriod}
                   onChange={(e, newValue) => setSelectedPeriod(newValue)}
@@ -242,7 +257,7 @@ export function InstagramOverviewView() {
                   scrollButtons="auto"
                   sx={{ mb: 3 }}
                 >
-                  {availableTimePeriods.map((period) => (
+                  {TIME_PERIODS.map((period) => (
                     <Tab
                       key={period.key}
                       value={period.key}
@@ -251,83 +266,84 @@ export function InstagramOverviewView() {
                     />
                   ))}
                 </Tabs>
-              )}
 
-              {availableTimePeriods.map((period) => (
-                <Box
-                  key={period.key}
-                  sx={{ display: selectedPeriod === period.key ? 'block' : 'none' }}
-                >
-                  <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-                    <Typography variant="h6">{period.label}</Typography>
-                    <Chip
-                      label={`${displayMetrics?.followerCount || 0} followers`}
-                      size="small"
-                      color="primary"
-                    />
-                  </Stack>
+                {analyticsLoading ? (
+                  <LoadingState message="Calculating analytics..." />
+                ) : (
+                  <InstagramKeyMetrics metrics={analytics?.overview} />
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
 
-                  <InstagramKeyMetrics
-                    metrics={displayMetrics}
-                    periodicalMetrics={businessProfile?.overview?.periodicalMetrics}
-                    currentPeriodKey={selectedPeriod}
-                  />
-                </Box>
-              ))}
-            </CardContent>
-          </Card>
+          {/* 2. ANALYTICS & CHARTS SECTION */}
+          <Grid size={{ xs: 12 }}>
+            <InstagramBusinessInsights growth={analytics?.growth} overview={analytics?.overview} />
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 6 }}>
+            <InstagramEngagementMetrics engagement={analytics?.engagement} />
+          </Grid>
+
+
+
+          <Grid size={{ xs: 12 }}>
+            <InstagramBusinessInfo profile={businessProfile} />
+          </Grid>
+
+          {/* 3. ADVANCED ANALYTICS SECTION */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <InstagramPerformanceMetrics profile={businessProfile} />
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 6 }}>
+            <InstagramAdvancedAnalytics growth={analytics?.growth} engagement={analytics?.engagement} />
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+            <InstagramContentAnalysis history={analytics?.history} engagement={analytics?.engagement} />
+          </Grid>
+
+          <Grid size={{ xs: 12 }}>
+            <InstagramSnapshotControls
+              teamSlug={teamSlug}
+              locationSlug={locationSlug}
+              profile={businessProfile}
+              onUpdate={refetchProfile}
+            />
+          </Grid>
+
+          {/* 4. FOOTER SECTION */}
+          <Grid size={{ xs: 12 }}>
+            <Box sx={{ mt: 3, textAlign: 'right' }}>
+              <Typography variant="caption" color="text.secondary">
+                Last updated:{' '}
+                {businessProfile.lastSnapshotAt
+                  ? new Date(businessProfile.lastSnapshotAt).toLocaleString()
+                  : 'Not available'}
+              </Typography>
+            </Box>
+          </Grid>
         </Grid>
 
-        {/* 2. ANALYTICS & CHARTS SECTION */}
-        {/* Business Insights Summary - Full Width */}
-        <Grid size={{ xs: 12 }}>
-          <InstagramBusinessInsights />
-        </Grid>
-
-        {/* Engagement Metrics and Performance Metrics - Side by Side */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <InstagramEngagementMetrics />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
-          <InstagramPerformanceMetrics />
-        </Grid>
-
-        {/* Business Information - Full Width */}
-        <Grid size={{ xs: 12 }}>
-          <InstagramBusinessInfo />
-        </Grid>
-
-        {/* 3. ADVANCED ANALYTICS SECTION */}
-        {/* Advanced Analytics Charts - Full Width */}
-        <Grid size={{ xs: 12 }}>
-          <InstagramAdvancedAnalytics />
-        </Grid>
-
-        {/* Content Analysis - Smaller Width */}
-        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
-          <InstagramContentAnalysis />
-        </Grid>
-
-        {/* Snapshot Controls - Full Width */}
-        <Grid size={{ xs: 12 }}>
-          <InstagramSnapshotControls />
-        </Grid>
-
-        {/* 4. FOOTER SECTION */}
-        {/* Last Updated */}
-        <Grid size={{ xs: 12 }}>
-          <Box sx={{ mt: 3, textAlign: 'right' }}>
-            <Typography variant="caption" color="text.secondary">
-              Last updated:{' '}
-              {businessProfile.overview?.lastRefreshedAt
-                ? new Date(businessProfile.overview.lastRefreshedAt).toLocaleString()
-                : 'Not available'}
-            </Typography>
-          </Box>
-        </Grid>
-      </Grid>
-    </DashboardContent>
+        <CustomDateRangePicker
+          variant="calendar"
+          title="Select Custom Date Range"
+          open={datePickerOpen}
+          onClose={() => setDatePickerOpen(false)}
+          startDate={tempFromDate ? dayjs(tempFromDate) : null}
+          endDate={tempToDate ? dayjs(tempToDate) : null}
+          onChangeStartDate={(date) => setTempFromDate(date ? date.toDate() : null)}
+          onChangeEndDate={(date) => setTempToDate(date ? date.toDate() : null)}
+          error={tempFromDate && tempToDate ? tempFromDate > tempToDate : false}
+          onSubmit={() => {
+            if (tempFromDate && tempToDate && tempFromDate <= tempToDate) {
+              setCustomRange({ from: tempFromDate, to: tempToDate });
+              setDatePickerOpen(false);
+            }
+          }}
+        />
+      </DashboardContent>
     </PlatformFeatureGate>
   );
 }

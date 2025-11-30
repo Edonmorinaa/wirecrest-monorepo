@@ -1,7 +1,7 @@
-import { 
-  GeneralMetrics, 
-  InstagramDailySnapshot, 
-  InstagramBusinessProfile 
+import {
+  GeneralMetrics,
+  InstagramDailySnapshot,
+  InstagramBusinessProfile
 } from '@/types/instagram-analytics';
 
 import { InstagramCalculationUtils } from './instagram-calculation-utils';
@@ -24,7 +24,7 @@ export class GeneralMetricsCalculator {
     }
 
     return {
-      profilePicture: businessProfile?.profilePictureUrl || '',
+      profilePicture: '', // Profile picture not available in current schema
       bio: businessProfile?.biography || '',
       followers: {
         count: latestSnapshot.followersCount,

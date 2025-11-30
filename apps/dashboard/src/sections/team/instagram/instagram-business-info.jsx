@@ -8,18 +8,18 @@ import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
 
-import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+
 
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function InstagramBusinessInfo() {
-  const { businessProfile, isLoading } = useInstagramBusinessProfile();
-
-  if (isLoading || !businessProfile) {
+export function InstagramBusinessInfo({ profile }) {
+  if (!profile) {
     return null;
   }
+
+  const businessProfile = profile;
 
   return (
     <Card>
@@ -43,16 +43,16 @@ export function InstagramBusinessInfo() {
           </Button>
         }
       />
-      
+
       <CardContent>
         <Stack spacing={2}>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Iconify 
-              icon={businessProfile.isVerified ? 'solar:verified-check-bold' : 'solar:verified-check-bold'} 
-              sx={{ 
+            <Iconify
+              icon={businessProfile.isVerified ? 'solar:verified-check-bold' : 'solar:verified-check-bold'}
+              sx={{
                 color: businessProfile.isVerified ? 'primary.main' : 'text.disabled',
                 fontSize: 16
-              }} 
+              }}
             />
             <Typography variant="body2">
               {businessProfile.isVerified ? 'Verified Account' : 'Not Verified'}
@@ -60,12 +60,12 @@ export function InstagramBusinessInfo() {
           </Stack>
 
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Iconify 
-              icon="solar:building-bold" 
-              sx={{ 
+            <Iconify
+              icon="solar:building-bold"
+              sx={{
                 color: businessProfile.isBusinessAccount ? 'success.main' : 'text.disabled',
                 fontSize: 16
-              }} 
+              }}
             />
             <Typography variant="body2">
               {businessProfile.isBusinessAccount ? 'Business Account' : 'Personal Account'}

@@ -11,33 +11,14 @@ import CardContent from '@mui/material/CardContent';
 
 import { Iconify } from 'src/components/iconify';
 import { ChartBar, ChartArea, ChartLine } from 'src/components/chart';
+import { EngagementMetrics } from 'src/types/instagram-analytics';
 
 import { InstagramMetricsWidget } from '../components/instagram-metrics-widget';
 
 // ----------------------------------------------------------------------
 
-interface ChartDataPoint {
-  date: string;
-  value: number;
-}
-
-interface EngagementData {
-  engagementRate?: number;
-  avgLikes?: number;
-  weeklyEngagementRate?: number;
-  weeklyPosts?: number;
-  avgComments?: number;
-  commentsRatio?: number;
-  engagementRateChart?: ChartDataPoint[];
-  avgLikesChart?: ChartDataPoint[];
-  weeklyEngagementRateChart?: ChartDataPoint[];
-  weeklyPostsChart?: ChartDataPoint[];
-  avgCommentsChart?: ChartDataPoint[];
-  commentsRatioChart?: ChartDataPoint[];
-}
-
 interface InstagramEngagementTabProps {
-  data: EngagementData | null;
+  data: EngagementMetrics | null | undefined;
   startDate: Date;
   endDate: Date;
 }
@@ -69,7 +50,7 @@ export function InstagramEngagementTab({ data, startDate, endDate }: InstagramEn
   };
 
   // Safe data access with fallbacks
-  const safeData: Required<EngagementData> = {
+  const safeData: Required<EngagementMetrics> = {
     engagementRate: data?.engagementRate || 0,
     avgLikes: data?.avgLikes || 0,
     weeklyEngagementRate: data?.weeklyEngagementRate || 0,
@@ -248,7 +229,7 @@ export function InstagramEngagementTab({ data, startDate, endDate }: InstagramEn
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Engagement Rate"
               subheader="Daily engagement rate percentage"
               action={
@@ -268,7 +249,7 @@ export function InstagramEngagementTab({ data, startDate, endDate }: InstagramEn
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Average Likes"
               subheader="Daily average likes per post"
               action={
@@ -288,7 +269,7 @@ export function InstagramEngagementTab({ data, startDate, endDate }: InstagramEn
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Weekly Engagement Rate"
               subheader="Weekly cumulative engagement rate"
               action={
@@ -308,7 +289,7 @@ export function InstagramEngagementTab({ data, startDate, endDate }: InstagramEn
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Weekly Posts"
               subheader="Number of posts per week"
               action={
@@ -328,7 +309,7 @@ export function InstagramEngagementTab({ data, startDate, endDate }: InstagramEn
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Average Comments"
               subheader="Daily average comments per post"
               action={
@@ -348,7 +329,7 @@ export function InstagramEngagementTab({ data, startDate, endDate }: InstagramEn
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Comments Ratio"
               subheader="Comments per 100 likes"
               action={

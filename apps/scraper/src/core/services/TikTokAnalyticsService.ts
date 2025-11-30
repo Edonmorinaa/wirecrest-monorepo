@@ -1,5 +1,5 @@
-import type { AnalyticsResult } from "../interfaces/IAnalyticsService";
-import type { TikTokDataService } from "../../services/tiktokDataService";
+import type { AnalyticsResult } from "../interfaces/IAnalyticsService.js";
+import { TikTokDataService } from "../../services/tiktokDataService.js";
 
 /**
  * TikTok Analytics Service
@@ -27,9 +27,9 @@ export class TikTokAnalyticsService {
         `[TikTokAnalyticsService] Getting analytics for identifier: ${identifier}`,
       );
 
-      // Resolve business profile ID by team
+      // Resolve business profile ID by location
       const profile =
-        await this.tiktokDataService.getBusinessProfileByTeamId(identifier);
+        await this.tiktokDataService.getBusinessProfileByLocationId(identifier);
       if (!profile.success || !profile.profile?.id) {
         return {
           success: false,
@@ -80,7 +80,7 @@ export class TikTokAnalyticsService {
       );
 
       const profile =
-        await this.tiktokDataService.getBusinessProfileByTeamId(identifier);
+        await this.tiktokDataService.getBusinessProfileByLocationId(identifier);
       if (!profile.success || !profile.profile?.id) {
         return {
           success: false,

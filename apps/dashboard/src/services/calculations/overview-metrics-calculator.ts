@@ -1,7 +1,6 @@
-import { 
-  OverviewMetrics, 
-  InstagramAnalytics, 
-  InstagramDailySnapshot 
+import {
+  OverviewMetrics,
+  InstagramDailySnapshot
 } from '@/types/instagram-analytics';
 
 import { InstagramCalculationUtils } from './instagram-calculation-utils';
@@ -16,7 +15,7 @@ export class OverviewMetricsCalculator {
    */
   static calculate(
     snapshots: InstagramDailySnapshot[],
-    analytics: InstagramAnalytics[]
+    analytics: any[] = []
   ): OverviewMetrics | null {
     if (snapshots.length === 0) {
       return null;
@@ -27,24 +26,24 @@ export class OverviewMetricsCalculator {
 
     // Calculate weekly followers growth
     const weeklyFollowers = InstagramCalculationUtils.calculateWeeklyFollowers(snapshots);
-    
+
     // Calculate weekly posts
     const weeklyPosts = InstagramCalculationUtils.calculateWeeklyPosts(snapshots);
 
     // Calculate engagement rate
     const engagementRate = InstagramCalculationUtils.calculateEngagementRate(latestSnapshot);
-    
+
     // Calculate average likes and comments
     const avgLikes = InstagramCalculationUtils.calculateAvgLikesPerPost(latestSnapshot);
     const avgComments = InstagramCalculationUtils.calculateAvgCommentsPerPost(latestSnapshot);
-    
+
     // Calculate ratios
     const followersRatio = InstagramCalculationUtils.calculateFollowersRatio(latestSnapshot);
     const commentsRatio = InstagramCalculationUtils.calculateCommentsRatio(latestSnapshot);
 
     return {
       followersGrowthRate90d: InstagramCalculationUtils.formatPercentage(
-        latestAnalytics?.followersGrowthRate90d || 
+        latestAnalytics?.followersGrowthRate90d ||
         InstagramCalculationUtils.calculate90DayGrowthRate(snapshots)
       ),
       weeklyFollowers: InstagramCalculationUtils.formatNumber(weeklyFollowers),

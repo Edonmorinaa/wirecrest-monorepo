@@ -460,12 +460,10 @@ export function TripAdvisorMetricsOverview({ metrics, periodicalMetrics, current
     return Math.round(percentageChange * 10) / 10; // Round to 1 decimal place
   };
 
-  let averageResponseTime = getCurrentPeriodData('averageResponseTime');
-
   const metricCards = [
     {
       title: 'Average Rating',
-      total: (Number(getCurrentPeriodData('averageRating')) || 0).toFixed(1),
+      total: (Number(metrics?.averageRating) || 0).toFixed(1),
       icon: <Iconify icon="solar:star-bold" width={24} />,
       color: 'warning',
       percent: calculatePercentageChange('averageRating'),
@@ -476,12 +474,12 @@ export function TripAdvisorMetricsOverview({ metrics, periodicalMetrics, current
     },
     {
       title: 'Response Rate',
-      total: `${getCurrentPeriodData('responseRate')}%`,
+      total: `${Number(metrics?.responseRate || 0).toFixed(0)}%`,
       icon: <Iconify icon="solar:chat-round-dots-bold" width={24} />,
       color: 'info',
       percent: calculatePercentageChange('responseRate'),
       showProgress: true,
-      progressValue: Number(getCurrentPeriodData('responseRate')) || 0,
+      progressValue: Number(metrics?.responseRate) || 0,
       chart: {
         series: generateChartDataFromPeriods('responseRate'),
         categories,
@@ -489,7 +487,7 @@ export function TripAdvisorMetricsOverview({ metrics, periodicalMetrics, current
     },
     {
       title: 'Avg Response Time',
-      total: averageResponseTime ? `${averageResponseTime} h` : 'N/A',
+      total: metrics?.averageResponseTime ? `${metrics.averageResponseTime} h` : 'N/A',
       icon: <Iconify icon="solar:clock-circle-bold" width={24} />,
       color: 'success',
       percent: calculatePercentageChange('averageResponseTime'),
@@ -500,7 +498,7 @@ export function TripAdvisorMetricsOverview({ metrics, periodicalMetrics, current
     },
     {
       title: 'Total Reviews',
-      total: Number(getCurrentPeriodData('totalReviews')) || 0,
+      total: Number(metrics?.totalReviews) || 0,
       icon: <Iconify icon="solar:chart-2-bold" width={24} />,
       color: 'primary',
       percent: calculatePercentageChange('totalReviews'),

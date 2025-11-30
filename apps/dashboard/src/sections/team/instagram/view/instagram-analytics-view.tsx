@@ -2,7 +2,7 @@
 
 import useTeam from '@/hooks/useTeam';
 import { useParams } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -19,7 +19,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 
 import { paths } from 'src/routes/paths';
 
-import useInstagramBusinessProfile from 'src/hooks/useInstagramBusinessProfile';
+import { useInstagramProfile, useInstagramAnalytics } from 'src/hooks/useLocations';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -48,13 +48,10 @@ interface ToastState {
 export function InstagramAnalyticsView() {
   const params = useParams();
   const teamSlug = params?.slug as string;
-  
-  const { team } = useTeam(teamSlug);
-  const { businessProfile } = useInstagramBusinessProfile(teamSlug);
+  const locationSlug = params?.locationSlug as string;
 
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const { team } = useTeam(teamSlug);
+
   const [startDate, setStartDate] = useState<Date>(() => {
     const date = new Date();
     date.setDate(date.getDate() - 7); // Default to last week
@@ -67,99 +64,56 @@ export function InstagramAnalyticsView() {
     severity: 'info'
   });
 
-  const fetchAnalyticsData = useCallback(async () => {
-    if (!businessProfile?.id) {
-      console.log('No business profile available for analytics:', { businessProfile });
-      setAnalyticsError('No business profile available');
-      return;
-    }
+  // Convert dates to ISO strings for the hook
+  const startDateISO = useMemo(() => startDate.toISOString(), [startDate]);
+  const endDateISO = useMemo(() => endDate.toISOString(), [endDate]);
 
-    setAnalyticsLoading(true);
-    setAnalyticsError(null);
+  // Get Instagram profile using new hook
+  const { profile: businessProfile, isLoading: profileLoading, error: profileError, refetch: refetchProfile } = useInstagramProfile(
+    locationSlug,
+    teamSlug,
+    !!teamSlug && !!locationSlug
+  );
 
-    try {
-      console.log('Fetching analytics with:', {
-        businessProfileId: businessProfile?.id,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        businessProfileExists: !!businessProfile
-      });
+  // Get analytics data using new hook
+  const { analytics: analyticsData, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } = useInstagramAnalytics(
+    teamSlug,
+    locationSlug,
+    startDateISO,
+    endDateISO,
+    !!businessProfile
+  );
 
-      const analyticsParams = new URLSearchParams({
-        businessProfileId: businessProfile.id,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-      });
-
-      const response = await fetch(`/api/instagram/analytics?${analyticsParams}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to fetch analytics data';
-        
-        if (response.status === 401) {
-          errorMessage = 'Authentication required. Please log in again.';
-        } else if (response.status === 403) {
-          errorMessage = 'Access denied. You do not have permission to view this data.';
-        } else if (response.status === 404) {
-          errorMessage = 'Analytics data not found. Please check your date range.';
-        } else if (response.status === 429) {
-          errorMessage = 'Too many requests. Please wait a moment and try again.';
-        } else if (response.status >= 500) {
-          errorMessage = 'Server error. Please try again later.';
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        if (!result.data || result.data === null) {
-          setAnalyticsError('No data available for the selected date range');
-          setToast({
-            open: true,
-            message: result.message || 'No analytics data found for the selected period',
-            severity: 'warning'
-          });
-        } else {
-          setAnalyticsData(result.data);
-          setToast({
-            open: true,
-            message: 'Analytics data loaded successfully',
-            severity: 'success'
-          });
-        }
-      } else {
-        throw new Error(result.error || 'Failed to fetch analytics data');
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-      setAnalyticsError(error instanceof Error ? error.message : 'An unexpected error occurred');
+  // Show toast on errors or success
+  useMemo(() => {
+    if (profileError) {
       setToast({
         open: true,
-        message: error instanceof Error ? error.message : 'Failed to fetch analytics data',
+        message: 'Failed to load Instagram profile',
         severity: 'error'
       });
-    } finally {
-      setAnalyticsLoading(false);
+    } else if (analyticsError) {
+      setToast({
+        open: true,
+        message: 'Failed to load analytics data',
+        severity: 'error'
+      });
+    } else if (analyticsData && !analyticsLoading) {
+      setToast({
+        open: true,
+        message: 'Analytics data loaded successfully',
+        severity: 'success'
+      });
     }
-  }, [businessProfile?.id, startDate, endDate]);
-
-  useEffect(() => {
-    fetchAnalyticsData();
-  }, [fetchAnalyticsData]);
+  }, [profileError, analyticsError, analyticsData, analyticsLoading]);
 
   const handleCloseToast = () => {
     setToast(prev => ({ ...prev, open: false }));
   };
 
   const handleRetry = () => {
-    fetchAnalyticsData();
+    refetchProfile();
+    refetchAnalytics();
   };
 
   const handleDateRangeChange = (newStartDate: Date | null, newEndDate: Date | null) => {
@@ -179,7 +133,7 @@ export function InstagramAnalyticsView() {
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Teams', href: paths.dashboard.teams.root },
             { name: team?.name || 'Team', href: paths.dashboard.teams.bySlug(teamSlug) },
-            { name: 'Instagram Analytics' },
+            { name: 'Instagram Analytics', href: '#' },
           ]}
           sx={{ mb: { xs: 3, md: 5 } }}
           action={null}
@@ -193,7 +147,7 @@ export function InstagramAnalyticsView() {
               <Iconify icon="eva:calendar-outline" width={20} height={20} className="" sx={{ fontSize: 20 }} />
               <Typography variant="h6">Date Range</Typography>
             </Stack>
-            
+
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -239,13 +193,13 @@ export function InstagramAnalyticsView() {
         </Card>
 
         {/* General Information */}
-        <InstagramGeneralInfo 
-          data={analyticsData?.general} 
-          businessProfile={businessProfile} 
+        <InstagramGeneralInfo
+          data={analyticsData?.data?.general}
+          businessProfile={businessProfile || undefined}
         />
 
         {/* Analytics Tabs */}
-        {analyticsLoading ? (
+        {(profileLoading || analyticsLoading) ? (
           <Card>
             <CardContent>
               <Stack spacing={2}>
@@ -254,11 +208,11 @@ export function InstagramAnalyticsView() {
               </Stack>
             </CardContent>
           </Card>
-        ) : analyticsError ? (
+        ) : (profileError || analyticsError) ? (
           <Card>
             <CardContent>
-              <Alert 
-                severity="error" 
+              <Alert
+                severity="error"
                 action={
                   <Button color="inherit" size="small" onClick={handleRetry}>
                     Retry
@@ -266,16 +220,16 @@ export function InstagramAnalyticsView() {
                 }
               >
                 <Typography variant="body2">
-                  {analyticsError}
+                  {profileError ? 'Failed to load Instagram profile' : (analyticsData?.error || 'An error occurred')}
                 </Typography>
               </Alert>
             </CardContent>
           </Card>
         ) : (
-          <InstagramAnalyticsTabs 
-            data={analyticsData} 
-            startDate={startDate} 
-            endDate={endDate} 
+          <InstagramAnalyticsTabs
+            data={analyticsData?.data}
+            startDate={startDate}
+            endDate={endDate}
           />
         )}
       </Stack>
@@ -287,9 +241,9 @@ export function InstagramAnalyticsView() {
         onClose={handleCloseToast}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleCloseToast} 
-          severity={toast.severity} 
+        <Alert
+          onClose={handleCloseToast}
+          severity={toast.severity}
           sx={{ width: '100%' }}
         >
           {toast.message}

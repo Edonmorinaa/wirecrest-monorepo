@@ -11,30 +11,14 @@ import CardContent from '@mui/material/CardContent';
 
 import { Iconify } from 'src/components/iconify';
 import { ChartArea, ChartLine } from 'src/components/chart';
+import { GrowthMetrics } from 'src/types/instagram-analytics';
 
 import { InstagramMetricsWidget } from '../components/instagram-metrics-widget';
 
 // ----------------------------------------------------------------------
 
-interface ChartDataPoint {
-  date: string;
-  value: number;
-}
-
-interface GrowthData {
-  followersGrowthRate90d?: number;
-  steadyGrowthRate?: number;
-  dailyFollowers?: number;
-  weeklyFollowers?: number;
-  monthlyFollowers?: number;
-  followersChart?: ChartDataPoint[];
-  followingChart?: ChartDataPoint[];
-  newDailyFollowersChart?: ChartDataPoint[];
-  predictedFollowersChart?: ChartDataPoint[];
-}
-
 interface InstagramGrowthTabProps {
-  data: GrowthData | null;
+  data: GrowthMetrics | null | undefined;
   startDate: Date;
   endDate: Date;
 }
@@ -65,13 +49,19 @@ export function InstagramGrowthTab({ data, startDate, endDate }: InstagramGrowth
     return `${num.toFixed(1)}%`;
   };
 
+  // Helper to get latest value from chart data
+  const getLatestValue = (chartData: { value: number }[] | undefined): number => {
+    if (!chartData || chartData.length === 0) return 0;
+    return chartData[chartData.length - 1].value;
+  };
+
   // Safe data access with fallbacks
-  const safeData: Required<GrowthData> = {
+  const safeData = {
     followersGrowthRate90d: data?.followersGrowthRate90d || 0,
     steadyGrowthRate: data?.steadyGrowthRate || 0,
-    dailyFollowers: data?.dailyFollowers || 0,
-    weeklyFollowers: data?.weeklyFollowers || 0,
-    monthlyFollowers: data?.monthlyFollowers || 0,
+    dailyFollowers: getLatestValue(data?.dailyFollowers),
+    weeklyFollowers: getLatestValue(data?.weeklyFollowers),
+    monthlyFollowers: getLatestValue(data?.monthlyFollowers),
     followersChart: data?.followersChart || [],
     followingChart: data?.followingChart || [],
     newDailyFollowersChart: data?.newDailyFollowersChart || [],
@@ -209,7 +199,7 @@ export function InstagramGrowthTab({ data, startDate, endDate }: InstagramGrowth
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Followers Growth"
               subheader="Daily followers count over time"
               action={
@@ -229,7 +219,7 @@ export function InstagramGrowthTab({ data, startDate, endDate }: InstagramGrowth
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Following Count"
               subheader="Daily following count over time"
               action={
@@ -249,7 +239,7 @@ export function InstagramGrowthTab({ data, startDate, endDate }: InstagramGrowth
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="New Daily Followers"
               subheader="Daily new followers gained"
               action={
@@ -269,7 +259,7 @@ export function InstagramGrowthTab({ data, startDate, endDate }: InstagramGrowth
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
-            <CardHeader 
+            <CardHeader
               title="Predicted Followers"
               subheader="Projected followers based on growth trend"
               action={

@@ -4,6 +4,7 @@ import { CONFIG } from 'src/global-config';
 
 import { InstagramAnalyticsView } from 'src/sections/team/instagram/view/instagram-analytics-view';
 import { PageLoading } from 'src/components/loading/page-loading';
+import { InstagramProfileOverview } from '../../../../../../../sections/team/instagram/instagram-profile-overview';
 
 // ----------------------------------------------------------------------
 

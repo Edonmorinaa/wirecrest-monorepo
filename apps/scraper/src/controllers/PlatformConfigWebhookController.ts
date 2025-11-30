@@ -6,21 +6,32 @@
 
 import type { Request, Response } from "express";
 import { StripeFirstSubscriptionService } from "@wirecrest/billing";
-import { SubscriptionOrchestrator } from "../services/subscription/SubscriptionOrchestrator";
-import { BusinessProfileCreationService } from "../services/businessProfileCreationService";
+import { SubscriptionOrchestrator } from "../services/subscription/SubscriptionOrchestrator.js";
+import { BusinessProfileCreationService } from "../services/businessProfileCreationService.js";
 import { MarketPlatform } from "@prisma/client";
-import type { Platform } from "../types/apify.types";
+import type { Platform } from "../types/apify.types.js";
+import type { InstagramDataService } from "../services/instagramDataService.js";
+import type { TikTokDataService } from "../services/tiktokDataService.js";
 
 export class PlatformConfigWebhookController {
   private orchestrator: SubscriptionOrchestrator;
   private apifyToken: string;
+  private instagramService: InstagramDataService | null;
+  private tiktokService: TikTokDataService | null;
 
-  constructor(apifyToken: string, webhookBaseUrl: string) {
+  constructor(
+    apifyToken: string,
+    webhookBaseUrl: string,
+    instagramService?: InstagramDataService,
+    tiktokService?: TikTokDataService,
+  ) {
     this.orchestrator = new SubscriptionOrchestrator(
       apifyToken,
       webhookBaseUrl,
     );
     this.apifyToken = apifyToken;
+    this.instagramService = instagramService || null;
+    this.tiktokService = tiktokService || null;
   }
 
   /**
@@ -91,7 +102,55 @@ export class PlatformConfigWebhookController {
         `✅ Business profile ready: ${profileResult.businessProfileId} (created: ${profileResult.created})`,
       );
 
-      // STEP 2: Trigger initial scrape + add to schedule
+      // STEP 2: Handle platform-specific setup
+      const platformLower = platform.toLowerCase();
+
+      // Instagram and TikTok use direct snapshot triggering
+      if (platformLower === 'instagram' && this.instagramService) {
+        console.log(`📸 Triggering Instagram snapshot for ${identifier}`);
+
+        const snapshotResult = await this.instagramService.takeDailySnapshot(
+          profileResult.businessProfileId,
+          {
+            snapshotType: "INITIAL",
+            includeMedia: true,
+            includeComments: true,
+            maxMedia: 20,
+            maxComments: 50,
+          },
+        );
+
+        if (!snapshotResult.success) {
+          console.error(`❌ Instagram snapshot failed:`, snapshotResult.error);
+        } else {
+          console.log(`✅ Instagram snapshot completed:`, snapshotResult.snapshotId);
+        }
+
+        res.json({
+          success: true,
+          message: "Instagram profile configured and snapshot triggered",
+          profileCreated: profileResult.created,
+          businessProfileId: profileResult.businessProfileId,
+          snapshotTriggered: snapshotResult.success,
+          snapshotId: snapshotResult.snapshotId,
+        });
+        return;
+      }
+
+      if (platformLower === 'tiktok' && this.tiktokService) {
+        console.log(`📸 TikTok snapshot currently unavailable (legacy Supabase)`);
+
+        res.json({
+          success: true,
+          message: "TikTok profile configured (snapshot unavailable - awaiting migration)",
+          profileCreated: profileResult.created,
+          businessProfileId: profileResult.businessProfileId,
+          snapshotTriggered: false,
+        });
+        return;
+      }
+
+      // Other platforms use Apify orchestrator
       const apifyPlatform = this.mapPlatformToApifyPlatform(platform);
       const result = await this.orchestrator.handlePlatformAdded(
         teamId,
@@ -157,6 +216,8 @@ export class PlatformConfigWebhookController {
       facebook: MarketPlatform.FACEBOOK,
       tripadvisor: MarketPlatform.TRIPADVISOR,
       booking: MarketPlatform.BOOKING,
+      instagram: MarketPlatform.INSTAGRAM,
+      tiktok: MarketPlatform.TIKTOK,
     };
     return mapping[platform] || MarketPlatform.GOOGLE_MAPS; // Default fallback
   }

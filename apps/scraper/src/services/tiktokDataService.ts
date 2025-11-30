@@ -1,39 +1,41 @@
 /**
- * LEGACY FILE - For reference only
- * Supabase has been removed. This service is deprecated.
+ * TikTok Data Service - Prisma Implementation
+ * Handles TikTok business profile management and snapshot operations
  */
 
+import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { DatabaseService } from "../supabase/database";
-import { SentimentAnalyzer } from "../sentimentAnalyzer/sentimentAnalyzer";
+import { SentimentAnalyzer } from "../sentimentAnalyzer/sentimentAnalyzer.js";
 import type {
   TikTokBusinessProfile,
   TikTokDailySnapshot,
   TikTokSnapshotSchedule,
-  TikTokVideo,
-  TikTokComment,
-  TikTokAnalytics,
   TakeSnapshotRequest,
   GetAnalyticsRequest,
-  LamaTokUserResponse,
-  LamaTokVideoResponse,
-  LamaTokCommentResponse,
-  LamaTokConfig,
-} from "../types/tiktok";
+} from "../types/tiktok.js";
+
+interface LamaTokConfig {
+  baseUrl: string;
+  accessKey: string;
+  rateLimit?: {
+    requestsPerMinute: number;
+    burstLimit: number;
+  };
+}
 
 export class TikTokDataService {
-  private supabase: SupabaseClient;
-  private database: DatabaseService;
-  private sentimentAnalyzer: SentimentAnalyzer;
+  private prisma: PrismaClient;
   private lamaTokConfig: LamaTokConfig;
+  private sentimentAnalyzer: SentimentAnalyzer;
 
-  constructor(lamatokAccessKey: string) {
-    this.supabase = new SupabaseClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-    this.database = new DatabaseService();
-    this.sentimentAnalyzer = new SentimentAnalyzer(["en"]);
+  constructor(
+    lamatokAccessKey: string,
+    prismaClient?: PrismaClient,
+    sentimentAnalyzer?: SentimentAnalyzer
+  ) {
+    this.prisma = prismaClient || new PrismaClient();
+    this.sentimentAnalyzer = sentimentAnalyzer || new SentimentAnalyzer();
+
     this.lamaTokConfig = {
       baseUrl: "https://api.lamatok.com",
       accessKey: lamatokAccessKey,
@@ -44,29 +46,31 @@ export class TikTokDataService {
     };
   }
 
+  /**
+   * Create or update TikTok business profile
+   */
   async createBusinessProfile(
-    teamId: string,
+    locationId: string,
     tiktokUsername: string,
   ): Promise<{ success: boolean; businessProfileId?: string; error?: string }> {
     try {
       console.log("[TikTok] createBusinessProfile:start", {
-        teamId,
+        locationId,
         tiktokUsername,
       });
-      // Check if profile already exists
-      const existingProfile = await this.supabase
-        .from("TikTokBusinessProfile")
-        .select("*")
-        .eq("teamId", teamId)
-        .single();
 
-      if (existingProfile.data) {
+      // Check if profile already exists
+      const existingProfile = await this.prisma.tikTokBusinessProfile.findUnique({
+        where: { locationId },
+      });
+
+      if (existingProfile) {
         console.log("[TikTok] createBusinessProfile:existing-found", {
-          businessProfileId: existingProfile.data.id,
+          businessProfileId: existingProfile.id,
         });
         return {
           success: true,
-          businessProfileId: existingProfile.data.id,
+          businessProfileId: existingProfile.id,
         };
       }
 
@@ -77,6 +81,7 @@ export class TikTokDataService {
         hasUser: Boolean(userData.data?.user),
         error: userData.error,
       });
+
       if (!userData.success || !userData.data?.user) {
         return {
           success: false,
@@ -88,11 +93,10 @@ export class TikTokDataService {
 
       // Create business profile
       const newBusinessProfileId = randomUUID();
-      const { data: businessProfile, error } = await this.supabase
-        .from("TikTokBusinessProfile")
-        .insert({
+      const businessProfile = await this.prisma.tikTokBusinessProfile.create({
+        data: {
           id: newBusinessProfileId,
-          teamId,
+          locationId,
           username: user.uniqueId,
           nickname: user.nickname,
           avatarUrl: user.avatarLarger,
@@ -107,17 +111,9 @@ export class TikTokDataService {
           isBusinessAccount: user.isBusinessAccount,
           category: user.category,
           isActive: true,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error creating TikTok business profile:", error);
-        return {
-          success: false,
-          error: `Database error: ${error.message}`,
-        };
-      }
+        },
+        select: { id: true },
+      });
 
       // Create initial snapshot (without videos due to API limitation)
       console.log("[TikTok] createBusinessProfile:inserted", {
@@ -144,6 +140,41 @@ export class TikTokDataService {
     }
   }
 
+  /**
+   * Get TikTok business profile by location ID
+   */
+  async getBusinessProfileByLocationId(locationId: string): Promise<{
+    success: boolean;
+    profile?: TikTokBusinessProfile;
+    error?: string;
+  }> {
+    try {
+      const profile = await this.prisma.tikTokBusinessProfile.findUnique({
+        where: { locationId },
+      });
+
+      if (!profile) {
+        return {
+          success: false,
+          error: "TikTok business profile not found",
+        };
+      }
+
+      return {
+        success: true,
+        profile: profile as any,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
+    }
+  }
+
+  /**
+   * Take a daily snapshot of TikTok data
+   */
   async takeDailySnapshot(
     businessProfileId: string,
     options: Partial<Omit<TakeSnapshotRequest, "businessProfileId">> = {},
@@ -153,6 +184,7 @@ export class TikTokDataService {
         businessProfileId,
         options,
       });
+
       const {
         snapshotType = "DAILY",
         includeVideos = false,
@@ -162,13 +194,11 @@ export class TikTokDataService {
       } = options;
 
       // Get business profile
-      const { data: businessProfile, error: profileError } = await this.supabase
-        .from("TikTokBusinessProfile")
-        .select("*")
-        .eq("id", businessProfileId)
-        .single();
+      const businessProfile = await this.prisma.tikTokBusinessProfile.findUnique({
+        where: { id: businessProfileId },
+      });
 
-      if (profileError || !businessProfile) {
+      if (!businessProfile) {
         return {
           success: false,
           error: "Business profile not found",
@@ -182,6 +212,7 @@ export class TikTokDataService {
         hasUser: Boolean(userData.data?.user),
         error: userData.error,
       });
+
       if (!userData.success || !userData.data?.user) {
         return {
           success: false,
@@ -191,17 +222,14 @@ export class TikTokDataService {
 
       const user = userData.data.user;
       const now = new Date();
-      const snapshotDate = now.toISOString().split("T")[0];
-      const snapshotTime = now.toISOString();
+      const snapshotDate = new Date(now.toISOString().split("T")[0]);
 
       // Calculate daily metrics
-      const previousSnapshot = await this.supabase
-        .from("TikTokDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .order("createdAt", { ascending: false })
-        .limit(1)
-        .single();
+      const previousSnapshot = await this.prisma.tikTokDailySnapshot.findFirst({
+        where: { businessProfileId },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      });
 
       const totalLikes = user.heartCount;
       const totalComments = 0; // Will be calculated from videos if needed
@@ -211,13 +239,12 @@ export class TikTokDataService {
 
       // Create snapshot
       const newSnapshotId = randomUUID();
-      const { data: snapshot, error: snapshotError } = await this.supabase
-        .from("TikTokDailySnapshot")
-        .insert({
+      const snapshot = await this.prisma.tikTokDailySnapshot.create({
+        data: {
           id: newSnapshotId,
           businessProfileId,
           snapshotDate,
-          snapshotTime,
+          snapshotTime: now,
           snapshotType,
           followerCount: user.followerCount,
           followingCount: user.followingCount,
@@ -233,22 +260,14 @@ export class TikTokDataService {
           newComments: 0,
           hasErrors: false,
           errorMessage: null,
-        })
-        .select()
-        .single();
-
-      if (snapshotError) {
-        console.error("Error creating TikTok snapshot:", snapshotError);
-        return {
-          success: false,
-          error: `Snapshot creation error: ${snapshotError.message}`,
-        };
-      }
+        },
+        select: { id: true },
+      });
 
       // Update business profile with latest data
-      await this.supabase
-        .from("TikTokBusinessProfile")
-        .update({
+      await this.prisma.tikTokBusinessProfile.update({
+        where: { id: businessProfileId },
+        data: {
           followerCount: user.followerCount,
           followingCount: user.followingCount,
           heartCount: user.heartCount,
@@ -259,8 +278,8 @@ export class TikTokDataService {
           isBusinessAccount: user.isBusinessAccount,
           lastSnapshotAt: now,
           updatedAt: now,
-        })
-        .eq("id", businessProfileId);
+        },
+      });
 
       // Fetch videos and comments if requested
       if (includeVideos) {
@@ -290,6 +309,9 @@ export class TikTokDataService {
     }
   }
 
+  /**
+   * Enable automatic snapshots
+   */
   async enableAutomaticSnapshots(
     businessProfileId: string,
     snapshotTime: string = "09:00:00",
@@ -301,49 +323,28 @@ export class TikTokDataService {
         snapshotTime,
         timezone,
       });
-      // Check if a schedule already exists for this business profile
-      const { data: existing, error: findErr } = await this.supabase
-        .from("TikTokSnapshotSchedule")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .maybeSingle();
 
-      if (findErr) {
-        console.error("[TikTok] enableAutomaticSnapshots:query-error", {
-          error: findErr.message,
-        });
-        return {
-          success: false,
-          error: `Failed to query snapshot schedule: ${findErr.message}`,
-        };
-      }
+      // Check if a schedule already exists for this business profile
+      const existing = await this.prisma.tikTokSnapshotSchedule.findUnique({
+        where: { businessProfileId },
+      });
 
       if (existing) {
         console.log("[TikTok] enableAutomaticSnapshots:update-existing", {
           scheduleId: existing.id,
         });
-        const { data: updated, error: updErr } = await this.supabase
-          .from("TikTokSnapshotSchedule")
-          .update({
+
+        const updated = await this.prisma.tikTokSnapshotSchedule.update({
+          where: { id: existing.id },
+          data: {
             isEnabled: true,
             snapshotTime,
             timezone,
             maxRetries: 3,
             retryDelayMinutes: 5,
-          })
-          .eq("id", existing.id)
-          .select()
-          .single();
-
-        if (updErr) {
-          console.error("[TikTok] enableAutomaticSnapshots:update-error", {
-            error: updErr.message,
-          });
-          return {
-            success: false,
-            error: `Failed to enable automatic snapshots: ${updErr.message}`,
-          };
-        }
+          },
+          select: { id: true },
+        });
 
         console.log("[TikTok] enableAutomaticSnapshots:updated", {
           scheduleId: updated.id,
@@ -354,9 +355,9 @@ export class TikTokDataService {
         console.log("[TikTok] enableAutomaticSnapshots:insert-new", {
           scheduleId: newId,
         });
-        const { data: inserted, error: insErr } = await this.supabase
-          .from("TikTokSnapshotSchedule")
-          .insert({
+
+        const inserted = await this.prisma.tikTokSnapshotSchedule.create({
+          data: {
             id: newId,
             businessProfileId,
             isEnabled: true,
@@ -364,19 +365,9 @@ export class TikTokDataService {
             timezone,
             maxRetries: 3,
             retryDelayMinutes: 5,
-          })
-          .select()
-          .single();
-
-        if (insErr) {
-          console.error("[TikTok] enableAutomaticSnapshots:insert-error", {
-            error: insErr.message,
-          });
-          return {
-            success: false,
-            error: `Failed to enable automatic snapshots: ${insErr.message}`,
-          };
-        }
+          },
+          select: { id: true },
+        });
 
         console.log("[TikTok] enableAutomaticSnapshots:inserted", {
           scheduleId: inserted.id,
@@ -394,21 +385,17 @@ export class TikTokDataService {
     }
   }
 
+  /**
+   * Disable automatic snapshots
+   */
   async disableAutomaticSnapshots(
     businessProfileId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await this.supabase
-        .from("TikTokSnapshotSchedule")
-        .update({ isEnabled: false })
-        .eq("businessProfileId", businessProfileId);
-
-      if (error) {
-        return {
-          success: false,
-          error: `Failed to disable automatic snapshots: ${error.message}`,
-        };
-      }
+      await this.prisma.tikTokSnapshotSchedule.update({
+        where: { businessProfileId },
+        data: { isEnabled: false },
+      });
 
       return { success: true };
     } catch (error) {
@@ -419,6 +406,9 @@ export class TikTokDataService {
     }
   }
 
+  /**
+   * Update snapshot schedule
+   */
   async updateSnapshotSchedule(
     businessProfileId: string,
     settings: {
@@ -429,17 +419,10 @@ export class TikTokDataService {
     },
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await this.supabase
-        .from("TikTokSnapshotSchedule")
-        .update(settings)
-        .eq("businessProfileId", businessProfileId);
-
-      if (error) {
-        return {
-          success: false,
-          error: `Failed to update snapshot schedule: ${error.message}`,
-        };
-      }
+      await this.prisma.tikTokSnapshotSchedule.update({
+        where: { businessProfileId },
+        data: settings,
+      });
 
       return { success: true };
     } catch (error) {
@@ -450,28 +433,22 @@ export class TikTokDataService {
     }
   }
 
+  /**
+   * Get snapshot schedule status
+   */
   async getSnapshotScheduleStatus(businessProfileId: string): Promise<{
     success: boolean;
     schedule?: TikTokSnapshotSchedule;
     error?: string;
   }> {
     try {
-      const { data: schedule, error } = await this.supabase
-        .from("TikTokSnapshotSchedule")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .single();
-
-      if (error && error.code !== "PGRST116") {
-        return {
-          success: false,
-          error: `Failed to get schedule status: ${error.message}`,
-        };
-      }
+      const schedule = await this.prisma.tikTokSnapshotSchedule.findUnique({
+        where: { businessProfileId },
+      });
 
       return {
         success: true,
-        schedule: schedule || null,
+        schedule: schedule as any || undefined,
       };
     } catch (error) {
       return {
@@ -481,6 +458,9 @@ export class TikTokDataService {
     }
   }
 
+  /**
+   * Get snapshots
+   */
   async getSnapshots(
     businessProfileId: string,
     options: {
@@ -497,47 +477,32 @@ export class TikTokDataService {
     error?: string;
   }> {
     try {
-      let query = this.supabase
-        .from("TikTokDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .order("createdAt", { ascending: false });
+      const where: any = { businessProfileId };
 
       if (options.snapshotType) {
-        query = query.eq("snapshotType", options.snapshotType);
+        where.snapshotType = options.snapshotType;
       }
 
       if (options.startDate) {
-        query = query.gte("snapshotDate", options.startDate);
+        where.snapshotDate = where.snapshotDate || {};
+        where.snapshotDate.gte = new Date(options.startDate);
       }
 
       if (options.endDate) {
-        query = query.lte("snapshotDate", options.endDate);
+        where.snapshotDate = where.snapshotDate || {};
+        where.snapshotDate.lte = new Date(options.endDate);
       }
 
-      if (options.limit) {
-        query = query.limit(options.limit);
-      }
-
-      if (options.offset) {
-        query = query.range(
-          options.offset,
-          options.offset + (options.limit || 100) - 1,
-        );
-      }
-
-      const { data: snapshots, error } = await query;
-
-      if (error) {
-        return {
-          success: false,
-          error: `Failed to fetch snapshots: ${error.message}`,
-        };
-      }
+      const snapshots = await this.prisma.tikTokDailySnapshot.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: options.limit || 100,
+        skip: options.offset || 0,
+      });
 
       return {
         success: true,
-        snapshots: snapshots || [],
+        snapshots: snapshots as any,
       };
     } catch (error) {
       return {
@@ -547,43 +512,15 @@ export class TikTokDataService {
     }
   }
 
-  async getBusinessProfileByTeamId(teamId: string): Promise<{
-    success: boolean;
-    profile?: TikTokBusinessProfile;
-    error?: string;
-  }> {
-    try {
-      const { data: profile, error } = await this.supabase
-        .from("TikTokBusinessProfile")
-        .select("*")
-        .eq("teamId", teamId)
-        .single();
-
-      if (error && error.code !== "PGRST116") {
-        return {
-          success: false,
-          error: `Failed to fetch business profile: ${error.message}`,
-        };
-      }
-
-      return {
-        success: true,
-        profile: profile || null,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  }
-
+  /**
+   * Get analytics
+   */
   async getAnalytics(
     businessProfileId: string,
     request: GetAnalyticsRequest,
   ): Promise<{
     success: boolean;
-    analytics?: TikTokAnalytics;
+    analytics?: any;
     error?: string;
   }> {
     try {
@@ -609,13 +546,16 @@ export class TikTokDataService {
       }
 
       // Get snapshots for the period
-      const { data: snapshots } = await this.supabase
-        .from("TikTokDailySnapshot")
-        .select("*")
-        .eq("businessProfileId", businessProfileId)
-        .gte("snapshotDate", start.toISOString().split("T")[0])
-        .lte("snapshotDate", end.toISOString().split("T")[0])
-        .order("snapshotDate", { ascending: true });
+      const snapshots = await this.prisma.tikTokDailySnapshot.findMany({
+        where: {
+          businessProfileId,
+          snapshotDate: {
+            gte: start,
+            lte: end,
+          },
+        },
+        orderBy: { snapshotDate: 'asc' },
+      });
 
       if (!snapshots || snapshots.length === 0) {
         return {
@@ -683,7 +623,7 @@ export class TikTokDataService {
         })),
       };
 
-      const analytics: TikTokAnalytics = {
+      const analytics = {
         periodMetrics: {
           followersGrowth,
           followersGrowthPercent,
@@ -713,7 +653,7 @@ export class TikTokDataService {
    * Calculate average engagement rate from snapshots
    */
   private calculateAverageEngagementRate(
-    snapshots: TikTokDailySnapshot[],
+    snapshots: any[],
   ): number {
     if (snapshots.length === 0) return 0;
 
@@ -731,12 +671,16 @@ export class TikTokDataService {
     return avgFollowers > 0 ? (totalEngagement / avgFollowers) * 100 : 0;
   }
 
+  /**
+   * Fetch user data from LamaTok API
+   */
   private async fetchUserByUsername(
     username: string,
-  ): Promise<LamaTokUserResponse> {
+  ): Promise<any> {
     try {
       const url = `${this.lamaTokConfig.baseUrl}/v1/user/by/username?username=${encodeURIComponent(username)}`;
       console.log("[LamaTok] fetchUserByUsername:request", { username, url });
+
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -745,13 +689,14 @@ export class TikTokDataService {
         },
       });
 
-      let data: any = null;
       const text = await response.text();
       console.log("[LamaTok] fetchUserByUsername:response", {
         status: response.status,
         ok: response.ok,
         bodyPreview: text?.slice(0, 300),
       });
+
+      let data: any = null;
       try {
         data = JSON.parse(text);
       } catch {
@@ -801,492 +746,59 @@ export class TikTokDataService {
               userEntry.avatarThumb ||
               "",
             signature: userEntry.signature || "",
-            verified: Boolean(userEntry.verified),
-            followerCount:
-              statsEntry?.followerCount ?? userEntry.followerCount ?? 0,
-            followingCount:
-              statsEntry?.followingCount ?? userEntry.followingCount ?? 0,
-            heartCount:
-              statsEntry?.heartCount ??
-              statsEntry?.heart ??
-              userEntry.heartCount ??
-              0,
-            videoCount: statsEntry?.videoCount ?? userEntry.videoCount ?? 0,
-            diggCount: statsEntry?.diggCount ?? userEntry.diggCount ?? 0,
-            privateAccount: Boolean(userEntry.privateAccount),
-            isBusinessAccount: Boolean(userEntry.isBusinessAccount),
-            category: userEntry.category,
-            secUid: userEntry.secUid,
+            verified: userEntry.verified || false,
+            privateAccount: userEntry.privateAccount || false,
+            followerCount: statsEntry?.followerCount || userEntry.followerCount || 0,
+            followingCount: statsEntry?.followingCount || userEntry.followingCount || 0,
+            heartCount: statsEntry?.heartCount || userEntry.heartCount || 0,
+            videoCount: statsEntry?.videoCount || userEntry.videoCount || 0,
+            diggCount: statsEntry?.diggCount || userEntry.diggCount || 0,
+            isBusinessAccount: userEntry.commerceUserInfo?.commerceUser || false,
+            category: userEntry.category || null,
           },
-        } as LamaTokUserResponse["data"];
+        };
 
         return { success: true, data: normalized };
       }
 
-      return { success: true, data: data as LamaTokUserResponse["data"] };
+      return { success: false, error: "Unexpected response structure from LamaTok" };
     } catch (error) {
+      console.error("[LamaTok] fetchUserByUsername:error", error);
       return {
         success: false,
-        error: `Network error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
 
-  private async fetchUserVideos(
-    username: string,
-    count: number = 10,
-  ): Promise<LamaTokVideoResponse> {
-    try {
-      // Note: LamaTok API doesn't have a direct endpoint for user videos
-      // We'll need to implement this differently or use a different approach
-      // For now, we'll return an empty response with a note about the limitation
-
-      console.warn(
-        "⚠️  LamaTok API does not provide a direct endpoint for fetching user videos",
-      );
-      console.warn(
-        "⚠️  This functionality may need to be implemented differently",
-      );
-
-      return {
-        success: true,
-        data: {
-          videos: [],
-          hasMore: false,
-          cursor: undefined,
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Network error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  }
-
-  // New method: Fetch user followers
-  private async fetchUserFollowers(
-    username: string,
-    count: number = 30,
-    pageId?: string,
-  ): Promise<any> {
-    try {
-      const url = `${this.lamaTokConfig.baseUrl}/v1/user/followers/by/username?username=${encodeURIComponent(username)}&count=${count}${pageId ? `&page_id=${pageId}` : ""}`;
-      console.log("[LamaTok] fetchUserFollowers:request", {
-        username,
-        count,
-        pageId,
-        url,
-      });
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "x-access-key": this.lamaTokConfig.accessKey,
-        },
-      });
-
-      const data = (await response.json()) as any;
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `API error (${response.status}): ${data.error || "Unknown error"}`,
-        };
-      }
-
-      return {
-        success: true,
-        data: data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Network error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  }
-
-  // New method: Fetch user following
-  private async fetchUserFollowing(
-    username: string,
-    count: number = 30,
-    pageId?: string,
-  ): Promise<any> {
-    try {
-      const url = `${this.lamaTokConfig.baseUrl}/v1/user/following/by/username?username=${encodeURIComponent(username)}&count=${count}${pageId ? `&page_id=${pageId}` : ""}`;
-      console.log("[LamaTok] fetchUserFollowing:request", {
-        username,
-        count,
-        pageId,
-        url,
-      });
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "x-access-key": this.lamaTokConfig.accessKey,
-        },
-      });
-
-      const data = (await response.json()) as any;
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `API error (${response.status}): ${data.error || "Unknown error"}`,
-        };
-      }
-
-      return {
-        success: true,
-        data: data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Network error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  }
-
-  // New method: Fetch user playlists
-  private async fetchUserPlaylists(
-    username: string,
-    count: number = 30,
-    pageId?: string,
-  ): Promise<any> {
-    try {
-      const url = `${this.lamaTokConfig.baseUrl}/v1/user/playlists/by/username?username=${encodeURIComponent(username)}&count=${count}${pageId ? `&page_id=${pageId}` : ""}`;
-      console.log("[LamaTok] fetchUserPlaylists:request", {
-        username,
-        count,
-        pageId,
-        url,
-      });
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "x-access-key": this.lamaTokConfig.accessKey,
-        },
-      });
-
-      const data = (await response.json()) as any;
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `API error (${response.status}): ${data.error || "Unknown error"}`,
-        };
-      }
-
-      return {
-        success: true,
-        data: data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Network error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  }
-
-  // New method: Fetch media by URL
-  private async fetchMediaByUrl(url: string): Promise<any> {
-    try {
-      const apiUrl = `${this.lamaTokConfig.baseUrl}/v1/media/by/url?url=${encodeURIComponent(url)}`;
-      console.log("[LamaTok] fetchMediaByUrl:request", { url, apiUrl });
-
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "x-access-key": this.lamaTokConfig.accessKey,
-        },
-      });
-
-      const data = (await response.json()) as any;
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `API error (${response.status}): ${data.error || "Unknown error"}`,
-        };
-      }
-
-      return {
-        success: true,
-        data: data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Network error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  }
-
-  // New method: Fetch hashtag info
-  private async fetchHashtagInfo(hashtag: string): Promise<any> {
-    try {
-      const url = `${this.lamaTokConfig.baseUrl}/v1/hashtag/info?hashtag=${encodeURIComponent(hashtag)}`;
-      console.log("[LamaTok] fetchHashtagInfo:request", { hashtag, url });
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "x-access-key": this.lamaTokConfig.accessKey,
-        },
-      });
-
-      const data = (await response.json()) as any;
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `API error (${response.status}): ${data.error || "Unknown error"}`,
-        };
-      }
-
-      return {
-        success: true,
-        data: data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Network error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  }
-
-  private async fetchVideoComments(
-    videoId: string,
-    count: number = 50,
-  ): Promise<LamaTokCommentResponse> {
-    try {
-      const response = await fetch(
-        `${this.lamaTokConfig.baseUrl}/v1/media/comments/by/id?id=${encodeURIComponent(videoId)}&count=${count}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "x-access-key": this.lamaTokConfig.accessKey,
-          },
-        },
-      );
-
-      const data = (await response.json()) as any;
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `API error (${response.status}): ${data.error || "Unknown error"}`,
-        };
-      }
-
-      return {
-        success: true,
-        data: data as LamaTokCommentResponse["data"],
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Network error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
-    }
-  }
-
+  /**
+   * Fetch and store video snapshots
+   */
   private async fetchAndStoreVideoSnapshots(
     businessProfileId: string,
     dailySnapshotId: string,
     username: string,
     maxVideos: number,
-    includeComments: boolean = false,
-    maxComments: number = 50,
-  ): Promise<void> {
-    try {
-      const videosData = await this.fetchUserVideos(username, maxVideos);
-      if (!videosData.success || !videosData.data?.videos) {
-        console.error("Failed to fetch TikTok videos:", videosData.error);
-        return;
-      }
-
-      for (const video of videosData.data.videos) {
-        // Store video snapshot
-        const { error: videoError } = await this.supabase
-          .from("TikTokVideoSnapshot")
-          .insert({
-            dailySnapshotId,
-            businessProfileId,
-            videoId: video.videoId,
-            description: video.desc,
-            createTime: new Date(video.createTime * 1000),
-            videoUrl: video.video.playAddr,
-            coverUrl: video.video.cover,
-            duration: video.video.duration,
-            width: video.video.width,
-            height: video.video.height,
-            playCount: video.stats.playCount,
-            diggCount: video.stats.diggCount,
-            commentCount: video.stats.commentCount,
-            shareCount: video.stats.shareCount,
-            downloadCount: video.stats.downloadCount,
-            hashtags: video.hashtags,
-            mentions: video.mentions,
-            isAd: video.isAd,
-            isPrivate: video.isPrivate,
-            isDownloadable: video.isDownloadable,
-          });
-
-        if (videoError) {
-          console.error("Error storing video snapshot:", videoError);
-          continue;
-        }
-
-        // Fetch and store comments if requested
-        if (includeComments) {
-          await this.fetchAndStoreCommentSnapshots(
-            businessProfileId,
-            dailySnapshotId,
-            video.videoId,
-            maxComments,
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error in fetchAndStoreVideoSnapshots:", error);
-    }
-  }
-
-  private async fetchAndStoreCommentSnapshots(
-    businessProfileId: string,
-    dailySnapshotId: string,
-    videoId: string,
+    includeComments: boolean,
     maxComments: number,
   ): Promise<void> {
     try {
-      const commentsData = await this.fetchVideoComments(videoId, maxComments);
-      if (!commentsData.success || !commentsData.data?.comments) {
-        console.error("Failed to fetch TikTok comments:", commentsData.error);
-        return;
-      }
-
-      for (const comment of commentsData.data.comments) {
-        // Analyze sentiment
-        const sentiment = comment.text
-          ? await this.sentimentAnalyzer.analyzeSentiment(comment.text)
-          : 0;
-        const keywords = comment.text ? this.extractKeywords(comment.text) : [];
-
-        const { error: commentError } = await this.supabase
-          .from("TikTokCommentSnapshot")
-          .insert({
-            dailySnapshotId,
-            businessProfileId,
-            videoId,
-            commentId: comment.commentId,
-            text: comment.text,
-            authorUserId: comment.author.userId,
-            authorUsername: comment.author.uniqueId,
-            authorNickname: comment.author.nickname,
-            authorAvatarUrl: comment.author.avatarThumb,
-            authorVerified: comment.author.verified,
-            createTime: new Date(comment.createTime * 1000),
-            likeCount: comment.likeCount,
-            replyCount: comment.replyCount,
-            isReply: comment.isReply,
-            parentCommentId: comment.parentCommentId,
-            sentiment,
-            keywords,
-          });
-
-        if (commentError) {
-          console.error("Error storing comment snapshot:", commentError);
-        }
-      }
+      // Note: Video fetching has been disabled due to LamaTok API limitations
+      // This is a placeholder for future implementation
+      console.log("[TikTok] fetchAndStoreVideoSnapshots:disabled", {
+        reason: "LamaTok API limitation",
+        businessProfileId,
+        dailySnapshotId,
+      });
     } catch (error) {
-      console.error("Error in fetchAndStoreCommentSnapshots:", error);
+      console.error("Error fetching video snapshots:", error);
     }
   }
 
-  private extractKeywords(text: string): string[] {
-    const words = text
-      .toLowerCase()
-      .replace(/[^\w\s]/g, "")
-      .split(/\s+/)
-      .filter((word) => word.length > 2 && !this.isStopWord(word));
-
-    return [...new Set(words)].slice(0, 10);
-  }
-
-  private isStopWord(word: string): boolean {
-    const stopWords = new Set([
-      "the",
-      "a",
-      "an",
-      "and",
-      "or",
-      "but",
-      "in",
-      "on",
-      "at",
-      "to",
-      "for",
-      "of",
-      "with",
-      "by",
-      "is",
-      "are",
-      "was",
-      "were",
-      "be",
-      "been",
-      "being",
-      "have",
-      "has",
-      "had",
-      "do",
-      "does",
-      "did",
-      "will",
-      "would",
-      "could",
-      "should",
-      "may",
-      "might",
-      "can",
-      "this",
-      "that",
-      "these",
-      "those",
-      "i",
-      "you",
-      "he",
-      "she",
-      "it",
-      "we",
-      "they",
-      "me",
-      "him",
-      "her",
-      "us",
-      "them",
-    ]);
-    return stopWords.has(word);
-  }
-
+  /**
+   * Delay execution for rate limiting
+   */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  async close(): Promise<void> {
-    await this.database.close();
   }
 }

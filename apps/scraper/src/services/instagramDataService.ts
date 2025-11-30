@@ -132,10 +132,9 @@ export class InstagramDataService {
       }
 
       // Check if profile already exists
-      const existingProfile = await this.prisma.instagramBusinessProfile.findFirst({
+      const existingProfile = await this.prisma.instagramBusinessProfile.findUnique({
         where: {
           locationId,
-          username: instagramUsername,
         },
       });
 
@@ -263,85 +262,6 @@ export class InstagramDataService {
     } catch (error) {
       console.error("Error scraping Instagram comments:", error);
       return { success: false, processedComments: 0, error: error.message };
-    }
-  }
-
-  /**
-   * Analyze Instagram engagement for business insights
-   */
-  async analyzeEngagementMetrics(businessProfileId: string): Promise<{
-    averageEngagementRate: number;
-    topPerformingPosts: any[];
-    sentimentBreakdown: { positive: number; neutral: number; negative: number };
-    topKeywords: { keyword: string; count: number }[];
-    responseRate: number;
-  }> {
-    try {
-      // Get comments from last 30 days
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const comments = await this.prisma.instagramCommentSnapshot.findMany({
-        where: {
-          businessProfileId,
-          snapshotAt: {
-            gte: thirtyDaysAgo,
-          },
-        },
-      });
-
-      if (!comments || comments.length === 0) {
-        return {
-          averageEngagementRate: 0,
-          topPerformingPosts: [],
-          sentimentBreakdown: { positive: 0, neutral: 0, negative: 0 },
-          topKeywords: [],
-          responseRate: 0,
-        };
-      }
-
-      // Calculate sentiment breakdown
-      const sentimentBreakdown = comments.reduce(
-        (acc, comment) => {
-          if (comment.sentiment > 0.1) acc.positive++;
-          else if (comment.sentiment < -0.1) acc.negative++;
-          else acc.neutral++;
-          return acc;
-        },
-        { positive: 0, neutral: 0, negative: 0 },
-      );
-
-      // Extract top keywords
-      const keywordCounts = {};
-      comments.forEach((comment) => {
-        comment.keywords?.forEach((keyword) => {
-          keywordCounts[keyword] = (keywordCounts[keyword] || 0) + 1;
-        });
-      });
-
-      const topKeywords = Object.entries(keywordCounts)
-        .map(([keyword, count]) => ({ keyword, count: count as number }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
-
-      // Calculate response rate
-      const businessReplies = comments.filter((c) => c.isBusinessReply).length;
-      const customerComments = comments.filter(
-        (c) => !c.isBusinessReply,
-      ).length;
-      const responseRate =
-        customerComments > 0 ? (businessReplies / customerComments) * 100 : 0;
-
-      return {
-        averageEngagementRate: 0, // Would need follower count and media data
-        topPerformingPosts: [], // Would need media performance data
-        sentimentBreakdown,
-        topKeywords,
-        responseRate,
-      };
-    } catch (error) {
-      console.error("Error analyzing engagement metrics:", error);
-      throw error;
     }
   }
 
@@ -586,7 +506,7 @@ export class InstagramDataService {
       today.setHours(0, 0, 0, 0); // Reset time to beginning of day
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      
+
       const existingSnapshot = await this.prisma.instagramDailySnapshot.findFirst({
         where: {
           businessProfileId,
@@ -683,50 +603,62 @@ export class InstagramDataService {
           ? ((dailyLikes + dailyComments) / actualUserData.follower_count) * 100
           : 0;
 
-      // Create daily snapshot with proper point-in-time data
-      const snapshotData: Partial<InstagramDailySnapshot> = {
-        businessProfileId,
-        snapshotDate: today,
-        snapshotTime: today,
-        snapshotType: options.snapshotType || "DAILY",
-        followersCount: actualUserData.follower_count,
-        followingCount: actualUserData.following_count,
-        mediaCount: actualUserData.media_count,
-        // Daily engagement metrics (not cumulative)
-        totalLikes: dailyLikes,
-        totalComments: dailyComments,
-        totalViews: dailyViews,
-        totalSaves: 0, // Would need separate API call
-        totalShares: 0, // Would need separate API call
-        // Daily activity metrics
-        newPosts,
-        newStories,
-        newReels,
-        storyViews: 0, // Would need separate API call
-        storyReplies: 0, // Would need separate API call
-        hasErrors: false,
-      };
+      // Calculate growth metrics from previous snapshot
+      const followersGrowth = previousSnapshot
+        ? actualUserData.follower_count - previousSnapshot.followersCount
+        : 0;
+      const followingGrowth = previousSnapshot
+        ? actualUserData.following_count - previousSnapshot.followingCount
+        : 0;
+      const mediaGrowth = previousSnapshot
+        ? actualUserData.media_count - previousSnapshot.mediaCount
+        : 0;
+      const followersRatio = previousSnapshot && previousSnapshot.followersCount > 0
+        ? (followersGrowth / previousSnapshot.followersCount) * 100
+        : 0;
 
-      // Insert snapshot
+      // Calculate averages
+      const avgLikesPerPost = actualUserData.media_count > 0
+        ? dailyLikes / actualUserData.media_count
+        : 0;
+      const avgCommentsPerPost = actualUserData.media_count > 0
+        ? dailyComments / actualUserData.media_count
+        : 0;
+      const commentsRatio = dailyLikes > 0
+        ? (dailyComments / dailyLikes) * 100
+        : 0;
+
+      // Insert snapshot with calculated values
       const snapshot = await this.prisma.instagramDailySnapshot.create({
         data: {
-          id: uuidv4(),
-          ...snapshotData,
           businessProfileId,
           snapshotDate: today,
           snapshotTime: today,
           snapshotType: options.snapshotType || "DAILY",
-          createdAt: new Date(),
-          followersGrowth: 0,
-          followersRatio: 0,
-          followingGrowth: 0,
-          mediaGrowth: 0,
+          followersCount: actualUserData.follower_count,
+          followingCount: actualUserData.following_count,
+          mediaCount: actualUserData.media_count,
+          totalLikes: dailyLikes,
+          totalComments: dailyComments,
+          totalViews: dailyViews,
+          totalSaves: 0,
+          totalShares: 0,
+          newPosts,
+          newStories,
+          newReels,
+          storyViews: 0,
+          storyReplies: 0,
+          hasErrors: false,
+          followersGrowth,
+          followersRatio,
+          followingGrowth,
+          mediaGrowth,
           weeklyFollowersGrowth: 0,
           monthlyFollowersGrowth: 0,
-          avgLikesPerPost: 0,
-          avgCommentsPerPost: 0,
-          commentsRatio: 0,
-          engagementRate: 0,
+          avgLikesPerPost,
+          avgCommentsPerPost,
+          commentsRatio,
+          engagementRate,
         },
         select: { id: true },
       });
@@ -790,13 +722,13 @@ export class InstagramDataService {
           mentions: media.user_mentions?.map((m) => m.username) || [],
           location: media.location
             ? {
-                id: media.location.pk,
-                name: media.location.name,
-                coordinates: {
-                  lat: media.location.lat,
-                  lng: media.location.lng,
-                },
-              }
+              id: media.location.pk,
+              name: media.location.name,
+              coordinates: {
+                lat: media.location.lat,
+                lng: media.location.lng,
+              },
+            }
             : undefined,
           likesCount: media.like_count,
           commentsCount: media.comment_count,
@@ -912,210 +844,6 @@ export class InstagramDataService {
         return "carousel";
       default:
         return "photo";
-    }
-  }
-
-  /**
-   * Generate weekly aggregation from daily snapshots
-   */
-  async generateWeeklyAggregation(
-    businessProfileId: string,
-    weekStartDate: Date,
-  ): Promise<{ success: boolean; aggregationId?: string; error?: string }> {
-    try {
-      const weekEndDate = new Date(weekStartDate);
-      weekEndDate.setDate(weekEndDate.getDate() + 6);
-
-      // Get daily snapshots for the week
-      const snapshots = await this.prisma.instagramDailySnapshot.findMany({
-        where: {
-          businessProfileId,
-          snapshotDate: {
-            gte: weekStartDate,
-            lte: weekEndDate,
-          },
-        },
-        orderBy: { snapshotDate: 'asc' },
-      });
-
-      if (!snapshots || snapshots.length === 0) {
-        return { success: false, error: "No snapshots found for the week" };
-      }
-
-      // Calculate growth metrics
-      const firstSnapshot = snapshots[0];
-      const lastSnapshot = snapshots[snapshots.length - 1];
-
-      const followersGrowth =
-        lastSnapshot.followersCount - firstSnapshot.followersCount;
-      const followersGrowthPercent =
-        firstSnapshot.followersCount > 0
-          ? (followersGrowth / firstSnapshot.followersCount) * 100
-          : 0;
-
-      const followingGrowth =
-        lastSnapshot.followingCount - firstSnapshot.followingCount;
-      const followingGrowthPercent =
-        firstSnapshot.followingCount > 0
-          ? (followingGrowth / firstSnapshot.followingCount) * 100
-          : 0;
-
-      const mediaGrowth = lastSnapshot.mediaCount - firstSnapshot.mediaCount;
-
-      // Calculate weekly totals
-      const totalLikes = snapshots.reduce((sum, s) => sum + s.totalLikes, 0);
-      const totalComments = snapshots.reduce(
-        (sum, s) => sum + s.totalComments,
-        0,
-      );
-      const totalViews = snapshots.reduce((sum, s) => sum + s.totalViews, 0);
-
-      // Calculate averages
-      const avgDailyLikes = totalLikes / snapshots.length;
-      const avgDailyComments = totalComments / snapshots.length;
-      const avgDailyViews = totalViews / snapshots.length;
-
-      // Get week number
-      const year = weekStartDate.getFullYear();
-      const weekNumber = this.getWeekNumber(weekStartDate);
-
-      // Note: Weekly aggregations are no longer stored in database
-      // Analytics are calculated on-demand from snapshots via tRPC
-      // Return success for backward compatibility
-      console.log('Weekly aggregation calculated (not stored):', {
-        followersGrowth,
-        followersGrowthPercent,
-        totalLikes,
-        totalComments,
-      });
-      return { 
-        success: true, 
-        aggregationId: 'deprecated-not-stored',
-      };
-    } catch (error) {
-      console.error("Error generating weekly aggregation:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Get week number for a date
-   */
-  private getWeekNumber(date: Date): number {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear =
-      (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-  }
-
-  /**
-   * Get analytics for a specific period
-   */
-  async getAnalytics(
-    businessProfileId: string,
-    request: GetAnalyticsRequest,
-  ): Promise<{ success: boolean; analytics?: any; error?: string }> {
-    try {
-      const { period, startDate, endDate } = request;
-
-      let start: Date;
-      let end: Date;
-
-      if (startDate && endDate) {
-        start = new Date(startDate);
-        end = new Date(endDate);
-      } else {
-        // Default to last period
-        end = new Date();
-        start = new Date();
-
-        switch (period) {
-          case "week":
-            start.setDate(start.getDate() - 7);
-            break;
-          case "month":
-            start.setMonth(start.getMonth() - 1);
-            break;
-          case "quarter":
-            start.setMonth(start.getMonth() - 3);
-            break;
-          case "year":
-            start.setFullYear(start.getFullYear() - 1);
-            break;
-        }
-      }
-
-      // Get snapshots for the period
-      const snapshots = await this.prisma.instagramDailySnapshot.findMany({
-        where: {
-          businessProfileId,
-          snapshotDate: {
-            gte: start,
-            lte: end,
-          },
-        },
-        orderBy: { snapshotDate: 'asc' },
-      });
-
-      if (!snapshots || snapshots.length === 0) {
-        return {
-          success: false,
-          error: "No data found for the specified period",
-        };
-      }
-
-      // Calculate analytics
-      const firstSnapshot = snapshots[0];
-      const lastSnapshot = snapshots[snapshots.length - 1];
-
-      const analytics = {
-        growth: {
-          followersGrowth:
-            lastSnapshot.followersCount - firstSnapshot.followersCount,
-          followersGrowthPercent:
-            firstSnapshot.followersCount > 0
-              ? ((lastSnapshot.followersCount - firstSnapshot.followersCount) /
-                  firstSnapshot.followersCount) *
-                100
-              : 0,
-          followingGrowth:
-            lastSnapshot.followingCount - firstSnapshot.followingCount,
-          mediaGrowth: lastSnapshot.mediaCount - firstSnapshot.mediaCount,
-        },
-        engagement: {
-          totalLikes: snapshots.reduce((sum, s) => sum + s.totalLikes, 0),
-          totalComments: snapshots.reduce((sum, s) => sum + s.totalComments, 0),
-          totalViews: snapshots.reduce((sum, s) => sum + s.totalViews, 0),
-          avgEngagementRate: this.calculateAverageEngagementRate(snapshots),
-          avgDailyLikes:
-            snapshots.reduce((sum, s) => sum + s.totalLikes, 0) /
-            snapshots.length,
-          avgDailyComments:
-            snapshots.reduce((sum, s) => sum + s.totalComments, 0) /
-            snapshots.length,
-          avgDailyViews:
-            snapshots.reduce((sum, s) => sum + s.totalViews, 0) /
-            snapshots.length,
-        },
-        sentiment: {
-          positive: 0,
-          neutral: 0,
-          negative: 0,
-          topKeywords: [],
-        },
-        trends: {
-          growthTrend:
-            lastSnapshot.followersCount > firstSnapshot.followersCount
-              ? "increasing"
-              : "decreasing",
-          engagementTrend: this.calculateEngagementTrend(snapshots),
-        },
-      };
-
-      return { success: true, analytics };
-    } catch (error) {
-      console.error("Error getting analytics:", error);
-      return { success: false, error: error.message };
     }
   }
 

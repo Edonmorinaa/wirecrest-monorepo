@@ -1,7 +1,6 @@
-import { 
-  EngagementMetrics, 
-  InstagramAnalytics, 
-  InstagramDailySnapshot 
+import {
+  EngagementMetrics,
+  InstagramDailySnapshot
 } from '@/types/instagram-analytics';
 
 import { InstagramCalculationUtils } from './instagram-calculation-utils';
@@ -16,7 +15,7 @@ export class EngagementMetricsCalculator {
    */
   static calculate(
     snapshots: InstagramDailySnapshot[],
-    analytics: InstagramAnalytics[]
+    analytics: any[] = []
   ): EngagementMetrics | null {
     if (snapshots.length === 0) {
       return null;
@@ -34,7 +33,7 @@ export class EngagementMetricsCalculator {
     const avgLikes = InstagramCalculationUtils.formatNumber(
       InstagramCalculationUtils.calculateAvgLikesPerPost(latestSnapshot)
     );
-    
+
     const avgComments = InstagramCalculationUtils.formatNumber(
       InstagramCalculationUtils.calculateAvgCommentsPerPost(latestSnapshot)
     );
@@ -93,12 +92,12 @@ export class EngagementMetricsCalculator {
    */
   private static calculateWeeklyEngagementRate(snapshots: InstagramDailySnapshot[]): number {
     if (snapshots.length === 0) return 0;
-    
+
     const recentSnapshots = snapshots.slice(-7);
-    const engagementRates = recentSnapshots.map(snapshot => 
+    const engagementRates = recentSnapshots.map(snapshot =>
       InstagramCalculationUtils.calculateEngagementRate(snapshot)
     );
-    
+
     const sum = engagementRates.reduce((total, rate) => total + rate, 0);
     return sum / engagementRates.length;
   }
@@ -107,7 +106,7 @@ export class EngagementMetricsCalculator {
    * Calculate weekly engagement rate up to a specific index
    */
   private static calculateWeeklyEngagementRateUpTo(
-    snapshots: InstagramDailySnapshot[], 
+    snapshots: InstagramDailySnapshot[],
     index: number
   ): number {
     const startIndex = Math.max(0, index - 6);
@@ -119,7 +118,7 @@ export class EngagementMetricsCalculator {
    * Calculate weekly posts up to a specific index
    */
   private static calculateWeeklyPostsUpTo(
-    snapshots: InstagramDailySnapshot[], 
+    snapshots: InstagramDailySnapshot[],
     index: number
   ): number {
     const startIndex = Math.max(0, index - 6);

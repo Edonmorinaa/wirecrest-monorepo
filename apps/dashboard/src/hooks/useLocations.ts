@@ -59,7 +59,7 @@ export function useLocation(locationId: string) {
  */
 export function useLocationBySlug(teamSlug: string, locationSlug: string) {
   const { locations, isLoading, error } = useLocations(teamSlug);
-  
+
   // Find location by matching the slug field or fallback to ID
   const location = locations?.find(
     (loc) => (loc.slug || loc.id) === locationSlug
@@ -77,7 +77,7 @@ export function useLocationBySlug(teamSlug: string, locationSlug: string) {
  */
 export function useCreateLocation() {
   const utils = trpc.useUtils();
-  
+
   const mutation = trpc.locations.create.useMutation({
     onSuccess: () => {
       // Invalidate locations list to refetch
@@ -98,7 +98,7 @@ export function useCreateLocation() {
  */
 export function useUpdateLocation() {
   const utils = trpc.useUtils();
-  
+
   const mutation = trpc.locations.update.useMutation({
     onSuccess: (data) => {
       // Invalidate specific location and list
@@ -120,7 +120,7 @@ export function useUpdateLocation() {
  */
 export function useDeleteLocation() {
   const utils = trpc.useUtils();
-  
+
   const mutation = trpc.locations.delete.useMutation({
     onSuccess: () => {
       // Invalidate locations list
@@ -248,7 +248,7 @@ export function useGoogleEnhancedGraph(
  */
 export function useUpdateGoogleReviewMetadata() {
   const utils = trpc.useUtils();
-  
+
   return trpc.locations.google.updateReviewMetadata.useMutation({
     onSuccess: () => {
       // Invalidate reviews query to refetch updated data
@@ -371,7 +371,7 @@ export function useFacebookEnhancedGraph(
  */
 export function useUpdateFacebookReviewMetadata() {
   const utils = trpc.useUtils();
-  
+
   return trpc.locations.facebook.updateReviewMetadata.useMutation({
     onSuccess: () => {
       // Invalidate reviews query to refetch updated data
@@ -494,7 +494,7 @@ export function useTripAdvisorEnhancedGraph(
  */
 export function useUpdateTripAdvisorReviewMetadata() {
   const utils = trpc.useUtils();
-  
+
   return trpc.locations.tripadvisor.updateReviewMetadata.useMutation({
     onSuccess: () => {
       // Invalidate reviews query to refetch updated data
@@ -617,11 +617,63 @@ export function useBookingEnhancedGraph(
  */
 export function useUpdateBookingReviewMetadata() {
   const utils = trpc.useUtils();
-  
+
   return trpc.locations.booking.updateReviewMetadata.useMutation({
     onSuccess: () => {
       // Invalidate reviews query to refetch updated data
       utils.locations.booking.getReviews.invalidate();
     },
   });
+}
+
+// ==========================================
+// INSTAGRAM PLATFORM HOOKS
+// ==========================================
+
+/**
+ * Hook to get Instagram Business Profile
+ */
+export function useInstagramProfile(locationSlug: string, teamSlug: string, enabled = true) {
+  const { data, error, isLoading, refetch } = trpc.platforms.instagramProfile.useQuery(
+    { slug: teamSlug, locationSlug },
+    {
+      enabled: enabled && !!teamSlug && !!locationSlug,
+      refetchOnWindowFocus: false,
+      staleTime: 60000, // 1 minute
+    }
+  );
+
+  return {
+    profile: data || null,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+/**
+ * Hook to get Instagram Analytics with date range
+ */
+export function useInstagramAnalytics(
+  teamSlug: string,
+  locationSlug: string,
+  startDate: string,
+  endDate: string,
+  enabled = true
+) {
+  const { data, error, isLoading, refetch } = trpc.platforms.instagramAnalytics.useQuery(
+    { slug: teamSlug, locationSlug, startDate, endDate },
+    {
+      enabled: enabled && !!teamSlug && !!locationSlug && !!startDate && !!endDate,
+      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 seconds
+    }
+  );
+
+  return {
+    analytics: data || null,
+    isLoading,
+    error,
+    refetch,
+  };
 }

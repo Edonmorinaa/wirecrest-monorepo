@@ -1137,15 +1137,15 @@ export const locationsRouter = router({
         };
 
         // Calculate response metrics
-        const reviewsWithResponse = reviews.filter((r) => r.responseFromOwner).length;
+        const reviewsWithResponse = reviews.filter((r) => r.responseFromOwnerText).length;
         const responseRate = reviews.length > 0 ? (reviewsWithResponse / reviews.length) * 100 : 0;
 
         // Calculate average response time in hours (if response data exists)
         let totalResponseTime = 0;
         let responsesWithTime = 0;
         reviews.forEach((review) => {
-          if (review.responseFromOwner && review.responseDate && review.date) {
-            const responseTime = new Date(review.responseDate).getTime() - new Date(review.date).getTime();
+          if (review.responseFromOwnerText && review.responseFromOwnerDate && review.date) {
+            const responseTime = new Date(review.responseFromOwnerDate).getTime() - new Date(review.date).getTime();
             totalResponseTime += responseTime;
             responsesWithTime++;
           }
@@ -1266,14 +1266,76 @@ export const locationsRouter = router({
           businessProfileId: profile.id,
         };
 
+        // Handle isRecommended filter (Facebook-specific)
+        if (filters.isRecommended !== undefined) {
+          whereClause.isRecommended = filters.isRecommended;
+        }
+
+        // Handle hasResponse filter
         if (filters.hasResponse !== undefined) {
           if (filters.hasResponse) {
-            whereClause.responseFromOwner = { not: null };
+            whereClause.responseFromOwnerText = { not: null };
           } else {
-            whereClause.responseFromOwner = null;
+            whereClause.responseFromOwnerText = null;
           }
         }
 
+        // Handle engagement filters
+        if (filters.hasLikes) {
+          whereClause.likesCount = { gt: 0 };
+        }
+
+        if (filters.hasComments) {
+          whereClause.commentsCount = { gt: 0 };
+        }
+
+        if (filters.hasPhotos) {
+          whereClause.photos = { some: {} };
+        }
+
+        if (filters.hasTags) {
+          whereClause.tags = { isEmpty: false };
+        }
+
+        // Handle likes range
+        if (filters.minLikes !== undefined || filters.maxLikes !== undefined) {
+          whereClause.likesCount = {
+            ...(filters.minLikes !== undefined && { gte: filters.minLikes }),
+            ...(filters.maxLikes !== undefined && { lte: filters.maxLikes }),
+          };
+        }
+
+        // Handle comments range
+        if (filters.minComments !== undefined || filters.maxComments !== undefined) {
+          whereClause.commentsCount = {
+            ...(filters.minComments !== undefined && { gte: filters.minComments }),
+            ...(filters.maxComments !== undefined && { lte: filters.maxComments }),
+          };
+        }
+
+        // Handle sentiment filter (map to recommendation)
+        if (filters.sentiment) {
+          if (filters.sentiment === 'positive') {
+            whereClause.isRecommended = true;
+          } else if (filters.sentiment === 'negative') {
+            whereClause.isRecommended = false;
+          }
+          // neutral sentiment doesn't apply to Facebook (no neutral state)
+        }
+
+        // Handle metadata filters (isRead, isImportant)
+        if (filters.isRead !== undefined || filters.isImportant !== undefined) {
+          const metadataConditions: any = {};
+          if (filters.isRead !== undefined) {
+            metadataConditions.isRead = filters.isRead;
+          }
+          if (filters.isImportant !== undefined) {
+            metadataConditions.isImportant = filters.isImportant;
+          }
+          whereClause.reviewMetadata = { is: metadataConditions };
+        }
+
+        // Handle search filter
         if (filters.search) {
           whereClause.OR = [
             { text: { contains: filters.search, mode: 'insensitive' } },
@@ -1281,6 +1343,7 @@ export const locationsRouter = router({
           ];
         }
 
+        // Handle date range filters
         if (filters.startDate) {
           whereClause.date = { ...whereClause.date, gte: new Date(filters.startDate) };
         }
@@ -1289,13 +1352,40 @@ export const locationsRouter = router({
           whereClause.date = { ...whereClause.date, lte: new Date(filters.endDate) };
         }
 
+        // Build orderBy based on sortBy and sortOrder
+        let orderBy: any;
+        const sortOrder = filters.sortOrder || 'desc';
+
+        switch (filters.sortBy) {
+          case 'likes':
+            orderBy = { likesCount: sortOrder };
+            break;
+          case 'comments':
+            orderBy = { commentsCount: sortOrder };
+            break;
+          case 'recommendation':
+            orderBy = { isRecommended: sortOrder };
+            break;
+          case 'engagement':
+            // Sort by combined engagement (likes + comments)
+            orderBy = [
+              { likesCount: sortOrder },
+              { commentsCount: sortOrder },
+            ];
+            break;
+          case 'date':
+          default:
+            orderBy = { date: sortOrder };
+            break;
+        }
+
         const [reviews, totalCount, allReviews] = await Promise.all([
           prisma.facebookReview.findMany({
             where: whereClause,
             include: { reviewMetadata: true },
             skip,
             take: pagination.limit,
-            orderBy: { date: filters.sortOrder || 'desc' },
+            orderBy,
           }),
           prisma.facebookReview.count({ where: whereClause }),
           // Get all reviews for allTimeStats (without pagination)
@@ -1311,7 +1401,7 @@ export const locationsRouter = router({
         // Calculate allTimeStats from all reviews
         const allTimeRecommendations = calculateFacebookRecommendations(allReviews);
         const unreadCount = allReviews.filter((r) => !r.reviewMetadata?.isRead).length;
-        const withResponseCount = allReviews.filter((r) => r.responseFromOwner).length;
+        const withResponseCount = allReviews.filter((r) => r.responseFromOwnerText).length;
 
         const allTimeStats = {
           totalReviews: allReviews.length,
@@ -1587,6 +1677,7 @@ export const locationsRouter = router({
           businessProfileId: profile.id,
         };
 
+        // Handle rating filter
         if (filters.rating) {
           if (Array.isArray(filters.rating)) {
             whereClause.rating = { in: filters.rating };
@@ -1595,6 +1686,32 @@ export const locationsRouter = router({
           }
         }
 
+        // Handle tripType filter (TripAdvisor-specific)
+        if (filters.tripType) {
+          if (Array.isArray(filters.tripType)) {
+            whereClause.tripType = { in: filters.tripType };
+          } else {
+            whereClause.tripType = filters.tripType;
+          }
+        }
+
+        // Handle sentiment filter
+        if (filters.sentiment) {
+          if (filters.sentiment === 'positive') {
+            whereClause.rating = { gte: 4 };
+          } else if (filters.sentiment === 'neutral') {
+            whereClause.rating = 3;
+          } else if (filters.sentiment === 'negative') {
+            whereClause.rating = { lte: 2 };
+          }
+        }
+
+        // Handle hasPhotos filter
+        if (filters.hasPhotos) {
+          whereClause.photos = { some: {} };
+        }
+
+        // Handle hasResponse filter
         if (filters.hasResponse !== undefined) {
           if (filters.hasResponse) {
             whereClause.responseFromOwner = { not: null };
@@ -1603,6 +1720,19 @@ export const locationsRouter = router({
           }
         }
 
+        // Handle metadata filters (isRead, isImportant)
+        if (filters.isRead !== undefined || filters.isImportant !== undefined) {
+          const metadataConditions: any = {};
+          if (filters.isRead !== undefined) {
+            metadataConditions.isRead = filters.isRead;
+          }
+          if (filters.isImportant !== undefined) {
+            metadataConditions.isImportant = filters.isImportant;
+          }
+          whereClause.reviewMetadata = { is: metadataConditions };
+        }
+
+        // Handle search filter
         if (filters.search) {
           whereClause.OR = [
             { text: { contains: filters.search, mode: 'insensitive' } },
@@ -1611,6 +1741,7 @@ export const locationsRouter = router({
           ];
         }
 
+        // Handle date range filters
         if (filters.startDate) {
           whereClause.publishedDate = { ...whereClause.publishedDate, gte: new Date(filters.startDate) };
         }
@@ -1619,13 +1750,39 @@ export const locationsRouter = router({
           whereClause.publishedDate = { ...whereClause.publishedDate, lte: new Date(filters.endDate) };
         }
 
+        // Build orderBy based on sortBy and sortOrder
+        let orderBy: any;
+        const sortOrder = filters.sortOrder || 'desc';
+
+        switch (filters.sortBy) {
+          case 'rating':
+            orderBy = { rating: sortOrder };
+            break;
+          case 'helpfulVotes':
+            orderBy = { helpfulVotes: sortOrder };
+            break;
+          case 'visitDate':
+            orderBy = { visitDate: sortOrder };
+            break;
+          case 'responseStatus':
+            orderBy = [
+              { responseFromOwner: sortOrder === 'desc' ? 'desc' : 'asc' },
+              { publishedDate: sortOrder },
+            ];
+            break;
+          case 'publishedDate':
+          default:
+            orderBy = { publishedDate: sortOrder };
+            break;
+        }
+
         const [reviews, totalCount, allReviews] = await Promise.all([
           prisma.tripAdvisorReview.findMany({
             where: whereClause,
             include: { reviewMetadata: true, subRatings: true },
             skip,
             take: pagination.limit,
-            orderBy: { publishedDate: filters.sortOrder || 'desc' },
+            orderBy,
           }),
           prisma.tripAdvisorReview.count({ where: whereClause }),
           // Get all reviews for allTimeStats (without pagination)
@@ -1923,17 +2080,27 @@ export const locationsRouter = router({
           businessProfileId: profile.id,
         };
 
+        // Handle rating filter with proper 1-5 to 1-10 conversion
         if (filters.rating) {
-          // Convert 1-5 filter to 1-10 range
           if (Array.isArray(filters.rating)) {
-            const ranges = filters.rating.map((r) => {
-              if (r === 5) return { gte: 9 };
-              if (r === 4) return { gte: 7, lt: 9 };
-              if (r === 3) return { gte: 5, lt: 7 };
-              if (r === 2) return { gte: 3, lt: 5 };
-              return { lt: 3 };
+            // For multiple ratings, convert to actual 1-10 values and use IN clause
+            const bookingRatings: number[] = [];
+
+            filters.rating.forEach((r) => {
+              if (r === 5) {
+                bookingRatings.push(9, 10); // 9-10 maps to 5 stars
+              } else if (r === 4) {
+                bookingRatings.push(7, 8); // 7-8 maps to 4 stars
+              } else if (r === 3) {
+                bookingRatings.push(5, 6); // 5-6 maps to 3 stars
+              } else if (r === 2) {
+                bookingRatings.push(3, 4); // 3-4 maps to 2 stars
+              } else if (r === 1) {
+                bookingRatings.push(1, 2); // 1-2 maps to 1 star
+              }
             });
-            whereClause.OR = ranges.map((range) => ({ rating: range }));
+
+            whereClause.rating = { in: bookingRatings };
           } else {
             const r = filters.rating;
             if (r === 5) whereClause.rating = { gte: 9 };
@@ -1944,6 +2111,49 @@ export const locationsRouter = router({
           }
         }
 
+        // Handle guestType filter (Booking-specific)
+        if (filters.guestType) {
+          whereClause.guestType = filters.guestType;
+        }
+
+        // Handle isVerifiedStay filter (Booking-specific)
+        if (filters.isVerifiedStay !== undefined) {
+          whereClause.isVerifiedStay = filters.isVerifiedStay;
+        }
+
+        // Handle lengthOfStay filter (Booking-specific)
+        if (filters.lengthOfStay) {
+          if (filters.lengthOfStay === 'short') {
+            whereClause.lengthOfStay = { lte: 2 };
+          } else if (filters.lengthOfStay === 'medium') {
+            whereClause.lengthOfStay = { gte: 3, lte: 7 };
+          } else if (filters.lengthOfStay === 'long') {
+            whereClause.lengthOfStay = { gte: 8 };
+          }
+        }
+
+        // Handle nationality filter (Booking-specific)
+        if (filters.nationality) {
+          whereClause.nationality = { contains: filters.nationality, mode: 'insensitive' };
+        }
+
+        // Handle roomType filter (Booking-specific)
+        if (filters.roomType) {
+          whereClause.roomType = { contains: filters.roomType, mode: 'insensitive' };
+        }
+
+        // Handle sentiment filter (using 10-point scale)
+        if (filters.sentiment) {
+          if (filters.sentiment === 'positive') {
+            whereClause.rating = { gte: 7 };
+          } else if (filters.sentiment === 'neutral') {
+            whereClause.rating = { gte: 5, lt: 7 };
+          } else if (filters.sentiment === 'negative') {
+            whereClause.rating = { lt: 5 };
+          }
+        }
+
+        // Handle hasResponse filter
         if (filters.hasResponse !== undefined) {
           if (filters.hasResponse) {
             whereClause.responseFromOwner = { not: null };
@@ -1952,6 +2162,19 @@ export const locationsRouter = router({
           }
         }
 
+        // Handle metadata filters (isRead, isImportant)
+        if (filters.isRead !== undefined || filters.isImportant !== undefined) {
+          const metadataConditions: any = {};
+          if (filters.isRead !== undefined) {
+            metadataConditions.isRead = filters.isRead;
+          }
+          if (filters.isImportant !== undefined) {
+            metadataConditions.isImportant = filters.isImportant;
+          }
+          whereClause.reviewMetadata = { is: metadataConditions };
+        }
+
+        // Handle search filter
         if (filters.search) {
           whereClause.OR = [
             { positiveText: { contains: filters.search, mode: 'insensitive' } },
@@ -1960,6 +2183,7 @@ export const locationsRouter = router({
           ];
         }
 
+        // Handle date range filters
         if (filters.startDate) {
           whereClause.publishedDate = { ...whereClause.publishedDate, gte: new Date(filters.startDate) };
         }
@@ -1968,13 +2192,33 @@ export const locationsRouter = router({
           whereClause.publishedDate = { ...whereClause.publishedDate, lte: new Date(filters.endDate) };
         }
 
+        // Build orderBy based on sortBy and sortOrder
+        let orderBy: any;
+        const sortOrder = filters.sortOrder || 'desc';
+
+        switch (filters.sortBy) {
+          case 'rating':
+            orderBy = { rating: sortOrder };
+            break;
+          case 'responseStatus':
+            orderBy = [
+              { responseFromOwner: sortOrder === 'desc' ? 'desc' : 'asc' },
+              { publishedDate: sortOrder },
+            ];
+            break;
+          case 'publishedDate':
+          default:
+            orderBy = { publishedDate: sortOrder };
+            break;
+        }
+
         const [reviews, totalCount, allReviews] = await Promise.all([
           prisma.bookingReview.findMany({
             where: whereClause,
             include: { reviewMetadata: true },
             skip,
             take: pagination.limit,
-            orderBy: { publishedDate: filters.sortOrder || 'desc' },
+            orderBy,
           }),
           prisma.bookingReview.count({ where: whereClause }),
           // Get all reviews for allTimeStats (without pagination)
